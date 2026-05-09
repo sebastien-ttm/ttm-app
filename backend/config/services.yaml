@@ -1,0 +1,50 @@
+parameters:
+    app.public_url: '%env(APP_PUBLIC_URL)%'
+    app.mobile_scheme: '%env(APP_MOBILE_SCHEME)%'
+    app.magic_link_ttl: '%env(int:MAGIC_LINK_TTL)%'
+    app.mailer_from: '%env(MAILER_FROM)%'
+    app.mailer_from_name: '%env(MAILER_FROM_NAME)%'
+    app.expo_access_token: '%env(EXPO_ACCESS_TOKEN)%'
+    app.uploads.articles_dir: '%kernel.project_dir%/public/uploads/articles'
+    app.uploads.banners_dir: '%kernel.project_dir%/public/uploads/banners'
+    app.uploads.training_dir: '%kernel.project_dir%/var/uploads/training'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            $publicUrl: '%app.public_url%'
+            $mobileScheme: '%app.mobile_scheme%'
+            $ttl: '%app.magic_link_ttl%'
+            $expoAccessToken: '%app.expo_access_token%'
+            $csvImportLogger: '@monolog.logger.csv_import'
+            $pushLogger: '@monolog.logger.push'
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\EventListener\AuthSuccessListener:
+        arguments:
+            $refreshTtl: 2592000
+
+    App\Service\Serializer\ApiSerializer:
+        arguments:
+            $publicUrl: '%app.public_url%'
+
+    App\Controller\Api\TrainingPlanController:
+        arguments:
+            $trainingDir: '%app.uploads.training_dir%'
+
+    App\DataFixtures\AppFixtures:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    # HTMLPurifier for sanitizing article HTML
+    HTMLPurifier:
+        class: HTMLPurifier
+        factory: ['App\Service\HtmlPurifierFactory', 'create']

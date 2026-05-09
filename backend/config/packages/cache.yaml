@@ -1,0 +1,5 @@
+framework:
+    cache:
+        # Use filesystem on shared hosting (no Redis/APCu reliable)
+        app: cache.adapter.filesystem
+        system: cache.adapter.system

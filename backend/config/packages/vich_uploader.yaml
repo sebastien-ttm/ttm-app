@@ -1,0 +1,26 @@
+vich_uploader:
+    db_driver: orm
+    metadata:
+        type: attribute
+    mappings:
+        article_photos:
+            uri_prefix: /uploads/articles
+            upload_destination: '%app.uploads.articles_dir%'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+            inject_on_load: false
+            delete_on_update: true
+            delete_on_remove: true
+        banners:
+            uri_prefix: /uploads/banners
+            upload_destination: '%app.uploads.banners_dir%'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+            inject_on_load: false
+            delete_on_update: true
+            delete_on_remove: true
+        training_files:
+            uri_prefix: /uploads/training  # not directly servable; controller handles auth
+            upload_destination: '%app.uploads.training_dir%'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+            inject_on_load: false
+            delete_on_update: true
+            delete_on_remove: true

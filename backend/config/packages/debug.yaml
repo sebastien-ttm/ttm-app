@@ -1,0 +1,8 @@
+when@dev:
+    debug:
+        # Forwards VarDumper Data clones to a centralized server allowing to inspect them later
+        dump_destination: "tcp://%env(VAR_DUMPER_SERVER)%"
+
+when@test:
+    debug:
+        dump_destination: null

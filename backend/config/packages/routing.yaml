@@ -1,0 +1,10 @@
+framework:
+    router:
+        utf8: true
+        # default_uri set per environment via APP_PUBLIC_URL
+        default_uri: '%env(APP_PUBLIC_URL)%'
+
+when@prod:
+    framework:
+        router:
+            strict_requirements: null

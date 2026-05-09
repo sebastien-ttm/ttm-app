@@ -1,0 +1,77 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Import CSV adhérents{% endblock %}
+
+{% block main %}
+    <div style="background:#fff; padding:24px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); max-width:800px;">
+        <p>Importez un export CSV de l'Espace Tri pour synchroniser les comptes adhérents.</p>
+
+        <h3 style="margin-top:24px;">Colonnes attendues</h3>
+        <pre style="background:#f5f5f5; padding:10px; border-radius:6px; font-size:13px;">num_licence,nom,prenom,email,telephone,categorie,statut_licence</pre>
+
+        <p style="font-size:14px; color:#555;">
+            <strong>Comportement :</strong> les lignes existantes (par <code>num_licence</code>) sont mises à jour.
+            Les nouvelles lignes créent un compte et déclenchent un e-mail de bienvenue avec magic link.
+            Les comptes absents de l'import sont désactivés (jamais supprimés).
+        </p>
+
+        {% if error %}
+            <div style="background:#FEE; color:#C62828; padding:12px 16px; border-radius:6px; margin:16px 0;">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" style="margin-top:24px;">
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-weight:600; margin-bottom:6px;">Fichier CSV</label>
+                <input type="file" name="csv_file" accept=".csv,.txt" required>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-weight:600; margin-bottom:6px;">Séparateur</label>
+                <select name="delimiter">
+                    <option value=",">virgule (,)</option>
+                    <option value=";">point-virgule (;)</option>
+                    <option value="	">tabulation</option>
+                </select>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label>
+                    <input type="checkbox" name="send_welcome" value="1" checked>
+                    Envoyer un e-mail de bienvenue aux nouveaux comptes
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Lancer l'import</button>
+        </form>
+
+        {% if result %}
+            <hr style="margin:30px 0;">
+            <h3>Résultat</h3>
+            <ul style="font-size:15px;">
+                <li><strong>{{ result.created }}</strong> compte(s) créé(s)</li>
+                <li><strong>{{ result.updated }}</strong> compte(s) mis à jour</li>
+                <li><strong>{{ result.deactivated }}</strong> compte(s) désactivé(s)</li>
+                <li><strong>{{ result.errors|length }}</strong> erreur(s)</li>
+            </ul>
+
+            {% if result.errors %}
+                <h4 style="margin-top:20px;">Erreurs détaillées</h4>
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Ligne</th>
+                            <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Erreur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for err in result.errors %}
+                            <tr>
+                                <td style="padding:8px; border-bottom:1px solid #eee;">{{ err.line }}</td>
+                                <td style="padding:8px; border-bottom:1px solid #eee; color:#C62828;">{{ err.error }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

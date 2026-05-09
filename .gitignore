@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Logs
+*.log
+
+# Local env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Symfony — see backend/.gitignore for fine-grained
+backend/var/
+backend/vendor/
+backend/.env.local
+backend/.env.*.local
+backend/config/jwt/*.pem
+backend/public/uploads/
+
+# Build artifacts
+*.tgz
+*.zip

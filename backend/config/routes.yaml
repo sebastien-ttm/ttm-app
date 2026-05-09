@@ -1,0 +1,16 @@
+controllers:
+    resource:
+        path: ../src/Controller/
+        namespace: App\Controller
+    type: attribute
+
+# JWT login
+api_login_check:
+    path: /api/auth/login
+    methods: [POST]
+
+# JWT refresh token endpoint (registered by gesdinet bundle)
+api_token_refresh:
+    path: /api/auth/refresh
+    controller: gesdinet.jwtrefreshtoken::refresh
+    methods: [POST]

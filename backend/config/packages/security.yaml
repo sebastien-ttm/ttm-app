@@ -1,0 +1,80 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    role_hierarchy:
+        ROLE_COACH: ROLE_USER
+        ROLE_ADMIN: [ROLE_USER, ROLE_COACH]
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        api_login:
+            pattern: ^/api/auth/login$
+            stateless: true
+            json_login:
+                check_path: api_login_check
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        api_refresh:
+            pattern: ^/api/auth/refresh$
+            stateless: true
+            refresh_jwt:
+                check_path: api_token_refresh
+
+        api_public:
+            pattern: ^/api/(auth/magic-link|banner/active|public)
+            stateless: true
+            security: false
+
+        api:
+            pattern: ^/api
+            stateless: true
+            jwt: ~
+
+        admin:
+            pattern: ^/admin
+            lazy: true
+            provider: app_user_provider
+            form_login:
+                login_path: admin_login
+                check_path: admin_login
+                username_parameter: email
+                password_parameter: password
+                default_target_path: admin_dashboard
+                enable_csrf: true
+            logout:
+                path: admin_logout
+                target: admin_login
+
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    access_control:
+        - { path: ^/admin/login, roles: PUBLIC_ACCESS }
+        - { path: ^/admin/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/admin, roles: ROLE_COACH }
+        - { path: ^/api/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/api/banner/active, roles: PUBLIC_ACCESS }
+        - { path: ^/api, roles: ROLE_USER }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10

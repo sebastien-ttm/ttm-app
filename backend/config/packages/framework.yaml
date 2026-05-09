@@ -1,0 +1,39 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+    http_method_override: false
+    handle_all_throwables: true
+
+    # Required for SecurityBundle
+    session:
+        handler_id: null
+        cookie_secure: auto
+        cookie_samesite: lax
+        storage_factory_id: session.storage.factory.native
+        name: TTM_SESSION
+
+    php_errors:
+        log: true
+
+    serializer:
+        default_context:
+            datetime_format: 'Y-m-d\TH:i:sP'
+
+    rate_limiter:
+        magic_link_request_ip:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
+        magic_link_request_email:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
+        login_ip:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '15 minutes'
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file
