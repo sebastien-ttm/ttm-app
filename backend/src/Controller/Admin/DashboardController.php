@@ -40,7 +40,9 @@ class DashboardController extends AbstractDashboardController
         return Assets::new()
             // Wires Trix editor → /admin/upload/inline so dragged/pasted images
             // get uploaded server-side and embedded as <img>.
-            ->addJsFile('admin/js/trix-uploads.js');
+            // (Path is /js/... not /admin/js/... to avoid PHP -S serving the
+            // admin directory as static instead of routing to Symfony.)
+            ->addJsFile('js/trix-uploads.js');
     }
 
     public function configureMenuItems(): iterable
