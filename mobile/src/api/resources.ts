@@ -1,0 +1,53 @@
+import { api } from './client';
+import type {
+  Article,
+  Banner,
+  Comment,
+  EventItem,
+  MenuItem,
+  Paginated,
+  StaticPage,
+  StaticPageSummary,
+  TrainingPlan,
+} from './types';
+
+export const articles = {
+  list: (page = 1) => api.get<Paginated<Article>>(`/api/articles?page=${page}`),
+  get: (id: number) => api.get<Article>(`/api/articles/${id}`),
+  comments: (id: number, page = 1) =>
+    api.get<Paginated<Comment>>(`/api/articles/${id}/comments?page=${page}`),
+  addComment: (id: number, content: string) =>
+    api.post<Comment>(`/api/articles/${id}/comments`, { content }),
+  toggleReaction: (id: number, emoji: string) =>
+    api.put<{ action: 'added' | 'removed'; emoji: string; reactionCounts: Record<string, number> }>(
+      `/api/articles/${id}/reactions`,
+      { emoji },
+    ),
+};
+
+export const trainingPlans = {
+  list: (page = 1) => api.get<Paginated<TrainingPlan>>(`/api/training-plans?page=${page}`),
+  get: (id: number) => api.get<TrainingPlan>(`/api/training-plans/${id}`),
+};
+
+export const pages = {
+  list: () => api.get<{ data: StaticPageSummary[] }>('/api/pages'),
+  get: (slug: string) => api.get<StaticPage>(`/api/pages/${slug}`),
+};
+
+export const menu = {
+  list: () => api.get<{ data: MenuItem[] }>('/api/menu'),
+};
+
+export const events = {
+  list: (from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    return api.get<{ data: EventItem[]; from: string; to: string }>(`/api/events?${qs.toString()}`);
+  },
+};
+
+export const banner = {
+  active: () => api.get<{ data: Banner | null }>('/api/banner/active', { public: true }),
+};

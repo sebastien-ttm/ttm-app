@@ -1,43 +1,71 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/auth/AuthContext';
+import { ApiError } from '@/api/client';
+import { articles as articlesApi } from '@/api/resources';
+import type { Article } from '@/api/types';
+import { ArticleCard } from '@/components/ArticleCard';
+import { BannerImage } from '@/components/BannerImage';
+import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS } from '@/config';
 
 export default function FeedScreen() {
-  const { user } = useAuth();
+  const [items, setItems] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const resp = await articlesApi.list(1);
+      setItems(resp.data);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await load();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  if (loading) return <FullScreenLoading />;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.welcome}>
-        <Text style={styles.welcomeTitle}>Bonjour {user?.prenom} 👋</Text>
-        <Text style={styles.welcomeSubtitle}>Le flux d'actualités arrive dans le prochain commit.</Text>
-      </View>
-
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderTitle}>📰 Bientôt ici</Text>
-        <Text style={styles.placeholderText}>
-          Articles, photos, réactions, commentaires — tout le mur d'actualités du club.
-        </Text>
-      </View>
-    </ScrollView>
+    <View style={styles.container}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => <ArticleCard article={item} />}
+        ListHeaderComponent={<BannerImage />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        ListEmptyComponent={
+          error ? (
+            <ErrorState message={error} onRetry={load} />
+          ) : (
+            <EmptyState icon="📰" title="Pas encore d'articles" message="Les actualités du club s'afficheront ici." />
+          )
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 16 },
-  welcome: { backgroundColor: COLORS.surface, padding: 16, borderRadius: 12, marginBottom: 16 },
-  welcomeTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  welcomeSubtitle: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
-  placeholder: {
-    backgroundColor: COLORS.surface,
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderStyle: 'dashed',
-  },
-  placeholderTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  placeholderText: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
+  content: { paddingBottom: 24 },
 });
