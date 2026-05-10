@@ -4,3 +4,13 @@ lexik_jwt_authentication:
     pass_phrase: '%env(JWT_PASSPHRASE)%'
     token_ttl: '%env(int:JWT_TTL)%'
     user_id_claim: sub
+    token_extractors:
+        # Bearer header (default)
+        authorization_header:
+            enabled: true
+            prefix: Bearer
+            name: Authorization
+        # Allow ?bearer= query param for direct file links (PDFs in browser)
+        query_parameter:
+            enabled: true
+            name: bearer

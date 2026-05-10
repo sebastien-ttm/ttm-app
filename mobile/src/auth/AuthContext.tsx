@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { ApiError, AuthenticatedUser, LoginResponse, auth, setOnUnauthorized } from '@/api/client';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
+import { registerForPushNotifications } from '@/notifications/registerForPush';
 
 type AuthState = {
   status: 'loading' | 'authenticated' | 'unauthenticated';
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storage.setItem(STORAGE_KEYS.user, JSON.stringify(resp.user)),
     ]);
     setState({ status: 'authenticated', user: resp.user });
+    void registerForPushNotifications();
   }, []);
 
   const signOut = useCallback(async () => {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         await storage.setItem(STORAGE_KEYS.user, JSON.stringify(fresh));
         setState({ status: 'authenticated', user: fresh });
+        void registerForPushNotifications();
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
