@@ -7,11 +7,11 @@ use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Vich\UploaderBundle\Form\Type\VichFileType;
 
 class TrainingPlanCrudController extends AbstractCrudController
@@ -35,9 +35,20 @@ class TrainingPlanCrudController extends AbstractCrudController
     {
         yield TextField::new('title', 'Titre');
         yield TextareaField::new('description')->setRequired(false);
-        yield DateField::new('weekStartsAt', 'Semaine du')
+
+        // ISO week picker (HTML5 <input type="week">). Bound to the entity via
+        // the virtual `isoWeek` getter/setter, which translates to/from the
+        // `weekStartsAt` Monday DateTime under the hood.
+        yield TextField::new('isoWeek', 'Semaine')
+            ->setFormType(TextType::class)
+            ->setFormTypeOption('attr', ['type' => 'week'])
             ->setRequired(false)
-            ->setHelp('Lundi de la semaine concernée.');
+            ->setHelp('Sera affichée comme « semaine du lundi … au dimanche … » pour les adhérents.')
+            ->onlyOnForms();
+
+        // Human-readable range, shown in list / detail
+        yield TextField::new('weekRangeLabel', 'Semaine')->hideOnForm();
+
         yield Field::new('file', 'Fichier PDF')
             ->setFormType(VichFileType::class)
             ->setFormTypeOptions(['allow_delete' => false, 'download_uri' => false])
@@ -54,6 +65,8 @@ class TrainingPlanCrudController extends AbstractCrudController
         if ($user instanceof User) {
             $plan->setPostedBy($user);
         }
+        // Default to the current ISO week (Monday of this week)
+        $plan->setIsoWeek((new \DateTimeImmutable())->format('o-\WW'));
         return $plan;
     }
 }

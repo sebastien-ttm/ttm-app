@@ -102,6 +102,7 @@ class ApiSerializer
             'fileUrl' => rtrim($this->publicUrl, '/').'/api/training-plans/'.$t->getId().'/file',
             'postedBy' => $this->user($t->getPostedBy()),
             'weekStartsAt' => $t->getWeekStartsAt()?->format('Y-m-d'),
+            'weekRangeLabel' => $t->getWeekRangeLabel(),
             'postedAt' => $t->getPostedAt()->format(\DATE_ATOM),
         ];
     }

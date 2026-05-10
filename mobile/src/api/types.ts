@@ -46,6 +46,7 @@ export type TrainingPlan = {
   fileUrl: string;
   postedBy: UserSummary;
   weekStartsAt: string | null;
+  weekRangeLabel: string | null;
   postedAt: string;
 };
 

@@ -76,5 +76,72 @@ class TrainingPlan
     public function getPostedAt(): \DateTimeImmutable { return $this->postedAt; }
     public function setPostedAt(\DateTimeImmutable $d): self { $this->postedAt = $d; return $this; }
 
+    /**
+     * ISO 8601 week string in the format "YYYY-Www" (e.g. "2026-W19"),
+     * compatible with HTML5 <input type="week">.
+     */
+    public function getIsoWeek(): ?string
+    {
+        return $this->weekStartsAt?->format('o-\WW');
+    }
+
+    /**
+     * Sets weekStartsAt to the Monday of the given ISO week.
+     * Accepts the format "YYYY-Www" or null/empty string to clear.
+     */
+    public function setIsoWeek(?string $iso): self
+    {
+        if ($iso === null || $iso === '') {
+            $this->weekStartsAt = null;
+            return $this;
+        }
+        if (!preg_match('/^(\d{4})-W(\d{1,2})$/', $iso, $m)) {
+            throw new \InvalidArgumentException(sprintf('Format ISO week invalide : "%s" (attendu : YYYY-Www).', $iso));
+        }
+        $year = (int) $m[1];
+        $week = (int) $m[2];
+        if ($week < 1 || $week > 53) {
+            throw new \InvalidArgumentException(sprintf('Numéro de semaine invalide : %d (attendu 1-53).', $week));
+        }
+        $monday = (new \DateTimeImmutable())->setISODate($year, $week, 1)->setTime(0, 0, 0);
+        $this->weekStartsAt = $monday;
+        return $this;
+    }
+
+    /**
+     * Human-readable week range, e.g. "Semaine du lundi 4 au dimanche 10 mai 2026".
+     */
+    public function getWeekRangeLabel(): ?string
+    {
+        if ($this->weekStartsAt === null) {
+            return null;
+        }
+        $start = $this->weekStartsAt;
+        $end = $start->modify('+6 days');
+
+        $fmtStart = new \IntlDateFormatter(
+            'fr_FR',
+            \IntlDateFormatter::LONG,
+            \IntlDateFormatter::NONE,
+            null,
+            null,
+            'EEEE d MMMM',
+        );
+        $fmtEnd = new \IntlDateFormatter(
+            'fr_FR',
+            \IntlDateFormatter::LONG,
+            \IntlDateFormatter::NONE,
+            null,
+            null,
+            'EEEE d MMMM y',
+        );
+
+        return sprintf(
+            'Semaine du %s au %s',
+            (string) $fmtStart->format($start),
+            (string) $fmtEnd->format($end),
+        );
+    }
+
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }

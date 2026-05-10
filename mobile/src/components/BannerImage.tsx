@@ -46,7 +46,7 @@ export function BannerImage() {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    aspectRatio: 16 / 6,
+    height: 140,
     backgroundColor: COLORS.black,
     overflow: 'hidden',
   },
@@ -56,8 +56,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  title: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  title: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });

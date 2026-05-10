@@ -88,7 +88,7 @@ function PlanRow({ plan, onOpen }: { plan: TrainingPlan; onOpen: () => void }) {
       </View>
       <View style={styles.body}>
         <Text style={styles.title}>{plan.title}</Text>
-        {plan.weekStartsAt && <Text style={styles.week}>Semaine du {formatDate(plan.weekStartsAt)}</Text>}
+        {plan.weekRangeLabel && <Text style={styles.week}>{plan.weekRangeLabel}</Text>}
         {plan.description && (
           <Text style={styles.description} numberOfLines={2}>
             {plan.description}
