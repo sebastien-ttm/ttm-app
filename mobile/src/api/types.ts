@@ -42,6 +42,9 @@ export type Comment = {
 export type TrainingPlan = {
   id: number;
   title: string;
+  displayTitle: string;
+  category: 'general' | 'longue_distance';
+  categoryLabel: string;
   description: string | null;
   fileUrl: string;
   postedBy: UserSummary;

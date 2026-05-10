@@ -4,9 +4,11 @@ namespace App\Controller\Admin;
 
 use App\Entity\TrainingPlan;
 use App\Entity\User;
+use App\Enum\TrainingPlanCategory;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
@@ -34,6 +36,13 @@ class TrainingPlanCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre');
+        yield ChoiceField::new('category', 'Catégorie')
+            ->setChoices(array_combine(
+                array_map(fn ($c) => $c->label(), TrainingPlanCategory::cases()),
+                TrainingPlanCategory::cases()
+            ))
+            ->setHelp('« Longue distance » est affichée entre parenthèses à côté du titre pour les adhérents. Le plan « général » s\'affiche sans mention.')
+            ->renderAsBadges();
         yield TextareaField::new('description')->setRequired(false);
 
         // ISO week picker (HTML5 <input type="week">). Bound to the entity via

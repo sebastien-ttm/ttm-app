@@ -98,6 +98,9 @@ class ApiSerializer
         return [
             'id' => $t->getId(),
             'title' => $t->getTitle(),
+            'displayTitle' => $t->getDisplayTitle(),
+            'category' => $t->getCategory()->value,
+            'categoryLabel' => $t->getCategory()->label(),
             'description' => $t->getDescription(),
             'fileUrl' => rtrim($this->publicUrl, '/').'/api/training-plans/'.$t->getId().'/file',
             'postedBy' => $this->user($t->getPostedBy()),

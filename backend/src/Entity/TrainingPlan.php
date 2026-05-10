@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\TrainingPlanCategory;
 use App\Repository\TrainingPlanRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
@@ -39,6 +40,9 @@ class TrainingPlan
 
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $weekStartsAt = null;
+
+    #[ORM\Column(length: 24, enumType: TrainingPlanCategory::class, options: ['default' => 'general'])]
+    private TrainingPlanCategory $category = TrainingPlanCategory::General;
 
     #[ORM\Column]
     private \DateTimeImmutable $postedAt;
@@ -91,6 +95,20 @@ class TrainingPlan
     public function setPostedBy(User $postedBy): self { $this->postedBy = $postedBy; return $this; }
     public function getWeekStartsAt(): ?\DateTimeImmutable { return $this->weekStartsAt; }
     public function setWeekStartsAt(?\DateTimeImmutable $d): self { $this->weekStartsAt = $d; return $this; }
+
+    public function getCategory(): TrainingPlanCategory { return $this->category; }
+    public function setCategory(TrainingPlanCategory $c): self { $this->category = $c; return $this; }
+
+    /**
+     * Title with public-facing suffix appended (only for non-default categories).
+     * E.g. "Plan semaine 19 (longue distance)" when category = LongueDistance,
+     * or just "Plan semaine 19" when category = General.
+     */
+    public function getDisplayTitle(): string
+    {
+        $suffix = $this->category->publicSuffix();
+        return $suffix === '' ? $this->title : trim($this->title.' '.$suffix);
+    }
     public function getPostedAt(): \DateTimeImmutable { return $this->postedAt; }
     public function setPostedAt(\DateTimeImmutable $d): self { $this->postedAt = $d; return $this; }
 

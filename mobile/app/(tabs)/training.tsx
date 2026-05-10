@@ -87,7 +87,7 @@ function PlanRow({ plan, onOpen }: { plan: TrainingPlan; onOpen: () => void }) {
         <Text style={styles.iconText}>📄</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.title}>{plan.title}</Text>
+        <Text style={styles.title}>{plan.displayTitle}</Text>
         {plan.weekRangeLabel && <Text style={styles.week}>{plan.weekRangeLabel}</Text>}
         {plan.description && (
           <Text style={styles.description} numberOfLines={2}>
