@@ -19,6 +19,9 @@ class StaticPageController extends AbstractController
     ) {
     }
 
+    /**
+     * Flat list of all published pages — kept for backward compat.
+     */
     #[Route('', methods: ['GET'])]
     public function list(): JsonResponse
     {
@@ -29,6 +32,20 @@ class StaticPageController extends AbstractController
         return new JsonResponse(['data' => $items]);
     }
 
+    /**
+     * Hierarchical tree (only roots and their descendants).
+     */
+    #[Route('/tree', methods: ['GET'])]
+    public function tree(): JsonResponse
+    {
+        $roots = $this->pages->findRootsPublished();
+        $tree = array_map(
+            fn ($p) => $this->serializer->staticPageNode($p),
+            $roots,
+        );
+        return new JsonResponse(['data' => $tree]);
+    }
+
     #[Route('/{slug}', methods: ['GET'])]
     public function get(string $slug): JsonResponse
     {
@@ -36,6 +53,6 @@ class StaticPageController extends AbstractController
         if ($page === null) {
             throw $this->createNotFoundException();
         }
-        return new JsonResponse($this->serializer->staticPage($page));
+        return new JsonResponse($this->serializer->staticPage($page, includeChildren: true));
     }
 }

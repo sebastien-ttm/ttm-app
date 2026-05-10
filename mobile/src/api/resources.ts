@@ -7,6 +7,7 @@ import type {
   MenuItem,
   Paginated,
   StaticPage,
+  StaticPageNode,
   StaticPageSummary,
   TrainingPlan,
 } from './types';
@@ -32,6 +33,7 @@ export const trainingPlans = {
 
 export const pages = {
   list: () => api.get<{ data: StaticPageSummary[] }>('/api/pages'),
+  tree: () => api.get<{ data: StaticPageNode[] }>('/api/pages/tree'),
   get: (slug: string) => api.get<StaticPage>(`/api/pages/${slug}`),
 };
 

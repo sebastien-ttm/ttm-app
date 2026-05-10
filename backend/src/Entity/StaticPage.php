@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\StaticPageRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -33,11 +35,26 @@ class StaticPage
     private bool $isPublished = true;
 
     #[ORM\Column]
+    private int $position = 0;
+
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?StaticPage $parent = null;
+
+    /**
+     * @var Collection<int, StaticPage>
+     */
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parent')]
+    #[ORM\OrderBy(['position' => 'ASC', 'title' => 'ASC'])]
+    private Collection $children;
+
+    #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
     public function __construct()
     {
         $this->updatedAt = new \DateTimeImmutable();
+        $this->children = new ArrayCollection();
     }
 
     #[ORM\PreUpdate]
@@ -56,6 +73,58 @@ class StaticPage
     public function isPublished(): bool { return $this->isPublished; }
     public function setIsPublished(bool $b): self { $this->isPublished = $b; return $this; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+
+    public function getPosition(): int { return $this->position; }
+    public function setPosition(int $p): self { $this->position = $p; return $this; }
+
+    public function getParent(): ?StaticPage { return $this->parent; }
+
+    public function setParent(?StaticPage $parent): self
+    {
+        // Defensive : prevent setting self as parent (creates infinite loop)
+        if ($parent === $this) {
+            throw new \InvalidArgumentException('Une page ne peut pas être son propre parent.');
+        }
+        // Walk up the chain to detect cycles
+        $cursor = $parent;
+        while ($cursor !== null) {
+            if ($cursor === $this) {
+                throw new \InvalidArgumentException("Référence circulaire détectée dans l'arborescence des pages.");
+            }
+            $cursor = $cursor->parent;
+        }
+        $this->parent = $parent;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, StaticPage>
+     */
+    public function getChildren(): Collection
+    {
+        return $this->children;
+    }
+
+    /**
+     * @return list<StaticPage>  immediate published children, ordered
+     */
+    public function getPublishedChildren(): array
+    {
+        return $this->children
+            ->filter(fn (StaticPage $p) => $p->isPublished())
+            ->getValues();
+    }
+
+    public function getDepth(): int
+    {
+        $depth = 0;
+        $cursor = $this->parent;
+        while ($cursor !== null) {
+            $depth++;
+            $cursor = $cursor->getParent();
+        }
+        return $depth;
+    }
 
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }

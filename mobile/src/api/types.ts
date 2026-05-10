@@ -52,7 +52,19 @@ export type TrainingPlan = {
 
 export type StaticPageSummary = { slug: string; title: string };
 
-export type StaticPage = StaticPageSummary & { content: string; updatedAt: string };
+export type StaticPageNode = {
+  slug: string;
+  title: string;
+  hasChildren: boolean;
+  children: StaticPageNode[];
+};
+
+export type StaticPage = StaticPageSummary & {
+  content: string;
+  updatedAt: string;
+  parentSlug: string | null;
+  children: StaticPageNode[];
+};
 
 export type MenuItem = {
   id: number;

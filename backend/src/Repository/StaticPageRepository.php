@@ -28,7 +28,24 @@ class StaticPageRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->where('p.isPublished = true')
-            ->orderBy('p.title', 'ASC')
+            ->orderBy('p.position', 'ASC')
+            ->addOrderBy('p.title', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Returns top-level published pages (no parent).
+     *
+     * @return list<StaticPage>
+     */
+    public function findRootsPublished(): array
+    {
+        return $this->createQueryBuilder('p')
+            ->where('p.isPublished = true')
+            ->andWhere('p.parent IS NULL')
+            ->orderBy('p.position', 'ASC')
+            ->addOrderBy('p.title', 'ASC')
             ->getQuery()
             ->getResult();
     }

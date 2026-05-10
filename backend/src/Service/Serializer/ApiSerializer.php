@@ -110,13 +110,43 @@ class ApiSerializer
     /**
      * @return array<string, mixed>
      */
-    public function staticPage(StaticPage $p): array
+    /**
+     * @return array<string, mixed>
+     */
+    public function staticPage(StaticPage $p, bool $includeChildren = false): array
     {
-        return [
+        $data = [
             'slug' => $p->getSlug(),
             'title' => $p->getTitle(),
             'content' => $p->getContent(),
             'updatedAt' => $p->getUpdatedAt()->format(\DATE_ATOM),
+            'parentSlug' => $p->getParent()?->getSlug(),
+        ];
+        if ($includeChildren) {
+            $data['children'] = array_map(
+                fn (StaticPage $c) => $this->staticPageNode($c),
+                $p->getPublishedChildren()
+            );
+        }
+        return $data;
+    }
+
+    /**
+     * Lightweight node (no content) for tree views.
+     *
+     * @return array<string, mixed>
+     */
+    public function staticPageNode(StaticPage $p): array
+    {
+        $children = array_map(
+            fn (StaticPage $c) => $this->staticPageNode($c),
+            $p->getPublishedChildren()
+        );
+        return [
+            'slug' => $p->getSlug(),
+            'title' => $p->getTitle(),
+            'hasChildren' => count($children) > 0,
+            'children' => $children,
         ];
     }
 

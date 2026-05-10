@@ -1,35 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { menu as menuApi, pages as pagesApi } from '@/api/resources';
-import type { MenuItem, StaticPageSummary } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const router = useRouter();
-  const [pageItems, setPageItems] = useState<StaticPageSummary[]>([]);
-  const [externalItems, setExternalItems] = useState<MenuItem[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [{ data: items }, { data: pageList }] = await Promise.all([menuApi.list(), pagesApi.list()]);
-        if (cancelled) return;
-        setPageItems(pageList);
-        setExternalItems(items.filter((i) => i.type === 'external'));
-      } catch {
-        // Silent; menu is decorative
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   if (!user) return null;
 
@@ -60,22 +35,6 @@ export default function ProfileScreen() {
         <Row label="N° de licence" value={user.numLicence} />
         <Row label="Mot de passe" value={user.hasPassword ? 'Configuré' : 'Non configuré'} />
       </View>
-
-      {pageItems.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Pages utiles</Text>
-          {pageItems.map((p) => (
-            <Pressable
-              key={p.slug}
-              style={({ pressed }) => [styles.linkRow, pressed && styles.linkRowPressed]}
-              onPress={() => router.push(`/page/${p.slug}` as never)}
-            >
-              <Text style={styles.linkLabel}>{p.title}</Text>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </Pressable>
-          ))}
-        </View>
-      )}
 
       <Pressable style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
@@ -135,17 +94,6 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontSize: 14, color: COLORS.textMuted },
   rowValue: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border,
-  },
-  linkRowPressed: { backgroundColor: COLORS.background },
-  linkLabel: { fontSize: 15, color: COLORS.text },
   logoutButton: {
     backgroundColor: COLORS.surface,
     paddingVertical: 14,
