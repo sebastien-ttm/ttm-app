@@ -5,6 +5,7 @@ namespace App\Service\Serializer;
 use App\Entity\Article;
 use App\Entity\ArticlePhoto;
 use App\Entity\Banner;
+use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\MenuItem;
@@ -182,6 +183,20 @@ class ApiSerializer
             'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
             'type' => $e->getType()->value,
             'color' => $e->getColor(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function charter(ClubCharter $c): array
+    {
+        return [
+            'id' => $c->getId(),
+            'title' => $c->getTitle(),
+            'version' => $c->getVersion(),
+            'content' => $c->getContent(),
+            'publishedAt' => $c->getPublishedAt()->format(\DATE_ATOM),
         ];
     }
 

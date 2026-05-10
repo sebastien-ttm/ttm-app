@@ -2,6 +2,7 @@ import { api } from './client';
 import type {
   Article,
   Banner,
+  CharterStatus,
   Comment,
   EventItem,
   MenuItem,
@@ -52,4 +53,9 @@ export const events = {
 
 export const banner = {
   active: () => api.get<{ data: Banner | null }>('/api/banner/active', { public: true }),
+};
+
+export const charter = {
+  current: () => api.get<CharterStatus>('/api/charter/current'),
+  accept: () => api.post<{ ok: boolean; acceptedAt?: string }>('/api/me/charter/accept'),
 };

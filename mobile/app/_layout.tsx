@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { status } = useAuth();
+  const { status, charterRequired } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
@@ -16,13 +16,28 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (status === 'loading') return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inCharterScreen = segments[0] === 'charter-acceptance';
 
-    if (status === 'unauthenticated' && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (status === 'authenticated' && inAuthGroup) {
+    if (status === 'unauthenticated') {
+      if (!inAuthGroup) {
+        router.replace('/(auth)/login');
+      }
+      return;
+    }
+
+    // status === 'authenticated' from here on
+    if (charterRequired) {
+      if (!inCharterScreen) {
+        router.replace('/charter-acceptance');
+      }
+      return;
+    }
+
+    // No charter required, but currently stuck on auth or charter screen → home
+    if (inAuthGroup || inCharterScreen) {
       router.replace('/(tabs)');
     }
-  }, [status, segments, router]);
+  }, [status, charterRequired, segments, router]);
 
   if (status === 'loading') {
     return (
@@ -50,6 +65,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="charter-acceptance" options={{ headerShown: false, gestureEnabled: false }} />
           </Stack>
         </AuthGate>
       </AuthProvider>

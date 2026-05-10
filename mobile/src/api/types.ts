@@ -96,5 +96,18 @@ export type Banner = {
   linkUrl: string | null;
 };
 
+export type Charter = {
+  id: number;
+  title: string;
+  version: string;
+  content: string;
+  publishedAt: string;
+};
+
+export type CharterStatus = {
+  charter: Charter | null;
+  acceptanceRequired: boolean;
+};
+
 export const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '👏'] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
