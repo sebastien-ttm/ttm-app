@@ -1,7 +1,8 @@
-{# Inherit everything from EasyAdmin's default theme #}
-{% use '@EasyAdmin/crud/form_theme.html.twig' %}
+{# Custom form theme that ONLY overrides the rich-text widget.
+   Blocks not defined here fall through to the next theme registered
+   in DashboardController::configureCrud()->setFormThemes(...)
+   (which is EasyAdmin's default form_theme.html.twig). #}
 
-{# Override the rich-text editor widget : use CKEditor 5 instead of Trix #}
 {% block ea_text_editor_widget %}
     {% set widget_id = 'ck-' ~ (id|default('content')) %}
     <textarea
