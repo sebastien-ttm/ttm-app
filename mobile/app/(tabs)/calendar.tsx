@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { events as eventsApi } from '@/api/resources';
 import type { EventItem } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MonthCalendar } from '@/components/MonthCalendar';
 import { COLORS } from '@/config';
 import { formatDateTime } from '@/utils/html';
 
@@ -15,22 +16,35 @@ const TYPE_LABEL: Record<EventItem['type'], string> = {
   social: 'Événement',
 };
 
+function startOfYear(d: Date): Date {
+  return new Date(d.getFullYear(), 0, 1);
+}
+
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 export default function CalendarScreen() {
   const [items, setItems] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const today = new Date();
-      const inSixMonths = new Date();
-      inSixMonths.setMonth(inSixMonths.getMonth() + 6);
-      const resp = await eventsApi.list(
-        today.toISOString().slice(0, 10),
-        inSixMonths.toISOString().slice(0, 10),
-      );
+      // Fetch a wide range so the month grid + chronological list both have data:
+      // from start of current year to ~14 months ahead.
+      const from = startOfYear(new Date());
+      const to = new Date();
+      to.setMonth(to.getMonth() + 14);
+      const resp = await eventsApi.list(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
       setItems(resp.data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
@@ -54,18 +68,51 @@ export default function CalendarScreen() {
     setRefreshing(false);
   }, [load]);
 
+  // Filter list when a day is selected; otherwise show all events from the visible month forward.
+  const listData = useMemo(() => {
+    if (selectedDate) {
+      return items.filter((e) => isSameDay(new Date(e.startsAt), selectedDate));
+    }
+    return items;
+  }, [items, selectedDate]);
+
   if (loading) return <FullScreenLoading />;
 
   return (
     <FlatList
-      data={items}
+      data={listData}
       keyExtractor={(item) => String(item.id)}
       renderItem={({ item }) => <EventRow event={item} />}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+      ListHeaderComponent={
+        <>
+          <MonthCalendar
+            visibleMonth={visibleMonth}
+            events={items}
+            selectedDate={selectedDate}
+            onChangeMonth={setVisibleMonth}
+            onSelectDate={setSelectedDate}
+          />
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>
+              {selectedDate
+                ? `Événements du ${selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+                : 'Tous les événements à venir'}
+            </Text>
+            {selectedDate && (
+              <Pressable onPress={() => setSelectedDate(null)} hitSlop={6}>
+                <Text style={styles.clearLabel}>Tout afficher</Text>
+              </Pressable>
+            )}
+          </View>
+        </>
+      }
       ListEmptyComponent={
         error ? (
           <ErrorState message={error} onRetry={load} />
+        ) : selectedDate ? (
+          <EmptyState icon="📅" title="Aucun événement ce jour" />
         ) : (
           <EmptyState icon="📅" title="Pas d'événement programmé" message="Le calendrier sera bientôt rempli." />
         )
@@ -93,12 +140,23 @@ function EventRow({ event }: { event: EventItem }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 12 },
+  content: { paddingBottom: 24 },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  listTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  clearLabel: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
     borderRadius: 12,
     overflow: 'hidden',
+    marginHorizontal: 12,
     marginBottom: 10,
     elevation: 1,
     shadowColor: '#000',
