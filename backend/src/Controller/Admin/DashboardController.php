@@ -48,10 +48,12 @@ class DashboardController extends AbstractDashboardController
     public function configureCrud(): Crud
     {
         return Crud::new()
-            // Use our custom form theme to swap Trix → CKEditor on TextEditorField.
+            // Order matters: the LAST theme has the highest priority for any
+            // block it defines, so EasyAdmin's default goes first and our
+            // override goes last to win on `ea_text_editor_widget`.
             ->setFormThemes([
-                'admin/form_theme.html.twig',
                 '@EasyAdmin/crud/form_theme.html.twig',
+                'admin/form_theme.html.twig',
             ]);
     }
 

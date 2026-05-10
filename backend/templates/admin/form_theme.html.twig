@@ -4,6 +4,20 @@
    (which is EasyAdmin's default form_theme.html.twig). #}
 
 {% block ea_text_editor_widget %}
+{# Inline CSS — minimum editor height + visible resize handles #}
+<style>
+    .ck.ck-editor__editable_inline {
+        min-height: 320px;
+        max-height: 600px;
+    }
+    .ck-widget__resizer__handle {
+        width: 12px !important;
+        height: 12px !important;
+        background: #D32F2F !important;
+        border: 2px solid #fff !important;
+        border-radius: 50% !important;
+    }
+</style>
     {% set widget_id = 'ck-' ~ (id|default('content')) %}
     <textarea
         id="{{ widget_id }}"
