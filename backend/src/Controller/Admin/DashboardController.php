@@ -11,6 +11,7 @@ use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
 use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem as AdminMenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
@@ -39,10 +40,19 @@ class DashboardController extends AbstractDashboardController
     {
         return Assets::new()
             // CKEditor 5 (Classic build) loaded globally for the rich-text fields.
-            // The init / upload-adapter wiring lives in the
-            // text_editor.html.twig override.
+            // The init / upload-adapter wiring lives in the form_theme override.
             ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js')
             ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/translations/fr.js');
+    }
+
+    public function configureCrud(): Crud
+    {
+        return Crud::new()
+            // Use our custom form theme to swap Trix → CKEditor on TextEditorField.
+            ->setFormThemes([
+                'admin/form_theme.html.twig',
+                '@EasyAdmin/crud/form_theme.html.twig',
+            ]);
     }
 
     public function configureMenuItems(): iterable
