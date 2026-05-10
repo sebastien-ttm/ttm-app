@@ -35,34 +35,37 @@ export default function PageScreen() {
     void load();
   }, [load]);
 
-  if (loading) return <FullScreenLoading />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!page) return null;
-
-  const text = htmlToText(page.content).trim();
+  const text = page ? htmlToText(page.content).trim() : '';
   const hasContent = text.length > 0;
-  const hasChildren = (page.children?.length ?? 0) > 0;
+  const hasChildren = (page?.children?.length ?? 0) > 0;
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: page.title }} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{page.title}</Text>
-        {hasContent && <Text style={styles.body}>{text}</Text>}
+      {/* Always render so the header title is immediately controlled and never falls back to the route filename. */}
+      <Stack.Screen options={{ title: page?.title ?? '' }} />
+      {loading ? (
+        <FullScreenLoading />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : page ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.title}>{page.title}</Text>
+          {hasContent && <Text style={styles.body}>{text}</Text>}
 
-        {hasChildren && (
-          <View style={[styles.children, hasContent && styles.childrenSpaced]}>
-            <Text style={styles.childrenTitle}>Sous-pages</Text>
-            {page.children.map((child) => (
-              <ChildLink key={child.slug} node={child} />
-            ))}
-          </View>
-        )}
+          {hasChildren && (
+            <View style={[styles.children, hasContent && styles.childrenSpaced]}>
+              <Text style={styles.childrenTitle}>Sous-pages</Text>
+              {page.children.map((child) => (
+                <ChildLink key={child.slug} node={child} />
+              ))}
+            </View>
+          )}
 
-        {!hasContent && !hasChildren && (
-          <Text style={styles.empty}>Cette page est vide pour le moment.</Text>
-        )}
-      </ScrollView>
+          {!hasContent && !hasChildren && (
+            <Text style={styles.empty}>Cette page est vide pour le moment.</Text>
+          )}
+        </ScrollView>
+      ) : null}
     </View>
   );
 }

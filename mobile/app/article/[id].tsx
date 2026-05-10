@@ -50,13 +50,14 @@ export default function ArticleScreen() {
     void load();
   }, [load]);
 
-  if (loading) return <FullScreenLoading />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!article) return null;
-
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Article' }} />
+      <Stack.Screen options={{ title: article?.title ?? 'Article' }} />
+      {loading ? (
+        <FullScreenLoading />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : !article ? null : (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container}>
           {article.photos.length > 0 && (
@@ -111,6 +112,7 @@ export default function ArticleScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }
