@@ -1,0 +1,107 @@
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { useAuth } from '@/auth/AuthContext';
+import { COLORS } from '@/config';
+
+export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
+
+  if (!user) return null;
+
+  const isCoach = user.roles.includes('ROLE_COACH');
+  const isAdmin = user.roles.includes('ROLE_ADMIN');
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {user.prenom.charAt(0)}
+            {user.nom.charAt(0)}
+          </Text>
+        </View>
+        <Text style={styles.name}>{user.fullName}</Text>
+        <Text style={styles.email}>{user.email}</Text>
+
+        <View style={styles.badgeRow}>
+          {isAdmin && <Badge color="#D32F2F" label="Admin" />}
+          {isCoach && !isAdmin && <Badge color="#1976D2" label="Entraîneur" />}
+          {!isCoach && !isAdmin && <Badge color="#388E3C" label="Adhérent" />}
+          <Badge color="#555" label={user.categorie === 'jeune' ? 'Jeune' : 'Sénior'} />
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Row label="N° de licence" value={user.numLicence} />
+        <Row label="Mot de passe" value={user.hasPassword ? 'Configuré' : 'Non configuré'} />
+      </View>
+
+      <Pressable style={styles.logoutButton} onPress={signOut}>
+        <Text style={styles.logoutLabel}>Se déconnecter</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+function Badge({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={[styles.badge, { backgroundColor: color }]}>
+      <Text style={styles.badgeLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
+  content: { padding: 16 },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
+  name: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  email: { fontSize: 14, color: COLORS.textMuted, marginBottom: 12 },
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  badgeLabel: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  row: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  rowLabel: { fontSize: 14, color: COLORS.textMuted },
+  rowValue: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  logoutButton: {
+    backgroundColor: COLORS.surface,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.error,
+  },
+  logoutLabel: { color: COLORS.error, fontWeight: '700' },
+});

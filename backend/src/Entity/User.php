@@ -261,4 +261,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // no plain-text credentials held
     }
+
+    public function __toString(): string
+    {
+        if (!isset($this->prenom, $this->nom)) {
+            return $this->email ?? '#'.$this->id;
+        }
+        return $this->getFullName().' ('.$this->numLicence.')';
+    }
 }

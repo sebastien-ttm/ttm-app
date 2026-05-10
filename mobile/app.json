@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "TTM",
+    "slug": "ttm-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "ttm",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1a1a1a",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "fr.ttm.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#D32F2F"
+      },
+      "package": "fr.ttm.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#D32F2F"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://127.0.0.1:8000"
+    }
+  }
+}
