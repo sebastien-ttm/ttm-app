@@ -10,6 +10,7 @@ use App\Entity\MenuItem;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
 use App\Entity\User;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem as AdminMenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
@@ -32,6 +33,14 @@ class DashboardController extends AbstractDashboardController
             ->setTitle('<img src="/img/logo_text.svg" style="max-height: 40px;" alt="TTM">')
             ->setFaviconPath('img/logo.svg')
             ->setLocales(['fr']);
+    }
+
+    public function configureAssets(): Assets
+    {
+        return Assets::new()
+            // Wires Trix editor → /admin/upload/inline so dragged/pasted images
+            // get uploaded server-side and embedded as <img>.
+            ->addJsFile('admin/js/trix-uploads.js');
     }
 
     public function configureMenuItems(): iterable

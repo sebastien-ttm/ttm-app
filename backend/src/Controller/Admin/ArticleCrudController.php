@@ -3,22 +3,17 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Article;
-use App\Entity\ArticlePhoto;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Form\ArticlePhotoType;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
-use Vich\UploaderBundle\Form\Type\VichImageType;
 
 class ArticleCrudController extends AbstractCrudController
 {
@@ -54,8 +49,14 @@ class ArticleCrudController extends AbstractCrudController
 
         yield FormField::addTab('Photos')->onlyOnForms();
         yield CollectionField::new('photos', 'Photos')
-            ->setEntryIsComplex()
-            ->useEntryCrudForm(ArticlePhotoCrudController::class)
+            ->setEntryType(ArticlePhotoType::class)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'allow_add' => true,
+                'allow_delete' => true,
+                'delete_empty' => true,
+            ])
+            ->setHelp('Cliquez sur "Add a new" pour ajouter une photo. Champ "Image" pour uploader le fichier.')
             ->onlyOnForms();
     }
 

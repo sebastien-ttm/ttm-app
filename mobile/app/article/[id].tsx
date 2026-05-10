@@ -20,8 +20,9 @@ import { articles as articlesApi } from '@/api/resources';
 import type { Article, Comment } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
+import { RichContent } from '@/components/RichContent';
 import { COLORS } from '@/config';
-import { formatDate, formatRelativeFr, htmlToText } from '@/utils/html';
+import { formatDate, formatRelativeFr } from '@/utils/html';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -60,21 +61,28 @@ export default function ArticleScreen() {
       ) : !article ? null : (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container}>
-          {article.photos.length > 0 && (
+          {article.photos.length === 1 && article.photos[0].url ? (
+            <Image
+              source={{ uri: article.photos[0].url }}
+              style={styles.photoFull}
+              resizeMode="cover"
+              accessibilityLabel={article.photos[0].alt ?? article.title}
+            />
+          ) : article.photos.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photos}>
               {article.photos.map((p) =>
                 p.url ? (
                   <Image
                     key={p.id}
                     source={{ uri: p.url }}
-                    style={[styles.photo, article.photos.length === 1 && styles.photoFull]}
+                    style={styles.photo}
                     resizeMode="cover"
                     accessibilityLabel={p.alt ?? article.title}
                   />
                 ) : null,
               )}
             </ScrollView>
-          )}
+          ) : null}
 
           <View style={styles.content}>
             <Text style={styles.title}>{article.title}</Text>
@@ -82,7 +90,7 @@ export default function ArticleScreen() {
               {article.author.fullName} · {formatDate(article.publishedAt)}
             </Text>
 
-            <Text style={styles.body}>{htmlToText(article.content)}</Text>
+            <RichContent html={article.content} style={styles.body} />
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Réactions</Text>
@@ -174,9 +182,9 @@ function CommentForm({ articleId, onPosted }: { articleId: number; onPosted: (c:
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   container: { paddingBottom: 32 },
-  photos: { backgroundColor: COLORS.black },
-  photo: { width: 320, height: 200, marginRight: 0 },
-  photoFull: { width: '100%', height: 220 },
+  photos: { backgroundColor: COLORS.background },
+  photo: { width: 320, height: 220, marginRight: 4, backgroundColor: COLORS.border },
+  photoFull: { width: '100%', height: 240, backgroundColor: COLORS.border },
   content: { padding: 16 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
   meta: { fontSize: 13, color: COLORS.textMuted, marginBottom: 16 },

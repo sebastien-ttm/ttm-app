@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client';
 import { pages as pagesApi } from '@/api/resources';
 import type { StaticPage, StaticPageNode } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { RichContent } from '@/components/RichContent';
 import { COLORS } from '@/config';
 import { htmlToText } from '@/utils/html';
 
@@ -50,7 +51,7 @@ export default function PageScreen() {
       ) : page ? (
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.title}>{page.title}</Text>
-          {hasContent && <Text style={styles.body}>{text}</Text>}
+          {hasContent && <RichContent html={page.content} style={styles.body} />}
 
           {hasChildren && (
             <View style={[styles.children, hasContent && styles.childrenSpaced]}>
