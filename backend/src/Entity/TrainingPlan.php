@@ -10,6 +10,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\Entity(repositoryClass: TrainingPlanRepository::class)]
 #[ORM\Table(name: 'training_plan')]
+#[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
 class TrainingPlan
 {
@@ -48,6 +49,23 @@ class TrainingPlan
     public function __construct()
     {
         $this->postedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Ensures weekStartsAt is always stored as the Monday of the ISO week,
+     * regardless of how it was set.
+     */
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function snapWeekStartsAtToMonday(): void
+    {
+        if ($this->weekStartsAt === null) {
+            return;
+        }
+        $monday = $this->weekStartsAt->modify('monday this week')->setTime(0, 0, 0);
+        if ($monday->format('Y-m-d') !== $this->weekStartsAt->format('Y-m-d')) {
+            $this->weekStartsAt = $monday;
+        }
     }
 
     public function getId(): ?int { return $this->id; }
@@ -116,7 +134,9 @@ class TrainingPlan
         if ($this->weekStartsAt === null) {
             return null;
         }
-        $start = $this->weekStartsAt;
+        // Defensive: snap to the Monday of the same ISO week, in case the stored
+        // value is anything else (legacy data, manual edit, etc.).
+        $start = $this->weekStartsAt->modify('monday this week');
         $end = $start->modify('+6 days');
 
         $fmtStart = new \IntlDateFormatter(
