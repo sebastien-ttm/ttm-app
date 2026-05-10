@@ -38,11 +38,11 @@ class DashboardController extends AbstractDashboardController
     public function configureAssets(): Assets
     {
         return Assets::new()
-            // Wires Trix editor → /admin/upload/inline so dragged/pasted images
-            // get uploaded server-side and embedded as <img>.
-            // (Path is /js/... not /admin/js/... to avoid PHP -S serving the
-            // admin directory as static instead of routing to Symfony.)
-            ->addJsFile('js/trix-uploads.js');
+            // CKEditor 5 (Classic build) loaded globally for the rich-text fields.
+            // The init / upload-adapter wiring lives in the
+            // text_editor.html.twig override.
+            ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js')
+            ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/translations/fr.js');
     }
 
     public function configureMenuItems(): iterable

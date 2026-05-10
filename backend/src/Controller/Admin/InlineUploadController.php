@@ -34,21 +34,28 @@ class InlineUploadController extends AbstractController
     #[IsGranted('ROLE_COACH')]
     public function upload(Request $request): JsonResponse
     {
+        // Accept either "file" (Trix) or "upload" (CKEditor SimpleUploadAdapter)
         /** @var UploadedFile|null $file */
-        $file = $request->files->get('file');
+        $file = $request->files->get('file') ?? $request->files->get('upload');
 
         if ($file === null) {
-            return new JsonResponse(['error' => 'Aucun fichier reçu.'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(
+                ['error' => ['message' => 'Aucun fichier reçu.']],
+                Response::HTTP_BAD_REQUEST,
+            );
         }
 
         if ($file->getSize() > self::MAX_BYTES) {
-            return new JsonResponse(['error' => 'Fichier trop volumineux (max 5 Mo).'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(
+                ['error' => ['message' => 'Fichier trop volumineux (max 5 Mo).']],
+                Response::HTTP_BAD_REQUEST,
+            );
         }
 
         $mime = $file->getMimeType();
         if (!in_array($mime, self::ALLOWED_MIME, true)) {
             return new JsonResponse(
-                ['error' => 'Format non accepté. Formats autorisés : JPG, PNG, WebP, GIF.'],
+                ['error' => ['message' => 'Format non accepté. Formats autorisés : JPG, PNG, WebP, GIF.']],
                 Response::HTTP_BAD_REQUEST,
             );
         }
