@@ -39,10 +39,10 @@ class DashboardController extends AbstractDashboardController
     public function configureAssets(): Assets
     {
         return Assets::new()
-            // CKEditor 5 (Classic build) loaded globally for the rich-text fields.
-            // The init / upload-adapter wiring lives in the form_theme override.
-            ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js')
-            ->addJsFile('https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/translations/fr.js');
+            // TinyMCE 7 (community / GPL) loaded from jsDelivr — includes
+            // image plugin with native resize handles. Init lives in the
+            // form_theme override.
+            ->addJsFile('https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js');
     }
 
     public function configureCrud(): Crud

@@ -1,117 +1,81 @@
-{# Custom form theme that ONLY overrides the rich-text widget.
-   Blocks not defined here fall through to the next theme registered
-   in DashboardController::configureCrud()->setFormThemes(...)
-   (which is EasyAdmin's default form_theme.html.twig). #}
+{# Custom form theme : overrides EasyAdmin's rich-text widget to use
+   TinyMCE 7 (community) instead of Trix. TinyMCE has native image
+   resize handles via the `image` plugin. #}
 
 {% block ea_text_editor_widget %}
-{# Inline CSS — minimum editor height + visible resize handles #}
-<style>
-    .ck.ck-editor__editable_inline {
-        min-height: 320px;
-        max-height: 600px;
-    }
-    .ck-widget__resizer__handle {
-        width: 12px !important;
-        height: 12px !important;
-        background: #D32F2F !important;
-        border: 2px solid #fff !important;
-        border-radius: 50% !important;
-    }
-</style>
-    {% set widget_id = 'ck-' ~ (id|default('content')) %}
+    {% set widget_id = 'tmce-' ~ (id|default('content')) %}
     <textarea
         id="{{ widget_id }}"
         name="{{ full_name }}"
         {% if required %}required="required"{% endif %}
-        class="form-control ttm-ck-editor"
-        rows="{{ form.vars.ea_vars.field.customOptions.get('numOfRows')|default(10) }}"
+        class="form-control ttm-rich-editor"
+        rows="{{ form.vars.ea_vars.field.customOptions.get('numOfRows')|default(15) }}"
     >{{- value -}}</textarea>
 
     <script>
     (function () {
         var targetId = {{ widget_id|json_encode|raw }};
 
-        function CustomUploadAdapterPlugin(editor) {
-            editor.plugins.get('FileRepository').createUploadAdapter = function (loader) {
-                return {
-                    upload: function () {
-                        return loader.file.then(function (file) {
-                            return new Promise(function (resolve, reject) {
-                                var data = new FormData();
-                                data.append('upload', file);
-                                fetch('/admin/upload/inline', {
-                                    method: 'POST',
-                                    body: data,
-                                    credentials: 'same-origin',
-                                })
-                                    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
-                                    .then(function (res) {
-                                        if (!res.ok) {
-                                            var msg = (res.body && res.body.error && res.body.error.message) || 'Upload échoué';
-                                            return reject(msg);
-                                        }
-                                        if (!res.body.url) { return reject('Réponse upload invalide'); }
-                                        resolve({ default: res.body.url });
-                                    })
-                                    .catch(function (err) { reject(String(err)); });
-                            });
-                        });
-                    },
-                    abort: function () {},
-                };
-            };
+        function imageUploadHandler(blobInfo, progress) {
+            return new Promise(function (resolve, reject) {
+                var data = new FormData();
+                data.append('file', blobInfo.blob(), blobInfo.filename());
+                fetch('/admin/upload/inline', {
+                    method: 'POST',
+                    body: data,
+                    credentials: 'same-origin',
+                })
+                    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+                    .then(function (res) {
+                        if (!res.ok) {
+                            var msg = (res.body && res.body.error && res.body.error.message) || 'Upload échoué';
+                            return reject({ message: msg, remove: true });
+                        }
+                        if (!res.body.url) { return reject({ message: 'Réponse upload invalide', remove: true }); }
+                        resolve(res.body.url);
+                    })
+                    .catch(function (err) { reject({ message: String(err), remove: true }); });
+            });
         }
 
         function init() {
             var el = document.getElementById(targetId);
-            if (!el || el.dataset.ckInit) return;
-            if (typeof ClassicEditor === 'undefined') {
+            if (!el || el.dataset.tmceInit) return;
+            if (typeof tinymce === 'undefined') {
                 setTimeout(init, 80);
                 return;
             }
-            el.dataset.ckInit = '1';
+            el.dataset.tmceInit = '1';
 
-            ClassicEditor
-                .create(el, {
-                    extraPlugins: [CustomUploadAdapterPlugin],
-                    language: 'fr',
-                    toolbar: {
-                        items: [
-                            'heading', '|',
-                            'bold', 'italic', 'link', '|',
-                            'bulletedList', 'numberedList', '|',
-                            'imageUpload', 'blockQuote', 'insertTable', '|',
-                            'undo', 'redo'
-                        ],
-                    },
-                    heading: {
-                        options: [
-                            { model: 'paragraph', title: 'Paragraphe', class: 'ck-heading_paragraph' },
-                            { model: 'heading2', view: 'h2', title: 'Titre 2', class: 'ck-heading_heading2' },
-                            { model: 'heading3', view: 'h3', title: 'Titre 3', class: 'ck-heading_heading3' },
-                        ],
-                    },
-                    image: {
-                        toolbar: [
-                            'imageStyle:inline',
-                            'imageStyle:block',
-                            'imageStyle:side',
-                            '|',
-                            'toggleImageCaption',
-                            'imageTextAlternative',
-                            '|',
-                            'resizeImage',
-                        ],
-                        resizeUnit: '%',
-                        resizeOptions: [
-                            { name: 'resizeImage:original', value: null, label: 'Originale' },
-                            { name: 'resizeImage:25', value: '25', label: '25 %' },
-                            { name: 'resizeImage:50', value: '50', label: '50 %' },
-                            { name: 'resizeImage:75', value: '75', label: '75 %' },
-                        ],
-                    },
-                })
-                .catch(function (err) { console.error('CKEditor init failed', err); });
+            tinymce.init({
+                selector: '#' + targetId,
+                license_key: 'gpl',
+                language: 'fr_FR',
+                language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@latest/langs7/fr_FR.js',
+                height: 420,
+                min_height: 320,
+                menubar: false,
+                branding: false,
+                promotion: false,
+                statusbar: true,
+                resize: true,
+                plugins: 'autoresize lists link image table code',
+                toolbar:
+                    'undo redo | blocks | bold italic underline | bullist numlist | ' +
+                    'link image table | alignleft aligncenter alignright alignjustify | code',
+                block_formats: 'Paragraphe=p; Titre 2=h2; Titre 3=h3; Citation=blockquote',
+                image_caption: true,
+                image_advtab: true,
+                image_dimensions: true,
+                image_title: false,
+                automatic_uploads: true,
+                images_upload_handler: imageUploadHandler,
+                images_reuse_filename: true,
+                content_style:
+                    'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
+                    'font-size: 15px; line-height: 1.55; padding: 12px; } ' +
+                    'img { max-width: 100%; height: auto; }',
+            });
         }
 
         if (document.readyState === 'loading') {
