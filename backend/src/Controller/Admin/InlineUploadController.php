@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Service\ImageResizer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,6 +26,7 @@ class InlineUploadController extends AbstractController
     public function __construct(
         private readonly string $uploadDir,
         private readonly SluggerInterface $slugger,
+        private readonly ImageResizer $resizer,
     ) {
     }
 
@@ -68,13 +70,20 @@ class InlineUploadController extends AbstractController
             return new JsonResponse(['error' => 'Échec du déplacement : '.$e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
+        $absolutePath = $targetDir.\DIRECTORY_SEPARATOR.$filename;
+
+        // Auto-resize : on plafonne à 1200px de large (préserve le ratio).
+        // Permet à l'admin de surcharger via ?max=800 par exemple.
+        $maxWidth = max(200, min(2400, (int) ($request->query->get('max') ?: 1200)));
+        $this->resizer->resizeInPlace($absolutePath, $mime, $maxWidth);
+
         $publicUrl = sprintf('/uploads/inline/%s/%s', $subdir, $filename);
 
         return new JsonResponse([
             'url' => $publicUrl,
             'href' => $publicUrl,
             'filename' => $filename,
-            'size' => filesize($targetDir.\DIRECTORY_SEPARATOR.$filename),
+            'size' => filesize($absolutePath),
             'mime' => $mime,
         ]);
     }

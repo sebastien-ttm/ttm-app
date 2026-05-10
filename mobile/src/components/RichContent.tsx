@@ -33,10 +33,24 @@ export function RichContent({ html, style }: Props) {
     const Div = 'div' as unknown as React.ComponentType<{
       style?: object;
       dangerouslySetInnerHTML?: { __html: string };
+      className?: string;
     }>;
     return (
       <View style={style}>
-        <Div style={webStyles} dangerouslySetInnerHTML={{ __html: rewritten }} />
+        <Div className="ttm-rich" style={webStyles} dangerouslySetInnerHTML={{ __html: rewritten }} />
+        {/* eslint-disable-next-line react-native/no-raw-text */}
+        <Div
+          dangerouslySetInnerHTML={{
+            __html: `<style>
+              .ttm-rich img { max-width: 100%; height: auto; border-radius: 6px; }
+              .ttm-rich p { margin: 0 0 12px 0; }
+              .ttm-rich h2 { font-size: 20px; font-weight: 700; margin: 16px 0 8px; }
+              .ttm-rich h3 { font-size: 17px; font-weight: 700; margin: 14px 0 6px; }
+              .ttm-rich ul, .ttm-rich ol { padding-left: 22px; margin: 0 0 12px 0; }
+              .ttm-rich a { color: #D32F2F; }
+            </style>`,
+          }}
+        />
       </View>
     );
   }
