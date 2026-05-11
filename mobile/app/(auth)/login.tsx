@@ -56,6 +56,7 @@ export default function LoginScreen() {
           <View style={styles.brand}>
             <View style={styles.logoMark}>
               <Text style={styles.logoLetters}>TTM</Text>
+              <View style={styles.logoUnderline} />
             </View>
             <Text style={styles.brandTitle}>{APP_NAME}</Text>
             <Text style={styles.brandSubtitle}>Espace adhérents</Text>
@@ -154,10 +155,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
+    overflow: 'hidden',
   },
   logoLetters: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 1 },
+  logoUnderline: {
+    // Bandeau bleu en bas du logo (clin d'œil à la natation / triathlon)
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 6,
+    backgroundColor: COLORS.secondary,
+  },
   brandTitle: { color: '#fff', fontSize: 19, fontWeight: '700', textAlign: 'center', letterSpacing: -0.2 },
-  brandSubtitle: { color: COLORS.textSubtle, fontSize: 13, marginTop: 6, letterSpacing: 0.3 },
+  brandSubtitle: { color: COLORS.secondary, fontSize: 13, marginTop: 6, letterSpacing: 0.5, fontWeight: '600', textTransform: 'uppercase' },
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,

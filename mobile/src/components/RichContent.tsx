@@ -47,7 +47,8 @@ export function RichContent({ html, style }: Props) {
               .ttm-rich h2 { font-size: 20px; font-weight: 700; margin: 16px 0 8px; }
               .ttm-rich h3 { font-size: 17px; font-weight: 700; margin: 14px 0 6px; }
               .ttm-rich ul, .ttm-rich ol { padding-left: 22px; margin: 0 0 12px 0; }
-              .ttm-rich a { color: #D32F2F; }
+              .ttm-rich a { color: #1d4ed8; text-decoration: underline; }
+              .ttm-rich a:hover { color: #1e40af; }
             </style>`,
           }}
         />

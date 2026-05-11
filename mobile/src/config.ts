@@ -25,9 +25,12 @@ export const API_BASE_URL = (fromConfig ?? defaultBase()).replace(/\/$/, '');
 export const APP_NAME = 'Triathlon Toulouse Métropole';
 
 export const COLORS = {
-  primary: '#D32F2F',
+  primary: '#D32F2F',     // rouge club
   primaryDark: '#B71C1C',
   primarySoft: '#FFE6E6',
+  secondary: '#1d4ed8',   // bleu (accent eau/sport — liens, badges info, détails)
+  secondaryDark: '#1e40af',
+  secondarySoft: '#DBEAFE',
   black: '#1a1a1a',
   background: '#f5f6f8',
   surface: '#ffffff',

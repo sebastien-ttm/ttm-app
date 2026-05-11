@@ -54,9 +54,9 @@ export function ArticleCard({ article }: { article: Article }) {
               </View>
             ))}
             {article.commentCount > 0 && (
-              <View style={styles.statBadge}>
+              <View style={[styles.statBadge, styles.statBadgeComment]}>
                 <Text style={styles.statEmoji}>💬</Text>
-                <Text style={styles.statCount}>{article.commentCount}</Text>
+                <Text style={[styles.statCount, styles.statCountComment]}>{article.commentCount}</Text>
               </View>
             )}
           </View>
@@ -107,4 +107,6 @@ const styles = StyleSheet.create({
   },
   statEmoji: { fontSize: 13 },
   statCount: { fontSize: 12, color: COLORS.text, fontWeight: '600' },
+  statBadgeComment: { backgroundColor: COLORS.secondarySoft, borderColor: COLORS.secondarySoft },
+  statCountComment: { color: COLORS.secondaryDark },
 });
