@@ -35,7 +35,11 @@ export function BannerImage() {
         <View pointerEvents="none" style={styles.fade} />
         {data.title && (
           <View style={styles.titleArea}>
-            <View style={styles.accent} />
+            {/* Bandeau d'accent club : moitié rouge + moitié bleu */}
+            <View style={styles.accentBar}>
+              <View style={[styles.accentHalf, { backgroundColor: COLORS.primary }]} />
+              <View style={[styles.accentHalf, { backgroundColor: COLORS.secondary }]} />
+            </View>
             <Text style={styles.title} numberOfLines={2}>
               {data.title}
             </Text>
@@ -86,13 +90,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  accent: {
-    width: 4,
-    height: 28,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
+  accentBar: {
+    width: 5,
+    height: 32,
+    borderRadius: 2.5,
     marginRight: SPACING.sm,
+    overflow: 'hidden',
   },
+  accentHalf: { flex: 1 },
   title: {
     color: '#fff',
     fontWeight: '800',

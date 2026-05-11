@@ -140,7 +140,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.black },
+  container: { flex: 1, backgroundColor: COLORS.brandNavy },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: SPACING.xl, maxWidth: 480, width: '100%', alignSelf: 'center' },
   brand: { alignItems: 'center', marginBottom: SPACING.xxl },
   logoMark: {
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
   brandTitle: { color: '#fff', fontSize: 19, fontWeight: '700', textAlign: 'center', letterSpacing: -0.2 },
-  brandSubtitle: { color: COLORS.secondary, fontSize: 13, marginTop: 6, letterSpacing: 0.5, fontWeight: '600', textTransform: 'uppercase' },
+  brandSubtitle: { color: '#93c5fd', fontSize: 13, marginTop: 6, letterSpacing: 0.5, fontWeight: '600', textTransform: 'uppercase' },
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,

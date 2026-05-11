@@ -25,13 +25,14 @@ export const API_BASE_URL = (fromConfig ?? defaultBase()).replace(/\/$/, '');
 export const APP_NAME = 'Triathlon Toulouse Métropole';
 
 export const COLORS = {
+  // Couleurs officielles du club : Bleu / Rouge / Blanc.
   primary: '#D32F2F',     // rouge club
   primaryDark: '#B71C1C',
   primarySoft: '#FFE6E6',
-  secondary: '#1d4ed8',   // bleu (accent eau/sport — liens, badges info, détails)
+  secondary: '#1d4ed8',   // bleu club
   secondaryDark: '#1e40af',
   secondarySoft: '#DBEAFE',
-  black: '#1a1a1a',
+  brandNavy: '#0d2148',   // bleu marine profond — pour fonds sombres (login, banner)
   background: '#f5f6f8',
   surface: '#ffffff',
   surfaceAlt: '#fafbfc',
@@ -43,6 +44,8 @@ export const COLORS = {
   success: '#16a34a',
   error: '#dc2626',
   warning: '#f59e0b',
+  /** @deprecated alias rétro-compatible — utiliser brandNavy à la place */
+  black: '#0d2148',
 } as const;
 
 /** Spacing scale (4-pt grid) */
