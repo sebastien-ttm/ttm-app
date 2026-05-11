@@ -4,10 +4,13 @@
 
 {% block ea_text_editor_widget %}
     {% set widget_id = 'tmce-' ~ (id|default('content')) %}
+    {# No `required` HTML5 attribute : TinyMCE hides the underlying textarea
+       and the browser then refuses to submit the form for a hidden invalid
+       field, silently in some browsers. Server-side validation (NotBlank)
+       handles emptiness with a proper error message after submit. #}
     <textarea
         id="{{ widget_id }}"
         name="{{ full_name }}"
-        {% if required %}required="required"{% endif %}
         class="form-control ttm-rich-editor"
         rows="{{ form.vars.ea_vars.field.customOptions.get('numOfRows')|default(15) }}"
     >{{- value -}}</textarea>
@@ -75,6 +78,19 @@
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
                     'font-size: 15px; line-height: 1.55; padding: 12px; } ' +
                     'img { max-width: 100%; height: auto; }',
+                setup: function (editor) {
+                    // Sync content back to the textarea on every change AND right
+                    // before the form is submitted, in case TinyMCE's own submit
+                    // hook is bypassed by client-side validation handlers.
+                    editor.on('change keyup undo redo', function () { editor.save(); });
+                    editor.on('init', function () {
+                        var form = editor.targetElm.form;
+                        if (form && !form.dataset.tmceSubmitHook) {
+                            form.dataset.tmceSubmitHook = '1';
+                            form.addEventListener('submit', function () { editor.save(); }, true);
+                        }
+                    });
+                },
             });
         }
 

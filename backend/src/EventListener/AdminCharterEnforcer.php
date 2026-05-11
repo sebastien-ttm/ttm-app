@@ -66,9 +66,18 @@ class AdminCharterEnforcer
         }
 
         // Allow the EasyAdmin Charter CRUD so admins can manage charters
-        // even before having accepted the current one.
-        $crudFqcn = $request->query->get('crudControllerFqcn', '');
+        // even before having accepted the current one. EasyAdmin sets the
+        // CRUD FQCN both as a request attribute (pretty URLs like
+        // /admin/club-charter/new) and as a query string (legacy URLs).
+        $crudFqcn = $request->attributes->get('crudControllerFqcn')
+            ?? $request->query->get('crudControllerFqcn', '');
         if (is_string($crudFqcn) && str_contains($crudFqcn, 'ClubCharterCrudController')) {
+            return;
+        }
+        // Belt-and-suspenders: allow the URL prefix /admin/club-charter
+        // since some POST submissions may not carry the attribute by the
+        // time we run.
+        if (str_starts_with($path, '/admin/club-charter')) {
             return;
         }
 
