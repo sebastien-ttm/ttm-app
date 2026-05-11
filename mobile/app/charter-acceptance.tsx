@@ -142,8 +142,10 @@ export default function CharterAcceptanceScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brandNavy,
     padding: 18,
+    borderBottomWidth: 3,
+    borderBottomColor: COLORS.primary,
   },
   brand: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
   title: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 4 },

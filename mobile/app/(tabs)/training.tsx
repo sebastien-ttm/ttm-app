@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FFE6E6',
+    backgroundColor: COLORS.secondarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   iconText: { fontSize: 24 },
   body: { flex: 1 },
   title: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  week: { fontSize: 13, color: COLORS.primary, marginTop: 2, fontWeight: '600' },
+  week: { fontSize: 13, color: COLORS.secondaryDark, marginTop: 2, fontWeight: '600' },
   description: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
   meta: { fontSize: 12, color: COLORS.textMuted, marginTop: 6 },
 });

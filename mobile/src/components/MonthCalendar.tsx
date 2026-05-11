@@ -84,13 +84,13 @@ export function MonthCalendar({ visibleMonth, events, selectedDate, onChangeMont
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => onChangeMonth(addMonths(firstOfMonth, -1))} hitSlop={12} style={styles.arrowButton}>
-          <Ionicons name="chevron-back" size={20} color={COLORS.primary} />
+          <Ionicons name="chevron-back" size={20} color={COLORS.secondary} />
         </Pressable>
         <Pressable onPress={() => { onChangeMonth(startOfMonth(today)); onSelectDate(null); }}>
           <Text style={styles.monthTitle}>{monthLabel}</Text>
         </Pressable>
         <Pressable onPress={() => onChangeMonth(addMonths(firstOfMonth, 1))} hitSlop={12} style={styles.arrowButton}>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.secondary} />
         </Pressable>
       </View>
 
@@ -216,8 +216,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     overflow: 'hidden',
   },
-  dayToday: { backgroundColor: '#FFE6E6' },
-  daySelected: { backgroundColor: COLORS.primary },
+  dayToday: { backgroundColor: COLORS.secondarySoft },
+  daySelected: { backgroundColor: COLORS.secondary },
   dayNumber: {
     fontSize: 12,
     color: COLORS.text,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   dayOutsideMonth: { color: '#bbb' },
-  dayTodayText: { color: COLORS.primary, fontWeight: '700' },
+  dayTodayText: { color: COLORS.secondaryDark, fontWeight: '700' },
   daySelectedText: { color: '#fff', fontWeight: '700' },
   chips: { gap: 1 },
   chip: {
