@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 
 import { COLORS } from '@/config';
 
@@ -8,45 +9,71 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#888',
-        headerStyle: { backgroundColor: COLORS.primary },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700' },
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          height: Platform.OS === 'web' ? 60 : undefined,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginBottom: Platform.OS === 'web' ? 6 : 0,
+        },
+        headerStyle: {
+          backgroundColor: COLORS.surface,
+          borderBottomColor: COLORS.border,
+          borderBottomWidth: 1,
+          shadowOpacity: 0,
+          elevation: 0,
+        },
+        headerTintColor: COLORS.text,
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Actus',
-          tabBarIcon: ({ color, size }) => <Ionicons name="newspaper-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'newspaper' : 'newspaper-outline'} color={color} size={22} />
+          ),
         }}
       />
       <Tabs.Screen
         name="training"
         options={{
           title: 'Entraînement',
-          tabBarIcon: ({ color, size }) => <Ionicons name="fitness-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'fitness' : 'fitness-outline'} color={color} size={22} />
+          ),
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
           title: 'Calendrier',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={22} />
+          ),
         }}
       />
       <Tabs.Screen
         name="pages"
         options={{
           title: 'Pages',
-          tabBarIcon: ({ color, size }) => <Ionicons name="library-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'library' : 'library-outline'} color={color} size={22} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} color={color} size={22} />
+          ),
         }}
       />
     </Tabs>

@@ -25,14 +25,57 @@ export const API_BASE_URL = (fromConfig ?? defaultBase()).replace(/\/$/, '');
 export const APP_NAME = 'Triathlon Toulouse Métropole';
 
 export const COLORS = {
-  primary: '#D32F2F',     // rouge club
+  primary: '#D32F2F',
   primaryDark: '#B71C1C',
+  primarySoft: '#FFE6E6',
   black: '#1a1a1a',
-  background: '#fafafa',
+  background: '#f5f6f8',
   surface: '#ffffff',
-  border: '#e5e5e5',
-  text: '#1a1a1a',
-  textMuted: '#666666',
-  success: '#2E7D32',
-  error: '#C62828',
+  surfaceAlt: '#fafbfc',
+  border: '#e5e7eb',
+  borderStrong: '#d1d5db',
+  text: '#111827',
+  textMuted: '#6b7280',
+  textSubtle: '#9ca3af',
+  success: '#16a34a',
+  error: '#dc2626',
+  warning: '#f59e0b',
+} as const;
+
+/** Spacing scale (4-pt grid) */
+export const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+} as const;
+
+/** Border radius tokens */
+export const RADIUS = {
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  full: 9999,
+} as const;
+
+/** Shadow presets (web + native). Use spread for ergonomics:
+ *  style={[styles.card, SHADOWS.sm]} */
+export const SHADOWS = {
+  sm: {
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
 } as const;
