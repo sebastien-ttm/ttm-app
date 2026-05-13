@@ -28,6 +28,10 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            # DataFixtures dépendent de doctrine/doctrine-fixtures-bundle qui
+            # est en require-dev ; on les exclut de la compilation par défaut
+            # et on les réactive uniquement en dev/test (voir blocs when@*).
+            - '../src/DataFixtures/'
 
     App\EventListener\AuthSuccessListener:
         arguments:
@@ -45,11 +49,25 @@ services:
         arguments:
             $uploadDir: '%app.uploads.inline_dir%'
 
-    App\DataFixtures\AppFixtures:
-        arguments:
-            $projectDir: '%kernel.project_dir%'
-
     # HTMLPurifier for sanitizing article HTML
     HTMLPurifier:
         class: HTMLPurifier
         factory: ['App\Service\HtmlPurifierFactory', 'create']
+
+when@dev:
+    services:
+        App\DataFixtures\:
+            resource: '../src/DataFixtures/'
+
+        App\DataFixtures\AppFixtures:
+            arguments:
+                $projectDir: '%kernel.project_dir%'
+
+when@test:
+    services:
+        App\DataFixtures\:
+            resource: '../src/DataFixtures/'
+
+        App\DataFixtures\AppFixtures:
+            arguments:
+                $projectDir: '%kernel.project_dir%'
