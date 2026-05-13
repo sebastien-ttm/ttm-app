@@ -12,6 +12,9 @@ import { Platform } from 'react-native';
  *  - Physical device : http://<your-LAN-ip>:8000  (configure in app.json `extra`)
  */
 const fromConfig = (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl;
+// EXPO_PUBLIC_* env vars sont injectées au build par Expo ; permet de
+// pointer vers la prod sans modifier app.json.
+const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 function defaultBase(): string {
   if (Platform.OS === 'android') {
@@ -20,7 +23,7 @@ function defaultBase(): string {
   return 'http://127.0.0.1:8000';
 }
 
-export const API_BASE_URL = (fromConfig ?? defaultBase()).replace(/\/$/, '');
+export const API_BASE_URL = (fromEnv ?? fromConfig ?? defaultBase()).replace(/\/$/, '');
 
 export const APP_NAME = 'Triathlon Toulouse Métropole';
 
