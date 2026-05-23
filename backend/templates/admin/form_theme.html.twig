@@ -76,7 +76,8 @@
                 images_reuse_filename: true,
                 content_style:
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
-                    'font-size: 15px; line-height: 1.55; padding: 12px; } ' +
+                    'font-size: 15px; line-height: 1.55; padding: 4px 12px; margin: 0; } ' +
+                    'body > p:first-child { margin-top: 0; } ' +
                     'img { max-width: 100%; height: auto; }',
                 setup: function (editor) {
                     // Sync content back to the textarea on every change AND right
@@ -84,6 +85,15 @@
                     // hook is bypassed by client-side validation handlers.
                     editor.on('change keyup undo redo', function () { editor.save(); });
                     editor.on('init', function () {
+                        // Place le curseur au tout début du contenu
+                        try {
+                            var body = editor.getBody();
+                            if (body && body.firstChild) {
+                                editor.selection.setCursorLocation(body.firstChild, 0);
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        // Hook submit form pour synchroniser le contenu
                         var form = editor.targetElm.form;
                         if (form && !form.dataset.tmceSubmitHook) {
                             form.dataset.tmceSubmitHook = '1';
