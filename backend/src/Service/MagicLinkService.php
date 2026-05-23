@@ -34,14 +34,28 @@ class MagicLinkService
         return ['token' => $clear, 'entity' => $entity];
     }
 
+    /**
+     * URL universelle envoyée par e-mail. Pointe vers la route SPA mobile
+     * `/auth/magic-link?token=...` :
+     *  - Sur web (browser) → l'app Expo charge, consomme le token, connecte
+     *  - Sur device avec une app native installée et un Universal/App Link
+     *    configuré sur ce domaine → ouvre l'app directement
+     *
+     * On évite volontairement les schemes custom (ttm://...) car la plupart
+     * des clients mail (Gmail en tête) refusent de les rendre cliquables.
+     */
     public function buildWebUrl(string $token): string
     {
-        return rtrim($this->publicUrl, '/').'/api/auth/magic-link/verify?token='.urlencode($token);
+        return rtrim($this->publicUrl, '/').'/auth/magic-link?token='.urlencode($token);
     }
 
+    /**
+     * Alias rétro-compatible — même URL que buildWebUrl (les Universal Links
+     * sont des URLs HTTPS classiques, pas des schemes custom).
+     */
     public function buildMobileUrl(string $token): string
     {
-        return rtrim($this->mobileScheme, '/').'/auth/magic-link?token='.urlencode($token);
+        return $this->buildWebUrl($token);
     }
 
     public function consume(string $clearToken): ?User
