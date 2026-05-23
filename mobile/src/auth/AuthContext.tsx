@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { ApiError, AuthenticatedUser, LoginResponse, auth, setOnUnauthorized } from '@/api/client';
+import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, auth, setOnUnauthorized } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import type { Charter } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
@@ -12,6 +12,7 @@ type AuthState = {
   user: AuthenticatedUser | null;
   charterRequired: boolean;
   pendingCharter: Charter | null;
+  linkedProfiles: LinkedProfile[];
 };
 
 type AuthContextValue = AuthState & {
@@ -20,6 +21,7 @@ type AuthContextValue = AuthState & {
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
   acknowledgeCharter: () => Promise<void>;
+  switchProfile: (numLicence: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,6 +31,7 @@ const initialState: AuthState = {
   user: null,
   charterRequired: false,
   pendingCharter: null,
+  linkedProfiles: [],
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -43,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         charter: resp.charter,
       };
     } catch {
-      // If the call fails (network etc.), don't block the user
       return { required: false, charter: null };
     }
   }, []);
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: resp.user,
         charterRequired: charterStatus.required,
         pendingCharter: charterStatus.charter,
+        linkedProfiles: resp.linkedProfiles ?? [],
       });
       void registerForPushNotifications();
     },
@@ -97,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        const fresh = await auth.me();
+        const [fresh, linked] = await Promise.all([
+          auth.me(),
+          auth.linkedProfiles().catch(() => ({ data: [] })),
+        ]);
         if (cancelled) return;
         await storage.setItem(STORAGE_KEYS.user, JSON.stringify(fresh));
         const charterStatus = await fetchCharterStatus();
@@ -107,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: fresh,
           charterRequired: charterStatus.required,
           pendingCharter: charterStatus.charter,
+          linkedProfiles: linked.data ?? [],
         });
         void registerForPushNotifications();
       } catch (err) {
@@ -115,12 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await signOut();
           return;
         }
-        // Network error → trust cached user, no charter check possible
         setState({
           status: 'authenticated',
           user: JSON.parse(userRaw) as AuthenticatedUser,
           charterRequired: false,
           pendingCharter: null,
+          linkedProfiles: [],
         });
       }
     })();
@@ -133,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       const resp = await auth.loginWithPassword(email.trim().toLowerCase(), password);
       await persist(resp);
-      // The AuthGate in _layout.tsx handles where to send the user next.
     },
     [persist],
   );
@@ -158,9 +164,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace('/(tabs)');
   }, [router]);
 
+  const switchProfile = useCallback(
+    async (numLicence: string) => {
+      const resp = await auth.switchProfile(numLicence);
+      await persist(resp);
+      // Restart navigation to refresh all data (feed, etc. with new user)
+      router.replace('/(tabs)');
+    },
+    [persist, router],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, loginWithPassword, consumeMagicLink, signOut, refreshMe, acknowledgeCharter }),
-    [state, loginWithPassword, consumeMagicLink, signOut, refreshMe, acknowledgeCharter],
+    () => ({
+      ...state,
+      loginWithPassword,
+      consumeMagicLink,
+      signOut,
+      refreshMe,
+      acknowledgeCharter,
+      switchProfile,
+    }),
+    [state, loginWithPassword, consumeMagicLink, signOut, refreshMe, acknowledgeCharter, switchProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

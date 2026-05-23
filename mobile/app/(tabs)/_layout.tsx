@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 
+import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
 
 export default function TabsLayout() {
@@ -29,6 +30,7 @@ export default function TabsLayout() {
         },
         headerTintColor: COLORS.text,
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerRight: () => <ProfileSwitcher />,
       }}
     >
       <Tabs.Screen

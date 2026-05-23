@@ -7,7 +7,11 @@ use App\Entity\User;
 use App\Enum\DevicePlatform;
 use App\EventListener\AuthSuccessListener;
 use App\Repository\DeviceTokenRepository;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
+use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,7 +26,11 @@ class MeController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly DeviceTokenRepository $deviceTokens,
+        private readonly UserRepository $users,
         private readonly UserPasswordHasherInterface $hasher,
+        private readonly JWTTokenManagerInterface $jwt,
+        private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
+        private readonly RefreshTokenManagerInterface $refreshTokenManager,
     ) {
     }
 
@@ -32,6 +40,66 @@ class MeController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         return new JsonResponse(AuthSuccessListener::serializeUser($user));
+    }
+
+    /**
+     * Liste des profils accessibles depuis le user courant (lui + ses dépendants
+     * ou son primaire + co-dépendants). Vide si pas de profils liés.
+     */
+    #[Route('/api/me/linked-profiles', methods: ['GET'])]
+    public function linkedProfiles(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        return new JsonResponse([
+            'data' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+        ]);
+    }
+
+    /**
+     * Bascule vers un autre profil (parent ↔ enfants ↔ frères/sœurs).
+     * Le user cible doit appartenir au même groupe d'e-mail partagé.
+     * Renvoie un nouveau JWT pour ce profil.
+     */
+    #[Route('/api/me/switch-profile', methods: ['POST'])]
+    public function switchProfile(Request $request): JsonResponse
+    {
+        /** @var User $current */
+        $current = $this->getUser();
+        $payload = json_decode($request->getContent(), true);
+        $targetLicence = is_array($payload) ? trim((string) ($payload['num_licence'] ?? '')) : '';
+
+        if ($targetLicence === '') {
+            return new JsonResponse(['error' => 'num_licence manquant.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $accessible = $this->users->findLinkedProfiles($current);
+        $target = null;
+        foreach ($accessible as $u) {
+            if ($u->getNumLicence() === $targetLicence) {
+                $target = $u;
+                break;
+            }
+        }
+
+        if ($target === null) {
+            return new JsonResponse(['error' => 'Profil non accessible.'], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$target->isActive()) {
+            return new JsonResponse(['error' => 'Profil désactivé.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $accessToken = $this->jwt->create($target);
+        $refresh = $this->refreshTokenGenerator->createForUserWithTtl($target, 2592000);
+        $this->refreshTokenManager->save($refresh);
+
+        return new JsonResponse([
+            'token' => $accessToken,
+            'refresh_token' => $refresh->getRefreshToken(),
+            'user' => AuthSuccessListener::serializeUser($target),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($target, $this->users),
+        ]);
     }
 
     #[Route('/api/me/password', methods: ['POST'])]

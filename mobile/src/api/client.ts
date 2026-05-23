@@ -109,10 +109,23 @@ export type AuthenticatedUser = {
   hasPassword: boolean;
 };
 
+/** Profil lié (parent ou enfant partageant le même e-mail) */
+export type LinkedProfile = {
+  id: number;
+  numLicence: string;
+  fullName: string;
+  prenom: string;
+  categorie: 'senior' | 'jeune';
+  categorieAge: string | null;
+  isPrimary: boolean;
+  isCurrent: boolean;
+};
+
 export type LoginResponse = {
   token: string;
   refresh_token: string;
   user: AuthenticatedUser;
+  linkedProfiles?: LinkedProfile[];
 };
 
 export const auth = {
@@ -127,4 +140,8 @@ export const auth = {
   me: () => api.get<AuthenticatedUser>('/api/me'),
   setPassword: (newPassword: string) =>
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
+  linkedProfiles: () =>
+    api.get<{ data: LinkedProfile[] }>('/api/me/linked-profiles'),
+  switchProfile: (numLicence: string) =>
+    api.post<LoginResponse>('/api/me/switch-profile', { num_licence: numLicence }),
 };

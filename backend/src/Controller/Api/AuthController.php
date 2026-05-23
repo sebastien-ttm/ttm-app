@@ -99,6 +99,7 @@ class AuthController extends AbstractController
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
             'user' => AuthSuccessListener::serializeUser($user),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
         ]);
     }
 }

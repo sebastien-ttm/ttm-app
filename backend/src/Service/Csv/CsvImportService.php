@@ -160,6 +160,12 @@ class CsvImportService
 
         $this->em->flush();
 
+        // Lier les profils partageant un même e-mail (parent + enfants).
+        // Pour chaque groupe email avec >1 user, le plus âgé devient primaire,
+        // les autres pointent vers lui via linkedToUser.
+        $this->linkSharedEmailProfiles();
+        $this->em->flush();
+
         // Désactivation des users absents de cet import
         $stale = $this->users->findActiveNotSyncedSince($importedAt);
         foreach ($stale as $u) {
@@ -277,6 +283,57 @@ class CsvImportService
             return 'Loisir';
         }
         return null;
+    }
+
+    /**
+     * Pour chaque e-mail partagé par plusieurs users actifs, le plus âgé est
+     * désigné comme primaire (linkedToUser=null), les autres pointent vers lui.
+     * Idempotent : peut être rejoué sans casser les liens existants.
+     */
+    private function linkSharedEmailProfiles(): void
+    {
+        $sql = "
+            SELECT email
+            FROM `user`
+            WHERE is_active = 1 AND email IS NOT NULL AND email != ''
+            GROUP BY email
+            HAVING COUNT(*) > 1
+        ";
+        $sharedEmails = $this->em->getConnection()->fetchFirstColumn($sql);
+
+        foreach ($sharedEmails as $email) {
+            $usersInGroup = $this->users->findAllActiveByEmail($email);
+            if (count($usersInGroup) < 2) {
+                continue;
+            }
+
+            // Trier : le plus âgé (date naissance la + ancienne) en tête.
+            // Les users sans date de naissance vont en queue.
+            usort($usersInGroup, function (User $a, User $b) {
+                $da = $a->getDateNaissance();
+                $db = $b->getDateNaissance();
+                if ($da === null && $db === null) {
+                    return $a->getId() <=> $b->getId();
+                }
+                if ($da === null) {
+                    return 1;
+                }
+                if ($db === null) {
+                    return -1;
+                }
+                return $da <=> $db;
+            });
+
+            $primary = array_shift($usersInGroup);
+            $primary->setLinkedToUser(null);
+
+            foreach ($usersInGroup as $dependent) {
+                // Évite l'auto-référence
+                if ($dependent->getId() !== $primary->getId()) {
+                    $dependent->setLinkedToUser($primary);
+                }
+            }
+        }
     }
 
     private function isStatutActive(string $statut): bool

@@ -15,7 +15,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: '`user`')]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'uniq_user_num_licence', columns: ['num_licence'])]
-#[ORM\UniqueConstraint(name: 'uniq_user_email', columns: ['email'])]
+// email n'est plus unique : parent et enfants peuvent partager une boîte
+#[ORM\Index(name: 'idx_user_email', columns: ['email'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -68,6 +69,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** Ex. "Senior 1", "Cadet 2", "Vétéran 3" — copié tel quel depuis FFTri */
     #[ORM\Column(length: 40, nullable: true)]
     private ?string $categorieAge = null;
+
+    /**
+     * Profil "principal" auquel ce user est rattaché (parent/enfant via e-mail
+     * partagé). NULL si ce user est lui-même primaire (= peut se connecter).
+     */
+    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\JoinColumn(name: 'linked_to_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $linkedToUser = null;
 
     /**
      * @var list<string>
@@ -214,6 +223,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getCategorieAge(): ?string { return $this->categorieAge; }
     public function setCategorieAge(?string $c): self { $this->categorieAge = $c; return $this; }
+
+    public function getLinkedToUser(): ?User { return $this->linkedToUser; }
+    public function setLinkedToUser(?User $u): self { $this->linkedToUser = $u; return $this; }
+
+    /** Retourne le user "racine" pour les e-mails partagés (lui-même si primaire). */
+    public function getPrimaryUser(): User
+    {
+        return $this->linkedToUser ?? $this;
+    }
+
+    public function isPrimary(): bool
+    {
+        return $this->linkedToUser === null;
+    }
 
     /**
      * @return list<string>

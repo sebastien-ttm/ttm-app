@@ -3,6 +3,7 @@
 namespace App\EventListener;
 
 use App\Entity\User;
+use App\Repository\UserRepository;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\AuthenticationSuccessEvent;
@@ -13,6 +14,7 @@ class AuthSuccessListener
     public function __construct(
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
+        private readonly UserRepository $users,
         private readonly int $refreshTtl = 2592000,
     ) {
     }
@@ -32,6 +34,7 @@ class AuthSuccessListener
 
         $data['refresh_token'] = $refreshToken->getRefreshToken();
         $data['user'] = self::serializeUser($user);
+        $data['linkedProfiles'] = self::serializeLinkedProfiles($user, $this->users);
         $event->setData($data);
     }
 
@@ -51,5 +54,30 @@ class AuthSuccessListener
             'roles' => $user->getRoles(),
             'hasPassword' => $user->getPassword() !== null,
         ];
+    }
+
+    /**
+     * Renvoie la liste de tous les profils accessibles depuis ce user
+     * (lui-même + ses dépendants, OU son primaire + tous les dépendants
+     * du primaire).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function serializeLinkedProfiles(User $user, UserRepository $users): array
+    {
+        $profiles = $users->findLinkedProfiles($user);
+        if (count($profiles) < 2) {
+            return []; // pas la peine d'envoyer une liste s'il n'y a qu'un seul profil
+        }
+        return array_map(fn (User $u) => [
+            'id' => $u->getId(),
+            'numLicence' => $u->getNumLicence(),
+            'fullName' => $u->getFullName(),
+            'prenom' => $u->getPrenom(),
+            'categorie' => $u->getCategorie()->value,
+            'categorieAge' => $u->getCategorieAge(),
+            'isPrimary' => $u->isPrimary(),
+            'isCurrent' => $u->getId() === $user->getId(),
+        ], $profiles);
     }
 }
