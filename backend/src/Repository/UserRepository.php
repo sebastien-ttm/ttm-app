@@ -30,6 +30,14 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Utilisateurs actifs qui n'ont pas été touchés par le dernier import CSV
+     * et qui sont éligibles à la désactivation (= adhérents purs).
+     *
+     * Les ROLE_ADMIN et ROLE_COACH sont préservés : ils sont ajoutés
+     * manuellement ou en dehors du flux FFTri (entraîneurs, dirigeants,
+     * bénévoles non licenciés) — ce serait dangereux de les couper
+     * automatiquement.
+     *
      * @return list<User>
      */
     public function findActiveNotSyncedSince(\DateTimeImmutable $cutoff): array
@@ -37,7 +45,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         return $this->createQueryBuilder('u')
             ->where('u.isActive = true')
             ->andWhere('u.lastCsvSyncAt IS NULL OR u.lastCsvSyncAt < :cutoff')
+            ->andWhere('u.roles NOT LIKE :admin')
+            ->andWhere('u.roles NOT LIKE :coach')
             ->setParameter('cutoff', $cutoff)
+            ->setParameter('admin', '%ROLE_ADMIN%')
+            ->setParameter('coach', '%ROLE_COACH%')
             ->getQuery()
             ->getResult();
     }
