@@ -76,9 +76,13 @@
                 images_reuse_filename: true,
                 content_style:
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
-                    'font-size: 15px; line-height: 1.55; padding: 8px 16px; margin: 0; } ' +
+                    'font-size: 15px; line-height: 1.55; padding: 8px 16px; margin: 0; ' +
+                    'caret-color: #D32F2F; } ' +
                     'body > p:first-child { margin-top: 0; } ' +
-                    'img { max-width: 100%; height: auto; }',
+                    'img { max-width: 100%; height: auto; } ' +
+                    /* Astuce : un paragraphe vide n\'a pas de largeur, donc le curseur est invisible.
+                       On force une min-height pour qu\'il s\'affiche bien sur le placeholder. */
+                    'p:empty::before { content: ""; display: inline-block; }',
                 setup: function (editor) {
                     // Sync content back to the textarea on every change AND right
                     // before the form is submitted, in case TinyMCE's own submit
