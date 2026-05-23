@@ -125,4 +125,6 @@ export const auth = {
   refresh: (refreshToken: string) =>
     api.post<{ token: string; refresh_token?: string }>('/api/auth/refresh', { refresh_token: refreshToken }, { public: true }),
   me: () => api.get<AuthenticatedUser>('/api/me'),
+  setPassword: (newPassword: string) =>
+    api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
 };
