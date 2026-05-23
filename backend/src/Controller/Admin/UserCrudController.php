@@ -80,7 +80,9 @@ class UserCrudController extends AbstractCrudController
             ->setChoices(['Homme' => 'm', 'Femme' => 'f'])
             ->setRequired(false)
             ->hideOnIndex();
-        yield TextareaField::new('adresse', 'Adresse')->onlyOnDetail();
+        yield TextareaField::new('adresse', 'Adresse')
+            ->hideOnIndex()
+            ->setNumOfRows(4);
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
         yield ChoiceField::new('roles')
             ->setChoices(['Adhérent' => 'ROLE_USER', 'Entraîneur' => 'ROLE_COACH', 'Administrateur' => 'ROLE_ADMIN'])
