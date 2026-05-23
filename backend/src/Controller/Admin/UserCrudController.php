@@ -12,8 +12,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
@@ -60,6 +62,19 @@ class UserCrudController extends AbstractCrudController
         yield ChoiceField::new('categorie', 'Catégorie')
             ->setChoices(['Sénior' => UserCategory::Senior, 'Jeune' => UserCategory::Jeune])
             ->renderAsBadges();
+        yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
+        yield TextField::new('typeLicence', 'Type de licence')
+            ->renderAsBadges([
+                'Compétition' => 'success',
+                'Loisir' => 'info',
+                'Dirigeant' => 'warning',
+            ]);
+        yield DateField::new('dateNaissance', 'Date de naissance')->hideOnIndex();
+        yield ChoiceField::new('sexe', 'Sexe')
+            ->setChoices(['Homme' => 'm', 'Femme' => 'f'])
+            ->setRequired(false)
+            ->hideOnIndex();
+        yield TextareaField::new('adresse', 'Adresse')->onlyOnDetail();
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
         yield ChoiceField::new('roles')
             ->setChoices(['Adhérent' => 'ROLE_USER', 'Entraîneur' => 'ROLE_COACH', 'Administrateur' => 'ROLE_ADMIN'])

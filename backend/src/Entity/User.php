@@ -50,6 +50,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 40)]
     private string $statutLicence = 'Actif';
 
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $dateNaissance = null;
+
+    /** 'm' (homme) ou 'f' (femme), nullable si non renseigné */
+    #[ORM\Column(length: 1, nullable: true)]
+    private ?string $sexe = null;
+
+    /** Adresse postale complète (concaténée à l'import) */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $adresse = null;
+
+    /** "Compétition", "Loisir", "Dirigeant" — dérivé du Type de licence FFTri */
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $typeLicence = null;
+
+    /** Ex. "Senior 1", "Cadet 2", "Vétéran 3" — copié tel quel depuis FFTri */
+    #[ORM\Column(length: 40, nullable: true)]
+    private ?string $categorieAge = null;
+
     /**
      * @var list<string>
      */
@@ -176,6 +195,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->statutLicence = $statutLicence;
         return $this;
     }
+
+    public function getDateNaissance(): ?\DateTimeImmutable { return $this->dateNaissance; }
+    public function setDateNaissance(?\DateTimeImmutable $d): self { $this->dateNaissance = $d; return $this; }
+
+    public function getSexe(): ?string { return $this->sexe; }
+    public function setSexe(?string $s): self
+    {
+        $this->sexe = $s === null ? null : mb_strtolower(trim($s), 'UTF-8');
+        return $this;
+    }
+
+    public function getAdresse(): ?string { return $this->adresse; }
+    public function setAdresse(?string $a): self { $this->adresse = $a; return $this; }
+
+    public function getTypeLicence(): ?string { return $this->typeLicence; }
+    public function setTypeLicence(?string $t): self { $this->typeLicence = $t; return $this; }
+
+    public function getCategorieAge(): ?string { return $this->categorieAge; }
+    public function setCategorieAge(?string $c): self { $this->categorieAge = $c; return $this; }
 
     /**
      * @return list<string>

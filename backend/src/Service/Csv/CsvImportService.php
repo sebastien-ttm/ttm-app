@@ -16,31 +16,27 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * Import des adhérents depuis un export "Excel" de l'Espace Tri (FFTri).
- *
- * Le fichier exporté contient 60 colonnes en français accentué. Seules
- * quelques colonnes sont utilisées par l'application :
- *
- *   - "Numéro de licence" → identifiant unique
- *   - "Nom" / "Prénom"
- *   - "Email"
- *   - "Mobile" (fallback : "Téléphone")
- *   - "Statut" (Validé = actif)
- *   - "Type de licence" (contient "Jeune" → catégorie Jeune, sinon Sénior)
  */
 class CsvImportService
 {
     private const COL_NUM_LICENCE = 'Numéro de licence';
     private const COL_NOM = 'Nom';
     private const COL_PRENOM = 'Prénom';
+    private const COL_DATE_NAISSANCE = 'Date de naissance';
+    private const COL_SEXE = 'Sexe';
+    private const COL_ADRESSE_PRINCIPALE = 'Adresse principale';
+    private const COL_ADRESSE_DETAILS = 'Adresse Détails';
+    private const COL_LIEU_DIT = 'Lieu-dit ou boîte postale';
+    private const COL_CODE_POSTAL = 'Code Postal';
+    private const COL_VILLE = 'Ville';
+    private const COL_PAYS = 'Pays';
     private const COL_EMAIL = 'Email';
     private const COL_MOBILE = 'Mobile';
     private const COL_TELEPHONE = 'Téléphone';
     private const COL_STATUT = 'Statut';
     private const COL_TYPE_LICENCE = 'Type de licence';
+    private const COL_CATEGORIE_AGE = 'Catégorie d\'âge';
 
-    /**
-     * Colonnes requises pour valider que le fichier est bien un export FFTri.
-     */
     private const REQUIRED_COLUMNS = [
         self::COL_NUM_LICENCE,
         self::COL_NOM,
@@ -104,15 +100,11 @@ class CsvImportService
                 $statut = trim((string) ($record[self::COL_STATUT] ?? 'Validé'));
                 $isActive = $this->isStatutActive($statut);
 
-                // Catégorie : dérivée du "Type de licence" qui contient
-                // explicitement "Jeune" pour toutes les catégories jeunes
-                // (Mini-Poussin → Junior).
-                $typeLicence = (string) ($record[self::COL_TYPE_LICENCE] ?? '');
-                $categorie = stripos($typeLicence, 'jeune') !== false
+                $typeLicenceRaw = (string) ($record[self::COL_TYPE_LICENCE] ?? '');
+                $categorie = stripos($typeLicenceRaw, 'jeune') !== false
                     ? UserCategory::Jeune
                     : UserCategory::Senior;
 
-                // Téléphone : Mobile en priorité, sinon ligne fixe
                 $tel = $this->cleanPhone((string) ($record[self::COL_MOBILE] ?? ''));
                 if ($tel === '') {
                     $tel = $this->cleanPhone((string) ($record[self::COL_TELEPHONE] ?? ''));
@@ -135,6 +127,13 @@ class CsvImportService
                 $user->setStatutLicence($statut);
                 $user->setIsActive($isActive);
                 $user->setLastCsvSyncAt($importedAt);
+
+                // Nouveaux champs FFTri
+                $user->setDateNaissance($this->parseDate((string) ($record[self::COL_DATE_NAISSANCE] ?? '')));
+                $user->setSexe($this->cleanSexe((string) ($record[self::COL_SEXE] ?? '')));
+                $user->setAdresse($this->buildAdresse($record));
+                $user->setTypeLicence($this->normalizeTypeLicence($typeLicenceRaw));
+                $user->setCategorieAge(trim((string) ($record[self::COL_CATEGORIE_AGE] ?? '')) ?: null);
 
                 $errors = $this->validator->validate($user);
                 if (count($errors) > 0) {
@@ -169,7 +168,6 @@ class CsvImportService
         }
         $this->em->flush();
 
-        // Envoi des mails de bienvenue (async)
         if ($sendWelcomeEmails) {
             foreach ($newUsers as $u) {
                 $issued = $this->magicLinks->issue($u);
@@ -191,11 +189,94 @@ class CsvImportService
     }
 
     /**
-     * Supprime les espaces des téléphones (FFTri formate "06 12 34 56 78 ").
+     * Nettoie un numéro de téléphone :
+     *  - supprime les espaces et tirets
+     *  - ajoute un 0 devant si le numéro fait 9 chiffres (Excel coupe parfois
+     *    le 0 de tête, donnant "612345678" au lieu de "0612345678")
      */
     private function cleanPhone(string $phone): string
     {
-        return (string) preg_replace('/\s+/', '', trim($phone));
+        $cleaned = (string) preg_replace('/[\s.\-]+/', '', trim($phone));
+        if ($cleaned === '') {
+            return '';
+        }
+        // Numéro français mal formaté (9 chiffres sans 0 initial) → préfixer
+        if (preg_match('/^\d{9}$/', $cleaned)) {
+            $cleaned = '0'.$cleaned;
+        }
+        return $cleaned;
+    }
+
+    private function cleanSexe(string $s): ?string
+    {
+        $s = mb_strtolower(trim($s), 'UTF-8');
+        if ($s === 'm' || $s === 'h' || $s === 'homme' || $s === 'masculin') {
+            return 'm';
+        }
+        if ($s === 'f' || $s === 'femme' || $s === 'feminin' || $s === 'féminin') {
+            return 'f';
+        }
+        return null;
+    }
+
+    /**
+     * Parse les dates FFTri au format français DD/MM/YYYY.
+     */
+    private function parseDate(string $raw): ?\DateTimeImmutable
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+        $d = \DateTimeImmutable::createFromFormat('!d/m/Y', $raw);
+        return $d !== false ? $d : null;
+    }
+
+    /**
+     * Concatène les composantes d'adresse en une seule chaîne lisible.
+     */
+    private function buildAdresse(array $record): ?string
+    {
+        $line1 = trim((string) ($record[self::COL_ADRESSE_PRINCIPALE] ?? ''));
+        $line2 = trim((string) ($record[self::COL_ADRESSE_DETAILS] ?? ''));
+        $line3 = trim((string) ($record[self::COL_LIEU_DIT] ?? ''));
+        $cp = trim((string) ($record[self::COL_CODE_POSTAL] ?? ''));
+        $ville = trim((string) ($record[self::COL_VILLE] ?? ''));
+        $pays = trim((string) ($record[self::COL_PAYS] ?? ''));
+
+        $parts = array_filter([$line1, $line2, $line3], fn ($s) => $s !== '');
+        $cpVille = trim($cp.' '.$ville);
+
+        $address = implode("\n", $parts);
+        if ($cpVille !== '') {
+            $address = trim($address."\n".$cpVille);
+        }
+        if ($pays !== '' && strcasecmp($pays, 'France') !== 0) {
+            $address .= "\n".$pays;
+        }
+        return $address !== '' ? $address : null;
+    }
+
+    /**
+     * Catégorise un "Type de licence" FFTri en :
+     *  - "Dirigeant"   si le libellé contient "dirigeant"
+     *  - "Compétition" si "compétition"
+     *  - "Loisir"      si "loisir"
+     *  - null sinon
+     */
+    private function normalizeTypeLicence(string $raw): ?string
+    {
+        $lower = mb_strtolower($raw, 'UTF-8');
+        if (str_contains($lower, 'dirigeant')) {
+            return 'Dirigeant';
+        }
+        if (str_contains($lower, 'compétition') || str_contains($lower, 'competition')) {
+            return 'Compétition';
+        }
+        if (str_contains($lower, 'loisir')) {
+            return 'Loisir';
+        }
+        return null;
     }
 
     private function isStatutActive(string $statut): bool
