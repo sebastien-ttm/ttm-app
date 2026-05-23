@@ -91,8 +91,12 @@ class AuthController extends AbstractController
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($user, 2592000);
         $this->refreshTokenManager->save($refresh);
 
+        // IMPORTANT : le champ "token" doit avoir la même casse/clé que la
+        // réponse du login JSON Lexik, sinon les clients (mobile) ne savent
+        // pas où lire le JWT et tombent en silencieux avec un "undefined"
+        // stocké en localStorage.
         return new JsonResponse([
-            'access_token' => $accessToken,
+            'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
             'user' => AuthSuccessListener::serializeUser($user),
         ]);
