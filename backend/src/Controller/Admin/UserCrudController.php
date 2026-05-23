@@ -63,7 +63,13 @@ class UserCrudController extends AbstractCrudController
             ->setChoices(['Sénior' => UserCategory::Senior, 'Jeune' => UserCategory::Jeune])
             ->renderAsBadges();
         yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
-        yield TextField::new('typeLicence', 'Type de licence')
+        yield ChoiceField::new('typeLicence', 'Type de licence')
+            ->setChoices([
+                'Compétition' => 'Compétition',
+                'Loisir' => 'Loisir',
+                'Dirigeant' => 'Dirigeant',
+            ])
+            ->setRequired(false)
             ->renderAsBadges([
                 'Compétition' => 'success',
                 'Loisir' => 'info',
