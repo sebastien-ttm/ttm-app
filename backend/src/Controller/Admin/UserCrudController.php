@@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
@@ -89,6 +90,16 @@ class UserCrudController extends AbstractCrudController
             ->allowMultipleChoices()
             ->renderAsBadges();
         yield BooleanField::new('isActive', 'Actif');
+
+        // Profil lié (parent/enfant partageant l'e-mail)
+        yield TextField::new('linkLabel', 'Lien')
+            ->hideOnForm()
+            ->setHelp('Compte principal = se connecte. Les autres profils du même e-mail sont rattachés à lui et accessibles via le switch dans le mobile.');
+        yield AssociationField::new('linkedToUser', 'Rattaché à')
+            ->setRequired(false)
+            ->setHelp('Si ce user partage son e-mail avec son parent, sélectionnez le compte parent. Laisser vide pour un compte principal.')
+            ->onlyOnForms();
+
         yield DateTimeField::new('lastCsvSyncAt', 'Dernier import CSV')->onlyOnDetail();
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnDetail();
 

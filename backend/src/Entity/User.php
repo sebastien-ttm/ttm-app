@@ -74,9 +74,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * Profil "principal" auquel ce user est rattaché (parent/enfant via e-mail
      * partagé). NULL si ce user est lui-même primaire (= peut se connecter).
      */
-    #[ORM\ManyToOne(targetEntity: self::class)]
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'dependents')]
     #[ORM\JoinColumn(name: 'linked_to_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?User $linkedToUser = null;
+
+    /**
+     * Dépendants rattachés à ce user (= ce user est le primaire d'un groupe).
+     * @var Collection<int, User>
+     */
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'linkedToUser')]
+    private Collection $dependents;
 
     /**
      * @var list<string>
@@ -110,6 +117,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
         $this->deviceTokens = new ArrayCollection();
+        $this->dependents = new ArrayCollection();
     }
 
     #[ORM\PreUpdate]
@@ -236,6 +244,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isPrimary(): bool
     {
         return $this->linkedToUser === null;
+    }
+
+    /** @return Collection<int, User> */
+    public function getDependents(): Collection
+    {
+        return $this->dependents;
+    }
+
+    /**
+     * Résumé textuel pour affichage admin :
+     *  - "→ Dupont Paul (A123)" si ce user est lié à un primaire
+     *  - "Compte principal · 2 dépendants" si primaire avec dépendants
+     *  - "" si simple user sans liens
+     */
+    public function getLinkLabel(): string
+    {
+        if ($this->linkedToUser !== null) {
+            return sprintf('→ %s (%s)',
+                $this->linkedToUser->getFullName(),
+                $this->linkedToUser->getNumLicence(),
+            );
+        }
+        $n = $this->dependents->count();
+        if ($n > 0) {
+            return sprintf('Compte principal · %d dépendant%s', $n, $n > 1 ? 's' : '');
+        }
+        return '';
     }
 
     /**
