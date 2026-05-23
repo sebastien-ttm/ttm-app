@@ -16,8 +16,38 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class CsvImportService
 {
-    private const REQUIRED_HEADERS = [
-        'num_licence', 'nom', 'prenom', 'email', 'categorie', 'statut_licence',
+    /**
+     * Schémas de colonnes supportés.
+     *
+     *  - "simple" : notre format minimaliste (num_licence,nom,prenom,email,telephone,categorie,statut_licence)
+     *  - "fftri"  : export "Excel" depuis l'Espace Tri (60 colonnes, headers en français accentués)
+     */
+    private const SCHEMAS = [
+        'simple' => [
+            'detect' => 'num_licence',
+            'map' => [
+                'num_licence' => 'num_licence',
+                'nom' => 'nom',
+                'prenom' => 'prenom',
+                'email' => 'email',
+                'telephone' => 'telephone',
+                'statut_licence' => 'statut_licence',
+                'categorie_explicit' => 'categorie',
+            ],
+        ],
+        'fftri' => [
+            'detect' => 'numero de licence',
+            'map' => [
+                'num_licence' => 'Numéro de licence',
+                'nom' => 'Nom',
+                'prenom' => 'Prénom',
+                'email' => 'Email',
+                'telephone' => 'Mobile',
+                'telephone_fallback' => 'Téléphone',
+                'statut_licence' => 'Statut',
+                'type_licence' => 'Type de licence',
+            ],
+        ],
     ];
 
     public function __construct(
@@ -38,21 +68,17 @@ class CsvImportService
         $csv = Reader::createFromPath($filePath, 'r');
         $csv->setDelimiter($delimiter);
         $csv->setHeaderOffset(0);
-
-        // Strip BOM if present
         $csv->skipInputBOM();
 
-        $headers = array_map(
-            fn ($h) => mb_strtolower(trim((string) $h), 'UTF-8'),
-            $csv->getHeader()
-        );
+        $rawHeaders = $csv->getHeader();
+        $schema = $this->detectSchema($rawHeaders);
 
-        foreach (self::REQUIRED_HEADERS as $required) {
-            if (!in_array($required, $headers, true)) {
-                $result->addError(0, sprintf('Colonne manquante : "%s"', $required));
-                return $result;
-            }
+        if ($schema === null) {
+            $result->addError(0, 'Format CSV non reconnu. Attendu : export FFTri (Espace Tri) ou format simple (num_licence,nom,prenom,email,...).');
+            return $result;
         }
+
+        $this->csvImportLogger->info('CSV schema détecté', ['schema' => $schema['name']]);
 
         $records = (new Statement())->process($csv);
         $line = 1;
@@ -60,23 +86,39 @@ class CsvImportService
 
         foreach ($records as $record) {
             $line++;
-            $row = $this->normalizeRow($record);
 
             try {
-                $numLicence = trim((string) ($row['num_licence'] ?? ''));
+                $numLicence = trim((string) ($record[$schema['map']['num_licence']] ?? ''));
                 if ($numLicence === '') {
-                    $result->addError($line, 'num_licence vide', $row);
+                    $result->addError($line, 'Numéro de licence vide', $record);
                     continue;
                 }
 
-                $email = trim((string) ($row['email'] ?? ''));
+                $email = $this->cleanEmail((string) ($record[$schema['map']['email']] ?? ''));
                 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $result->addError($line, 'Email invalide ou manquant', $row);
+                    $result->addError($line, sprintf('Email invalide ou manquant (licence %s)', $numLicence), $record);
                     continue;
                 }
 
-                $statut = trim((string) ($row['statut_licence'] ?? 'Actif'));
+                $statut = trim((string) ($record[$schema['map']['statut_licence']] ?? 'Actif'));
                 $isActive = $this->isStatutActive($statut);
+
+                // Catégorie : soit colonne explicite (format simple), soit dérivée du
+                // "Type de licence" qui contient "Jeune" pour les catégories jeunes.
+                if (isset($schema['map']['categorie_explicit'])) {
+                    $categorie = UserCategory::fromCsv((string) ($record[$schema['map']['categorie_explicit']] ?? 'senior'));
+                } else {
+                    $typeLicence = (string) ($record[$schema['map']['type_licence']] ?? '');
+                    $categorie = stripos($typeLicence, 'jeune') !== false
+                        ? UserCategory::Jeune
+                        : UserCategory::Senior;
+                }
+
+                // Téléphone : Mobile en priorité, sinon Téléphone fixe
+                $tel = $this->cleanPhone((string) ($record[$schema['map']['telephone']] ?? ''));
+                if ($tel === '' && isset($schema['map']['telephone_fallback'])) {
+                    $tel = $this->cleanPhone((string) ($record[$schema['map']['telephone_fallback']] ?? ''));
+                }
 
                 $user = $this->users->findOneByNumLicence($numLicence);
                 $isNew = $user === null;
@@ -87,11 +129,11 @@ class CsvImportService
                     $user->setRoles(['ROLE_USER']);
                 }
 
-                $user->setNom(trim((string) ($row['nom'] ?? '')));
-                $user->setPrenom(trim((string) ($row['prenom'] ?? '')));
+                $user->setNom(trim((string) ($record[$schema['map']['nom']] ?? '')));
+                $user->setPrenom(trim((string) ($record[$schema['map']['prenom']] ?? '')));
                 $user->setEmail($email);
-                $user->setTelephone(trim((string) ($row['telephone'] ?? '')) ?: null);
-                $user->setCategorie(UserCategory::fromCsv((string) ($row['categorie'] ?? 'senior')));
+                $user->setTelephone($tel !== '' ? $tel : null);
+                $user->setCategorie($categorie);
                 $user->setStatutLicence($statut);
                 $user->setIsActive($isActive);
                 $user->setLastCsvSyncAt($importedAt);
@@ -102,7 +144,7 @@ class CsvImportService
                     foreach ($errors as $err) {
                         $msgs[] = $err->getPropertyPath().': '.$err->getMessage();
                     }
-                    $result->addError($line, implode('; ', $msgs), $row);
+                    $result->addError($line, implode('; ', $msgs), $record);
                     continue;
                 }
 
@@ -114,14 +156,14 @@ class CsvImportService
                     $result->updated++;
                 }
             } catch (\Throwable $e) {
-                $result->addError($line, $e->getMessage(), $row);
+                $result->addError($line, $e->getMessage(), $record);
                 $this->csvImportLogger->error('CSV row error', ['line' => $line, 'exception' => $e]);
             }
         }
 
         $this->em->flush();
 
-        // Deactivate users not touched by this import
+        // Désactivation des users absents de cet import
         $stale = $this->users->findActiveNotSyncedSince($importedAt);
         foreach ($stale as $u) {
             $u->setIsActive(false);
@@ -129,7 +171,7 @@ class CsvImportService
         }
         $this->em->flush();
 
-        // Welcome emails for new users (after flush so ids exist)
+        // Envoi des mails de bienvenue
         if ($sendWelcomeEmails) {
             foreach ($newUsers as $u) {
                 $issued = $this->magicLinks->issue($u);
@@ -141,27 +183,62 @@ class CsvImportService
             }
         }
 
-        $this->csvImportLogger->info('CSV import done', $result->toArray());
+        $this->csvImportLogger->info('CSV import terminé', $result->toArray());
         return $result;
     }
 
     /**
-     * @param array<string, string> $row
-     * @return array<string, string>
+     * Détecte le format CSV en se basant sur les colonnes présentes.
+     *
+     * @param list<string> $rawHeaders
+     * @return array{name: string, map: array<string, string>}|null
      */
-    private function normalizeRow(array $row): array
+    private function detectSchema(array $rawHeaders): ?array
     {
-        $normalized = [];
-        foreach ($row as $k => $v) {
-            $key = mb_strtolower(trim((string) $k), 'UTF-8');
-            $normalized[$key] = trim((string) $v);
+        $normalizedHeaders = array_map([$this, 'normalizeHeader'], $rawHeaders);
+
+        foreach (self::SCHEMAS as $name => $schema) {
+            if (in_array($schema['detect'], $normalizedHeaders, true)) {
+                return ['name' => $name, 'map' => $schema['map']];
+            }
         }
-        return $normalized;
+        return null;
+    }
+
+    private function normalizeHeader(string $h): string
+    {
+        $h = trim($h);
+        $h = mb_strtolower($h, 'UTF-8');
+        // strip accents
+        if (function_exists('iconv')) {
+            $h = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $h) ?: $h;
+        }
+        return $h;
+    }
+
+    private function cleanEmail(string $email): string
+    {
+        return mb_strtolower(trim($email), 'UTF-8');
+    }
+
+    /**
+     * Supprime les espaces et caractères non numériques d'un téléphone
+     * (les exports FFTri ont des formats comme "06 12 34 56 78 ").
+     */
+    private function cleanPhone(string $phone): string
+    {
+        $cleaned = preg_replace('/\s+/', '', trim($phone));
+        return $cleaned ?? '';
     }
 
     private function isStatutActive(string $statut): bool
     {
         $normalized = mb_strtolower(trim($statut), 'UTF-8');
-        return in_array($normalized, ['actif', 'active', 'a jour', 'à jour', 'valide', 'valid'], true);
+        return in_array($normalized, [
+            'actif', 'active',
+            'a jour', 'à jour',
+            'valide', 'validé', 'valid',
+            'en cours',
+        ], true);
     }
 }
