@@ -96,18 +96,40 @@ export type Banner = {
   linkUrl: string | null;
 };
 
+export type CharterFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'date'
+  | 'checkbox'
+  | 'select'
+  | 'radio';
+
+export type CharterField = {
+  id: string;
+  label: string;
+  type: CharterFieldType;
+  required?: boolean;
+  help?: string;
+  options?: string[];
+};
+
 export type Charter = {
   id: number;
   title: string;
   version: string;
   content: string;
   publishedAt: string;
+  hasForm: boolean;
+  fields: CharterField[];
 };
 
 export type CharterStatus = {
   charter: Charter | null;
   acceptanceRequired: boolean;
 };
+
+export type CharterAnswers = Record<string, string | number | boolean | null>;
 
 export const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '👏'] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];

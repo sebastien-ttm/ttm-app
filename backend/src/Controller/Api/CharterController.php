@@ -6,6 +6,7 @@ use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\ClubCharterRepository;
+use App\Service\Charter\FormSchemaValidator;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +24,7 @@ class CharterController extends AbstractController
         private readonly CharterAcceptanceRepository $acceptances,
         private readonly EntityManagerInterface $em,
         private readonly ApiSerializer $serializer,
+        private readonly FormSchemaValidator $formValidator,
     ) {
     }
 
@@ -74,7 +76,31 @@ class CharterController extends AbstractController
             return new JsonResponse(['ok' => true, 'alreadyAccepted' => true]);
         }
 
-        $acceptance = new CharterAcceptance($user, $charter, $request->getClientIp());
+        $answers = null;
+        if ($charter->hasForm()) {
+            $payload = json_decode($request->getContent() ?: '{}', true);
+            $rawAnswers = is_array($payload) ? ($payload['answers'] ?? null) : null;
+
+            $errors = $this->formValidator->validateAnswers($charter->getFields(), $rawAnswers);
+            if ($errors !== []) {
+                return new JsonResponse(
+                    ['error' => 'Formulaire invalide.', 'details' => $errors],
+                    Response::HTTP_UNPROCESSABLE_ENTITY,
+                );
+            }
+
+            // Ne conserver que les clés du schéma (pas d'inputs parasites)
+            $allowedIds = array_map(
+                static fn (array $f) => $f['id'] ?? null,
+                $charter->getFields() ?? [],
+            );
+            $answers = array_intersect_key(
+                is_array($rawAnswers) ? $rawAnswers : [],
+                array_flip(array_filter($allowedIds, 'is_string')),
+            );
+        }
+
+        $acceptance = new CharterAcceptance($user, $charter, $request->getClientIp(), $answers);
         $this->em->persist($acceptance);
         $this->em->flush();
 

@@ -197,6 +197,8 @@ class ApiSerializer
             'version' => $c->getVersion(),
             'content' => $c->getContent(),
             'publishedAt' => $c->getPublishedAt()->format(\DATE_ATOM),
+            'hasForm' => $c->hasForm(),
+            'fields' => $c->getFields() ?? [],
         ];
     }
 

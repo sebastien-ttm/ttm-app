@@ -33,11 +33,22 @@ class CharterAcceptance
     #[ORM\Column(length: 45, nullable: true)]
     private ?string $ipAddress = null;
 
-    public function __construct(User $user, ClubCharter $charter, ?string $ipAddress = null)
+    /**
+     * Réponses au formulaire de la charte, sous la forme d'un dictionnaire
+     * { field_id: value }. NULL si la charte n'avait pas de formulaire
+     * (acceptation simple).
+     *
+     * @var array<string, mixed>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $answers = null;
+
+    public function __construct(User $user, ClubCharter $charter, ?string $ipAddress = null, ?array $answers = null)
     {
         $this->user = $user;
         $this->charter = $charter;
         $this->ipAddress = $ipAddress;
+        $this->answers = $answers;
         $this->acceptedAt = new \DateTimeImmutable();
     }
 
@@ -46,4 +57,10 @@ class CharterAcceptance
     public function getCharter(): ClubCharter { return $this->charter; }
     public function getAcceptedAt(): \DateTimeImmutable { return $this->acceptedAt; }
     public function getIpAddress(): ?string { return $this->ipAddress; }
+
+    /** @return array<string, mixed>|null */
+    public function getAnswers(): ?array { return $this->answers; }
+
+    /** @param array<string, mixed>|null $answers */
+    public function setAnswers(?array $answers): self { $this->answers = $answers; return $this; }
 }

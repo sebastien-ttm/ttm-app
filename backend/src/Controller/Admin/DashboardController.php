@@ -90,6 +90,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-list-check', 'admin_charter_tracking')
             ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToRoute('Réponses au formulaire', 'fa fa-clipboard-list', 'admin_charter_responses')
+            ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section();
         yield AdminMenuItem::linkToRoute('Voir l\'API', 'fa fa-book', 'api_doc');

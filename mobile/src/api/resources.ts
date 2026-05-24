@@ -2,6 +2,7 @@ import { api } from './client';
 import type {
   Article,
   Banner,
+  CharterAnswers,
   CharterStatus,
   Comment,
   EventItem,
@@ -57,5 +58,9 @@ export const banner = {
 
 export const charter = {
   current: () => api.get<CharterStatus>('/api/charter/current'),
-  accept: () => api.post<{ ok: boolean; acceptedAt?: string }>('/api/me/charter/accept'),
+  accept: (answers?: CharterAnswers) =>
+    api.post<{ ok: boolean; acceptedAt?: string }>(
+      '/api/me/charter/accept',
+      answers ? { answers } : undefined,
+    ),
 };

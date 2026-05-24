@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,15 +13,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { CharterAnswers } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { CharterForm, validateCharterAnswers } from '@/components/CharterForm';
 import { RichContent } from '@/components/RichContent';
-import { APP_NAME, COLORS } from '@/config';
+import { APP_NAME, COLORS, SPACING } from '@/config';
 
 const SCROLL_THRESHOLD_PX = 12;
 
 export default function CharterAcceptanceScreen() {
   const { pendingCharter, acknowledgeCharter, signOut } = useAuth();
+  const hasForm = !!pendingCharter?.hasForm;
+  const fields = useMemo(() => pendingCharter?.fields ?? [], [pendingCharter]);
+
   const [hasReadAll, setHasReadAll] = useState(false);
+  const [answers, setAnswers] = useState<CharterAnswers>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,23 +42,37 @@ export default function CharterAcceptanceScreen() {
   }
 
   function onContentSizeChange(_w: number, h: number) {
-    // If the entire content fits without scrolling, accept immediately.
-    // We can't know the layout height here, so we use a heuristic: if the
-    // text is short, the scrollEvent may never fire onScrollEndDrag.
-    // Best guess: web window height.
+    // Si tout le contenu tient à l'écran sans scroll, considère lu d'office.
     if (Platform.OS === 'web' && typeof window !== 'undefined' && h <= window.innerHeight) {
       setHasReadAll(true);
     }
   }
 
+  // Quand il y a un formulaire, la "lecture complète" du contenu n'est plus
+  // un prérequis (le focus passe sur les champs).
+  const canSubmit = hasForm ? true : hasReadAll;
+
   async function onAccept() {
-    if (!hasReadAll || busy) return;
+    if (!canSubmit || busy) return;
+
+    if (hasForm) {
+      const errs = validateCharterAnswers(fields, answers);
+      setFieldErrors(errs);
+      if (Object.keys(errs).length > 0) {
+        setError('Veuillez corriger les champs indiqués avant de valider.');
+        return;
+      }
+    }
+
     setBusy(true);
     setError(null);
     try {
-      await acknowledgeCharter();
+      await acknowledgeCharter(hasForm ? answers : undefined);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur lors de l\'acceptation');
+      // Affiche éventuellement les détails serveur (FormSchemaValidator)
+      const apiBody = (e as { body?: { details?: string[] } } | undefined)?.body;
+      const serverDetails = Array.isArray(apiBody?.details) ? apiBody.details.join(' ') : null;
+      setError(serverDetails ?? (e instanceof Error ? e.message : 'Erreur lors de l\'acceptation'));
     } finally {
       setBusy(false);
     }
@@ -66,10 +87,9 @@ export default function CharterAcceptanceScreen() {
       }
     };
     if (Platform.OS === 'web') {
-      // Alert.alert on web is unreliable, use confirm()
-      const ok = typeof window !== 'undefined' && window.confirm(
-        'Refuser la charte vous déconnecte de l\'application. Voulez-vous continuer ?',
-      );
+      const ok =
+        typeof window !== 'undefined' &&
+        window.confirm('Refuser la charte vous déconnecte de l\'application. Voulez-vous continuer ?');
       if (ok) await doSignOut();
       return;
     }
@@ -107,30 +127,54 @@ export default function CharterAcceptanceScreen() {
         scrollEventThrottle={16}
       >
         <RichContent html={pendingCharter.content} />
+
+        {hasForm && (
+          <View style={styles.formBlock}>
+            <Text style={styles.formTitle}>Informations à compléter</Text>
+            <Text style={styles.formIntro}>
+              Merci de remplir les champs ci-dessous avant de valider votre acceptation.
+            </Text>
+            <CharterForm
+              fields={fields}
+              value={answers}
+              onChange={(next) => {
+                setAnswers(next);
+                if (Object.keys(fieldErrors).length > 0) {
+                  setFieldErrors(validateCharterAnswers(fields, next));
+                }
+              }}
+              errors={fieldErrors}
+            />
+          </View>
+        )}
       </ScrollView>
 
       {error && <Text style={styles.errorBanner}>{error}</Text>}
 
       <View style={styles.footer}>
-        <Text style={[styles.hint, hasReadAll && styles.hintDone]}>
-          {hasReadAll
-            ? '✓ Vous avez lu la charte intégralement.'
-            : 'Faites défiler le texte jusqu\'en bas pour activer le bouton.'}
-        </Text>
+        {!hasForm && (
+          <Text style={[styles.hint, hasReadAll && styles.hintDone]}>
+            {hasReadAll
+              ? '✓ Vous avez lu la charte intégralement.'
+              : 'Faites défiler le texte jusqu\'en bas pour activer le bouton.'}
+          </Text>
+        )}
 
         <View style={styles.actions}>
           <Pressable style={styles.declineBtn} onPress={onDecline} disabled={busy}>
             <Text style={styles.declineLabel}>Refuser et me déconnecter</Text>
           </Pressable>
           <Pressable
-            style={[styles.acceptBtn, (!hasReadAll || busy) && styles.acceptBtnDisabled]}
+            style={[styles.acceptBtn, (!canSubmit || busy) && styles.acceptBtnDisabled]}
             onPress={onAccept}
-            disabled={!hasReadAll || busy}
+            disabled={!canSubmit || busy}
           >
             {busy ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.acceptLabel}>J'accepte la charte</Text>
+              <Text style={styles.acceptLabel}>
+                {hasForm ? 'Valider et accepter' : 'J\'accepte la charte'}
+              </Text>
             )}
           </Pressable>
         </View>
@@ -152,6 +196,15 @@ const styles = StyleSheet.create({
   version: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2 },
   scroll: { flex: 1, backgroundColor: COLORS.surface },
   scrollContent: { padding: 18, paddingBottom: 36 },
+  formBlock: {
+    marginTop: SPACING.xl,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  formTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
+  formIntro: { fontSize: 13, color: COLORS.textMuted, marginBottom: SPACING.sm },
   errorBanner: {
     backgroundColor: '#FEE',
     color: COLORS.error,

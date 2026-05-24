@@ -3,7 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, auth, setOnUnauthorized } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
-import type { Charter } from '@/api/types';
+import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { registerForPushNotifications } from '@/notifications/registerForPush';
 
@@ -20,7 +20,7 @@ type AuthContextValue = AuthState & {
   consumeMagicLink: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
-  acknowledgeCharter: () => Promise<void>;
+  acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
   switchProfile: (numLicence: string) => Promise<void>;
 };
 
@@ -158,11 +158,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, user: fresh }));
   }, []);
 
-  const acknowledgeCharter = useCallback(async () => {
-    await charterApi.accept();
-    setState((s) => ({ ...s, charterRequired: false, pendingCharter: null }));
-    router.replace('/(tabs)');
-  }, [router]);
+  const acknowledgeCharter = useCallback(
+    async (answers?: CharterAnswers) => {
+      await charterApi.accept(answers);
+      setState((s) => ({ ...s, charterRequired: false, pendingCharter: null }));
+      router.replace('/(tabs)');
+    },
+    [router],
+  );
 
   const switchProfile = useCallback(
     async (numLicence: string) => {

@@ -1,0 +1,87 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Réponses au formulaire de la charte{% endblock %}
+
+{% block main %}
+    {% if charter is null %}
+        <div style="background:#FEE; color:#C62828; padding:14px; border-radius:6px;">
+            Aucune charte active n'est définie. Créez-en une depuis le menu « Charte du club ».
+        </div>
+    {% elseif not charter.hasForm %}
+        <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
+            La charte active <strong>{{ charter.title }}</strong> ({{ charter.version }}) n'a pas de formulaire :
+            les adhérents acceptent par simple clic. Ajoutez un schéma JSON dans
+            « Charte du club » pour collecter des réponses.
+        </div>
+    {% else %}
+        <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div>
+                    <h3 style="margin:0;">{{ charter.title }} <small style="color:#888;">({{ charter.version }})</small></h3>
+                    <p style="margin:6px 0 0 0;">
+                        <strong style="color:#1d4ed8;">{{ rows|length }}</strong> réponse(s) ·
+                        <strong>{{ fields|length }}</strong> question(s)
+                    </p>
+                </div>
+                {% if rows|length > 0 %}
+                    <a href="{{ path('admin_charter_responses_csv') }}"
+                       class="btn btn-primary"
+                       style="background:#1d4ed8; border-color:#1d4ed8;">
+                        <i class="fa fa-file-csv"></i> Exporter en CSV
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if rows|length == 0 %}
+            <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <p style="margin:0; color:#666;">Aucune réponse pour l'instant.</p>
+            </div>
+        {% else %}
+            <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:600px;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="padding:8px; text-align:left; white-space:nowrap;">Adhérent</th>
+                            <th style="padding:8px; text-align:left; white-space:nowrap;">N° licence</th>
+                            <th style="padding:8px; text-align:left; white-space:nowrap;">Acceptée le</th>
+                            {% for f in fields %}
+                                <th style="padding:8px; text-align:left;">
+                                    {{ f.label ?? f.id }}
+                                    {% if f.required ?? false %}
+                                        <span style="color:#C62828;">*</span>
+                                    {% endif %}
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px;">{{ row.user.fullName }}</td>
+                                <td style="padding:8px; font-family:monospace; color:#555;">{{ row.user.numLicence }}</td>
+                                <td style="padding:8px; white-space:nowrap;">{{ row.acceptedAt|date('d/m/Y H:i') }}</td>
+                                {% for f in fields %}
+                                    {% set v = row.answers[f.id] ?? null %}
+                                    <td style="padding:8px;">
+                                        {% if v is null or v == '' %}
+                                            <span style="color:#bbb;">—</span>
+                                        {% elseif v is iterable %}
+                                            {{ v|join(', ') }}
+                                        {% elseif v is same as(true) or v == '1' or v == 'true' %}
+                                            <span style="color:#2E7D32;">✓ Oui</span>
+                                        {% elseif v is same as(false) or v == '0' or v == 'false' %}
+                                            <span style="color:#888;">✗ Non</span>
+                                        {% else %}
+                                            {{ v }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endblock %}
