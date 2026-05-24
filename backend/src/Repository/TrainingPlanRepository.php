@@ -33,4 +33,23 @@ class TrainingPlanRepository extends ServiceEntityRepository
 
         return new Paginator($qb->getQuery());
     }
+
+    /**
+     * Plans dont le weekStartsAt correspond exactement à la semaine demandée.
+     *
+     * @return list<TrainingPlan>
+     */
+    public function findForWeek(\DateTimeImmutable $weekStartsAt): array
+    {
+        $monday = $weekStartsAt->modify('monday this week')->setTime(0, 0, 0);
+
+        return $this->createQueryBuilder('t')
+            ->leftJoin('t.postedBy', 'p')->addSelect('p')
+            ->where('t.weekStartsAt = :w')
+            ->setParameter('w', $monday->format('Y-m-d'))
+            ->orderBy('t.category', 'ASC')
+            ->addOrderBy('t.postedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

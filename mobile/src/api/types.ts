@@ -96,6 +96,39 @@ export type Banner = {
   linkUrl: string | null;
 };
 
+export type SportKey = 'natation' | 'velo' | 'course' | 'multi' | 'renfo' | 'autre';
+
+export type TrainingSlot = {
+  /** null si créneau virtuel (semaine type non encore matérialisée). */
+  id: number | null;
+  /** null si créneau occasionnel sans template. */
+  templateId: number | null;
+  /** Date YYYY-MM-DD du jour précis (lundi + dayOfWeek - 1). */
+  date: string;
+  dayOfWeek: number; // 1 = lundi, 7 = dimanche
+  startTime: string; // "HH:MM"
+  durationMinutes: number;
+  sport: SportKey;
+  sportLabel: string;
+  sportIcon: string;
+  sportColor: string;
+  title: string;
+  location: string;
+  description: string | null;
+  isCancelled: boolean;
+  isOverride: boolean;
+  isOccasional: boolean;
+};
+
+export type WeeklySchedule = {
+  /** YYYY-MM-DD du lundi de la semaine. */
+  week: string;
+  weekLabel: string;
+  isoWeek: string; // ex. "2026-W22"
+  slots: TrainingSlot[];
+  plans: TrainingPlan[];
+};
+
 export type CharterFieldType =
   | 'text'
   | 'textarea'

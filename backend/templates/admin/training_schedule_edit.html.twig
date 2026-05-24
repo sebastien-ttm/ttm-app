@@ -1,0 +1,87 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% set days_labels = {1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche'} %}
+
+{% block content_title %}
+    {{ isOccasional ? 'Ajouter un créneau occasionnel' : 'Modifier le créneau pour cette semaine' }}
+{% endblock %}
+
+{% block main %}
+    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
+        <strong>{{ weekHuman }}</strong>
+        {% if not isOccasional %}
+            <div style="margin-top:4px; font-size:13px; color:#666;">
+                Cette modification ne s'applique qu'à cette semaine. La semaine type reste inchangée.
+            </div>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ path('admin_training_schedule_edit') }}" style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); display:grid; gap:14px; max-width:720px;">
+        <input type="hidden" name="_token" value="{{ csrf_token('schedule_edit') }}" />
+        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+        {% if slot.id %}
+            <input type="hidden" name="slotId" value="{{ slot.id }}" />
+        {% endif %}
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Jour</label>
+            <select name="dayOfWeek" class="form-control" style="max-width:200px;">
+                {% for num, lbl in days_labels %}
+                    <option value="{{ num }}" {{ slot.dayOfWeek == num ? 'selected' : '' }}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Heure de début</label>
+                <input type="time" name="startTime" class="form-control"
+                       value="{{ slot.startTime ? slot.startTime|date('H:i') : '18:30' }}" />
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Durée (min)</label>
+                <input type="number" name="durationMinutes" class="form-control" style="width:120px;"
+                       value="{{ slot.durationMinutes ?: 60 }}" min="5" max="600" />
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Sport</label>
+                <select name="sport" class="form-control">
+                    {% for label, value in sportChoices %}
+                        <option value="{{ value }}" {{ slot.sport and slot.sport.value == value ? 'selected' : '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Titre</label>
+            <input type="text" name="title" class="form-control" maxlength="120"
+                   value="{{ slot.title ?? '' }}" required />
+        </div>
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Lieu</label>
+            <input type="text" name="location" class="form-control" maxlength="200"
+                   value="{{ slot.location ?? '' }}" required />
+        </div>
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Description (optionnelle)</label>
+            <textarea name="description" class="form-control" rows="3">{{ slot.description ?? '' }}</textarea>
+        </div>
+
+        {% if not isOccasional %}
+            <div>
+                <label>
+                    <input type="checkbox" name="isCancelled" value="1" {{ slot.isCancelled ? 'checked' : '' }} />
+                    Marquer comme annulé pour cette semaine
+                </label>
+            </div>
+        {% endif %}
+
+        <div style="display:flex; gap:10px; margin-top:8px;">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ path('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+{% endblock %}

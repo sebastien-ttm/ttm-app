@@ -10,6 +10,7 @@ use App\Entity\Event;
 use App\Entity\MenuItem;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
+use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -67,9 +68,15 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)
             ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Plans d\'entraînement', 'fa fa-file-pdf', TrainingPlan::class);
         yield AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)
             ->setPermission('ROLE_ADMIN');
+
+        yield AdminMenuItem::section('Entraînements');
+        yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')
+            ->setPermission('ROLE_COACH');
+        yield AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)
+            ->setPermission('ROLE_COACH');
+        yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class);
 
         yield AdminMenuItem::section('Configuration');
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)

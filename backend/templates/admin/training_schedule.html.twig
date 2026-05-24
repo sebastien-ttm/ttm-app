@@ -1,0 +1,140 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% set days_labels = {1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche'} %}
+
+{% block content_title %}Créneaux d'entraînement de la semaine{% endblock %}
+
+{% block main %}
+    {# ------------ Barre de navigation semaine ------------ #}
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px;">
+        <a href="{{ path('admin_training_schedule', {week: prev}) }}" class="btn btn-secondary">
+            ← Semaine précédente
+        </a>
+        <a href="{{ path('admin_training_schedule', {week: today}) }}" class="btn btn-secondary">
+            Aujourd'hui
+        </a>
+        <a href="{{ path('admin_training_schedule', {week: next}) }}" class="btn btn-secondary">
+            Semaine suivante →
+        </a>
+        <form method="get" action="{{ path('admin_training_schedule') }}" style="display:inline-flex; gap:6px; align-items:center; margin-left:auto;">
+            <label style="font-size:13px; color:#555;">Aller à la semaine du :</label>
+            <input type="date" name="week" value="{{ week|date('Y-m-d') }}" />
+            <button type="submit" class="btn btn-primary">OK</button>
+        </form>
+    </div>
+
+    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
+        <h3 style="margin:0;">{{ weekHuman }}</h3>
+        <p style="margin:6px 0 0 0; color:#666; font-size:13px;">
+            Semaine ISO {{ weekIso }} — {{ rows|length }} créneau(x).
+            La semaine type est <strong>projetée</strong> ici ; toute modification ne concerne QUE cette semaine.
+        </p>
+        <div style="margin-top:12px;">
+            <a href="{{ path('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
+                <i class="fa fa-plus"></i> Ajouter un créneau occasionnel
+            </a>
+            <a href="{{ ea_url().setController('App\\Controller\\Admin\\TrainingSlotTemplateCrudController').setAction('index').generateUrl() }}" class="btn btn-link">
+                ✏️ Éditer la semaine type
+            </a>
+        </div>
+    </div>
+
+    {% if rows|length == 0 %}
+        <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
+            Aucun créneau pour cette semaine. Définissez d'abord une <strong>semaine type</strong>
+            depuis le menu, ou ajoutez un créneau occasionnel ci-dessus.
+        </div>
+    {% else %}
+        {% set grouped = {} %}
+        {% for r in rows %}
+            {% set key = r.dayOfWeek %}
+            {% set list = grouped[key]|default([]) %}
+            {% set list = list|merge([r]) %}
+            {% set grouped = grouped|merge({(key): list}) %}
+        {% endfor %}
+
+        {% for day_num in 1..7 %}
+            {% set day_rows = grouped[day_num]|default([]) %}
+            {% if day_rows|length > 0 %}
+                <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
+                    <h4 style="margin:0 0 12px 0; padding-bottom:8px; border-bottom:1px solid #eee; color:#1d4ed8;">
+                        {{ days_labels[day_num] }}
+                        <small style="color:#999; font-weight:normal; font-size:12px;">
+                            {{ (week|date('U') + (day_num - 1) * 86400)|date('d/m') }}
+                        </small>
+                    </h4>
+                    {% for r in day_rows %}
+                        <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed #f0f0f0; {{ r.isCancelled ? 'opacity:0.55;' : '' }}">
+                            <div style="font-size:22px; width:38px; text-align:center;">{{ r.sportIcon }}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:600; color:#222; {{ r.isCancelled ? 'text-decoration:line-through;' : '' }}">
+                                    {{ r.startTime }} — {{ r.title }}
+                                    {% if r.isOverride and not r.isOccasional %}
+                                        <span style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Modifié</span>
+                                    {% endif %}
+                                    {% if r.isOccasional %}
+                                        <span style="background:#DBEAFE; color:#1E40AF; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Occasionnel</span>
+                                    {% endif %}
+                                    {% if r.isCancelled %}
+                                        <span style="background:#FEE2E2; color:#991B1B; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Annulé</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size:13px; color:#666; margin-top:2px;">
+                                    {{ r.sportLabel }} · {{ r.durationMinutes }} min · 📍 {{ r.location }}
+                                </div>
+                                {% if r.description %}
+                                    <div style="font-size:12px; color:#888; margin-top:4px;">{{ r.description }}</div>
+                                {% endif %}
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                {# Modifier #}
+                                <a href="{{ path('admin_training_schedule_edit', {
+                                    week: week|date('Y-m-d'),
+                                    slotId: r.id,
+                                    templateId: r.id is null ? r.templateId : null
+                                }) }}" class="btn btn-sm btn-secondary">
+                                    Modifier
+                                </a>
+
+                                {# Annuler / Réactiver / Supprimer selon le type #}
+                                {% if r.isCancelled %}
+                                    <form method="post" action="{{ path('admin_training_schedule_restore') }}" style="display:inline;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                        <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                        <button class="btn btn-sm btn-success">Réactiver</button>
+                                    </form>
+                                {% elseif r.isOccasional %}
+                                    <form method="post" action="{{ path('admin_training_schedule_delete') }}" style="display:inline;"
+                                          onsubmit="return confirm('Supprimer ce créneau occasionnel ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                        <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                        <button class="btn btn-sm btn-danger">Supprimer</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{{ path('admin_training_schedule_cancel') }}" style="display:inline;"
+                                          onsubmit="return confirm('Annuler ce créneau pour cette semaine uniquement ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                        <input type="hidden" name="templateId" value="{{ r.templateId }}" />
+                                        <button class="btn btn-sm btn-warning">Annuler</button>
+                                    </form>
+                                    {% if r.isOverride %}
+                                        <form method="post" action="{{ path('admin_training_schedule_restore') }}" style="display:inline;"
+                                              onsubmit="return confirm('Restaurer le créneau de la semaine type ? Les modifications de cette semaine seront perdues.');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                            <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                            <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                            <button class="btn btn-sm btn-link">Restaurer</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

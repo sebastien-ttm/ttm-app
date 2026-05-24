@@ -1,101 +1,192 @@
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { trainingPlans as plansApi } from '@/api/resources';
-import type { TrainingPlan } from '@/api/types';
+import { trainingSchedule as scheduleApi } from '@/api/resources';
+import type { TrainingPlan, TrainingSlot, WeeklySchedule } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
-import { COLORS } from '@/config';
+import { SportBadge } from '@/components/SportBadge';
+import { WeekNavigator } from '@/components/WeekNavigator';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingScreen() {
-  const [items, setItems] = useState<TrainingPlan[]>([]);
+  const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
+  const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mondayIso: string) => {
     try {
       setError(null);
-      const resp = await plansApi.list(1);
-      setItems(resp.data);
+      const resp = await scheduleApi.week(mondayIso);
+      setData(resp);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
+      setData(null);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     (async () => {
-      await load();
+      await load(toIsoDate(weekStart));
       if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [weekStart, load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
+    await load(toIsoDate(weekStart));
     setRefreshing(false);
-  }, [load]);
+  }, [weekStart, load]);
+
+  // Groupement par jour de la semaine
+  const slotsByDay = useMemo(() => {
+    const map = new Map<number, TrainingSlot[]>();
+    (data?.slots ?? []).forEach((s) => {
+      const arr = map.get(s.dayOfWeek) ?? [];
+      arr.push(s);
+      map.set(s.dayOfWeek, arr);
+    });
+    return map;
+  }, [data]);
 
   async function openPdf(plan: TrainingPlan) {
-    // The PDF endpoint requires auth → append JWT as ?bearer= query param,
-    // which Lexik recognizes server-side.
     const token = await storage.getItem(STORAGE_KEYS.accessToken);
     const sep = plan.fileUrl.includes('?') ? '&' : '?';
     const url = token ? `${plan.fileUrl}${sep}bearer=${encodeURIComponent(token)}` : plan.fileUrl;
     await WebBrowser.openBrowserAsync(url);
   }
 
-  if (loading) return <FullScreenLoading />;
-
   return (
-    <FlatList
-      data={items}
-      keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <PlanRow plan={item} onOpen={() => openPdf(item)} />}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
-      ListEmptyComponent={
-        error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : (
-          <EmptyState
-            icon="🏃"
-            title="Pas encore de plan"
-            message="Les plans d'entraînement s'afficheront ici dès qu'un entraîneur en publiera un."
-          />
-        )
-      }
-      style={{ backgroundColor: COLORS.background }}
-    />
+    <View style={styles.root}>
+      <WeekNavigator weekStart={weekStart} onChange={setWeekStart} disablePast />
+
+      {loading ? (
+        <FullScreenLoading />
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => load(toIsoDate(weekStart))} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          }
+        >
+          {/* Plans (PDF) de la semaine */}
+          {(data?.plans ?? []).length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>📄 Plans de la semaine</Text>
+              {data!.plans.map((p) => (
+                <PlanRow key={p.id} plan={p} onOpen={() => openPdf(p)} />
+              ))}
+            </View>
+          )}
+
+          {/* Créneaux jour par jour */}
+          {(data?.slots ?? []).length === 0 ? (
+            <EmptyState
+              icon="📅"
+              title="Aucun créneau cette semaine"
+              message="Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
+            />
+          ) : (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
+              {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                const slots = slotsByDay.get(day) ?? [];
+                if (slots.length === 0) return null;
+                const dayDate = addDays(weekStart, day - 1);
+                return (
+                  <View key={day} style={styles.dayBlock}>
+                    <Text style={styles.dayHeader}>
+                      {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                    </Text>
+                    {slots.map((s, idx) => (
+                      <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function SlotRow({ slot }: { slot: TrainingSlot }) {
+  return (
+    <View style={[styles.slot, slot.isCancelled && styles.slotCancelled]}>
+      <View style={styles.slotTimeCol}>
+        <Text style={[styles.slotTime, slot.isCancelled && styles.cancelledText]}>
+          {slot.startTime}
+        </Text>
+        <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
+      </View>
+      <View style={styles.slotBody}>
+        <View style={styles.slotTitleRow}>
+          <Text style={[styles.slotTitle, slot.isCancelled && styles.cancelledText]} numberOfLines={2}>
+            {slot.title}
+          </Text>
+        </View>
+        <View style={styles.slotMeta}>
+          <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
+          {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
+          {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
+          {slot.isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />}
+        </View>
+        <Text style={styles.slotLocation}>📍 {slot.location}</Text>
+        {slot.description ? (
+          <Text style={styles.slotDescription} numberOfLines={3}>
+            {slot.description}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function Tag({ label, color, bg }: { label: string; color: string; bg?: string }) {
+  return (
+    <View style={[styles.tag, { borderColor: color, backgroundColor: bg ?? 'transparent' }]}>
+      <Text style={[styles.tagLabel, { color }]}>{label}</Text>
+    </View>
   );
 }
 
 function PlanRow({ plan, onOpen }: { plan: TrainingPlan; onOpen: () => void }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      onPress={onOpen}
-    >
-      <View style={styles.icon}>
-        <Text style={styles.iconText}>📄</Text>
+    <Pressable onPress={onOpen} style={({ pressed }) => [styles.planRow, pressed && styles.pressed]}>
+      <View style={styles.planIcon}>
+        <Text style={{ fontSize: 22 }}>📄</Text>
       </View>
-      <View style={styles.body}>
-        <Text style={styles.title}>{plan.displayTitle}</Text>
-        {plan.weekRangeLabel && <Text style={styles.week}>{plan.weekRangeLabel}</Text>}
-        {plan.description && (
-          <Text style={styles.description} numberOfLines={2}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.planTitle}>{plan.displayTitle}</Text>
+        {plan.description ? (
+          <Text style={styles.planDesc} numberOfLines={2}>
             {plan.description}
           </Text>
-        )}
-        <Text style={styles.meta}>
-          Posté par {plan.postedBy.fullName} · {formatDate(plan.postedAt)}
+        ) : null}
+        <Text style={styles.planMeta}>
+          Par {plan.postedBy.fullName} · {formatDate(plan.postedAt)}
         </Text>
       </View>
     </Pressable>
@@ -103,33 +194,77 @@ function PlanRow({ plan, onOpen }: { plan: TrainingPlan; onOpen: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 12 },
-  row: {
+  root: { flex: 1, backgroundColor: COLORS.background },
+  content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
+  section: { marginBottom: SPACING.lg },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    marginBottom: SPACING.sm,
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dayBlock: { marginBottom: SPACING.md },
+  dayHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.secondaryDark,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  daySub: { color: COLORS.textMuted, fontWeight: '500', fontSize: 13 },
+  slot: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: 8,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  slotCancelled: { opacity: 0.7 },
+  cancelledText: { textDecorationLine: 'line-through' },
+  slotTimeCol: {
+    minWidth: 60,
+    alignItems: 'flex-start',
+    paddingTop: 2,
+  },
+  slotTime: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  slotDuration: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  slotBody: { flex: 1, gap: 4 },
+  slotTitleRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  slotTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, flex: 1 },
+  slotMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 2 },
+  slotLocation: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  slotDescription: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
+  tag: {
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+  },
+  tagLabel: { fontSize: 11, fontWeight: '600' },
+  planRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: 8,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
   },
   pressed: { opacity: 0.85 },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  planIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.secondarySoft,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
   },
-  iconText: { fontSize: 24 },
-  body: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  week: { fontSize: 13, color: COLORS.secondaryDark, marginTop: 2, fontWeight: '600' },
-  description: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
-  meta: { fontSize: 12, color: COLORS.textMuted, marginTop: 6 },
+  planTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  planDesc: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
+  planMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
 });

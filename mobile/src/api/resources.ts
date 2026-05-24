@@ -12,6 +12,7 @@ import type {
   StaticPageNode,
   StaticPageSummary,
   TrainingPlan,
+  WeeklySchedule,
 } from './types';
 
 export const articles = {
@@ -31,6 +32,14 @@ export const articles = {
 export const trainingPlans = {
   list: (page = 1) => api.get<Paginated<TrainingPlan>>(`/api/training-plans?page=${page}`),
   get: (id: number) => api.get<TrainingPlan>(`/api/training-plans/${id}`),
+};
+
+export const trainingSchedule = {
+  /** week au format YYYY-MM-DD (n'importe quel jour de la semaine ciblée). */
+  week: (week?: string) => {
+    const qs = week ? `?week=${encodeURIComponent(week)}` : '';
+    return api.get<WeeklySchedule>(`/api/training-schedule${qs}`);
+  },
 };
 
 export const pages = {
