@@ -105,16 +105,16 @@ class WeeklyScheduleController extends AbstractController
     public function edit(Request $request): Response
     {
         $week = $this->parseWeek($request->query->get('week') ?? $request->request->get('week'));
-        $slotId = $request->query->get('slotId') ?? $request->request->get('slotId');
-        $templateId = $request->query->get('templateId') ?? $request->request->get('templateId');
+        $slotId = $this->intOrNull($request->query->get('slotId') ?? $request->request->get('slotId'));
+        $templateId = $this->intOrNull($request->query->get('templateId') ?? $request->request->get('templateId'));
 
         if ($slotId !== null) {
-            $slot = $this->slots->find((int) $slotId);
+            $slot = $this->slots->find($slotId);
             if ($slot === null) {
                 throw $this->createNotFoundException();
             }
         } elseif ($templateId !== null) {
-            $template = $this->templates->find((int) $templateId);
+            $template = $this->templates->find($templateId);
             if ($template === null) {
                 throw $this->createNotFoundException();
             }
@@ -169,6 +169,15 @@ class WeeklyScheduleController extends AbstractController
     }
 
     // -------- helpers --------
+
+    private function intOrNull(mixed $v): ?int
+    {
+        if ($v === null || $v === '' || $v === '0') {
+            return null;
+        }
+        $i = (int) $v;
+        return $i > 0 ? $i : null;
+    }
 
     private function parseWeek(?string $raw): \DateTimeImmutable
     {

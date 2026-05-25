@@ -53,11 +53,11 @@ class TrainingSlot
 
     #[ORM\Column(length: 120)]
     #[Assert\NotBlank]
-    private string $title;
+    private string $title = '';
 
     #[ORM\Column(length: 200)]
     #[Assert\NotBlank]
-    private string $location;
+    private string $location = '';
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;

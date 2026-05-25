@@ -33,9 +33,6 @@
             <a href="{{ path('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
                 <i class="fa fa-plus"></i> Ajouter un créneau occasionnel
             </a>
-            <a href="{{ ea_url().setController('App\\Controller\\Admin\\TrainingSlotTemplateCrudController').setAction('index').generateUrl() }}" class="btn btn-link">
-                ✏️ Éditer la semaine type
-            </a>
         </div>
     </div>
 
@@ -87,12 +84,15 @@
                                 {% endif %}
                             </div>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                {# Modifier #}
-                                <a href="{{ path('admin_training_schedule_edit', {
-                                    week: week|date('Y-m-d'),
-                                    slotId: r.id,
-                                    templateId: r.id is null ? r.templateId : null
-                                }) }}" class="btn btn-sm btn-secondary">
+                                {# Modifier — on passe slotId si déjà matérialisé,
+                                   sinon templateId pour matérialiser à la volée #}
+                                {% set edit_params = {week: week|date('Y-m-d')} %}
+                                {% if r.id %}
+                                    {% set edit_params = edit_params|merge({slotId: r.id}) %}
+                                {% elseif r.templateId %}
+                                    {% set edit_params = edit_params|merge({templateId: r.templateId}) %}
+                                {% endif %}
+                                <a href="{{ path('admin_training_schedule_edit', edit_params) }}" class="btn btn-sm btn-secondary">
                                     Modifier
                                 </a>
 

@@ -40,12 +40,12 @@ class TrainingSlotTemplate
     #[ORM\Column(length: 120)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 120)]
-    private string $title;
+    private string $title = '';
 
     #[ORM\Column(length: 200)]
     #[Assert\NotBlank]
     #[Assert\Length(max: 200)]
-    private string $location;
+    private string $location = '';
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
