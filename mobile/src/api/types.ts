@@ -138,6 +138,37 @@ export type WeeklySchedule = {
   plans: TrainingPlan[];
 };
 
+export type StaffPresenceStatus = 'scheduled' | 'attended';
+
+export type StaffPresence = {
+  id: number;
+  /** null si c'est une tâche custom (hors créneau). */
+  slotId: number | null;
+  isCustom: boolean;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  durationMinutes: number;
+  weekStartsAt: string; // YYYY-MM-DD
+  status: StaffPresenceStatus;
+  notes: string | null;
+};
+
+/** TrainingSlot tel que renvoyé par /api/me/staff-presence avec ma présence éventuelle. */
+export type StaffPresenceSlot = TrainingSlot & {
+  myPresence: {
+    id: number;
+    status: StaffPresenceStatus;
+    notes: string | null;
+  } | null;
+};
+
+export type StaffPresenceWeek = {
+  week: string;
+  slots: StaffPresenceSlot[];
+  customTasks: StaffPresence[];
+};
+
 export type CharterFieldType =
   | 'text'
   | 'textarea'

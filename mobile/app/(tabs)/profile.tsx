@@ -55,6 +55,23 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
+      {(user.profiles.includes('encadrant') || user.profiles.includes('entraineur')) && (
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+            onPress={() => router.push('/staff-presence' as never)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Mes présences</Text>
+              <Text style={styles.actionHint}>
+                Réserver / confirmer ma présence sur les créneaux que j'encadre
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+        </View>
+      )}
+
       <Pressable style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
       </Pressable>

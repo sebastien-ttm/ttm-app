@@ -1,0 +1,106 @@
+{% extends 'admin/_schedule_layout.html.twig' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }} — {{ weekHuman }}{% endblock %}
+
+{% set back_route = profile == 'encadrant' ? 'admin_staff_supervision_encadrants' : 'admin_staff_supervision_entraineurs' %}
+
+{% block main %}
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px;">
+        <a href="{{ path(back_route, {week: prev}) }}" class="btn btn-secondary">← Semaine précédente</a>
+        <a href="{{ path(back_route, {week: today}) }}" class="btn btn-secondary">Aujourd'hui</a>
+        <a href="{{ path(back_route, {week: next}) }}" class="btn btn-secondary">Semaine suivante →</a>
+    </div>
+
+    {% if staff|length == 0 %}
+        <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
+            Aucun utilisateur n'a le profil <strong>{{ profile == 'encadrant' ? 'Encadrant' : 'Entraîneur' }}</strong>.
+            Tu peux l'attribuer depuis <em>Adhérents → Utilisateurs</em>.
+        </div>
+    {% else %}
+        {% for staffMember in staff %}
+            {% set my_presences = presencesByUser[staffMember.id]|default([]) %}
+            <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
+                <h3 style="margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">
+                    <span style="background:{{ profile == 'encadrant' ? '#dc2626' : '#0d2148' }}; color:#fff; padding:2px 8px; border-radius:4px; font-size:12px;">
+                        {{ profile == 'encadrant' ? 'Encadrant' : 'Entraîneur' }}
+                    </span>
+                    {{ staffMember.fullName }}
+                    <small style="color:#888; font-weight:normal;">
+                        {{ my_presences|length }} créneau(x) cette semaine
+                    </small>
+                </h3>
+
+                {% if my_presences|length == 0 %}
+                    <p style="color:#999; font-style:italic; margin:0;">Aucune présence cette semaine.</p>
+                {% else %}
+                    <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                        <thead>
+                            <tr style="background:#f5f5f5;">
+                                <th style="padding:8px; text-align:left;">Jour</th>
+                                <th style="padding:8px; text-align:left;">Horaire</th>
+                                <th style="padding:8px; text-align:left;">Titre</th>
+                                <th style="padding:8px; text-align:left;">Lieu</th>
+                                <th style="padding:8px; text-align:left;">Statut</th>
+                                <th style="padding:8px; text-align:left;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in my_presences %}
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:8px;">{{ p.date|date('D d/m') }}</td>
+                                    <td style="padding:8px;">
+                                        {{ p.startTime|date('H:i') }}
+                                        <span style="color:#888; font-size:12px;">· {{ p.durationMinutes }} min</span>
+                                    </td>
+                                    <td style="padding:8px;">
+                                        {{ p.title }}
+                                        {% if p.isCustom %}
+                                            <span style="background:#DBEAFE; color:#1E40AF; padding:1px 6px; border-radius:3px; font-size:11px; margin-left:4px;">Hors entraînement</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding:8px; color:#666; font-size:13px;">
+                                        {{ p.slot ? '📍 ' ~ p.slot.location : '—' }}
+                                    </td>
+                                    <td style="padding:8px;">
+                                        {% if p.status == 'attended' %}
+                                            <span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:3px; font-size:12px; font-weight:600;">✓ Présent</span>
+                                        {% else %}
+                                            <span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:3px; font-size:12px; font-weight:600;">📅 Réservé</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding:8px;">
+                                        <div style="display:flex; gap:4px;">
+                                            {% if p.status != 'attended' %}
+                                                <form method="post" action="{{ path('admin_staff_supervision_update', {id: p.id}) }}" style="display:inline;">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                                    <input type="hidden" name="status" value="attended">
+                                                    <input type="hidden" name="back" value="{{ back_route }}">
+                                                    <button class="btn btn-sm btn-success">Marquer présent</button>
+                                                </form>
+                                            {% else %}
+                                                <form method="post" action="{{ path('admin_staff_supervision_update', {id: p.id}) }}" style="display:inline;">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                                    <input type="hidden" name="status" value="scheduled">
+                                                    <input type="hidden" name="back" value="{{ back_route }}">
+                                                    <button class="btn btn-sm btn-warning">Remettre en réservé</button>
+                                                </form>
+                                            {% endif %}
+                                            <form method="post" action="{{ path('admin_staff_supervision_update', {id: p.id}) }}" style="display:inline;"
+                                                  onsubmit="return confirm('Retirer cette présence ?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                                <input type="hidden" name="action" value="remove">
+                                                <input type="hidden" name="back" value="{{ back_route }}">
+                                                <button class="btn btn-sm btn-link" style="color:#991B1B;">Retirer</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endblock %}

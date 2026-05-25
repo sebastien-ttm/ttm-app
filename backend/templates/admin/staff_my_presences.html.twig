@@ -1,0 +1,115 @@
+{% extends 'admin/_schedule_layout.html.twig' %}
+
+{% set days_labels = {1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche'} %}
+
+{% block title %}Mes présences{% endblock %}
+{% block page_title %}Mes présences — {{ user.fullName }}{% endblock %}
+
+{% block main %}
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px;">
+        <a href="{{ path('admin_staff_my_presences', {week: prev}) }}" class="btn btn-secondary">← Semaine précédente</a>
+        <a href="{{ path('admin_staff_my_presences', {week: today}) }}" class="btn btn-secondary">Aujourd'hui</a>
+        <a href="{{ path('admin_staff_my_presences', {week: next}) }}" class="btn btn-secondary">Semaine suivante →</a>
+    </div>
+
+    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
+        <h3 style="margin:0;">{{ weekHuman }}</h3>
+        <p style="margin:6px 0 0 0; color:#666; font-size:13px;">
+            Marque les créneaux où tu seras présent. Tu peux aussi ajouter un créneau hors entraînement (réunion, déplacement, etc.).
+        </p>
+        <div style="margin-top:12px;">
+            <a href="{{ path('admin_staff_my_presences_custom_new', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
+                <i class="fa fa-plus"></i> Ajouter un créneau hors entraînement
+            </a>
+        </div>
+    </div>
+
+    <h3 style="margin:18px 0 12px 0;">Créneaux d'entraînement</h3>
+    {% for day_num in 1..7 %}
+        {% set day_rows = slotRows|filter(r => r.dayOfWeek == day_num) %}
+        {% if day_rows|length > 0 %}
+            <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
+                <h4 style="margin:0 0 12px 0; padding-bottom:8px; border-bottom:1px solid #eee; color:#1d4ed8;">
+                    {{ days_labels[day_num] }}
+                </h4>
+                {% for r in day_rows %}
+                    {% set my_presence = r.id ? presencesBySlot[r.id]|default(null) : null %}
+                    <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed #f0f0f0; {{ r.isCancelled ? 'opacity:0.55;' : '' }}">
+                        <div style="font-size:22px; width:38px; text-align:center;">{{ r.sportIcon }}</div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600;">
+                                {{ r.startTime }} — {{ r.title }}
+                                {% if r.isCancelled %}<span style="background:#FEE2E2; color:#991B1B; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Annulé</span>{% endif %}
+                            </div>
+                            <div style="font-size:13px; color:#666;">
+                                {{ r.sportLabel }} · {{ r.durationMinutes }} min · 📍 {{ r.location }}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            {% if my_presence %}
+                                {% if my_presence.status == 'attended' %}
+                                    <span style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:4px; font-size:12px; font-weight:600;">✓ Présent</span>
+                                {% else %}
+                                    <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:4px; font-size:12px; font-weight:600;">📅 Réservé</span>
+                                {% endif %}
+
+                                {% if my_presence.status != 'attended' %}
+                                    <form method="post" action="{{ path('admin_staff_my_presences_slot') }}" style="display:inline;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                        <input type="hidden" name="slotId" value="{{ my_presence.slot.id }}">
+                                        <input type="hidden" name="status" value="attended">
+                                        <button class="btn btn-sm btn-success">J'étais là</button>
+                                    </form>
+                                {% endif %}
+
+                                <form method="post" action="{{ path('admin_staff_my_presences_slot') }}" style="display:inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                    <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                    <input type="hidden" name="slotId" value="{{ my_presence.slot.id }}">
+                                    <input type="hidden" name="remove" value="1">
+                                    <button class="btn btn-sm btn-link" style="color:#991B1B;">Retirer</button>
+                                </form>
+                            {% elseif not r.isCancelled %}
+                                <form method="post" action="{{ path('admin_staff_my_presences_slot') }}" style="display:inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                    <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                    {% if r.id %}
+                                        <input type="hidden" name="slotId" value="{{ r.id }}">
+                                    {% elseif r.templateId %}
+                                        <input type="hidden" name="templateId" value="{{ r.templateId }}">
+                                    {% endif %}
+                                    <input type="hidden" name="status" value="scheduled">
+                                    <button class="btn btn-sm btn-primary">Je m'y positionne</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    {% if customTasks|length > 0 %}
+        <h3 style="margin:24px 0 12px 0;">Mes créneaux hors entraînement</h3>
+        <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
+            {% for t in customTasks %}
+                <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed #f0f0f0;">
+                    <div style="font-size:22px; width:38px; text-align:center;">📋</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:600;">{{ t.title }}</div>
+                        <div style="font-size:13px; color:#666;">
+                            {{ t.date|date('d/m') }} à {{ t.startTime|date('H:i') }} · {{ t.durationMinutes }} min
+                        </div>
+                        {% if t.notes %}<div style="font-size:12px; color:#888; margin-top:4px;">{{ t.notes }}</div>{% endif %}
+                    </div>
+                    <form method="post" action="{{ path('admin_staff_my_presences_custom_delete', {id: t.id}) }}" style="display:inline;"
+                          onsubmit="return confirm('Supprimer cette tâche ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                        <button class="btn btn-sm btn-link" style="color:#991B1B;"><i class="fa fa-trash"></i></button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

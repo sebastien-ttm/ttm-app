@@ -8,6 +8,9 @@ import type {
   EventItem,
   MenuItem,
   Paginated,
+  StaffPresence,
+  StaffPresenceStatus,
+  StaffPresenceWeek,
   StaticPage,
   StaticPageNode,
   StaticPageSummary,
@@ -40,6 +43,37 @@ export const trainingSchedule = {
     const qs = week ? `?week=${encodeURIComponent(week)}` : '';
     return api.get<WeeklySchedule>(`/api/training-schedule${qs}`);
   },
+};
+
+export const staffPresence = {
+  week: (week?: string) => {
+    const qs = week ? `?week=${encodeURIComponent(week)}` : '';
+    return api.get<StaffPresenceWeek>(`/api/me/staff-presence${qs}`);
+  },
+  setForSlot: (params: {
+    slotId?: number;
+    templateId?: number;
+    week?: string;
+    status: StaffPresenceStatus;
+    notes?: string;
+  }) => api.post<StaffPresence>('/api/me/staff-presence/slot', params),
+  createCustom: (params: {
+    title: string;
+    date: string;
+    startTime: string;
+    durationMinutes: number;
+    status?: StaffPresenceStatus;
+    notes?: string;
+  }) => api.post<StaffPresence>('/api/me/staff-presence/custom', params),
+  update: (id: number, patch: Partial<{
+    status: StaffPresenceStatus;
+    notes: string | null;
+    title: string;
+    date: string;
+    startTime: string;
+    durationMinutes: number;
+  }>) => api.patch<StaffPresence>(`/api/me/staff-presence/${id}`, patch),
+  remove: (id: number) => api.delete<void>(`/api/me/staff-presence/${id}`),
 };
 
 export const pages = {

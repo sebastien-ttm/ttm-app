@@ -82,6 +82,14 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class);
 
+        yield AdminMenuItem::section('Présences staff');
+        yield AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')
+            ->setPermission('ROLE_ADMIN');
+
         yield AdminMenuItem::section('Configuration');
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)
             ->setPermission('ROLE_ADMIN');

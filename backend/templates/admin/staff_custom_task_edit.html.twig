@@ -1,0 +1,51 @@
+{% extends 'admin/_schedule_layout.html.twig' %}
+
+{% block title %}Nouveau créneau hors entraînement{% endblock %}
+{% block page_title %}Ajouter un créneau hors entraînement{% endblock %}
+
+{% block main %}
+    <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
+        <strong>{{ weekHuman }}</strong>
+        <div style="margin-top:4px; font-size:13px; color:#666;">
+            Ces créneaux apparaîtront dans ton emploi du temps. Idéal pour les réunions, déplacements, formations, etc.
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('admin_staff_my_presences_custom_new') }}"
+          style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); display:grid; gap:14px; max-width:600px;">
+        <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Titre</label>
+            <input type="text" name="title" class="form-control" required maxlength="120"
+                   placeholder="Ex. Réunion bureau, Convocation FFTri, Formation…">
+        </div>
+
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Date</label>
+                <input type="date" name="date" class="form-control" required value="{{ week|date('Y-m-d') }}">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Heure</label>
+                <input type="time" name="startTime" class="form-control" required value="18:30">
+            </div>
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Durée (min)</label>
+                <input type="number" name="durationMinutes" class="form-control" style="width:120px;"
+                       value="60" min="5" max="600">
+            </div>
+        </div>
+
+        <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Notes (optionnelles)</label>
+            <textarea name="notes" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ path('admin_staff_my_presences', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+{% endblock %}
