@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\Profile;
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -41,7 +42,8 @@ class ArticleCrudController extends AbstractCrudController
         yield AssociationField::new('author', 'Auteur')
             ->setQueryBuilder(fn ($qb) => $qb->andWhere("entity.role = 'admin'"));
         yield DateTimeField::new('publishedAt', 'Publication')
-            ->setHelp('Vide = brouillon. Date passée = publié immédiatement.');
+            ->setRequired(false)
+            ->setHelp('Laisser vide = publier immédiatement. Date future = publication programmée.');
         yield BooleanField::new('notifyOnPublish', 'Notification push à la publication')
             ->onlyOnForms();
         yield ChoiceField::new('audience', 'Audience cible')
@@ -60,5 +62,28 @@ class ArticleCrudController extends AbstractCrudController
             $article->setAuthor($user);
         }
         return $article;
+    }
+
+    public function persistEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        $this->defaultPublishedAtToNow($entityInstance);
+        parent::persistEntity($em, $entityInstance);
+    }
+
+    public function updateEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        $this->defaultPublishedAtToNow($entityInstance);
+        parent::updateEntity($em, $entityInstance);
+    }
+
+    /**
+     * Si l'admin laisse la date de publication vide, on considère que
+     * l'article est publié immédiatement (au lieu de rester brouillon).
+     */
+    private function defaultPublishedAtToNow(mixed $entity): void
+    {
+        if ($entity instanceof Article && $entity->getPublishedAt() === null) {
+            $entity->setPublishedAt(new \DateTimeImmutable());
+        }
     }
 }
