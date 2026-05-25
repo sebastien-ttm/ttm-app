@@ -3,6 +3,7 @@
 namespace App\Service\Csv;
 
 use App\Entity\User;
+use App\Enum\Profile;
 use App\Enum\UserCategory;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\MembershipSettingsRepository;
@@ -103,9 +104,18 @@ class CsvImportService
                 $isActive = $this->isStatutActive($statut);
 
                 $typeLicenceRaw = (string) ($record[self::COL_TYPE_LICENCE] ?? '');
-                $categorie = stripos($typeLicenceRaw, 'jeune') !== false
-                    ? UserCategory::Jeune
-                    : UserCategory::Senior;
+                // Catégorie déterminée prioritairement par l'âge dans l'année courante
+                // (≤ 18 ans dans l'année = Jeune), fallback sur le type de licence.
+                $dateNaissance = $this->parseDate((string) ($record[self::COL_DATE_NAISSANCE] ?? ''));
+                if ($dateNaissance !== null) {
+                    $categorie = Profile::principalFromBirthDate($dateNaissance, $importedAt) === Profile::Jeune
+                        ? UserCategory::Jeune
+                        : UserCategory::Senior;
+                } else {
+                    $categorie = stripos($typeLicenceRaw, 'jeune') !== false
+                        ? UserCategory::Jeune
+                        : UserCategory::Senior;
+                }
 
                 $tel = $this->cleanPhone((string) ($record[self::COL_MOBILE] ?? ''));
                 if ($tel === '') {
@@ -130,8 +140,19 @@ class CsvImportService
                 $user->setIsActive($isActive);
                 $user->setLastCsvSyncAt($importedAt);
 
+                // Sync profiles : remplace Jeune/Senior par le bon, garde les
+                // profils manuels (U25, Parent, Encadrant) intacts.
+                $existingProfiles = array_filter(
+                    $user->getProfiles(),
+                    fn (string $p) => !in_array($p, [Profile::Jeune->value, Profile::Senior->value], true),
+                );
+                $existingProfiles[] = $categorie === UserCategory::Jeune
+                    ? Profile::Jeune->value
+                    : Profile::Senior->value;
+                $user->setProfiles(array_values($existingProfiles));
+
                 // Nouveaux champs FFTri
-                $user->setDateNaissance($this->parseDate((string) ($record[self::COL_DATE_NAISSANCE] ?? '')));
+                $user->setDateNaissance($dateNaissance);
                 $user->setSexe($this->cleanSexe((string) ($record[self::COL_SEXE] ?? '')));
                 $user->setAdresse($this->buildAdresse($record));
                 $user->setTypeLicence($this->normalizeTypeLicence($typeLicenceRaw));

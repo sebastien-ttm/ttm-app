@@ -3,8 +3,9 @@ security:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
     role_hierarchy:
-        ROLE_COACH: ROLE_USER
-        ROLE_ADMIN: [ROLE_USER, ROLE_COACH]
+        ROLE_ENCADRANT: ROLE_USER
+        ROLE_COACH: [ROLE_USER, ROLE_ENCADRANT]
+        ROLE_ADMIN: [ROLE_USER, ROLE_COACH, ROLE_ENCADRANT]
 
     providers:
         app_user_provider:

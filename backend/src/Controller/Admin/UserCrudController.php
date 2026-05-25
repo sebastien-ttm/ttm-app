@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\User;
+use App\Enum\Profile;
 use App\Enum\UserCategory;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -62,7 +63,25 @@ class UserCrudController extends AbstractCrudController
         yield TextField::new('telephone', 'Téléphone')->hideOnIndex();
         yield ChoiceField::new('categorie', 'Catégorie')
             ->setChoices(['Sénior' => UserCategory::Senior, 'Jeune' => UserCategory::Jeune])
-            ->renderAsBadges();
+            ->renderAsBadges()
+            ->setHelp('Auto-calculée depuis la date de naissance à l\'import CSV.')
+            ->onlyOnDetail();
+
+        yield ChoiceField::new('profiles', 'Profils')
+            ->setChoices(Profile::choices())
+            ->allowMultipleChoices()
+            ->renderAsBadges([
+                Profile::Jeune->value => 'success',
+                Profile::Senior->value => 'info',
+                Profile::U25->value => 'primary',
+                Profile::Parent->value => 'warning',
+                Profile::Encadrant->value => 'danger',
+            ])
+            ->setHelp(
+                'Jeune / Sénior sont assignés automatiquement à l\'import CSV selon l\'âge. '
+                .'U25, Parent et Encadrant sont cochés à la main. '
+                .'Cocher Encadrant donne automatiquement le rôle ROLE_ENCADRANT.'
+            );
         yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
         yield ChoiceField::new('typeLicence', 'Type de licence')
             ->setChoices([

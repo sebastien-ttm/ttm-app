@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\Profile;
 use App\Enum\UserCategory;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -69,6 +70,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** Ex. "Senior 1", "Cadet 2", "Vétéran 3" — copié tel quel depuis FFTri */
     #[ORM\Column(length: 40, nullable: true)]
     private ?string $categorieAge = null;
+
+    /**
+     * Liste des profils de l'utilisateur (jeune/senior/u25/parent/encadrant).
+     * Jeune et Senior sont auto-assignés à l'import CSV selon l'âge ;
+     * les autres sont gérés à la main par l'admin (ou créés via inscription
+     * parent côté mobile dans une phase ultérieure).
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: 'json')]
+    private array $profiles = [];
 
     /**
      * Profil "principal" auquel ce user est rattaché (parent/enfant via e-mail
@@ -231,6 +243,75 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getCategorieAge(): ?string { return $this->categorieAge; }
     public function setCategorieAge(?string $c): self { $this->categorieAge = $c; return $this; }
+
+    /** @return list<string> */
+    public function getProfiles(): array
+    {
+        return array_values($this->profiles);
+    }
+
+    /** @return list<Profile> */
+    public function getProfileEnums(): array
+    {
+        return array_values(array_filter(
+            array_map(fn (string $v) => Profile::tryFrom($v), $this->profiles),
+        ));
+    }
+
+    /**
+     * Remplace la liste des profils. Garde une seule valeur entre Jeune et
+     * Senior (ces deux profils sont mutuellement exclusifs). Synchronise
+     * automatiquement la categorie et les rôles dérivés (ROLE_ENCADRANT).
+     *
+     * @param list<string|Profile> $profiles
+     */
+    public function setProfiles(array $profiles): self
+    {
+        $normalized = [];
+        foreach ($profiles as $p) {
+            $value = $p instanceof Profile ? $p->value : (string) $p;
+            if (Profile::tryFrom($value) !== null) {
+                $normalized[$value] = true;
+            }
+        }
+        // Jeune & Senior mutuellement exclusifs : si les deux sont là, on garde Jeune
+        // (cas peu probable mais on protège).
+        if (isset($normalized[Profile::Jeune->value]) && isset($normalized[Profile::Senior->value])) {
+            unset($normalized[Profile::Senior->value]);
+        }
+        $this->profiles = array_keys($normalized);
+
+        // Sync categorie (pour rétrocompat avec le code qui lit categorie directement)
+        if (in_array(Profile::Jeune->value, $this->profiles, true)) {
+            $this->categorie = UserCategory::Jeune;
+        } elseif (in_array(Profile::Senior->value, $this->profiles, true)) {
+            $this->categorie = UserCategory::Senior;
+        }
+
+        // Sync ROLE_ENCADRANT depuis le profil encadrant
+        $rolesWithoutEncadrant = array_values(array_filter(
+            $this->roles,
+            fn (string $r) => $r !== 'ROLE_ENCADRANT',
+        ));
+        if (in_array(Profile::Encadrant->value, $this->profiles, true)) {
+            $rolesWithoutEncadrant[] = 'ROLE_ENCADRANT';
+        }
+        $this->roles = array_values(array_unique($rolesWithoutEncadrant));
+
+        return $this;
+    }
+
+    public function hasProfile(Profile|string $profile): bool
+    {
+        $value = $profile instanceof Profile ? $profile->value : $profile;
+        return in_array($value, $this->profiles, true);
+    }
+
+    public function isJeune(): bool { return $this->hasProfile(Profile::Jeune); }
+    public function isSenior(): bool { return $this->hasProfile(Profile::Senior); }
+    public function isU25(): bool { return $this->hasProfile(Profile::U25); }
+    public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
+    public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
 
     public function getLinkedToUser(): ?User { return $this->linkedToUser; }
     public function setLinkedToUser(?User $u): self { $this->linkedToUser = $u; return $this; }
