@@ -6,21 +6,18 @@
 
 {% block main %}
     {# ------------ Barre de navigation semaine ------------ #}
+    {# IMPORTANT : tous les liens admin doivent passer par ea_url() pour que le
+       contexte EasyAdmin (ea.i18n, ea.dashboardTitle, etc.) soit injecté. #}
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px;">
-        <a href="{{ path('admin_training_schedule', {week: prev}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: prev}) }}" class="btn btn-secondary">
             ← Semaine précédente
         </a>
-        <a href="{{ path('admin_training_schedule', {week: today}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: today}) }}" class="btn btn-secondary">
             Aujourd'hui
         </a>
-        <a href="{{ path('admin_training_schedule', {week: next}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: next}) }}" class="btn btn-secondary">
             Semaine suivante →
         </a>
-        <form method="get" action="{{ path('admin_training_schedule') }}" style="display:inline-flex; gap:6px; align-items:center; margin-left:auto;">
-            <label style="font-size:13px; color:#555;">Aller à la semaine du :</label>
-            <input type="date" name="week" value="{{ week|date('Y-m-d') }}" />
-            <button type="submit" class="btn btn-primary">OK</button>
-        </form>
     </div>
 
     <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
@@ -30,7 +27,7 @@
             La semaine type est <strong>projetée</strong> ici ; toute modification ne concerne QUE cette semaine.
         </p>
         <div style="margin-top:12px;">
-            <a href="{{ path('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
+            <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
                 <i class="fa fa-plus"></i> Ajouter un créneau occasionnel
             </a>
         </div>
@@ -85,7 +82,7 @@
                                 {% elseif r.templateId %}
                                     {% set edit_params = edit_params|merge({templateId: r.templateId}) %}
                                 {% endif %}
-                                <a href="{{ path('admin_training_schedule_edit', edit_params) }}" class="btn btn-sm btn-secondary">
+                                <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule_edit', edit_params) }}" class="btn btn-sm btn-secondary">
                                     Modifier
                                 </a>
 

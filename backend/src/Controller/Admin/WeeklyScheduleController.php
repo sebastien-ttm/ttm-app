@@ -9,6 +9,7 @@ use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,7 +30,21 @@ class WeeklyScheduleController extends AbstractController
         private readonly TrainingSlotTemplateRepository $templates,
         private readonly TrainingSlotRepository $slots,
         private readonly EntityManagerInterface $em,
+        private readonly AdminUrlGenerator $adminUrl,
     ) {
+    }
+
+    /**
+     * Redirige vers une route admin via le dispatcher EasyAdmin
+     * (pour conserver le contexte `ea` dans les templates).
+     */
+    private function redirectToAdminRoute(string $route, array $params = []): RedirectResponse
+    {
+        $url = $this->adminUrl
+            ->unsetAll()
+            ->setRoute($route, $params)
+            ->generateUrl();
+        return $this->redirect($url);
     }
 
     #[Route('/admin/training-schedule', name: 'admin_training_schedule')]
@@ -75,7 +90,7 @@ class WeeklyScheduleController extends AbstractController
             $week->format('d/m/Y'),
         ));
 
-        return $this->redirectToRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+        return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
     }
 
     #[Route('/admin/training-schedule/restore', name: 'admin_training_schedule_restore', methods: ['POST'])]
@@ -94,7 +109,7 @@ class WeeklyScheduleController extends AbstractController
         $this->em->flush();
 
         $this->addFlash('success', 'Créneau restauré (la semaine type s\'applique à nouveau).');
-        return $this->redirectToRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+        return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
     }
 
     /**
@@ -136,7 +151,7 @@ class WeeklyScheduleController extends AbstractController
                 $slot->getTitle(),
                 $week->format('d/m/Y'),
             ));
-            return $this->redirectToRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+            return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
         }
 
         return $this->render('admin/training_schedule_edit.html.twig', [
@@ -165,7 +180,7 @@ class WeeklyScheduleController extends AbstractController
         $this->em->flush();
 
         $this->addFlash('success', 'Créneau occasionnel supprimé.');
-        return $this->redirectToRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+        return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
     }
 
     // -------- helpers --------
