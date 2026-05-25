@@ -25,6 +25,21 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         'Dimanche' => 7,
     ];
 
+    /**
+     * EasyAdmin / Symfony Form attendent des valeurs typées identiques à la
+     * propriété : ici Sport (enum), pas la valeur string.
+     *
+     * @return array<string, Sport>
+     */
+    private static function sportChoices(): array
+    {
+        $out = [];
+        foreach (Sport::cases() as $c) {
+            $out[$c->label()] = $c;
+        }
+        return $out;
+    }
+
     public static function getEntityFqcn(): string
     {
         return TrainingSlotTemplate::class;
@@ -53,7 +68,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         yield IntegerField::new('durationMinutes', 'Durée (min)');
 
         yield ChoiceField::new('sport', 'Sport')
-            ->setChoices(Sport::choices())
+            ->setChoices(self::sportChoices())
             ->renderAsBadges();
 
         yield TextField::new('title', 'Titre')
