@@ -39,7 +39,7 @@ class ArticleCrudController extends AbstractCrudController
             ->setHelp('Glissez-déposez ou collez une image dans l\'éditeur pour l\'insérer. Cliquez sur l\'image pour la redimensionner.')
             ->onlyOnForms();
         yield AssociationField::new('author', 'Auteur')
-            ->setQueryBuilder(fn ($qb) => $qb->andWhere('entity.roles LIKE :r')->setParameter('r', '%ROLE_ADMIN%'));
+            ->setQueryBuilder(fn ($qb) => $qb->andWhere("entity.role = 'admin'"));
         yield DateTimeField::new('publishedAt', 'Publication')
             ->setHelp('Vide = brouillon. Date passée = publié immédiatement.');
         yield BooleanField::new('notifyOnPublish', 'Notification push à la publication')
