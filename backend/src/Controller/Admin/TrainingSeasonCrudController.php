@@ -47,13 +47,5 @@ class TrainingSeasonCrudController extends AbstractCrudController
         yield DateField::new('endsAt', 'Fin de saison')
             ->setRequired(false)
             ->setHelp('Date de fin (incluse). Ex. 5 juillet pour une saison qui se termine début juillet.');
-        yield DateField::new('oldMembersValidUntil', 'Anciens adhérents valides jusqu\'au')
-            ->setRequired(false)
-            ->setHelp(
-                'Tant qu\'on est avant cette date, les adhérents absents du dernier '
-                .'CSV importé restent <strong>actifs</strong> (le temps qu\'ils renouvellent '
-                .'leur licence). Après cette date, le prochain import CSV les désactive '
-                .'normalement. Laisser vide pour désactiver immédiatement à chaque import.'
-            );
     }
 }

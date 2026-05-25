@@ -7,6 +7,7 @@ use App\Entity\Banner;
 use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
+use App\Entity\MembershipSettings;
 use App\Entity\MenuItem;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
@@ -93,6 +94,8 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)
             ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section('Charte');
