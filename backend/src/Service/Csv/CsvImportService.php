@@ -5,6 +5,7 @@ namespace App\Service\Csv;
 use App\Entity\User;
 use App\Enum\UserCategory;
 use App\Message\SendMagicLinkEmailMessage;
+use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -52,6 +53,7 @@ class CsvImportService
         private readonly MagicLinkService $magicLinks,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $csvImportLogger,
+        private readonly TrainingSeasonRepository $seasons,
     ) {
     }
 
@@ -166,13 +168,28 @@ class CsvImportService
         $this->linkSharedEmailProfiles();
         $this->em->flush();
 
-        // Désactivation des users absents de cet import
+        // Désactivation des users absents de cet import.
+        // Si une période de grâce est active (début de saison), on ne désactive
+        // PAS — les anciens adhérents non encore renouvelés restent connectables
+        // jusqu'à la date limite.
+        $season = $this->seasons->findCurrent();
+        $inGrace = $season !== null && $season->isInOldMembersGracePeriod();
         $stale = $this->users->findActiveNotSyncedSince($importedAt);
-        foreach ($stale as $u) {
-            $u->setIsActive(false);
-            $result->deactivated++;
+
+        if ($inGrace) {
+            $result->deactivationDeferred = count($stale);
+            $result->gracePeriodUntil = $season->getOldMembersValidUntil();
+            $this->csvImportLogger->info('CSV import : désactivations différées', [
+                'count' => $result->deactivationDeferred,
+                'until' => $result->gracePeriodUntil?->format('Y-m-d'),
+            ]);
+        } else {
+            foreach ($stale as $u) {
+                $u->setIsActive(false);
+                $result->deactivated++;
+            }
+            $this->em->flush();
         }
-        $this->em->flush();
 
         if ($sendWelcomeEmails) {
             foreach ($newUsers as $u) {

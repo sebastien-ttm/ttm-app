@@ -17,7 +17,9 @@
         <p style="font-size:14px; color:#555;">
             <strong>Comportement :</strong> les lignes existantes (par <code>num_licence</code>) sont mises à jour.
             Les nouvelles lignes créent un compte et déclenchent un e-mail de bienvenue avec magic link.
-            Les comptes absents de l'import sont désactivés (jamais supprimés).
+            Les comptes absents de l'import sont désactivés (jamais supprimés) —
+            <em>sauf</em> si une « période de grâce » est définie dans la saison
+            d'entraînement (les anciens restent actifs jusqu'à la date limite).
         </p>
 
         {% if error %}
@@ -55,6 +57,13 @@
                 <li><strong>{{ result.created }}</strong> compte(s) créé(s)</li>
                 <li><strong>{{ result.updated }}</strong> compte(s) mis à jour</li>
                 <li><strong>{{ result.deactivated }}</strong> compte(s) désactivé(s)</li>
+                {% if result.deactivationDeferred > 0 %}
+                    <li style="color:#92400E;">
+                        ⏳ <strong>{{ result.deactivationDeferred }}</strong> compte(s) absent(s) maintenu(s) actif(s)
+                        jusqu'au <strong>{{ result.gracePeriodUntil|date('d/m/Y') }}</strong>
+                        (période de grâce des anciens adhérents).
+                    </li>
+                {% endif %}
                 <li><strong>{{ result.errors|length }}</strong> erreur(s)</li>
             </ul>
 

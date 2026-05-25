@@ -32,6 +32,15 @@ class TrainingSeason
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $endsAt = null;
 
+    /**
+     * Période de grâce pour les anciens adhérents en début de saison.
+     * Tant qu'on est avant cette date, l'import CSV ne désactive PAS
+     * les adhérents absents du fichier (ils ont encore le temps de
+     * renouveler leur licence). Null = pas de période de grâce.
+     */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $oldMembersValidUntil = null;
+
     public function getId(): ?int { return $this->id; }
 
     public function getStartsAt(): ?\DateTimeImmutable { return $this->startsAt; }
@@ -39,6 +48,22 @@ class TrainingSeason
 
     public function getEndsAt(): ?\DateTimeImmutable { return $this->endsAt; }
     public function setEndsAt(?\DateTimeImmutable $d): self { $this->endsAt = $d; return $this; }
+
+    public function getOldMembersValidUntil(): ?\DateTimeImmutable { return $this->oldMembersValidUntil; }
+    public function setOldMembersValidUntil(?\DateTimeImmutable $d): self { $this->oldMembersValidUntil = $d; return $this; }
+
+    /**
+     * Renvoie true si on est encore dans la période de grâce
+     * (les anciens adhérents non encore licenciés restent actifs).
+     */
+    public function isInOldMembersGracePeriod(?\DateTimeImmutable $now = null): bool
+    {
+        if ($this->oldMembersValidUntil === null) {
+            return false;
+        }
+        $now ??= new \DateTimeImmutable('today');
+        return $now <= $this->oldMembersValidUntil;
+    }
 
     /** Renvoie true si la date est dans la saison (ou si pas de saison définie). */
     public function contains(\DateTimeImmutable $date): bool
