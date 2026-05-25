@@ -4,6 +4,8 @@ namespace App\Entity;
 
 use App\Enum\Sport;
 use App\Repository\TrainingSlotRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -70,11 +72,21 @@ class TrainingSlot
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?TrainingSlotTemplate $template = null;
 
+    /**
+     * @var Collection<int, TrainingSlotAttachment>
+     */
+    #[ORM\OneToMany(targetEntity: TrainingSlotAttachment::class, mappedBy: 'slot', cascade: ['remove'], orphanRemoval: true)]
+    private Collection $attachments;
+
     public function __construct()
     {
         $this->weekStartsAt = new \DateTimeImmutable('monday this week');
         $this->startTime = new \DateTimeImmutable('18:30:00');
+        $this->attachments = new ArrayCollection();
     }
+
+    /** @return Collection<int, TrainingSlotAttachment> */
+    public function getAttachments(): Collection { return $this->attachments; }
 
     /** S'assure que weekStartsAt est bien stocké comme un lundi. */
     #[ORM\PrePersist]

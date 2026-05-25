@@ -8,6 +8,7 @@ parameters:
     app.uploads.articles_dir: '%kernel.project_dir%/public/uploads/articles'
     app.uploads.banners_dir: '%kernel.project_dir%/public/uploads/banners'
     app.uploads.training_dir: '%kernel.project_dir%/var/uploads/training'
+    app.uploads.training_slots_dir: '%kernel.project_dir%/var/uploads/training-slots'
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
 
 services:
@@ -44,6 +45,10 @@ services:
     App\Controller\Api\TrainingPlanController:
         arguments:
             $trainingDir: '%app.uploads.training_dir%'
+
+    App\Service\Training\AttachmentService:
+        arguments:
+            $trainingSlotsDir: '%app.uploads.training_slots_dir%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

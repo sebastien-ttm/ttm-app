@@ -98,6 +98,14 @@ export type Banner = {
 
 export type SportKey = 'natation' | 'velo' | 'course' | 'multi' | 'renfo' | 'autre';
 
+export type TrainingSlotAttachment = {
+  id: number;
+  name: string;
+  size: number;
+  humanSize: string;
+  mimeType: string;
+};
+
 export type TrainingSlot = {
   /** null si créneau virtuel (semaine type non encore matérialisée). */
   id: number | null;
@@ -118,6 +126,7 @@ export type TrainingSlot = {
   isCancelled: boolean;
   isOverride: boolean;
   isOccasional: boolean;
+  attachments: TrainingSlotAttachment[];
 };
 
 export type WeeklySchedule = {

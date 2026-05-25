@@ -4,12 +4,16 @@ namespace App\Controller\Api;
 
 use App\Entity\TrainingPlan;
 use App\Repository\TrainingPlanRepository;
+use App\Repository\TrainingSlotAttachmentRepository;
 use App\Service\Serializer\ApiSerializer;
+use App\Service\Training\AttachmentService;
 use App\Service\Training\WeeklyScheduleService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -33,6 +37,8 @@ class TrainingScheduleController extends AbstractController
     public function __construct(
         private readonly WeeklyScheduleService $schedule,
         private readonly TrainingPlanRepository $plans,
+        private readonly TrainingSlotAttachmentRepository $attachments,
+        private readonly AttachmentService $attachmentService,
         private readonly ApiSerializer $serializer,
     ) {
     }
@@ -78,6 +84,27 @@ class TrainingScheduleController extends AbstractController
             'slots' => $slots,
             'plans' => $plans,
         ]);
+    }
+
+    /** Téléchargement authentifié d'une PJ depuis le mobile. */
+    #[Route('/api/training-slots/attachments/{id}/file', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function downloadAttachment(int $id): BinaryFileResponse
+    {
+        $att = $this->attachments->find($id);
+        if ($att === null) {
+            throw $this->createNotFoundException();
+        }
+        $path = $this->attachmentService->absolutePath($att);
+        if ($path === null || !is_file($path)) {
+            throw $this->createNotFoundException();
+        }
+        $resp = new BinaryFileResponse($path);
+        $resp->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $att->getOriginalName(),
+        );
+        $resp->headers->set('Content-Type', $att->getMimeType());
+        return $resp;
     }
 
     private function formatWeekLabel(\DateTimeImmutable $monday): string

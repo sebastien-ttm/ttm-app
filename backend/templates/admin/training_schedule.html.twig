@@ -27,10 +27,26 @@
             Semaine ISO {{ weekIso }} — {{ rows|length }} créneau(x).
             La semaine type est <strong>projetée</strong> ici ; toute modification ne concerne QUE cette semaine.
         </p>
-        <div style="margin-top:12px;">
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
             <a href="{{ path('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
                 <i class="fa fa-plus"></i> Ajouter un créneau occasionnel
             </a>
+            <form method="post" action="{{ path('admin_training_schedule_cancel_all') }}" style="display:inline;"
+                  onsubmit="return confirm('Annuler tous les créneaux de cette semaine ? (utile pour les semaines de vacances)');">
+                <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                <button class="btn btn-warning">
+                    <i class="fa fa-ban"></i> Annuler tous les créneaux
+                </button>
+            </form>
+            <form method="post" action="{{ path('admin_training_schedule_restore_all') }}" style="display:inline;"
+                  onsubmit="return confirm('Réactiver tous les créneaux annulés de cette semaine ?');">
+                <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                <button class="btn btn-success">
+                    <i class="fa fa-rotate-left"></i> Réactiver tous les créneaux
+                </button>
+            </form>
         </div>
     </div>
 
@@ -87,7 +103,7 @@
                                     Modifier
                                 </a>
 
-                                {# Annuler / Réactiver / Supprimer selon le type #}
+                                {# Actions selon l'état du créneau #}
                                 {% if r.isCancelled %}
                                     <form method="post" action="{{ path('admin_training_schedule_restore') }}" style="display:inline;">
                                         <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
@@ -95,20 +111,17 @@
                                         <input type="hidden" name="slotId" value="{{ r.id }}" />
                                         <button class="btn btn-sm btn-success">Réactiver</button>
                                     </form>
-                                {% elseif r.isOccasional %}
-                                    <form method="post" action="{{ path('admin_training_schedule_delete') }}" style="display:inline;"
-                                          onsubmit="return confirm('Supprimer ce créneau occasionnel ?');">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
-                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
-                                        <input type="hidden" name="slotId" value="{{ r.id }}" />
-                                        <button class="btn btn-sm btn-danger">Supprimer</button>
-                                    </form>
                                 {% else %}
+                                    {# Annuler : marche pour template virtuel, override, ou occasionnel #}
                                     <form method="post" action="{{ path('admin_training_schedule_cancel') }}" style="display:inline;"
                                           onsubmit="return confirm('Annuler ce créneau pour cette semaine uniquement ?');">
                                         <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
                                         <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
-                                        <input type="hidden" name="templateId" value="{{ r.templateId }}" />
+                                        {% if r.id %}
+                                            <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                        {% else %}
+                                            <input type="hidden" name="templateId" value="{{ r.templateId }}" />
+                                        {% endif %}
                                         <button class="btn btn-sm btn-warning">Annuler</button>
                                     </form>
                                     {% if r.isOverride %}
@@ -117,9 +130,22 @@
                                             <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
                                             <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
                                             <input type="hidden" name="slotId" value="{{ r.id }}" />
-                                            <button class="btn btn-sm btn-link">Restaurer</button>
+                                            <button class="btn btn-sm btn-link">Restaurer le modèle</button>
                                         </form>
                                     {% endif %}
+                                {% endif %}
+
+                                {# Supprimer définitivement (occasionnels seulement, action secondaire) #}
+                                {% if r.isOccasional and r.id %}
+                                    <form method="post" action="{{ path('admin_training_schedule_delete') }}" style="display:inline;"
+                                          onsubmit="return confirm('Supprimer définitivement ce créneau occasionnel ? Cette action est irréversible.');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                        <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                        <button class="btn btn-sm btn-link" style="color:#991B1B;" title="Supprimer définitivement">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
                                 {% endif %}
                             </div>
                         </div>

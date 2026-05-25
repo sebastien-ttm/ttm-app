@@ -140,6 +140,7 @@ class WeeklyScheduleService
             'isCancelled' => false,
             'isOverride' => false,
             'isOccasional' => false,
+            'attachments' => [],
         ];
     }
 
@@ -167,6 +168,16 @@ class WeeklyScheduleService
             'isCancelled' => $s->isCancelled(),
             'isOverride' => $tpl !== null,
             'isOccasional' => $tpl === null,
+            'attachments' => array_map(
+                fn ($att) => [
+                    'id' => $att->getId(),
+                    'name' => $att->getOriginalName(),
+                    'size' => $att->getSize(),
+                    'humanSize' => $att->getHumanSize(),
+                    'mimeType' => $att->getMimeType(),
+                ],
+                $s->getAttachments()->toArray(),
+            ),
         ];
     }
 }

@@ -11,12 +11,12 @@ import {
 
 import { ApiError } from '@/api/client';
 import { trainingSchedule as scheduleApi } from '@/api/resources';
-import type { TrainingPlan, TrainingSlot, WeeklySchedule } from '@/api/types';
+import type { TrainingPlan, TrainingSlot, TrainingSlotAttachment, WeeklySchedule } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
@@ -159,8 +159,32 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
             {slot.description}
           </Text>
         ) : null}
+        {slot.attachments.length > 0 && (
+          <View style={styles.attachments}>
+            {slot.attachments.map((att) => (
+              <AttachmentLink key={att.id} attachment={att} />
+            ))}
+          </View>
+        )}
       </View>
     </View>
+  );
+}
+
+function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
+  async function open() {
+    const token = await storage.getItem(STORAGE_KEYS.accessToken);
+    const url =
+      `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file` +
+      (token ? `?bearer=${encodeURIComponent(token)}` : '');
+    await WebBrowser.openBrowserAsync(url);
+  }
+  return (
+    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && styles.pressed]}>
+      <Text style={styles.attachmentIcon}>📎</Text>
+      <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
+      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
+    </Pressable>
   );
 }
 
@@ -239,6 +263,23 @@ const styles = StyleSheet.create({
   slotMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 2 },
   slotLocation: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   slotDescription: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
+  attachments: {
+    flexDirection: 'column',
+    gap: 4,
+    marginTop: 8,
+  },
+  attachmentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.secondarySoft,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  attachmentIcon: { fontSize: 14 },
+  attachmentName: { flex: 1, fontSize: 13, color: COLORS.secondaryDark, fontWeight: '500' },
+  attachmentSize: { fontSize: 11, color: COLORS.textMuted },
   tag: {
     borderWidth: 1,
     borderRadius: RADIUS.full,
