@@ -25,10 +25,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 32)]
-    #[Assert\NotBlank]
+    #[ORM\Column(length: 32, nullable: true)]
     #[Assert\Length(max: 32)]
-    private string $numLicence;
+    private ?string $numLicence = null;
 
     #[ORM\Column(length: 120)]
     #[Assert\NotBlank]
@@ -98,6 +97,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $dependents;
 
     /**
+     * Enfants adhérents rattachés à ce compte parent. Different du
+     * mécanisme linkedToUser (qui ne sert qu'au cas e-mail partagé).
+     * Posé via l'inscription parent mobile ou la main de l'admin.
+     *
+     * @var Collection<int, User>
+     */
+    #[ORM\JoinTable(name: 'user_parent_child')]
+    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'child_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'parents')]
+    private Collection $children;
+
+    /**
+     * Parents (au sens famille) rattachés à ce compte enfant.
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'children')]
+    private Collection $parents;
+
+    /**
      * @var list<string>
      */
     #[ORM\Column(type: 'json')]
@@ -130,6 +149,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt = new \DateTimeImmutable();
         $this->deviceTokens = new ArrayCollection();
         $this->dependents = new ArrayCollection();
+        $this->children = new ArrayCollection();
+        $this->parents = new ArrayCollection();
     }
 
     #[ORM\PreUpdate]
@@ -143,14 +164,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->id;
     }
 
-    public function getNumLicence(): string
+    public function getNumLicence(): ?string
     {
         return $this->numLicence;
     }
 
-    public function setNumLicence(string $numLicence): self
+    public function setNumLicence(?string $numLicence): self
     {
-        $this->numLicence = $numLicence;
+        $this->numLicence = $numLicence !== null && trim($numLicence) !== '' ? $numLicence : null;
         return $this;
     }
 
@@ -313,6 +334,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
 
+    /** @return Collection<int, User> */
+    public function getChildren(): Collection { return $this->children; }
+
+    public function addChild(User $child): self
+    {
+        if (!$this->children->contains($child)) {
+            $this->children->add($child);
+        }
+        return $this;
+    }
+
+    public function removeChild(User $child): self
+    {
+        $this->children->removeElement($child);
+        return $this;
+    }
+
+    /** @return Collection<int, User> */
+    public function getParents(): Collection { return $this->parents; }
+
     public function getLinkedToUser(): ?User { return $this->linkedToUser; }
     public function setLinkedToUser(?User $u): self { $this->linkedToUser = $u; return $this; }
 
@@ -444,6 +485,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         if (!isset($this->prenom, $this->nom)) {
             return $this->email ?? '#'.$this->id;
         }
-        return $this->getFullName().' ('.$this->numLicence.')';
+        return $this->numLicence !== null
+            ? $this->getFullName().' ('.$this->numLicence.')'
+            : $this->getFullName();
     }
 }

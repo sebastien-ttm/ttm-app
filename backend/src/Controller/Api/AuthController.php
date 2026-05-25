@@ -2,10 +2,13 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
+use App\Enum\Profile;
 use App\EventListener\AuthSuccessListener;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
 use App\Service\MagicLinkService;
+use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -14,6 +17,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -28,6 +32,8 @@ class AuthController extends AbstractController
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
         private readonly MessageBusInterface $bus,
+        private readonly UserPasswordHasherInterface $hasher,
+        private readonly EntityManagerInterface $em,
     ) {
     }
 
@@ -101,5 +107,112 @@ class AuthController extends AbstractController
             'user' => AuthSuccessListener::serializeUser($user),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
         ]);
+    }
+
+    /**
+     * Inscription d'un parent non adhérent depuis le mobile.
+     * Le parent doit fournir au moins UN n° de licence d'enfant adhérent
+     * (anti-spam + lien réel). Auto-création : compte immédiatement actif.
+     *
+     * POST body attendu :
+     *   { "email", "prenom", "nom", "password", "childrenLicences": [string, ...] }
+     */
+    #[Route('/api/auth/register-parent', methods: ['POST'])]
+    public function registerParent(
+        Request $request,
+        RateLimiterFactory $magicLinkRequestIpLimiter,
+    ): JsonResponse {
+        // Rate limit basique par IP (réutilise le limiter magic-link)
+        $ipLimiter = $magicLinkRequestIpLimiter->create($request->getClientIp() ?? 'unknown');
+        if (!$ipLimiter->consume()->isAccepted()) {
+            return new JsonResponse(['error' => 'Trop de demandes. Réessayez plus tard.'], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $email = mb_strtolower(trim((string) ($payload['email'] ?? '')), 'UTF-8');
+        $prenom = trim((string) ($payload['prenom'] ?? ''));
+        $nom = trim((string) ($payload['nom'] ?? ''));
+        $password = (string) ($payload['password'] ?? '');
+        $childrenLicences = is_array($payload['childrenLicences'] ?? null) ? $payload['childrenLicences'] : [];
+
+        // Validations basiques
+        $errors = [];
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Email invalide.';
+        }
+        if ($prenom === '' || mb_strlen($prenom) > 120) {
+            $errors[] = 'Prénom requis (max 120 caractères).';
+        }
+        if ($nom === '' || mb_strlen($nom) > 120) {
+            $errors[] = 'Nom requis (max 120 caractères).';
+        }
+        if (mb_strlen($password) < 8) {
+            $errors[] = 'Mot de passe trop court (8 caractères minimum).';
+        }
+        if ($childrenLicences === []) {
+            $errors[] = 'Au moins un numéro de licence d\'enfant adhérent est requis.';
+        }
+        if ($errors !== []) {
+            return new JsonResponse(['error' => 'Formulaire invalide.', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // E-mail déjà utilisé ?
+        if ($this->users->findOneByEmail($email) !== null) {
+            return new JsonResponse(
+                ['error' => 'Cet e-mail est déjà associé à un compte. Si vous êtes déjà adhérent, demandez à l\'administration de vous ajouter le profil Parent.'],
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        // Vérifier chaque licence d'enfant
+        $children = [];
+        $invalidLicences = [];
+        foreach ($childrenLicences as $rawLicence) {
+            $child = is_string($rawLicence) ? $this->users->findActiveByLicenceNormalized($rawLicence) : null;
+            if ($child === null) {
+                $invalidLicences[] = (string) $rawLicence;
+            } else {
+                $children[$child->getId()] = $child;
+            }
+        }
+        if ($invalidLicences !== []) {
+            return new JsonResponse([
+                'error' => 'Numéro(s) de licence inconnu(s) ou compte inactif : '.implode(', ', $invalidLicences),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Création du compte parent
+        $parent = new User();
+        $parent->setEmail($email);
+        $parent->setPrenom($prenom);
+        $parent->setNom($nom);
+        $parent->setNumLicence(null);
+        $parent->setIsActive(true);
+        $parent->setRoles(['ROLE_USER']);
+        $parent->setProfiles([Profile::Parent->value]);
+        $parent->setPassword($this->hasher->hashPassword($parent, $password));
+
+        foreach ($children as $child) {
+            $parent->addChild($child);
+        }
+
+        $this->em->persist($parent);
+        $this->em->flush();
+
+        // Auto-login (renvoie le même format que /api/auth/login)
+        $accessToken = $this->jwt->create($parent);
+        $refresh = $this->refreshTokenGenerator->createForUserWithTtl($parent, 2592000);
+        $this->refreshTokenManager->save($refresh);
+
+        return new JsonResponse([
+            'token' => $accessToken,
+            'refresh_token' => $refresh->getRefreshToken(),
+            'user' => AuthSuccessListener::serializeUser($parent),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($parent, $this->users),
+        ], Response::HTTP_CREATED);
     }
 }

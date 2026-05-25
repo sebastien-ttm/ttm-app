@@ -128,6 +128,14 @@ export type LoginResponse = {
   linkedProfiles?: LinkedProfile[];
 };
 
+export type RegisterParentPayload = {
+  email: string;
+  prenom: string;
+  nom: string;
+  password: string;
+  childrenLicences: string[];
+};
+
 export const auth = {
   loginWithPassword: (email: string, password: string) =>
     api.post<LoginResponse>('/api/auth/login', { email, password }, { public: true }),
@@ -137,6 +145,8 @@ export const auth = {
     api.get<LoginResponse>(`/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`, { public: true }),
   refresh: (refreshToken: string) =>
     api.post<{ token: string; refresh_token?: string }>('/api/auth/refresh', { refresh_token: refreshToken }, { public: true }),
+  registerParent: (payload: RegisterParentPayload) =>
+    api.post<LoginResponse>('/api/auth/register-parent', payload, { public: true }),
   me: () => api.get<AuthenticatedUser>('/api/me'),
   setPassword: (newPassword: string) =>
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),

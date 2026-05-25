@@ -75,6 +75,26 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Cherche un adhérent actif par n° de licence (case-insensitive, espaces
+     * triés). Utilisé par l'inscription parent mobile pour valider le lien
+     * de filiation.
+     */
+    public function findActiveByLicenceNormalized(string $rawLicence): ?User
+    {
+        $cleaned = strtoupper(trim($rawLicence));
+        if ($cleaned === '') {
+            return null;
+        }
+        return $this->createQueryBuilder('u')
+            ->where('UPPER(u.numLicence) = :lic')
+            ->andWhere('u.isActive = true')
+            ->setParameter('lic', $cleaned)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Utilisateurs actifs qui n'ont pas été touchés par le dernier import CSV
      * et qui sont éligibles à la désactivation (= adhérents purs).
      *

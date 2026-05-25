@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, auth, setOnUnauthorized } from '@/api/client';
+import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, RegisterParentPayload, auth, setOnUnauthorized } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
@@ -18,6 +18,7 @@ type AuthState = {
 type AuthContextValue = AuthState & {
   loginWithPassword: (email: string, password: string) => Promise<void>;
   consumeMagicLink: (token: string) => Promise<void>;
+  registerParent: (payload: RegisterParentPayload) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
   acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
@@ -152,6 +153,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
+  const registerParent = useCallback(
+    async (payload: RegisterParentPayload) => {
+      const resp = await auth.registerParent(payload);
+      await persist(resp);
+    },
+    [persist],
+  );
+
   const refreshMe = useCallback(async () => {
     const fresh = await auth.me();
     await storage.setItem(STORAGE_KEYS.user, JSON.stringify(fresh));
@@ -182,12 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...state,
       loginWithPassword,
       consumeMagicLink,
+      registerParent,
       signOut,
       refreshMe,
       acknowledgeCharter,
       switchProfile,
     }),
-    [state, loginWithPassword, consumeMagicLink, signOut, refreshMe, acknowledgeCharter, switchProfile],
+    [state, loginWithPassword, consumeMagicLink, registerParent, signOut, refreshMe, acknowledgeCharter, switchProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -35,7 +35,7 @@ security:
                 check_path: api_token_refresh
 
         api_public:
-            pattern: ^/api/(auth/magic-link|banner/active|public)
+            pattern: ^/api/(auth/(magic-link|register-parent)|banner/active|public)
             stateless: true
             security: false
 

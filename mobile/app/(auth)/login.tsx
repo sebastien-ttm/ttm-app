@@ -133,6 +133,16 @@ export default function LoginScreen() {
                 : 'Si vous n\'avez pas encore de mot de passe, utilisez d\'abord le lien e-mail.'}
             </Text>
           </View>
+
+          <View style={styles.parentLinkBox}>
+            <Text style={styles.parentLinkLabel}>Parent d'un jeune adhérent ?</Text>
+            <Pressable
+              onPress={() => router.push('/(auth)/register-parent')}
+              style={({ pressed }) => [styles.parentLinkBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.parentLinkBtnLabel}>Créer un compte parent →</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -229,4 +239,14 @@ const styles = StyleSheet.create({
     borderColor: '#FFC9C9',
   },
   help: { color: COLORS.textMuted, fontSize: 13, marginTop: SPACING.lg, textAlign: 'center', lineHeight: 19 },
+  parentLinkBox: {
+    marginTop: SPACING.lg,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
+  parentLinkLabel: { color: '#cbd5e1', fontSize: 13, marginBottom: 6 },
+  parentLinkBtn: { paddingVertical: 8 },
+  parentLinkBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
