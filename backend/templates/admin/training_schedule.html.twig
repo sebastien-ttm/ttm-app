@@ -42,16 +42,9 @@
             depuis le menu, ou ajoutez un créneau occasionnel ci-dessus.
         </div>
     {% else %}
-        {% set grouped = {} %}
-        {% for r in rows %}
-            {% set key = r.dayOfWeek %}
-            {% set list = grouped[key]|default([]) %}
-            {% set list = list|merge([r]) %}
-            {% set grouped = grouped|merge({(key): list}) %}
-        {% endfor %}
-
         {% for day_num in 1..7 %}
-            {% set day_rows = grouped[day_num]|default([]) %}
+            {# Filtrage direct : évite le piège array_merge avec clés numériques #}
+            {% set day_rows = rows|filter(r => r.dayOfWeek == day_num) %}
             {% if day_rows|length > 0 %}
                 <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
                     <h4 style="margin:0 0 12px 0; padding-bottom:8px; border-bottom:1px solid #eee; color:#1d4ed8;">
