@@ -1,10 +1,13 @@
-{% extends '@EasyAdmin/page/content.html.twig' %}
+{% extends 'admin/_schedule_layout.html.twig' %}
 
 {% set days_labels = {1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche'} %}
 
-{% block content_title %}
-    {{ isOccasional ? 'Ajouter un créneau occasionnel' : 'Modifier le créneau pour cette semaine' }}
-{% endblock %}
+{% set _title = (slot.id is not null)
+    ? (isOccasional ? 'Modifier un créneau occasionnel' : 'Modifier le créneau pour cette semaine')
+    : (isOccasional ? 'Ajouter un créneau occasionnel' : 'Modifier un créneau de la semaine type') %}
+
+{% block title %}{{ _title }}{% endblock %}
+{% block page_title %}{{ _title }}{% endblock %}
 
 {% block main %}
     <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:18px;">
@@ -21,6 +24,8 @@
         <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
         {% if slot.id %}
             <input type="hidden" name="slotId" value="{{ slot.id }}" />
+        {% elseif slot.template %}
+            <input type="hidden" name="templateId" value="{{ slot.template.id }}" />
         {% endif %}
 
         <div>
@@ -81,7 +86,7 @@
 
         <div style="display:flex; gap:10px; margin-top:8px;">
             <button type="submit" class="btn btn-primary">Enregistrer</button>
-            <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
+            <a href="{{ path('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 {% endblock %}

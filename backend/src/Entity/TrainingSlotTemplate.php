@@ -58,6 +58,18 @@ class TrainingSlotTemplate
     #[ORM\Column(type: 'smallint')]
     private int $position = 0;
 
+    /**
+     * Optionnel : si défini, le créneau ne s'applique qu'à partir de cette date.
+     * Sert pour les créneaux qui ne démarrent qu'en cours de saison
+     * (ex. cours de PPG à partir de janvier).
+     */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $startsAt = null;
+
+    /** Optionnel : dernier jour d'application (inclus). */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $endsAt = null;
+
     public function __construct()
     {
         $this->startTime = new \DateTimeImmutable('18:30:00');
@@ -91,6 +103,24 @@ class TrainingSlotTemplate
 
     public function getPosition(): int { return $this->position; }
     public function setPosition(int $p): self { $this->position = $p; return $this; }
+
+    public function getStartsAt(): ?\DateTimeImmutable { return $this->startsAt; }
+    public function setStartsAt(?\DateTimeImmutable $d): self { $this->startsAt = $d; return $this; }
+
+    public function getEndsAt(): ?\DateTimeImmutable { return $this->endsAt; }
+    public function setEndsAt(?\DateTimeImmutable $d): self { $this->endsAt = $d; return $this; }
+
+    /** Renvoie true si ce créneau s'applique au lundi donné. */
+    public function appliesOn(\DateTimeImmutable $monday): bool
+    {
+        if ($this->startsAt !== null && $monday < $this->startsAt->modify('monday this week')->setTime(0, 0, 0)) {
+            return false;
+        }
+        if ($this->endsAt !== null && $monday > $this->endsAt->modify('monday this week')->setTime(0, 0, 0)) {
+            return false;
+        }
+        return true;
+    }
 
     public function __toString(): string
     {

@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -88,5 +89,15 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         yield IntegerField::new('position', 'Position')
             ->hideOnIndex()
             ->setHelp('Optionnel : ordre d\'affichage à heure égale (0 par défaut).');
+
+        yield DateField::new('startsAt', 'Date de début (optionnel)')
+            ->hideOnIndex()
+            ->setRequired(false)
+            ->setHelp('Si défini, ce créneau ne s\'applique qu\'à partir de cette date (ex. PPG démarrant en janvier). Laisser vide = toute la saison.');
+
+        yield DateField::new('endsAt', 'Date de fin (optionnel)')
+            ->hideOnIndex()
+            ->setRequired(false)
+            ->setHelp('Si défini, ce créneau ne s\'applique que jusqu\'à cette date (inclus).');
     }
 }

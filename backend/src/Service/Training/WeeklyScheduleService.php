@@ -4,6 +4,7 @@ namespace App\Service\Training;
 
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
+use App\Repository\TrainingSeasonRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,7 @@ class WeeklyScheduleService
     public function __construct(
         private readonly TrainingSlotTemplateRepository $templates,
         private readonly TrainingSlotRepository $slots,
+        private readonly TrainingSeasonRepository $seasons,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -55,19 +57,31 @@ class WeeklyScheduleService
             }
         }
 
+        // Filtre global saison : si la semaine n'est pas dans la saison,
+        // on ne projette PAS les templates (mais on garde les occasionnels
+        // qui ont été ajoutés explicitement pour cette semaine).
+        $season = $this->seasons->findCurrent();
+        $weekInSeason = $season === null || $season->contains($monday);
+
         $rows = [];
 
         // 1) Templates actifs (override si présent, sinon virtuel)
-        foreach ($this->templates->findActiveOrdered() as $tpl) {
-            $override = $overridesByTemplate[$tpl->getId()] ?? null;
-            if ($override !== null) {
-                $rows[] = $this->serializeOverride($override, $monday);
-            } else {
-                $rows[] = $this->serializeVirtual($tpl, $monday);
+        if ($weekInSeason) {
+            foreach ($this->templates->findActiveOrdered() as $tpl) {
+                // Filtre dates par créneau
+                if (!$tpl->appliesOn($monday)) {
+                    continue;
+                }
+                $override = $overridesByTemplate[$tpl->getId()] ?? null;
+                if ($override !== null) {
+                    $rows[] = $this->serializeOverride($override, $monday);
+                } else {
+                    $rows[] = $this->serializeVirtual($tpl, $monday);
+                }
             }
         }
 
-        // 2) Créneaux occasionnels (sans template)
+        // 2) Créneaux occasionnels (sans template) — toujours affichés
         foreach ($occasionals as $s) {
             $rows[] = $this->serializeOverride($s, $monday);
         }

@@ -9,7 +9,6 @@ use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
-use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,22 +29,17 @@ class WeeklyScheduleController extends AbstractController
         private readonly TrainingSlotTemplateRepository $templates,
         private readonly TrainingSlotRepository $slots,
         private readonly EntityManagerInterface $em,
-        private readonly AdminUrlGenerator $adminUrl,
     ) {
     }
 
     /**
-     * Redirige vers une route admin via le dispatcher EasyAdmin
-     * (pour conserver le contexte `ea` dans les templates).
+     * Redirige vers une route admin. On utilise les routes directes ;
+     * la page de destination utilise un layout standalone qui ne dépend
+     * pas du contexte EasyAdmin.
      */
     private function redirectToAdminRoute(string $route, array $params = []): RedirectResponse
     {
-        $url = $this->adminUrl
-            ->unsetAll()
-            ->setController(DashboardController::class)
-            ->setRoute($route, $params)
-            ->generateUrl();
-        return $this->redirect($url);
+        return $this->redirectToRoute($route, $params);
     }
 
     #[Route('/admin/training-schedule', name: 'admin_training_schedule')]

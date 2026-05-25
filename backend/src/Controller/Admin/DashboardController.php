@@ -10,6 +10,7 @@ use App\Entity\Event;
 use App\Entity\MenuItem;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
+use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -75,6 +76,8 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')
             ->setPermission('ROLE_COACH');
         yield AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)
+            ->setPermission('ROLE_COACH');
+        yield AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)
             ->setPermission('ROLE_COACH');
         yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class);
 
