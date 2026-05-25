@@ -75,11 +75,11 @@ class DashboardController extends AbstractDashboardController
 
         yield AdminMenuItem::section('Entraînements');
         yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')
-            ->setPermission('ROLE_COACH');
+            ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)
-            ->setPermission('ROLE_COACH');
+            ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)
-            ->setPermission('ROLE_COACH');
+            ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class);
 
         yield AdminMenuItem::section('Configuration');

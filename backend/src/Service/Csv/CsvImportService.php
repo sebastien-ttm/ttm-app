@@ -4,7 +4,7 @@ namespace App\Service\Csv;
 
 use App\Entity\User;
 use App\Enum\Profile;
-use App\Enum\UserCategory;
+use App\Enum\UserType;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\MembershipSettingsRepository;
 use App\Repository\UserRepository;
@@ -104,17 +104,16 @@ class CsvImportService
                 $isActive = $this->isStatutActive($statut);
 
                 $typeLicenceRaw = (string) ($record[self::COL_TYPE_LICENCE] ?? '');
-                // Catégorie déterminée prioritairement par l'âge dans l'année courante
-                // (≤ 18 ans dans l'année = Jeune), fallback sur le type de licence.
+                // Profil principal calculé depuis la date de naissance
+                // (≤ 18 ans dans l'année courante = Jeune), fallback sur le
+                // type de licence FFTri si pas de date.
                 $dateNaissance = $this->parseDate((string) ($record[self::COL_DATE_NAISSANCE] ?? ''));
                 if ($dateNaissance !== null) {
-                    $categorie = Profile::principalFromBirthDate($dateNaissance, $importedAt) === Profile::Jeune
-                        ? UserCategory::Jeune
-                        : UserCategory::Senior;
+                    $principalProfile = Profile::principalFromBirthDate($dateNaissance, $importedAt);
                 } else {
-                    $categorie = stripos($typeLicenceRaw, 'jeune') !== false
-                        ? UserCategory::Jeune
-                        : UserCategory::Senior;
+                    $principalProfile = stripos($typeLicenceRaw, 'jeune') !== false
+                        ? Profile::Jeune
+                        : Profile::Senior;
                 }
 
                 $tel = $this->cleanPhone((string) ($record[self::COL_MOBILE] ?? ''));
@@ -128,27 +127,25 @@ class CsvImportService
                 if ($isNew) {
                     $user = new User();
                     $user->setNumLicence($numLicence);
-                    $user->setRoles(['ROLE_USER']);
+                    $user->setType(UserType::Adherent);
+                    $user->setRole('user');
                 }
 
                 $user->setNom(trim((string) ($record[self::COL_NOM] ?? '')));
                 $user->setPrenom(trim((string) ($record[self::COL_PRENOM] ?? '')));
                 $user->setEmail($email);
                 $user->setTelephone($tel !== '' ? $tel : null);
-                $user->setCategorie($categorie);
                 $user->setStatutLicence($statut);
                 $user->setIsActive($isActive);
                 $user->setLastCsvSyncAt($importedAt);
 
                 // Sync profiles : remplace Jeune/Senior par le bon, garde les
-                // profils manuels (U25, Parent, Encadrant) intacts.
+                // profils manuels (U25, Parent, Entraîneur, Encadrant) intacts.
                 $existingProfiles = array_filter(
                     $user->getProfiles(),
                     fn (string $p) => !in_array($p, [Profile::Jeune->value, Profile::Senior->value], true),
                 );
-                $existingProfiles[] = $categorie === UserCategory::Jeune
-                    ? Profile::Jeune->value
-                    : Profile::Senior->value;
+                $existingProfiles[] = $principalProfile->value;
                 $user->setProfiles(array_values($existingProfiles));
 
                 // Nouveaux champs FFTri

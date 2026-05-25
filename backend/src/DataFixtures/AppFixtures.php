@@ -10,7 +10,8 @@ use App\Entity\StaticPage;
 use App\Entity\User;
 use App\Enum\EventType;
 use App\Enum\MenuItemType;
-use App\Enum\UserCategory;
+use App\Enum\Profile;
+use App\Enum\UserType;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -26,11 +27,11 @@ class AppFixtures extends Fixture
     public function load(ObjectManager $manager): void
     {
         // -- Users --
-        $admin = $this->makeUser('A0001', 'admin@ttm.test', 'Admin', 'TTM', ['ROLE_ADMIN'], 'demo');
-        $coach = $this->makeUser('C0001', 'coach@ttm.test', 'Coach', 'TTM', ['ROLE_COACH'], 'demo');
-        $u1 = $this->makeUser('U0001', 'paul@ttm.test', 'Paul', 'Durand', [], 'demo');
-        $u2 = $this->makeUser('U0002', 'marie@ttm.test', 'Marie', 'Lefèvre', [], 'demo');
-        $u3 = $this->makeUser('U0003', 'lucas@ttm.test', 'Lucas', 'Bernard', [], 'demo', UserCategory::Jeune);
+        $admin = $this->makeUser('A0001', 'admin@ttm.test', 'Admin', 'TTM', 'admin', [Profile::Senior], 'demo');
+        $coach = $this->makeUser('C0001', 'coach@ttm.test', 'Coach', 'TTM', 'admin', [Profile::Senior, Profile::Entraineur], 'demo');
+        $u1 = $this->makeUser('U0001', 'paul@ttm.test', 'Paul', 'Durand', 'user', [Profile::Senior], 'demo');
+        $u2 = $this->makeUser('U0002', 'marie@ttm.test', 'Marie', 'Lefèvre', 'user', [Profile::Senior], 'demo');
+        $u3 = $this->makeUser('U0003', 'lucas@ttm.test', 'Lucas', 'Bernard', 'user', [Profile::Jeune], 'demo');
 
         $manager->persist($admin);
         $manager->persist($coach);
@@ -134,23 +135,27 @@ class AppFixtures extends Fixture
         $manager->flush();
     }
 
+    /**
+     * @param list<Profile> $profiles
+     */
     private function makeUser(
         string $numLicence,
         string $email,
         string $prenom,
         string $nom,
-        array $extraRoles = [],
+        string $role = 'user',
+        array $profiles = [Profile::Senior],
         ?string $password = null,
-        UserCategory $categorie = UserCategory::Senior,
     ): User {
         $u = new User();
         $u->setNumLicence($numLicence);
         $u->setEmail($email);
         $u->setPrenom($prenom);
         $u->setNom($nom);
-        $u->setCategorie($categorie);
+        $u->setType(UserType::Adherent);
+        $u->setRole($role);
+        $u->setProfiles($profiles);
         $u->setStatutLicence('Actif');
-        $u->setRoles($extraRoles);
         $u->setIsActive(true);
         if ($password !== null) {
             $u->setPassword($this->hasher->hashPassword($u, $password));

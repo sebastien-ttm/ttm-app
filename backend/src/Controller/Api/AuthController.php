@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Enum\UserType;
 use App\EventListener\AuthSuccessListener;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
@@ -192,7 +193,8 @@ class AuthController extends AbstractController
         $parent->setNom($nom);
         $parent->setNumLicence(null);
         $parent->setIsActive(true);
-        $parent->setRoles(['ROLE_USER']);
+        $parent->setType(UserType::Externe);
+        $parent->setRole('user');
         $parent->setProfiles([Profile::Parent->value]);
         $parent->setPassword($this->hasher->hashPassword($parent, $password));
 

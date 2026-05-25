@@ -51,7 +51,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Créneau (semaine type)')
             ->setEntityLabelInPlural('Semaine type d\'entraînement')
-            ->setEntityPermission('ROLE_COACH')
+            ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['dayOfWeek' => 'ASC', 'startTime' => 'ASC']);
     }
 

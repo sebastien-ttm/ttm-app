@@ -4,7 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\User;
 use App\Enum\Profile;
-use App\Enum\UserCategory;
+use App\Enum\UserType;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -39,8 +39,8 @@ class UserCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Adhérent')
-            ->setEntityLabelInPlural('Adhérents')
+            ->setEntityLabelInSingular('Utilisateur')
+            ->setEntityLabelInPlural('Utilisateurs')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['nom' => 'ASC'])
             ->setSearchFields(['numLicence', 'nom', 'prenom', 'email']);
@@ -50,22 +50,27 @@ class UserCrudController extends AbstractCrudController
     {
         return $filters
             ->add(BooleanFilter::new('isActive', 'Actif'))
-            ->add(ChoiceFilter::new('categorie', 'Catégorie')
-                ->setChoices(['Sénior' => UserCategory::Senior, 'Jeune' => UserCategory::Jeune]));
+            ->add(ChoiceFilter::new('type', 'Type')
+                ->setChoices(['Adhérent' => UserType::Adherent, 'Externe' => UserType::Externe]))
+            ->add(ChoiceFilter::new('role', 'Rôle')
+                ->setChoices(['Utilisateur' => 'user', 'Administrateur' => 'admin']));
     }
 
     public function configureFields(string $pageName): iterable
     {
-        yield TextField::new('numLicence', 'N° licence');
+        yield TextField::new('numLicence', 'N° licence')
+            ->setHelp('Vide pour les comptes externes (parents non adhérents).');
         yield TextField::new('prenom', 'Prénom');
         yield TextField::new('nom');
         yield EmailField::new('email');
         yield TextField::new('telephone', 'Téléphone')->hideOnIndex();
-        yield ChoiceField::new('categorie', 'Catégorie')
-            ->setChoices(['Sénior' => UserCategory::Senior, 'Jeune' => UserCategory::Jeune])
-            ->renderAsBadges()
-            ->setHelp('Auto-calculée depuis la date de naissance à l\'import CSV.')
-            ->onlyOnDetail();
+
+        yield ChoiceField::new('type', 'Type de compte')
+            ->setChoices(UserType::enumChoices())
+            ->renderAsBadges([
+                UserType::Adherent->value => 'success',
+                UserType::Externe->value => 'warning',
+            ]);
 
         yield ChoiceField::new('profiles', 'Profils')
             ->setChoices(Profile::choices())
@@ -75,13 +80,23 @@ class UserCrudController extends AbstractCrudController
                 Profile::Senior->value => 'info',
                 Profile::U25->value => 'primary',
                 Profile::Parent->value => 'warning',
+                Profile::Entraineur->value => 'dark',
                 Profile::Encadrant->value => 'danger',
             ])
             ->setHelp(
-                'Jeune / Sénior sont assignés automatiquement à l\'import CSV selon l\'âge. '
-                .'U25, Parent et Encadrant sont cochés à la main. '
-                .'Cocher Encadrant donne automatiquement le rôle ROLE_ENCADRANT.'
+                'Jeune / Sénior sont assignés automatiquement à l\'import CSV selon l\'âge dans l\'année. '
+                .'U25, Parent, Entraîneur, Encadrant sont cochés à la main. '
+                .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
             );
+
+        yield ChoiceField::new('role', 'Rôle')
+            ->setChoices(['Utilisateur (mobile)' => 'user', 'Administrateur (mobile + backend)' => 'admin'])
+            ->renderAsBadges([
+                'user' => 'secondary',
+                'admin' => 'danger',
+            ])
+            ->setHelp('« Administrateur » donne accès à ce backend. À combiner avec le profil Entraîneur pour les coachs.');
+
         yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
         yield ChoiceField::new('typeLicence', 'Type de licence')
             ->setChoices([
@@ -94,7 +109,8 @@ class UserCrudController extends AbstractCrudController
                 'Compétition' => 'success',
                 'Loisir' => 'info',
                 'Dirigeant' => 'warning',
-            ]);
+            ])
+            ->hideOnIndex();
         yield DateField::new('dateNaissance', 'Date de naissance')->hideOnIndex();
         yield ChoiceField::new('sexe', 'Sexe')
             ->setChoices(['Homme' => 'm', 'Femme' => 'f'])
@@ -104,10 +120,6 @@ class UserCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setNumOfRows(4);
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
-        yield ChoiceField::new('roles')
-            ->setChoices(['Adhérent' => 'ROLE_USER', 'Entraîneur' => 'ROLE_COACH', 'Administrateur' => 'ROLE_ADMIN'])
-            ->allowMultipleChoices()
-            ->renderAsBadges();
         yield BooleanField::new('isActive', 'Actif');
 
         // Profil lié (parent/enfant partageant l'e-mail)
@@ -118,6 +130,14 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setHelp('Si ce user partage son e-mail avec son parent, sélectionnez le compte parent. Laisser vide pour un compte principal.')
             ->onlyOnForms();
+
+        // Lien parent ↔ enfant (différent du linkedToUser : ici la
+        // relation famille même quand les e-mails diffèrent)
+        yield AssociationField::new('children', 'Enfants')
+            ->setRequired(false)
+            ->setHelp('Pour un compte parent : les enfants adhérents (recherche par nom / licence).')
+            ->onlyOnForms()
+            ->autocomplete();
 
         yield DateTimeField::new('lastCsvSyncAt', 'Dernier import CSV')->onlyOnDetail();
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnDetail();
@@ -142,8 +162,6 @@ class UserCrudController extends AbstractCrudController
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if ($entityInstance instanceof User) {
-            $form = $this->getContext()?->getEntity()->getInstance();
-            // Plain password handling via raw request
             $request = $this->container->get('request_stack')->getCurrentRequest();
             $plain = (string) ($request?->request->all('User')['plainPassword'] ?? '');
             if ($plain !== '') {

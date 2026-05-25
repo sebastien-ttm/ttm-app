@@ -61,7 +61,7 @@ class TrainingScheduleController extends AbstractController
         $monday = WeeklyScheduleService::snapToMonday($weekDate);
 
         // Pour un simple adhérent : interdit le passé (les coachs/admins peuvent).
-        if (!$this->isGranted('ROLE_COACH') && !$this->isGranted('ROLE_ADMIN')) {
+        if (!$this->isGranted('ROLE_ADMIN')) {
             $thisMonday = WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'));
             if ($monday < $thisMonday) {
                 return new JsonResponse(

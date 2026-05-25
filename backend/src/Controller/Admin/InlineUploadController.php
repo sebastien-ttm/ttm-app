@@ -31,7 +31,7 @@ class InlineUploadController extends AbstractController
     }
 
     #[Route('/admin/upload/inline', name: 'admin_inline_upload', methods: ['POST'])]
-    #[IsGranted('ROLE_COACH')]
+    #[IsGranted('ROLE_ADMIN')]
     public function upload(Request $request): JsonResponse
     {
         // Accept either "file" (Trix) or "upload" (CKEditor SimpleUploadAdapter)

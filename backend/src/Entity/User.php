@@ -3,7 +3,7 @@
 namespace App\Entity;
 
 use App\Enum\Profile;
-use App\Enum\UserCategory;
+use App\Enum\UserType;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -45,8 +45,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $telephone = null;
 
-    #[ORM\Column(length: 16, enumType: UserCategory::class)]
-    private UserCategory $categorie = UserCategory::Senior;
+    /**
+     * Provenance du compte (CSV FFTri vs inscription externe).
+     */
+    #[ORM\Column(length: 16, enumType: UserType::class)]
+    private UserType $type = UserType::Adherent;
 
     #[ORM\Column(length: 40)]
     private string $statutLicence = 'Actif';
@@ -117,10 +120,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $parents;
 
     /**
-     * @var list<string>
+     * Niveau d'accès simple : 'user' (mobile uniquement) ou 'admin' (accès backend).
+     * Les permissions fines (sections accessibles dans l'admin) sont dérivées
+     * du profile (un Entraîneur ne voit que les sections Entraînements, etc.).
      */
-    #[ORM\Column(type: 'json')]
-    private array $roles = [];
+    #[ORM\Column(length: 16)]
+    private string $role = 'user';
 
     #[ORM\Column(nullable: true)]
     private ?string $password = null;
@@ -224,15 +229,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getCategorie(): UserCategory
+    public function getType(): UserType
     {
-        return $this->categorie;
+        return $this->type;
     }
 
-    public function setCategorie(UserCategory $categorie): self
+    public function setType(UserType $type): self
     {
-        $this->categorie = $categorie;
+        $this->type = $type;
         return $this;
+    }
+
+    public function isAdherent(): bool { return $this->type === UserType::Adherent; }
+    public function isExterne(): bool { return $this->type === UserType::Externe; }
+
+    /**
+     * Catégorie principale (Jeune ou Senior) dérivée du profile.
+     * Conservée pour rétrocompat ; null si aucun des deux profils n'est posé.
+     */
+    public function getCategorieLabel(): ?string
+    {
+        if ($this->hasProfile(Profile::Jeune)) return 'Jeune';
+        if ($this->hasProfile(Profile::Senior)) return 'Sénior';
+        return null;
     }
 
     public function getStatutLicence(): string
@@ -281,8 +300,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /**
      * Remplace la liste des profils. Garde une seule valeur entre Jeune et
-     * Senior (ces deux profils sont mutuellement exclusifs). Synchronise
-     * automatiquement la categorie et les rôles dérivés (ROLE_ENCADRANT).
+     * Senior (ces deux profils sont mutuellement exclusifs).
      *
      * @param list<string|Profile> $profiles
      */
@@ -295,30 +313,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $normalized[$value] = true;
             }
         }
-        // Jeune & Senior mutuellement exclusifs : si les deux sont là, on garde Jeune
-        // (cas peu probable mais on protège).
         if (isset($normalized[Profile::Jeune->value]) && isset($normalized[Profile::Senior->value])) {
             unset($normalized[Profile::Senior->value]);
         }
         $this->profiles = array_keys($normalized);
-
-        // Sync categorie (pour rétrocompat avec le code qui lit categorie directement)
-        if (in_array(Profile::Jeune->value, $this->profiles, true)) {
-            $this->categorie = UserCategory::Jeune;
-        } elseif (in_array(Profile::Senior->value, $this->profiles, true)) {
-            $this->categorie = UserCategory::Senior;
-        }
-
-        // Sync ROLE_ENCADRANT depuis le profil encadrant
-        $rolesWithoutEncadrant = array_values(array_filter(
-            $this->roles,
-            fn (string $r) => $r !== 'ROLE_ENCADRANT',
-        ));
-        if (in_array(Profile::Encadrant->value, $this->profiles, true)) {
-            $rolesWithoutEncadrant[] = 'ROLE_ENCADRANT';
-        }
-        $this->roles = array_values(array_unique($rolesWithoutEncadrant));
-
         return $this;
     }
 
@@ -332,6 +330,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isSenior(): bool { return $this->hasProfile(Profile::Senior); }
     public function isU25(): bool { return $this->hasProfile(Profile::U25); }
     public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
+    public function isEntraineur(): bool { return $this->hasProfile(Profile::Entraineur); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
 
     /** @return Collection<int, User> */
@@ -396,28 +395,45 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * Symfony Security : on dérive les rôles depuis le champ simple $role.
+     * 'admin' ⇒ ROLE_ADMIN (+ ROLE_USER), sinon juste ROLE_USER.
+     *
      * @return list<string>
      */
     public function getRoles(): array
     {
-        $roles = $this->roles;
-        $roles[] = 'ROLE_USER';
-        return array_values(array_unique($roles));
+        $roles = ['ROLE_USER'];
+        if ($this->role === 'admin') {
+            $roles[] = 'ROLE_ADMIN';
+        }
+        return $roles;
+    }
+
+    public function getRole(): string { return $this->role; }
+
+    public function setRole(string $role): self
+    {
+        $this->role = $role === 'admin' ? 'admin' : 'user';
+        return $this;
     }
 
     /**
+     * Compatibilité Symfony Form/CRUD existants qui appellent setRoles([...]).
+     * On en extrait juste si 'ROLE_ADMIN' est présent pour passer role=admin.
+     *
      * @param list<string> $roles
      */
     public function setRoles(array $roles): self
     {
-        $this->roles = $roles;
-        return $this;
+        return $this->setRole(in_array('ROLE_ADMIN', $roles, true) ? 'admin' : 'user');
     }
 
     public function hasRole(string $role): bool
     {
         return in_array($role, $this->getRoles(), true);
     }
+
+    public function isAdmin(): bool { return $this->role === 'admin'; }
 
     public function getPassword(): ?string
     {

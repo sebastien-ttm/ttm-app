@@ -13,8 +13,10 @@ namespace App\Enum;
  *  - Encadrant       : adhérent qui encadre des créneaux. Donne accès
  *                      à une page de saisie de présence (cf. phase 2).
  *
- * Les profils Entraineur (ROLE_COACH) et Admin (ROLE_ADMIN) restent
- * gérés via le tableau roles[] de User — pas besoin de les dupliquer ici.
+ * L'accès au backend EasyAdmin est désormais gouverné par le simple
+ * champ User::$role ('user' | 'admin'). Le profile 'entraineur' n'implique
+ * pas automatiquement role='admin' — c'est à l'admin de cocher les deux
+ * (la combinaison entraineur + admin lui donne accès aux sections training).
  */
 enum Profile: string
 {
@@ -22,6 +24,7 @@ enum Profile: string
     case Senior = 'senior';
     case U25 = 'u25';
     case Parent = 'parent';
+    case Entraineur = 'entraineur';
     case Encadrant = 'encadrant';
 
     public function label(): string
@@ -31,6 +34,7 @@ enum Profile: string
             self::Senior => 'Sénior',
             self::U25 => 'U25',
             self::Parent => 'Parent',
+            self::Entraineur => 'Entraîneur',
             self::Encadrant => 'Encadrant',
         };
     }
@@ -43,6 +47,7 @@ enum Profile: string
             self::Senior => '#1d4ed8',
             self::U25 => '#7c3aed',
             self::Parent => '#ea580c',
+            self::Entraineur => '#0d2148',
             self::Encadrant => '#dc2626',
         };
     }

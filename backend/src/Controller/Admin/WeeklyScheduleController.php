@@ -26,7 +26,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * "projetée" sur une semaine précise, et d'annuler / modifier / ajouter
  * des créneaux pour cette semaine uniquement.
  */
-#[IsGranted('ROLE_COACH')]
+#[IsGranted('ROLE_ADMIN')]
 class WeeklyScheduleController extends AbstractController
 {
     public function __construct(

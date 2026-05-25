@@ -50,7 +50,11 @@ class AuthSuccessListener
             'prenom' => $user->getPrenom(),
             'fullName' => $user->getFullName(),
             'numLicence' => $user->getNumLicence(),
-            'categorie' => $user->getCategorie()->value,
+            'type' => $user->getType()->value,
+            'profiles' => $user->getProfiles(),
+            'role' => $user->getRole(),
+            // Conservé pour rétrocompat mobile : "jeune" / "senior" / null
+            'categorie' => $user->isJeune() ? 'jeune' : ($user->isSenior() ? 'senior' : null),
             'roles' => $user->getRoles(),
             'hasPassword' => $user->getPassword() !== null,
         ];
@@ -74,7 +78,10 @@ class AuthSuccessListener
             'numLicence' => $u->getNumLicence(),
             'fullName' => $u->getFullName(),
             'prenom' => $u->getPrenom(),
-            'categorie' => $u->getCategorie()->value,
+            'type' => $u->getType()->value,
+            'profiles' => $u->getProfiles(),
+            // Conservé pour rétrocompat mobile
+            'categorie' => $u->isJeune() ? 'jeune' : ($u->isSenior() ? 'senior' : null),
             'categorieAge' => $u->getCategorieAge(),
             'isPrimary' => $u->isPrimary(),
             'isCurrent' => $u->getId() === $user->getId(),
