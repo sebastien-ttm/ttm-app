@@ -9,13 +9,13 @@
     {# IMPORTANT : tous les liens admin doivent passer par ea_url() pour que le
        contexte EasyAdmin (ea.i18n, ea.dashboardTitle, etc.) soit injecté. #}
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:18px;">
-        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: prev}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule', {week: prev}) }}" class="btn btn-secondary">
             ← Semaine précédente
         </a>
-        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: today}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule', {week: today}) }}" class="btn btn-secondary">
             Aujourd'hui
         </a>
-        <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule', {week: next}) }}" class="btn btn-secondary">
+        <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule', {week: next}) }}" class="btn btn-secondary">
             Semaine suivante →
         </a>
     </div>
@@ -27,7 +27,7 @@
             La semaine type est <strong>projetée</strong> ici ; toute modification ne concerne QUE cette semaine.
         </p>
         <div style="margin-top:12px;">
-            <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
+            <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule_edit', {week: week|date('Y-m-d')}) }}" class="btn btn-primary">
                 <i class="fa fa-plus"></i> Ajouter un créneau occasionnel
             </a>
         </div>
@@ -82,7 +82,7 @@
                                 {% elseif r.templateId %}
                                     {% set edit_params = edit_params|merge({templateId: r.templateId}) %}
                                 {% endif %}
-                                <a href="{{ ea_url().unsetAll().setRoute('admin_training_schedule_edit', edit_params) }}" class="btn btn-sm btn-secondary">
+                                <a href="{{ ea_url().unsetAll().setController('App\\Controller\\Admin\\DashboardController').setRoute('admin_training_schedule_edit', edit_params) }}" class="btn btn-sm btn-secondary">
                                     Modifier
                                 </a>
 

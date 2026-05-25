@@ -42,6 +42,7 @@ class WeeklyScheduleController extends AbstractController
     {
         $url = $this->adminUrl
             ->unsetAll()
+            ->setController(DashboardController::class)
             ->setRoute($route, $params)
             ->generateUrl();
         return $this->redirect($url);
