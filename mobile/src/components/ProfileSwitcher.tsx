@@ -2,14 +2,33 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import type { LinkedProfile } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { profileLabel, sortProfiles } from '@/utils/profile';
 
 /**
  * Bouton dans le header qui affiche le prénom du profil courant et permet
  * de switcher entre les profils liés (parent + enfants partageant l'email).
  * S'affiche uniquement si le user a au moins 2 profils accessibles.
  */
+/**
+ * Construit la ligne de méta affichée sous le nom dans le switcher :
+ *  - "Senior 1" si on a la catégorie FFTri (categorieAge)
+ *  - sinon liste des profils ("Jeune · Encadrant", "Parent", etc.)
+ *  - sinon rien
+ */
+function profileLineFor(p: LinkedProfile): string {
+  if (p.categorieAge) {
+    return p.categorieAge;
+  }
+  const profiles = sortProfiles(p.profiles ?? []);
+  if (profiles.length > 0) {
+    return profiles.map(profileLabel).join(' · ');
+  }
+  return p.categorie === 'jeune' ? 'Jeune' : (p.categorie === 'senior' ? 'Sénior' : '');
+}
+
 export function ProfileSwitcher() {
   const { user, linkedProfiles, switchProfile } = useAuth();
   const [open, setOpen] = useState(false);
@@ -55,7 +74,12 @@ export function ProfileSwitcher() {
             </Text>
 
             <ScrollView style={styles.list}>
-              {linkedProfiles.map((p) => {
+              {linkedProfiles
+                /* On ne switche pas vers un profil sans n° de licence
+                   (typiquement un compte externe rattaché par e-mail
+                   partagé — cas rare mais qui pourrait arriver). */
+                .filter((p): p is LinkedProfile & { numLicence: string } => p.numLicence !== null)
+                .map((p) => {
                 const isActive = p.numLicence === user.numLicence;
                 const isLoading = switching === p.numLicence;
                 return (
@@ -75,7 +99,7 @@ export function ProfileSwitcher() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemName}>{p.fullName}</Text>
                       <Text style={styles.itemMeta}>
-                        {p.categorieAge ?? (p.categorie === 'jeune' ? 'Jeune' : 'Sénior')}
+                        {profileLineFor(p)}
                         {p.isPrimary ? ' · Compte principal' : ''}
                       </Text>
                     </View>

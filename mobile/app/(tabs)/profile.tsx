@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
+import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles } from '@/utils/profile';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -11,8 +12,8 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const isCoach = user.roles.includes('ROLE_COACH');
-  const isAdmin = user.roles.includes('ROLE_ADMIN');
+  const isAdmin = user.role === 'admin';
+  const profiles = sortProfiles(user.profiles ?? []);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -27,15 +28,16 @@ export default function ProfileScreen() {
         <Text style={styles.email}>{user.email}</Text>
 
         <View style={styles.badgeRow}>
+          <Badge color={accountTypeColor(user.type)} label={accountTypeLabel(user.type)} />
           {isAdmin && <Badge color="#D32F2F" label="Admin" />}
-          {isCoach && !isAdmin && <Badge color="#1976D2" label="Entraîneur" />}
-          {!isCoach && !isAdmin && <Badge color="#388E3C" label="Adhérent" />}
-          <Badge color="#555" label={user.categorie === 'jeune' ? 'Jeune' : 'Sénior'} />
+          {profiles.map((p) => (
+            <Badge key={p} color={profileColor(p)} label={profileLabel(p)} />
+          ))}
         </View>
       </View>
 
       <View style={styles.card}>
-        <Row label="N° de licence" value={user.numLicence} />
+        <Row label="N° de licence" value={user.numLicence ?? '—'} />
 
         <Pressable
           style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}

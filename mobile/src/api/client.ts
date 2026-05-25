@@ -97,25 +97,45 @@ export const api = {
   delete: <T>(path: string, opts?: FetchOptions) => request<T>('DELETE', path, opts),
 };
 
+/**
+ * Profils utilisateurs — alignés sur backend/src/Enum/Profile.php.
+ * Un user peut en cumuler plusieurs.
+ */
+export type UserProfile = 'jeune' | 'senior' | 'u25' | 'parent' | 'entraineur' | 'encadrant';
+
+/** Provenance du compte. */
+export type UserAccountType = 'adherent' | 'externe';
+
+/** Niveau d'accès (gate, pas permission fine). */
+export type UserRole = 'user' | 'admin';
+
 export type AuthenticatedUser = {
   id: number;
   email: string;
   nom: string;
   prenom: string;
   fullName: string;
-  numLicence: string;
-  categorie: 'senior' | 'jeune';
+  /** Null pour les comptes externes (parents inscrits via mobile). */
+  numLicence: string | null;
+  type: UserAccountType;
+  profiles: UserProfile[];
+  role: UserRole;
+  /** Rétrocompat : 'jeune' / 'senior' / null. Dérivé de profiles[]. */
+  categorie: 'senior' | 'jeune' | null;
+  /** Rétrocompat : tableau de rôles Symfony (ROLE_USER, ROLE_ADMIN). */
   roles: string[];
   hasPassword: boolean;
 };
 
-/** Profil lié (parent ou enfant partageant le même e-mail) */
+/** Profil lié (parent ou enfant partageant le même e-mail). */
 export type LinkedProfile = {
   id: number;
-  numLicence: string;
+  numLicence: string | null;
   fullName: string;
   prenom: string;
-  categorie: 'senior' | 'jeune';
+  type: UserAccountType;
+  profiles: UserProfile[];
+  categorie: 'senior' | 'jeune' | null;
   categorieAge: string | null;
   isPrimary: boolean;
   isCurrent: boolean;
