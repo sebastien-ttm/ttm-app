@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\TrainingPlan;
 use App\Entity\User;
+use App\Enum\Profile;
 use App\Enum\TrainingPlanCategory;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -63,6 +64,11 @@ class TrainingPlanCrudController extends AbstractCrudController
             ->setFormTypeOptions(['allow_delete' => false, 'download_uri' => false])
             ->onlyOnForms();
         yield TextField::new('filePath', 'Fichier')->onlyOnIndex();
+        yield ChoiceField::new('audience', 'Audience cible')
+            ->setChoices(Profile::choices())
+            ->allowMultipleChoices()
+            ->renderAsBadges()
+            ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
         yield AssociationField::new('postedBy', 'Posté par')->onlyOnDetail();
         yield DateTimeField::new('postedAt', 'Posté le')->hideOnForm();
     }

@@ -99,5 +99,11 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setRequired(false)
             ->setHelp('Si défini, ce créneau ne s\'applique que jusqu\'à cette date (inclus).');
+
+        yield ChoiceField::new('audience', 'Audience cible')
+            ->setChoices(\App\Enum\Profile::choices())
+            ->allowMultipleChoices()
+            ->renderAsBadges()
+            ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
     }
 }

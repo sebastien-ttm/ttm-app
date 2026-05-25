@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\Trait\AudienceAwareTrait;
 use App\Enum\TrainingPlanCategory;
 use App\Repository\TrainingPlanRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -15,6 +16,8 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 class TrainingPlan
 {
+    use AudienceAwareTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

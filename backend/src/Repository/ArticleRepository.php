@@ -3,6 +3,8 @@
 namespace App\Repository;
 
 use App\Entity\Article;
+use App\Entity\User;
+use App\Service\Audience\AudienceFilter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
@@ -12,15 +14,17 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class ArticleRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly AudienceFilter $audienceFilter,
+    ) {
         parent::__construct($registry, Article::class);
     }
 
     /**
      * @return Paginator<Article>
      */
-    public function findPublishedPaginated(int $page = 1, int $limit = 20): Paginator
+    public function findPublishedPaginated(int $page = 1, int $limit = 20, ?User $viewer = null): Paginator
     {
         $page = max(1, $page);
         $limit = min(50, max(1, $limit));
@@ -33,6 +37,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->orderBy('a.publishedAt', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit);
+
+        $this->audienceFilter->apply($qb, $viewer, 'a');
 
         return new Paginator($qb->getQuery(), fetchJoinCollection: true);
     }

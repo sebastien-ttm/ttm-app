@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Repository\ArticleRepository;
 use App\Repository\CommentRepository;
 use App\Repository\ReactionRepository;
+use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,7 +31,15 @@ class ArticleController extends AbstractController
         private readonly ApiSerializer $serializer,
         private readonly EntityManagerInterface $em,
         private readonly ValidatorInterface $validator,
+        private readonly AudienceFilter $audienceFilter,
     ) {
+    }
+
+    private function ensureVisible(Article $article, ?User $viewer): void
+    {
+        if (!$article->isPublished() || !$this->audienceFilter->isVisible($article->getAudience(), $viewer)) {
+            throw $this->createNotFoundException();
+        }
     }
 
     #[Route('', methods: ['GET'])]
@@ -41,7 +50,7 @@ class ArticleController extends AbstractController
         $page = max(1, (int) $request->query->get('page', 1));
         $limit = min(50, max(1, (int) $request->query->get('limit', 20)));
 
-        $paginator = $this->articles->findPublishedPaginated($page, $limit);
+        $paginator = $this->articles->findPublishedPaginated($page, $limit, $viewer);
         $total = count($paginator);
 
         $items = [];
@@ -63,18 +72,16 @@ class ArticleController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        if (!$article->isPublished()) {
-            throw $this->createNotFoundException();
-        }
+        $this->ensureVisible($article, $viewer);
         return new JsonResponse($this->serializer->article($article, $viewer));
     }
 
     #[Route('/{id}/comments', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function listComments(Article $article, Request $request): JsonResponse
     {
-        if (!$article->isPublished()) {
-            throw $this->createNotFoundException();
-        }
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $this->ensureVisible($article, $viewer);
         $page = max(1, (int) $request->query->get('page', 1));
         $limit = min(50, max(1, (int) $request->query->get('limit', 20)));
 
@@ -97,9 +104,7 @@ class ArticleController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        if (!$article->isPublished()) {
-            throw $this->createNotFoundException();
-        }
+        $this->ensureVisible($article, $user);
         $payload = json_decode($request->getContent(), true);
         $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
 
@@ -124,9 +129,7 @@ class ArticleController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        if (!$article->isPublished()) {
-            throw $this->createNotFoundException();
-        }
+        $this->ensureVisible($article, $user);
         $payload = json_decode($request->getContent(), true);
         $emoji = is_array($payload) ? trim((string) ($payload['emoji'] ?? '')) : '';
 

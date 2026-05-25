@@ -4,9 +4,11 @@ namespace App\Service\Training;
 
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
+use App\Entity\User;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
+use App\Service\Audience\AudienceFilter;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -27,6 +29,7 @@ class WeeklyScheduleService
         private readonly TrainingSlotTemplateRepository $templates,
         private readonly TrainingSlotRepository $slots,
         private readonly TrainingSeasonRepository $seasons,
+        private readonly AudienceFilter $audienceFilter,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -41,7 +44,7 @@ class WeeklyScheduleService
      *
      * @return list<array<string, mixed>>  Liste ordonnée (jour, heure)
      */
-    public function buildWeek(\DateTimeImmutable $weekStartsAt): array
+    public function buildWeek(\DateTimeImmutable $weekStartsAt, ?User $viewer = null): array
     {
         $monday = self::snapToMonday($weekStartsAt);
 
@@ -73,6 +76,12 @@ class WeeklyScheduleService
                     continue;
                 }
                 $override = $overridesByTemplate[$tpl->getId()] ?? null;
+                // Filtre audience : si l'override a une audience perso, elle prime ;
+                // sinon on prend celle du template.
+                $effectiveAudience = $override?->getAudience() ?: $tpl->getAudience();
+                if ($viewer !== null && !$this->audienceFilter->isVisible($effectiveAudience, $viewer)) {
+                    continue;
+                }
                 if ($override !== null) {
                     $rows[] = $this->serializeOverride($override, $monday);
                 } else {
@@ -81,8 +90,11 @@ class WeeklyScheduleService
             }
         }
 
-        // 2) Créneaux occasionnels (sans template) — toujours affichés
+        // 2) Créneaux occasionnels (sans template) — filtrés par audience aussi
         foreach ($occasionals as $s) {
+            if ($viewer !== null && !$this->audienceFilter->isVisible($s->getAudience(), $viewer)) {
+                continue;
+            }
             $rows[] = $this->serializeOverride($s, $monday);
         }
 

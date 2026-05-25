@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
 use App\Repository\StaticPageRepository;
 use App\Service\Serializer\ApiSerializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,9 +26,11 @@ class StaticPageController extends AbstractController
     #[Route('', methods: ['GET'])]
     public function list(): JsonResponse
     {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
         $items = array_map(
             fn ($p) => ['slug' => $p->getSlug(), 'title' => $p->getTitle()],
-            $this->pages->findAllPublished()
+            $this->pages->findAllPublished($viewer)
         );
         return new JsonResponse(['data' => $items]);
     }
@@ -38,7 +41,9 @@ class StaticPageController extends AbstractController
     #[Route('/tree', methods: ['GET'])]
     public function tree(): JsonResponse
     {
-        $roots = $this->pages->findRootsPublished();
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $roots = $this->pages->findRootsPublished($viewer);
         $tree = array_map(
             fn ($p) => $this->serializer->staticPageNode($p),
             $roots,
@@ -49,7 +54,9 @@ class StaticPageController extends AbstractController
     #[Route('/{slug}', methods: ['GET'])]
     public function get(string $slug): JsonResponse
     {
-        $page = $this->pages->findOneBySlugPublished($slug);
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $page = $this->pages->findOneBySlugPublished($slug, $viewer);
         if ($page === null) {
             throw $this->createNotFoundException();
         }

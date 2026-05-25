@@ -3,6 +3,8 @@
 namespace App\Repository;
 
 use App\Entity\TrainingPlan;
+use App\Entity\User;
+use App\Service\Audience\AudienceFilter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
@@ -12,15 +14,17 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class TrainingPlanRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly AudienceFilter $audienceFilter,
+    ) {
         parent::__construct($registry, TrainingPlan::class);
     }
 
     /**
      * @return Paginator<TrainingPlan>
      */
-    public function findPaginated(int $page = 1, int $limit = 20): Paginator
+    public function findPaginated(int $page = 1, int $limit = 20, ?User $viewer = null): Paginator
     {
         $page = max(1, $page);
         $limit = min(50, max(1, $limit));
@@ -31,6 +35,8 @@ class TrainingPlanRepository extends ServiceEntityRepository
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit);
 
+        $this->audienceFilter->apply($qb, $viewer, 't');
+
         return new Paginator($qb->getQuery());
     }
 
@@ -39,17 +45,19 @@ class TrainingPlanRepository extends ServiceEntityRepository
      *
      * @return list<TrainingPlan>
      */
-    public function findForWeek(\DateTimeImmutable $weekStartsAt): array
+    public function findForWeek(\DateTimeImmutable $weekStartsAt, ?User $viewer = null): array
     {
         $monday = $weekStartsAt->modify('monday this week')->setTime(0, 0, 0);
 
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.postedBy', 'p')->addSelect('p')
             ->where('t.weekStartsAt = :w')
             ->setParameter('w', $monday->format('Y-m-d'))
             ->orderBy('t.category', 'ASC')
-            ->addOrderBy('t.postedAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('t.postedAt', 'DESC');
+
+        $this->audienceFilter->apply($qb, $viewer, 't');
+
+        return $qb->getQuery()->getResult();
     }
 }

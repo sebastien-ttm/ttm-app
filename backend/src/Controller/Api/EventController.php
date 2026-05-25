@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
 use App\Repository\EventRepository;
 use App\Service\Serializer\ApiSerializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,10 +34,13 @@ class EventController extends AbstractController
             return new JsonResponse(['error' => 'Date invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+
         return new JsonResponse([
             'data' => array_map(
                 fn ($e) => $this->serializer->event($e),
-                $this->events->findInRange($from, $to)
+                $this->events->findInRange($from, $to, $viewer)
             ),
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),

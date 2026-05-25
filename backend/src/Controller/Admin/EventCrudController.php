@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Event;
 use App\Enum\EventType;
+use App\Enum\Profile;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -44,5 +45,10 @@ class EventCrudController extends AbstractCrudController
         yield ColorField::new('color', 'Couleur')
             ->setRequired(false)
             ->setHelp('Vide = couleur par défaut du type.');
+        yield ChoiceField::new('audience', 'Audience cible')
+            ->setChoices(Profile::choices())
+            ->allowMultipleChoices()
+            ->renderAsBadges()
+            ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
     }
 }

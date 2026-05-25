@@ -71,10 +71,12 @@ class TrainingScheduleController extends AbstractController
             }
         }
 
-        $slots = $this->schedule->buildWeek($monday);
+        /** @var \App\Entity\User $viewer */
+        $viewer = $this->getUser();
+        $slots = $this->schedule->buildWeek($monday, $viewer);
         $plans = array_map(
             fn (TrainingPlan $p) => $this->serializer->trainingPlan($p),
-            $this->plans->findForWeek($monday),
+            $this->plans->findForWeek($monday, $viewer),
         );
 
         return new JsonResponse([

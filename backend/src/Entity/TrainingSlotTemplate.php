@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\Trait\AudienceAwareTrait;
 use App\Enum\Sport;
 use App\Repository\TrainingSlotTemplateRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -16,6 +17,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'training_slot_template')]
 class TrainingSlotTemplate
 {
+    use AudienceAwareTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

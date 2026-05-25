@@ -3,11 +3,13 @@
 namespace App\Controller\Admin;
 
 use App\Entity\StaticPage;
+use App\Enum\Profile;
 use Doctrine\ORM\EntityRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -64,6 +66,11 @@ class StaticPageCrudController extends AbstractCrudController
             ->onlyOnForms();
 
         yield BooleanField::new('isPublished', 'Publié');
+        yield ChoiceField::new('audience', 'Audience cible')
+            ->setChoices(Profile::choices())
+            ->allowMultipleChoices()
+            ->renderAsBadges()
+            ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
         yield DateTimeField::new('updatedAt', 'Mis à jour le')->onlyOnIndex();
     }
 }

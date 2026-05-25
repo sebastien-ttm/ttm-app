@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\Trait\AudienceAwareTrait;
 use App\Enum\Sport;
 use App\Repository\TrainingSlotRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -29,6 +30,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\UniqueConstraint(name: 'uniq_training_slot_week_template', columns: ['week_starts_at', 'template_id'])]
 class TrainingSlot
 {
+    use AudienceAwareTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
