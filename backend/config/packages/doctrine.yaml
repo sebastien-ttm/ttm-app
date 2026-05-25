@@ -22,6 +22,13 @@ doctrine:
                 alias: App
         controller_resolver:
             auto_mapping: false
+        # Fonctions JSON MariaDB/MySQL non connues nativement de Doctrine DQL.
+        # Permet d'utiliser JSON_LENGTH(t.audience) et JSON_CONTAINS(t.audience, '"jeune"')
+        # dans les QueryBuilder (AudienceFilter notamment).
+        dql:
+            numeric_functions:
+                JSON_LENGTH: App\Doctrine\Dql\JsonLength
+                JSON_CONTAINS: App\Doctrine\Dql\JsonContains
 
 when@test:
     doctrine:
