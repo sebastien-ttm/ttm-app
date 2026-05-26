@@ -67,6 +67,7 @@ class TrainingPlanCrudController extends AbstractCrudController
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()
+            ->setRequired(false)
             ->renderAsBadges()
             ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
         yield AssociationField::new('postedBy', 'Posté par')->onlyOnDetail();

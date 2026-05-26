@@ -103,6 +103,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(\App\Enum\Profile::choices())
             ->allowMultipleChoices()
+            ->setRequired(false)
             ->renderAsBadges()
             ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
     }
