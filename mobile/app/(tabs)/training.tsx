@@ -56,14 +56,17 @@ export default function TrainingScreen() {
     setRefreshing(false);
   }, [weekStart, load]);
 
-  // Groupement par jour de la semaine
+  // Groupement par jour de la semaine. Les créneaux annulés ne sont
+  // pas affichés côté adhérent — ils n'ont plus lieu d'être visibles.
   const slotsByDay = useMemo(() => {
     const map = new Map<number, TrainingSlot[]>();
-    (data?.slots ?? []).forEach((s) => {
-      const arr = map.get(s.dayOfWeek) ?? [];
-      arr.push(s);
-      map.set(s.dayOfWeek, arr);
-    });
+    (data?.slots ?? [])
+      .filter((s) => !s.isCancelled)
+      .forEach((s) => {
+        const arr = map.get(s.dayOfWeek) ?? [];
+        arr.push(s);
+        map.set(s.dayOfWeek, arr);
+      });
     return map;
   }, [data]);
 
@@ -134,7 +137,7 @@ export default function TrainingScreen() {
 
 function SlotRow({ slot }: { slot: TrainingSlot }) {
   return (
-    <View style={[styles.slot, slot.isCancelled && styles.slotCancelled]}>
+    <View style={styles.slot}>
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>
           {slot.startTime}
@@ -151,7 +154,6 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
-          {slot.isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Supprimé" />}
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
         {slot.description ? (

@@ -90,7 +90,9 @@ export default function StaffPresenceScreen() {
   }, [weekStart, load]);
 
   const filteredSlots = useMemo(() => {
-    const slots = data?.slots ?? [];
+    // On masque les créneaux annulés : un encadrant ne peut plus s'y
+    // positionner / s'y déclarer présent.
+    const slots = (data?.slots ?? []).filter((s) => !s.isCancelled);
     if (sportFilter === 'all') return slots;
     return slots.filter((s) => s.sport === sportFilter);
   }, [data, sportFilter]);
@@ -243,7 +245,7 @@ function SlotCard({
   const isPast = slot.date < today;
 
   return (
-    <View style={[styles.slot, slot.isCancelled && styles.slotCancelled]}>
+    <View style={styles.slot}>
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>{slot.startTime}</Text>
         <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
@@ -255,54 +257,46 @@ function SlotCard({
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
 
-        {slot.isCancelled && (
-          <View style={styles.cancelledBadge}>
-            <Text style={styles.cancelledLabel}>Supprimé</Text>
-          </View>
-        )}
-
-        {!slot.isCancelled && (
-          <View style={styles.actions}>
-            {busy ? (
-              <ActivityIndicator color={COLORS.secondary} />
-            ) : (
-              <>
-                {/* Bouton "Je serai là" / "J'étais là" selon date passé/futur */}
-                <Pressable
-                  onPress={() => onSetStatus(isPast ? 'attended' : 'scheduled')}
+        <View style={styles.actions}>
+          {busy ? (
+            <ActivityIndicator color={COLORS.secondary} />
+          ) : (
+            <>
+              {/* Bouton "Je serai là" / "J'étais là" selon date passé/futur */}
+              <Pressable
+                onPress={() => onSetStatus(isPast ? 'attended' : 'scheduled')}
+                style={[
+                  styles.actionBtn,
+                  isPlanned && styles.actionBtnPlanned,
+                  isAttended && styles.actionBtnAttended,
+                ]}
+              >
+                <Text
                   style={[
-                    styles.actionBtn,
-                    isPlanned && styles.actionBtnPlanned,
-                    isAttended && styles.actionBtnAttended,
+                    styles.actionLabel,
+                    (isPlanned || isAttended) && styles.actionLabelActive,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.actionLabel,
-                      (isPlanned || isAttended) && styles.actionLabelActive,
-                    ]}
-                  >
-                    {isAttended ? '✓ Présent' : isPlanned ? '✓ Réservé' : isPast ? "J'étais là" : 'Je serai là'}
-                  </Text>
-                </Pressable>
+                  {isAttended ? '✓ Présent' : isPlanned ? '✓ Réservé' : isPast ? "J'étais là" : 'Je serai là'}
+                </Text>
+              </Pressable>
 
-                {/* Marquer présent si déjà réservé et passé/jour J */}
-                {isPlanned && !isPast && (
-                  <Pressable onPress={() => onSetStatus('attended')} style={styles.actionBtnSecondary}>
-                    <Text style={styles.actionLabelSecondary}>Confirmer présence</Text>
-                  </Pressable>
-                )}
+              {/* Marquer présent si déjà réservé et passé/jour J */}
+              {isPlanned && !isPast && (
+                <Pressable onPress={() => onSetStatus('attended')} style={styles.actionBtnSecondary}>
+                  <Text style={styles.actionLabelSecondary}>Confirmer présence</Text>
+                </Pressable>
+              )}
 
                 {/* Annuler */}
                 {presence && (
-                  <Pressable onPress={() => onSetStatus(null)} style={styles.actionBtnDanger}>
-                    <Text style={styles.actionLabelDanger}>Annuler</Text>
-                  </Pressable>
-                )}
-              </>
-            )}
-          </View>
-        )}
+                <Pressable onPress={() => onSetStatus(null)} style={styles.actionBtnDanger}>
+                  <Text style={styles.actionLabelDanger}>Annuler</Text>
+                </Pressable>
+              )}
+            </>
+          )}
+        </View>
       </View>
     </View>
   );
