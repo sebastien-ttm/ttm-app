@@ -136,14 +136,14 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
   return (
     <View style={[styles.slot, slot.isCancelled && styles.slotCancelled]}>
       <View style={styles.slotTimeCol}>
-        <Text style={[styles.slotTime, slot.isCancelled && styles.cancelledText]}>
+        <Text style={styles.slotTime}>
           {slot.startTime}
         </Text>
         <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
       </View>
       <View style={styles.slotBody}>
         <View style={styles.slotTitleRow}>
-          <Text style={[styles.slotTitle, slot.isCancelled && styles.cancelledText]} numberOfLines={2}>
+          <Text style={styles.slotTitle} numberOfLines={2}>
             {slot.title}
           </Text>
         </View>
@@ -151,7 +151,7 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
-          {slot.isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />}
+          {slot.isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Supprimé" />}
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
         {slot.description ? (

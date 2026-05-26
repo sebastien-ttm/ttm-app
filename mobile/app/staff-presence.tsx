@@ -255,7 +255,11 @@ function SlotCard({
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
 
-        {slot.isCancelled && <Text style={styles.slotInfo}>⚠️ Créneau annulé</Text>}
+        {slot.isCancelled && (
+          <View style={styles.cancelledBadge}>
+            <Text style={styles.cancelledLabel}>Supprimé</Text>
+          </View>
+        )}
 
         {!slot.isCancelled && (
           <View style={styles.actions}>
@@ -375,7 +379,18 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     ...SHADOWS.sm,
   },
-  slotCancelled: { opacity: 0.6 },
+  slotCancelled: { opacity: 0.65 },
+  cancelledBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEE2E2',
+    borderColor: '#991B1B',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    marginTop: 4,
+  },
+  cancelledLabel: { color: '#991B1B', fontSize: 11, fontWeight: '700' },
   slotTimeCol: { minWidth: 60, paddingTop: 2 },
   slotTime: { fontSize: 18, fontWeight: '700', color: COLORS.text },
   slotDuration: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },

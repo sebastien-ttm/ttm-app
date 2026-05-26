@@ -42,15 +42,21 @@ export default function PageScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Always render so the header title is immediately controlled and never falls back to the route filename. */}
-      <Stack.Screen options={{ title: page?.title ?? '' }} />
+      {/* Header natif stylé : fond rouge club + texte blanc (titre unique). */}
+      <Stack.Screen
+        options={{
+          title: page?.title ?? '',
+          headerStyle: { backgroundColor: COLORS.primary },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '700', color: '#fff' },
+        }}
+      />
       {loading ? (
         <FullScreenLoading />
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : page ? (
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.title}>{page.title}</Text>
           {hasContent && <RichContent html={page.content} style={styles.body} />}
 
           {hasChildren && (

@@ -31,7 +31,7 @@ export function WeekNavigator({ weekStart, onChange, disablePast = false }: Prop
           onPress={() => onChange(todayMonday)}
         >
           <Text style={[styles.todayLabel, isCurrentWeek && styles.todayLabelActive]}>
-            Aujourd'hui
+            Semaine en cours
           </Text>
         </Pressable>
         <NavButton label="→" onPress={() => onChange(addWeeks(weekStart, 1))} />
