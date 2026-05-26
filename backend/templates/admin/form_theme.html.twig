@@ -74,6 +74,14 @@
                 automatic_uploads: true,
                 images_upload_handler: imageUploadHandler,
                 images_reuse_filename: true,
+                /* Stocke les accents tels quels (é, à) plutôt que de les
+                   encoder en entités (&eacute;, &agrave;). Sinon le mobile
+                   affiche les entités littérales dans les aperçus. */
+                entity_encoding: 'raw',
+                /* Préserve toutes les balises img (avec leurs attributs)
+                   en sortie ; sans ça, certaines configurations TinyMCE
+                   peuvent stripper des attributs ou la balise elle-même. */
+                extended_valid_elements: 'img[src|alt|title|width|height|style|class|data-*]',
                 content_style:
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
                     'font-size: 15px; line-height: 1.55; padding: 8px 16px; margin: 0; ' +
