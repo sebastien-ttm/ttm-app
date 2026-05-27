@@ -43,6 +43,7 @@ class UserCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Utilisateurs')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['nom' => 'ASC'])
+            ->setPaginatorPageSize(50)
             ->setSearchFields(['numLicence', 'nom', 'prenom', 'email']);
     }
 

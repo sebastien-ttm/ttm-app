@@ -29,6 +29,7 @@ class ArticleCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Articles')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['publishedAt' => 'DESC', 'createdAt' => 'DESC'])
+            ->setPaginatorPageSize(25)
             ->setSearchFields(['title', 'content']);
     }
 
