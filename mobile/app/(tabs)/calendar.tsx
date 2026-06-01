@@ -24,10 +24,6 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
 export default function CalendarScreen() {
   const [items, setItems] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,12 +64,25 @@ export default function CalendarScreen() {
     setRefreshing(false);
   }, [load]);
 
-  // Filter list when a day is selected; otherwise show all events from the visible month forward.
+  // Si un jour est sélectionné : événements qui couvrent ce jour
+  // (un événement de 2 jours apparaît sur les 2 jours).
+  // Sinon : événements à venir uniquement (non terminés à l'instant T).
   const listData = useMemo(() => {
     if (selectedDate) {
-      return items.filter((e) => isSameDay(new Date(e.startsAt), selectedDate));
+      const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      return items.filter((e) => {
+        const start = new Date(e.startsAt);
+        const end = e.endsAt ? new Date(e.endsAt) : start;
+        return start < dayEnd && end >= dayStart;
+      });
     }
-    return items;
+    const now = Date.now();
+    return items.filter((e) => {
+      const endTs = e.endsAt ? new Date(e.endsAt).getTime() : new Date(e.startsAt).getTime();
+      return endTs >= now;
+    });
   }, [items, selectedDate]);
 
   if (loading) return <FullScreenLoading />;

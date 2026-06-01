@@ -66,14 +66,28 @@ export function MonthCalendar({ visibleMonth, events, selectedDate, onChangeMont
     return out;
   }, [firstOfMonth]);
 
+  // Mappe chaque événement sur TOUS les jours qu'il couvre
+  // (start → end inclus). Un stage de 3 jours apparaît donc dans 3 cases.
   const eventsByDay = useMemo(() => {
     const m = new Map<string, EventItem[]>();
     for (const e of events) {
-      const date = new Date(e.startsAt);
-      const key = toLocalIso(date);
-      const arr = m.get(key);
-      if (arr) arr.push(e);
-      else m.set(key, [e]);
+      const start = new Date(e.startsAt);
+      const end = e.endsAt ? new Date(e.endsAt) : start;
+      // Cursor : minuit du jour de début (local), jusqu'au jour de fin inclus
+      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      // Garde-fou : si l'event finit avant qu'il ne commence (donnée corrompue),
+      // on n'affiche qu'au jour de départ.
+      const lastDay = cursor <= endDay ? endDay : cursor;
+      // Plafond raisonnable pour éviter d'exploser sur un event mal saisi
+      let safety = 0;
+      while (cursor <= lastDay && safety++ < 366) {
+        const key = toLocalIso(cursor);
+        const arr = m.get(key);
+        if (arr) arr.push(e);
+        else m.set(key, [e]);
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     return m;
   }, [events]);
