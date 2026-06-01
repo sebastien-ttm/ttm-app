@@ -136,6 +136,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastCsvSyncAt = null;
 
+    /** Date de la dernière connexion réussie (mobile JWT ou admin form). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastLoginAt = null;
+
+    /** Compteur cumulé de connexions réussies. */
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $loginCount = 0;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -487,6 +495,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLastCsvSyncAt(): ?\DateTimeImmutable
     {
         return $this->lastCsvSyncAt;
+    }
+
+    public function getLastLoginAt(): ?\DateTimeImmutable { return $this->lastLoginAt; }
+    public function getLoginCount(): int { return $this->loginCount; }
+
+    /** Appelé par les listeners de login (JWT mobile + admin form). */
+    public function recordLogin(?\DateTimeImmutable $at = null): self
+    {
+        $this->lastLoginAt = $at ?? new \DateTimeImmutable();
+        $this->loginCount++;
+        return $this;
+    }
+
+    public function hasEverLoggedIn(): bool
+    {
+        return $this->lastLoginAt !== null;
     }
 
     public function setLastCsvSyncAt(?\DateTimeImmutable $at): self

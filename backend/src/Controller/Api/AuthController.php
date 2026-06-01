@@ -98,6 +98,10 @@ class AuthController extends AbstractController
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($user, 2592000);
         $this->refreshTokenManager->save($refresh);
 
+        // Suivi de connexion (magic link)
+        $user->recordLogin();
+        $this->em->flush();
+
         // IMPORTANT : le champ "token" doit avoir la même casse/clé que la
         // réponse du login JSON Lexik, sinon les clients (mobile) ne savent
         // pas où lire le JWT et tombent en silencieux avec un "undefined"
@@ -209,6 +213,10 @@ class AuthController extends AbstractController
         $accessToken = $this->jwt->create($parent);
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($parent, 2592000);
         $this->refreshTokenManager->save($refresh);
+
+        // Suivi : inscription = première connexion
+        $parent->recordLogin();
+        $this->em->flush();
 
         return new JsonResponse([
             'token' => $accessToken,

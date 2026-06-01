@@ -17,6 +17,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
@@ -54,7 +55,8 @@ class UserCrudController extends AbstractCrudController
             ->add(ChoiceFilter::new('type', 'Type')
                 ->setChoices(['Adhérent' => UserType::Adherent, 'Externe' => UserType::Externe]))
             ->add(ChoiceFilter::new('role', 'Rôle')
-                ->setChoices(['Utilisateur' => 'user', 'Administrateur' => 'admin']));
+                ->setChoices(['Utilisateur' => 'user', 'Administrateur' => 'admin']))
+            ->add('lastLoginAt');
     }
 
     public function configureFields(string $pageName): iterable
@@ -140,6 +142,12 @@ class UserCrudController extends AbstractCrudController
             ->onlyOnForms()
             ->autocomplete();
 
+        yield DateTimeField::new('lastLoginAt', 'Dernière connexion')
+            ->setFormat('d MMM YYYY HH:mm')
+            ->hideOnForm()
+            ->setHelp('Mise à jour automatiquement à chaque connexion (mobile ou admin).');
+        yield IntegerField::new('loginCount', 'Connexions')
+            ->onlyOnDetail();
         yield DateTimeField::new('lastCsvSyncAt', 'Dernier import CSV')->onlyOnDetail();
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnDetail();
 

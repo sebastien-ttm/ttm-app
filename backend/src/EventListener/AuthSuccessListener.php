@@ -4,6 +4,7 @@ namespace App\EventListener;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\AuthenticationSuccessEvent;
@@ -15,6 +16,7 @@ class AuthSuccessListener
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
         private readonly UserRepository $users,
+        private readonly EntityManagerInterface $em,
         private readonly int $refreshTtl = 2592000,
     ) {
     }
@@ -36,6 +38,10 @@ class AuthSuccessListener
         $data['user'] = self::serializeUser($user);
         $data['linkedProfiles'] = self::serializeLinkedProfiles($user, $this->users);
         $event->setData($data);
+
+        // Suivi de connexion (mobile)
+        $user->recordLogin();
+        $this->em->flush();
     }
 
     /**
