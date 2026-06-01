@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -21,6 +22,7 @@ import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } f
 import { formatDate } from '@/utils/html';
 
 export default function TrainingScreen() {
+  const router = useRouter();
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,13 +72,6 @@ export default function TrainingScreen() {
     return map;
   }, [data]);
 
-  async function openPdf(plan: TrainingPlan) {
-    const token = await storage.getItem(STORAGE_KEYS.accessToken);
-    const sep = plan.fileUrl.includes('?') ? '&' : '?';
-    const url = token ? `${plan.fileUrl}${sep}bearer=${encodeURIComponent(token)}` : plan.fileUrl;
-    await WebBrowser.openBrowserAsync(url);
-  }
-
   return (
     <View style={styles.root}>
       <WeekNavigator weekStart={weekStart} onChange={setWeekStart} disablePast />
@@ -97,7 +92,7 @@ export default function TrainingScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>📄 Plans de la semaine</Text>
               {data!.plans.map((p) => (
-                <PlanRow key={p.id} plan={p} onOpen={() => openPdf(p)} />
+                <PlanRow key={p.id} plan={p} onOpen={() => router.push(`/training-plan/${p.id}` as never)} />
               ))}
             </View>
           )}
