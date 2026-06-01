@@ -169,14 +169,41 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->id;
     }
 
+    /**
+     * Longueur "stable" du numéro de licence FFTri.
+     * Au-delà de 7 caractères, le suffixe peut varier (saison, sous-club…),
+     * on ne conserve donc que le préfixe pour les comparaisons.
+     */
+    public const LICENCE_PREFIX_LENGTH = 7;
+
+    /**
+     * Normalise un n° de licence : trim, uppercase, tronqué aux 7 premiers caractères.
+     * Renvoie null si vide. Utiliser systématiquement avant lookup / setNumLicence.
+     */
+    public static function normalizeLicence(?string $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+        $cleaned = strtoupper(trim($raw));
+        if ($cleaned === '') {
+            return null;
+        }
+        return mb_substr($cleaned, 0, self::LICENCE_PREFIX_LENGTH);
+    }
+
     public function getNumLicence(): ?string
     {
         return $this->numLicence;
     }
 
+    /**
+     * Tronque automatiquement aux 7 premiers caractères. La validation
+     * d'unicité côté DB s'applique donc sur le préfixe stable.
+     */
     public function setNumLicence(?string $numLicence): self
     {
-        $this->numLicence = $numLicence !== null && trim($numLicence) !== '' ? $numLicence : null;
+        $this->numLicence = self::normalizeLicence($numLicence);
         return $this;
     }
 

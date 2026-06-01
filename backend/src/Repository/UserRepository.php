@@ -71,24 +71,28 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
 
     public function findOneByNumLicence(string $numLicence): ?User
     {
-        return $this->findOneBy(['numLicence' => $numLicence]);
+        $normalized = User::normalizeLicence($numLicence);
+        if ($normalized === null) {
+            return null;
+        }
+        return $this->findOneBy(['numLicence' => $normalized]);
     }
 
     /**
-     * Cherche un adhérent actif par n° de licence (case-insensitive, espaces
-     * triés). Utilisé par l'inscription parent mobile pour valider le lien
-     * de filiation.
+     * Cherche un adhérent actif par n° de licence (normalisé : 7 premiers
+     * caractères, uppercase, espaces triés). Utilisé par l'inscription
+     * parent mobile pour valider le lien de filiation.
      */
     public function findActiveByLicenceNormalized(string $rawLicence): ?User
     {
-        $cleaned = strtoupper(trim($rawLicence));
-        if ($cleaned === '') {
+        $normalized = User::normalizeLicence($rawLicence);
+        if ($normalized === null) {
             return null;
         }
         return $this->createQueryBuilder('u')
-            ->where('UPPER(u.numLicence) = :lic')
+            ->where('u.numLicence = :lic')
             ->andWhere('u.isActive = true')
-            ->setParameter('lic', $cleaned)
+            ->setParameter('lic', $normalized)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
