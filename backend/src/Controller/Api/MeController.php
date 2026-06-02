@@ -8,11 +8,13 @@ use App\Enum\DevicePlatform;
 use App\EventListener\AuthSuccessListener;
 use App\Repository\DeviceTokenRepository;
 use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +33,7 @@ class MeController extends AbstractController
         private readonly JWTTokenManagerInterface $jwt,
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -39,7 +42,7 @@ class MeController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        return new JsonResponse(AuthSuccessListener::serializeUser($user));
+        return new JsonResponse(AuthSuccessListener::serializeUser($user, $this->avatars->urlFor($user)));
     }
 
     /**
@@ -97,7 +100,7 @@ class MeController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($target),
+            'user' => AuthSuccessListener::serializeUser($target, $this->avatars->urlFor($target)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($target, $this->users),
         ]);
     }
@@ -164,6 +167,41 @@ class MeController extends AbstractController
             $this->em->remove($device);
             $this->em->flush();
         }
+        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Upload (ou remplacement) de l'avatar du user courant.
+     * Multipart : champ "avatar". L'image est cropée en carré 400×400
+     * côté serveur ; le mobile affiche en rond.
+     */
+    #[Route('/api/me/avatar', methods: ['POST'])]
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        /** @var UploadedFile|null $file */
+        $file = $request->files->get('avatar');
+        if ($file === null) {
+            return new JsonResponse(['error' => 'Champ "avatar" manquant.'], Response::HTTP_BAD_REQUEST);
+        }
+        try {
+            $this->avatars->upload($user, $file);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        return new JsonResponse([
+            'ok' => true,
+            'avatarUrl' => $this->avatars->urlFor($user),
+        ]);
+    }
+
+    #[Route('/api/me/avatar', methods: ['DELETE'])]
+    public function deleteAvatar(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->avatars->remove($user);
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
 }

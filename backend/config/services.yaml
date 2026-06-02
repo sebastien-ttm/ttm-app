@@ -10,6 +10,7 @@ parameters:
     app.uploads.training_dir: '%kernel.project_dir%/var/uploads/training'
     app.uploads.training_slots_dir: '%kernel.project_dir%/var/uploads/training-slots'
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
+    app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
 
 services:
     _defaults:
@@ -49,6 +50,11 @@ services:
     App\Service\Training\AttachmentService:
         arguments:
             $trainingSlotsDir: '%app.uploads.training_slots_dir%'
+
+    App\Service\AvatarService:
+        arguments:
+            $avatarsDir: '%app.uploads.avatars_dir%'
+            $publicUrl: '%app.public_url%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

@@ -81,6 +81,67 @@ class ImageResizer
         return true;
     }
 
+    /**
+     * Crop centré + redimensionnement en carré pour un avatar.
+     *
+     * Si l'image n'est pas carrée, on prend le plus grand carré centré
+     * (tronque les bords longs), puis on redimensionne à $size x $size.
+     * Le fichier est écrit en place (même path, même MIME).
+     *
+     * @return bool true si l'opération a réussi
+     */
+    public function cropAndResizeToSquare(string $path, ?string $mime = null, int $size = 400): bool
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            return false;
+        }
+
+        $info = @getimagesize($path);
+        if ($info === false) {
+            return false;
+        }
+        [$width, $height] = $info;
+        $mime = $mime ?? ($info['mime'] ?? '');
+
+        $src = $this->loadImage($path, $mime);
+        if ($src === null) {
+            return false;
+        }
+
+        // Carré centré : on prend le plus petit côté
+        $cropSize = min($width, $height);
+        $cropX = (int) (($width - $cropSize) / 2);
+        $cropY = (int) (($height - $cropSize) / 2);
+
+        $dst = imagecreatetruecolor($size, $size);
+        if ($dst === false) {
+            imagedestroy($src);
+            return false;
+        }
+
+        if ($mime === 'image/png' || $mime === 'image/webp' || $mime === 'image/gif') {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+            if ($transparent !== false) {
+                imagefilledrectangle($dst, 0, 0, $size, $size, $transparent);
+            }
+        }
+
+        imagecopyresampled($dst, $src, 0, 0, $cropX, $cropY, $size, $size, $cropSize, $cropSize);
+
+        $ok = $this->saveImage($dst, $path, $mime);
+
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        if (!$ok) {
+            $this->logger->warning('Avatar crop+resize: save failed', ['path' => $path, 'mime' => $mime]);
+            return false;
+        }
+        return true;
+    }
+
     private function loadImage(string $path, string $mime): \GdImage|null
     {
         try {

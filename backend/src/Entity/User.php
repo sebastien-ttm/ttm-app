@@ -136,6 +136,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastCsvSyncAt = null;
 
+    /** Nom de fichier de l'avatar (sous public/uploads/avatars/), null = aucun. */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatarFilename = null;
+
     /** Date de la dernière connexion réussie (mobile JWT ou admin form). */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
@@ -496,6 +500,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->lastCsvSyncAt;
     }
+
+    public function getAvatarFilename(): ?string { return $this->avatarFilename; }
+    public function setAvatarFilename(?string $f): self { $this->avatarFilename = $f; return $this; }
+    public function hasAvatar(): bool { return $this->avatarFilename !== null; }
 
     public function getLastLoginAt(): ?\DateTimeImmutable { return $this->lastLoginAt; }
     public function getLoginCount(): int { return $this->loginCount; }

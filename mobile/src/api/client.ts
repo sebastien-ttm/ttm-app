@@ -125,6 +125,8 @@ export type AuthenticatedUser = {
   /** Rétrocompat : tableau de rôles Symfony (ROLE_USER, ROLE_ADMIN). */
   roles: string[];
   hasPassword: boolean;
+  /** URL publique de l'avatar carré 400×400. Null si pas d'avatar. */
+  avatarUrl: string | null;
 };
 
 /** Profil lié (parent ou enfant partageant le même e-mail). */
@@ -174,4 +176,23 @@ export const auth = {
     api.get<{ data: LinkedProfile[] }>('/api/me/linked-profiles'),
   switchProfile: (numLicence: string) =>
     api.post<LoginResponse>('/api/me/switch-profile', { num_licence: numLicence }),
+
+  /**
+   * Upload de l'avatar (multipart). `uri` accepte une URI native d'image
+   * (file://) ou un Blob web (passé tel quel à FormData).
+   */
+  uploadAvatar: async (uri: string, mimeType = 'image/jpeg', name = 'avatar.jpg') => {
+    const form = new FormData();
+    // En natif RN, on passe { uri, type, name } ; en web, on doit fetch le blob.
+    if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+      const blob = await (await fetch(uri)).blob();
+      form.append('avatar', blob, name);
+    } else {
+      // @ts-expect-error - React Native gère cette forme spéciale pour FormData
+      form.append('avatar', { uri, type: mimeType, name });
+    }
+    return api.post<{ ok: boolean; avatarUrl: string }>('/api/me/avatar', form);
+  },
+
+  deleteAvatar: () => api.delete<void>('/api/me/avatar'),
 };

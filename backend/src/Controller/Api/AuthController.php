@@ -8,6 +8,7 @@ use App\Enum\UserType;
 use App\EventListener\AuthSuccessListener;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
@@ -35,6 +36,7 @@ class AuthController extends AbstractController
         private readonly MessageBusInterface $bus,
         private readonly UserPasswordHasherInterface $hasher,
         private readonly EntityManagerInterface $em,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -109,7 +111,7 @@ class AuthController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($user),
+            'user' => AuthSuccessListener::serializeUser($user, $this->avatars->urlFor($user)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
         ]);
     }
@@ -221,7 +223,7 @@ class AuthController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($parent),
+            'user' => AuthSuccessListener::serializeUser($parent, $this->avatars->urlFor($parent)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($parent, $this->users),
         ], Response::HTTP_CREATED);
     }

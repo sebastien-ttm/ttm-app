@@ -4,6 +4,7 @@ namespace App\EventListener;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -17,6 +18,7 @@ class AuthSuccessListener
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly AvatarService $avatars,
         private readonly int $refreshTtl = 2592000,
     ) {
     }
@@ -35,7 +37,7 @@ class AuthSuccessListener
         $this->refreshTokenManager->save($refreshToken);
 
         $data['refresh_token'] = $refreshToken->getRefreshToken();
-        $data['user'] = self::serializeUser($user);
+        $data['user'] = self::serializeUser($user, $this->avatars->urlFor($user));
         $data['linkedProfiles'] = self::serializeLinkedProfiles($user, $this->users);
         $event->setData($data);
 
@@ -47,7 +49,7 @@ class AuthSuccessListener
     /**
      * @return array<string, mixed>
      */
-    public static function serializeUser(User $user): array
+    public static function serializeUser(User $user, ?string $avatarUrl = null): array
     {
         return [
             'id' => $user->getId(),
@@ -63,6 +65,7 @@ class AuthSuccessListener
             'categorie' => $user->isJeune() ? 'jeune' : ($user->isSenior() ? 'senior' : null),
             'roles' => $user->getRoles(),
             'hasPassword' => $user->getPassword() !== null,
+            'avatarUrl' => $avatarUrl,
         ];
     }
 

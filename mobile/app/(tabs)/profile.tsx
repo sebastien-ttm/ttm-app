@@ -1,29 +1,113 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ApiError, auth as authApi } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles } from '@/utils/profile';
 
+const AVATAR_SIZE = 96;
+
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshMe } = useAuth();
   const router = useRouter();
+  const [uploading, setUploading] = useState(false);
 
   if (!user) return null;
 
   const isAdmin = user.role === 'admin';
   const profiles = sortProfiles(user.profiles ?? []);
 
+  async function pickAvatar() {
+    if (uploading) return;
+
+    // Demande permission caméra/galerie (no-op sur le web)
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission refusée', 'Autorise l\'accès aux photos dans les réglages.');
+        return;
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const mimeType = asset.mimeType ?? 'image/jpeg';
+      const ext = mimeType.includes('png') ? 'png' : (mimeType.includes('webp') ? 'webp' : 'jpg');
+      await authApi.uploadAvatar(asset.uri, mimeType, `avatar.${ext}`);
+      await refreshMe();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Échec de l\'upload';
+      Alert.alert('Erreur', msg);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAvatar() {
+    const doRemove = async () => {
+      setUploading(true);
+      try {
+        await authApi.deleteAvatar();
+        await refreshMe();
+      } catch (e) {
+        Alert.alert('Erreur', e instanceof Error ? e.message : 'Échec de la suppression');
+      } finally {
+        setUploading(false);
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Supprimer la photo de profil ?')) {
+        await doRemove();
+      }
+      return;
+    }
+    Alert.alert('Supprimer la photo ?', '', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: doRemove },
+    ]);
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user.prenom.charAt(0)}
-            {user.nom.charAt(0)}
-          </Text>
-        </View>
+        <Pressable onPress={pickAvatar} disabled={uploading} style={styles.avatarPressable}>
+          {uploading ? (
+            <View style={styles.avatar}><ActivityIndicator color="#fff" /></View>
+          ) : user.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} contentFit="cover" />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {user.prenom.charAt(0)}
+                {user.nom.charAt(0)}
+              </Text>
+            </View>
+          )}
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="camera" size={14} color="#fff" />
+          </View>
+        </Pressable>
+
+        {user.avatarUrl && !uploading && (
+          <Pressable onPress={removeAvatar} hitSlop={6}>
+            <Text style={styles.removeAvatarLabel}>Supprimer la photo</Text>
+          </Pressable>
+        )}
+
         <Text style={styles.name}>{user.fullName}</Text>
         <Text style={styles.email}>{user.email}</Text>
 
@@ -105,20 +189,46 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  avatarPressable: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    marginBottom: 8,
+    alignSelf: 'center',
+    position: 'relative',
+  },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     backgroundColor: COLORS.brandNavy,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    alignSelf: 'center',
     borderWidth: 3,
     borderColor: COLORS.primary,
+    overflow: 'hidden',
   },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  name: { fontSize: 20, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  avatarText: { color: '#fff', fontSize: 32, fontWeight: '700' },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeAvatarLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 4,
+    textDecorationLine: 'underline',
+  },
+  name: { fontSize: 20, fontWeight: '700', color: COLORS.text, textAlign: 'center', marginTop: 4 },
   email: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 12 },
   badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
