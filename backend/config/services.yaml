@@ -11,6 +11,7 @@ parameters:
     app.uploads.training_slots_dir: '%kernel.project_dir%/var/uploads/training-slots'
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
+    app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
 
 services:
     _defaults:

@@ -9,6 +9,7 @@ use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\MembershipSettings;
 use App\Entity\MenuItem;
+use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
@@ -96,6 +97,8 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToCrud('Menu mobile', 'fa fa-bars', MenuItem::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)
             ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section('Adhérents');

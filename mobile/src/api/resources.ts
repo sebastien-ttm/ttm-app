@@ -8,6 +8,7 @@ import type {
   EventItem,
   MenuItem,
   Paginated,
+  PoolBadge,
   StaffPresence,
   StaffPresenceStatus,
   StaffPresenceWeek,
@@ -97,6 +98,10 @@ export const events = {
 
 export const banner = {
   active: () => api.get<{ data: Banner | null }>('/api/banner/active', { public: true }),
+};
+
+export const poolBadge = {
+  current: () => api.get<{ data: PoolBadge | null }>('/api/pool-badge'),
 };
 
 export const charter = {

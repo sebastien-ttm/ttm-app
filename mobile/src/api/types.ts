@@ -169,6 +169,14 @@ export type StaffPresenceWeek = {
   customTasks: StaffPresence[];
 };
 
+export type PoolBadge = {
+  id: number;
+  title: string | null;
+  notes: string | null;
+  imageUrl: string;
+  updatedAt: string | null;
+};
+
 export type CharterFieldType =
   | 'text'
   | 'textarea'

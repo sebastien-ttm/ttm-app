@@ -139,6 +139,22 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.card}>
+        <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+          onPress={() => router.push('/pool-badge' as never)}
+        >
+          <View style={styles.qrIcon}>
+            <Ionicons name="qr-code-outline" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Accès piscines</Text>
+            <Text style={styles.actionHint}>QR code à présenter à l'entrée</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+        </Pressable>
+      </View>
+
       {(user.profiles.includes('encadrant') || user.profiles.includes('entraineur')) && (
         <View style={styles.card}>
           <Pressable
@@ -252,6 +268,15 @@ const styles = StyleSheet.create({
   },
   actionRowPressed: { opacity: 0.6 },
   actionHint: { fontSize: 13, color: COLORS.text, fontWeight: '500', marginTop: 2 },
+  qrIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: COLORS.brandNavy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   logoutButton: {
     backgroundColor: COLORS.surface,
     paddingVertical: 14,

@@ -24,3 +24,10 @@ vich_uploader:
             inject_on_load: false
             delete_on_update: true
             delete_on_remove: true
+        pool_badges:
+            uri_prefix: /uploads/pool-badges
+            upload_destination: '%app.uploads.pool_badges_dir%'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+            inject_on_load: false
+            delete_on_update: true
+            delete_on_remove: true
