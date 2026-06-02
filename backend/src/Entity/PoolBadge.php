@@ -29,8 +29,16 @@ class PoolBadge
     private ?string $imagePath = null;
 
     #[Vich\UploadableField(mapping: 'pool_badges', fileNameProperty: 'imagePath')]
-    #[Assert\Image(maxSize: '5M', mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'])]
+    #[Assert\File(
+        maxSize: '5M',
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'],
+        mimeTypesMessage: 'Format non accepté. Formats autorisés : JPG, PNG, WebP, GIF, PDF.',
+    )]
     private ?File $file = null;
+
+    /** Type MIME du fichier stocké (utilisé par le mobile pour le rendu). */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $mimeType = null;
 
     /** Libellé visible côté mobile (ex. « Saison 2025-2026 »). */
     #[ORM\Column(length: 200, nullable: true)]
@@ -54,9 +62,20 @@ class PoolBadge
         $this->file = $file;
         if ($file !== null) {
             $this->updatedAt = new \DateTimeImmutable();
+            // Mémorise le MIME pour que le mobile sache si c'est un PDF
+            // ou une image. getMimeType() lit la signature des bytes,
+            // donc plus fiable que l'extension du nom de fichier.
+            $detected = method_exists($file, 'getMimeType') ? $file->getMimeType() : null;
+            if ($detected !== null) {
+                $this->mimeType = $detected;
+            }
         }
         return $this;
     }
+
+    public function getMimeType(): ?string { return $this->mimeType; }
+    public function setMimeType(?string $m): self { $this->mimeType = $m; return $this; }
+    public function isPdf(): bool { return $this->mimeType === 'application/pdf'; }
 
     public function getTitle(): ?string { return $this->title; }
     public function setTitle(?string $title): self { $this->title = $title; return $this; }

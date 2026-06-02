@@ -174,6 +174,9 @@ export type PoolBadge = {
   title: string | null;
   notes: string | null;
   imageUrl: string;
+  /** "image/png", "application/pdf", etc. Null si non détecté. */
+  mimeType: string | null;
+  isPdf: boolean;
   updatedAt: string | null;
 };
 

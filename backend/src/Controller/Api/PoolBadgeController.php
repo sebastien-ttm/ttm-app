@@ -27,12 +27,32 @@ class PoolBadgeController extends AbstractController
         if ($badge === null || !$badge->hasImage()) {
             return new JsonResponse(['data' => null]);
         }
+        // Fallback : si mime_type n'a pas été enregistré (ancien fichier),
+        // on devine via l'extension du nom de fichier.
+        $mime = $badge->getMimeType()
+            ?? $this->guessMimeFromFilename($badge->getImagePath());
+
         return new JsonResponse(['data' => [
             'id' => $badge->getId(),
             'title' => $badge->getTitle(),
             'notes' => $badge->getNotes(),
             'imageUrl' => rtrim($this->publicUrl, '/').'/uploads/pool-badges/'.$badge->getImagePath(),
+            'mimeType' => $mime,
+            'isPdf' => $mime === 'application/pdf',
             'updatedAt' => $badge->getUpdatedAt()?->format(\DATE_ATOM),
         ]]);
+    }
+
+    private function guessMimeFromFilename(?string $name): ?string
+    {
+        if ($name === null) return null;
+        return match (strtolower(pathinfo($name, PATHINFO_EXTENSION))) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => null,
+        };
     }
 }
