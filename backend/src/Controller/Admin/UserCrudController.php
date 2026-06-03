@@ -54,6 +54,13 @@ class UserCrudController extends AbstractCrudController
             ->add(BooleanFilter::new('isActive', 'Actif'))
             ->add(ChoiceFilter::new('type', 'Type')
                 ->setChoices(['Adhérent' => UserType::Adherent, 'Externe' => UserType::Externe]))
+            ->add(ChoiceFilter::new('subType', 'Sous-type')
+                ->setChoices([
+                    'Licencié club' => User::SUBTYPE_CLUB,
+                    'Licencié autre club' => User::SUBTYPE_AUTRE_CLUB,
+                    'Parent' => User::SUBTYPE_PARENT,
+                    'Ami' => User::SUBTYPE_AMI,
+                ]))
             ->add(ChoiceFilter::new('role', 'Rôle')
                 ->setChoices(['Utilisateur' => 'user', 'Administrateur' => 'admin']))
             ->add('lastLoginAt');
@@ -74,6 +81,24 @@ class UserCrudController extends AbstractCrudController
                 UserType::Adherent->value => 'success',
                 UserType::Externe->value => 'warning',
             ]);
+
+        yield ChoiceField::new('subType', 'Sous-type')
+            ->setChoices([
+                'Licencié au club (par défaut)' => User::SUBTYPE_CLUB,
+                'Licencié dans un autre club (manuel)' => User::SUBTYPE_AUTRE_CLUB,
+                'Parent' => User::SUBTYPE_PARENT,
+                'Ami du club' => User::SUBTYPE_AMI,
+            ])
+            ->renderAsBadges([
+                User::SUBTYPE_CLUB => 'success',
+                User::SUBTYPE_AUTRE_CLUB => 'info',
+                User::SUBTYPE_PARENT => 'warning',
+                User::SUBTYPE_AMI => 'secondary',
+            ])
+            ->setHelp(
+                'Adhérent → club (défaut, importé du CSV) OU autre_club (créé manuellement). '
+                .'Externe → parent (inscription mobile) OU ami (ancien adhérent, créé à la main).'
+            );
 
         yield ChoiceField::new('profiles', 'Profils')
             ->setChoices(Profile::choices())

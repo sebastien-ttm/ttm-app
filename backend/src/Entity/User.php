@@ -51,6 +51,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 16, enumType: UserType::class)]
     private UserType $type = UserType::Adherent;
 
+    /**
+     * Sous-type, dépendant de `type` :
+     *   Pour adherent  : 'club' (licencié au club, défaut import CSV)
+     *                    ou 'autre_club' (licencié ailleurs — créé manuellement).
+     *   Pour externe   : 'parent' (lien avec un enfant adhérent)
+     *                    ou 'ami' (ancien adhérent, soutien…).
+     * On garde un simple string pour rester ouvert à de futures valeurs sans
+     * casser le schéma.
+     */
+    #[ORM\Column(length: 32, options: ['default' => 'club'])]
+    private string $subType = 'club';
+
     #[ORM\Column(length: 40)]
     private string $statutLicence = 'Actif';
 
@@ -276,11 +288,49 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setType(UserType $type): self
     {
         $this->type = $type;
+        // Si le subType courant n'est plus valide pour ce type, on retombe
+        // sur la première valeur autorisée (= valeur par défaut métier).
+        $allowed = self::allowedSubTypes($type);
+        if (!in_array($this->subType, $allowed, true)) {
+            $this->subType = $allowed[0];
+        }
         return $this;
     }
 
     public function isAdherent(): bool { return $this->type === UserType::Adherent; }
     public function isExterne(): bool { return $this->type === UserType::Externe; }
+
+    public const SUBTYPE_CLUB = 'club';
+    public const SUBTYPE_AUTRE_CLUB = 'autre_club';
+    public const SUBTYPE_PARENT = 'parent';
+    public const SUBTYPE_AMI = 'ami';
+
+    /** @return list<string> Valeurs autorisées selon le type courant. */
+    public static function allowedSubTypes(UserType $type): array
+    {
+        return match ($type) {
+            UserType::Adherent => [self::SUBTYPE_CLUB, self::SUBTYPE_AUTRE_CLUB],
+            UserType::Externe => [self::SUBTYPE_PARENT, self::SUBTYPE_AMI],
+        };
+    }
+
+    public function getSubType(): string { return $this->subType; }
+
+    public function setSubType(string $subType): self
+    {
+        if (!in_array($subType, self::allowedSubTypes($this->type), true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Sous-type "%s" invalide pour le type "%s".', $subType, $this->type->value
+            ));
+        }
+        $this->subType = $subType;
+        return $this;
+    }
+
+    public function isLicencieClub(): bool { return $this->isAdherent() && $this->subType === self::SUBTYPE_CLUB; }
+    public function isLicencieAutreClub(): bool { return $this->isAdherent() && $this->subType === self::SUBTYPE_AUTRE_CLUB; }
+    public function isParentExterne(): bool { return $this->isExterne() && $this->subType === self::SUBTYPE_PARENT; }
+    public function isAmiDuClub(): bool { return $this->isExterne() && $this->subType === self::SUBTYPE_AMI; }
 
     /**
      * Catégorie principale (Jeune ou Senior) dérivée du profile.
@@ -291,6 +341,58 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         if ($this->hasProfile(Profile::Jeune)) return 'Jeune';
         if ($this->hasProfile(Profile::Senior)) return 'Sénior';
         return null;
+    }
+
+    /**
+     * Catégorie d'âge FFTRi calculée à la volée depuis la date de naissance.
+     * La règle FFTRi est : âge dans l'année courante (année civile - année
+     * de naissance, sans tenir compte du jour de l'anniversaire).
+     *
+     * Retourne null si la date de naissance n'est pas connue (compte externe
+     * par exemple).
+     */
+    public function getCategorieFFTri(?\DateTimeImmutable $now = null): ?string
+    {
+        if ($this->dateNaissance === null) {
+            return null;
+        }
+        $now ??= new \DateTimeImmutable('today');
+        $age = (int) $now->format('Y') - (int) $this->dateNaissance->format('Y');
+
+        return match (true) {
+            $age <= 7 => 'Mini-poussin',
+            $age <= 9 => 'Poussin',
+            $age <= 11 => 'Pupille',
+            $age <= 13 => 'Benjamin',
+            $age <= 15 => 'Minime',
+            $age <= 17 => 'Cadet',
+            $age <= 19 => 'Junior',
+            $age <= 39 => 'Senior',
+            $age <= 44 => 'Vétéran 1',
+            $age <= 49 => 'Vétéran 2',
+            $age <= 54 => 'Vétéran 3',
+            $age <= 59 => 'Vétéran 4',
+            $age <= 64 => 'Vétéran 5',
+            $age <= 69 => 'Vétéran 6',
+            $age <= 74 => 'Vétéran 7',
+            $age <= 79 => 'Vétéran 8',
+            default   => 'Vétéran 9+',
+        };
+    }
+
+    /**
+     * Indique si l'adhérent est dirigeant (vient du typeLicence FFTRi importé).
+     * Pratique pour les règles d'affichage côté mobile et admin.
+     */
+    public function isDirigeant(): bool
+    {
+        return $this->typeLicence === 'Dirigeant';
+    }
+
+    /** Label "Non licencié" pour les comptes externes ou sans n° de licence. */
+    public function getLicenceLabel(): string
+    {
+        return $this->numLicence ?? 'Non licencié';
     }
 
     public function getStatutLicence(): string
@@ -354,6 +456,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
         if (isset($normalized[Profile::Jeune->value]) && isset($normalized[Profile::Senior->value])) {
             unset($normalized[Profile::Senior->value]);
+        }
+        // Encadrant et Entraîneur sont mutuellement exclusifs (un adhérent
+        // ne peut être que l'un OU l'autre). On rejette pour forcer l'admin
+        // à choisir explicitement.
+        if (isset($normalized[Profile::Encadrant->value]) && isset($normalized[Profile::Entraineur->value])) {
+            throw new \InvalidArgumentException(
+                'Un utilisateur ne peut pas être à la fois Encadrant et Entraîneur. Choisissez l\'un des deux.'
+            );
         }
         $this->profiles = array_keys($normalized);
         return $this;

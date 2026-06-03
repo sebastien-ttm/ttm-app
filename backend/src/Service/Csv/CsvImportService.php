@@ -128,6 +128,7 @@ class CsvImportService
                     $user = new User();
                     $user->setNumLicence($numLicence);
                     $user->setType(UserType::Adherent);
+                    $user->setSubType(User::SUBTYPE_CLUB);
                     $user->setRole('user');
                 }
 

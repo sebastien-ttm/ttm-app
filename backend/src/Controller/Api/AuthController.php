@@ -200,6 +200,7 @@ class AuthController extends AbstractController
         $parent->setNumLicence(null);
         $parent->setIsActive(true);
         $parent->setType(UserType::Externe);
+        $parent->setSubType(User::SUBTYPE_PARENT);
         $parent->setRole('user');
         $parent->setProfiles([Profile::Parent->value]);
         $parent->setPassword($this->hasher->hashPassword($parent, $password));

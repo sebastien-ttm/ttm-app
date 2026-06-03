@@ -153,6 +153,7 @@ class AppFixtures extends Fixture
         $u->setPrenom($prenom);
         $u->setNom($nom);
         $u->setType(UserType::Adherent);
+        $u->setSubType(User::SUBTYPE_CLUB);
         $u->setRole($role);
         $u->setProfiles($profiles);
         $u->setStatutLicence('Actif');

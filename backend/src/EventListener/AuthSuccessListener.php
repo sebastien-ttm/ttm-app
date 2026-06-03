@@ -58,9 +58,13 @@ class AuthSuccessListener
             'prenom' => $user->getPrenom(),
             'fullName' => $user->getFullName(),
             'numLicence' => $user->getNumLicence(),
+            'licenceLabel' => $user->getLicenceLabel(),
             'type' => $user->getType()->value,
+            'subType' => $user->getSubType(),
             'profiles' => $user->getProfiles(),
             'role' => $user->getRole(),
+            'isDirigeant' => $user->isDirigeant(),
+            'categorieFFTri' => $user->getCategorieFFTri(),
             // Conservé pour rétrocompat mobile : "jeune" / "senior" / null
             'categorie' => $user->isJeune() ? 'jeune' : ($user->isSenior() ? 'senior' : null),
             'roles' => $user->getRoles(),
