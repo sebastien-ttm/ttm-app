@@ -22,7 +22,7 @@ type AuthContextValue = AuthState & {
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
   acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
-  switchProfile: (numLicence: string) => Promise<void>;
+  switchProfile: (userId: number) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -177,8 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const switchProfile = useCallback(
-    async (numLicence: string) => {
-      const resp = await auth.switchProfile(numLicence);
+    async (userId: number) => {
+      const resp = await auth.switchProfile({ userId });
       await persist(resp);
       // Restart navigation to refresh all data (feed, etc. with new user)
       router.replace('/(tabs)');

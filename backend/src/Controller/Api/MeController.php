@@ -60,8 +60,11 @@ class MeController extends AbstractController
     }
 
     /**
-     * Bascule vers un autre profil (parent ↔ enfants ↔ frères/sœurs).
-     * Le user cible doit appartenir au même groupe d'e-mail partagé.
+     * Bascule vers un autre profil accessible (parent ↔ enfants ↔ frères/sœurs
+     * via e-mail partagé OU via la relation user_parent_child).
+     *
+     * Accepte `user_id` (préféré, fonctionne aussi pour les comptes externes
+     * sans licence) OU `num_licence` (rétrocompat).
      * Renvoie un nouveau JWT pour ce profil.
      */
     #[Route('/api/me/switch-profile', methods: ['POST'])]
@@ -70,16 +73,22 @@ class MeController extends AbstractController
         /** @var User $current */
         $current = $this->getUser();
         $payload = json_decode($request->getContent(), true);
+
+        $targetId = is_array($payload) && isset($payload['user_id']) ? (int) $payload['user_id'] : 0;
         $targetLicence = is_array($payload) ? trim((string) ($payload['num_licence'] ?? '')) : '';
 
-        if ($targetLicence === '') {
-            return new JsonResponse(['error' => 'num_licence manquant.'], Response::HTTP_BAD_REQUEST);
+        if ($targetId === 0 && $targetLicence === '') {
+            return new JsonResponse(['error' => 'user_id ou num_licence requis.'], Response::HTTP_BAD_REQUEST);
         }
 
         $accessible = $this->users->findLinkedProfiles($current);
         $target = null;
         foreach ($accessible as $u) {
-            if ($u->getNumLicence() === $targetLicence) {
+            if ($targetId !== 0 && $u->getId() === $targetId) {
+                $target = $u;
+                break;
+            }
+            if ($targetLicence !== '' && $u->getNumLicence() === $targetLicence) {
                 $target = $u;
                 break;
             }

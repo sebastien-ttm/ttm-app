@@ -32,21 +32,21 @@ function profileLineFor(p: LinkedProfile): string {
 export function ProfileSwitcher() {
   const { user, linkedProfiles, switchProfile } = useAuth();
   const [open, setOpen] = useState(false);
-  const [switching, setSwitching] = useState<string | null>(null);
+  const [switching, setSwitching] = useState<number | null>(null);
 
   if (!user || linkedProfiles.length < 2) {
     return null;
   }
 
-  async function onSelect(numLicence: string) {
+  async function onSelect(targetUserId: number) {
     if (switching) return;
-    if (numLicence === user?.numLicence) {
+    if (targetUserId === user?.id) {
       setOpen(false);
       return;
     }
-    setSwitching(numLicence);
+    setSwitching(targetUserId);
     try {
-      await switchProfile(numLicence);
+      await switchProfile(targetUserId);
       setOpen(false);
     } finally {
       setSwitching(null);
@@ -70,27 +70,22 @@ export function ProfileSwitcher() {
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.title}>Changer de profil</Text>
             <Text style={styles.subtitle}>
-              Vous gérez {linkedProfiles.length} profils sur cette adresse e-mail.
+              {linkedProfiles.length} profils accessibles depuis ce compte.
             </Text>
 
             <ScrollView style={styles.list}>
-              {linkedProfiles
-                /* On ne switche pas vers un profil sans n° de licence
-                   (typiquement un compte externe rattaché par e-mail
-                   partagé — cas rare mais qui pourrait arriver). */
-                .filter((p): p is LinkedProfile & { numLicence: string } => p.numLicence !== null)
-                .map((p) => {
-                const isActive = p.numLicence === user.numLicence;
-                const isLoading = switching === p.numLicence;
+              {linkedProfiles.map((p) => {
+                const isActive = p.id === user.id;
+                const isLoading = switching === p.id;
                 return (
                   <Pressable
-                    key={p.numLicence}
+                    key={p.id}
                     style={({ pressed }) => [
                       styles.item,
                       isActive && styles.itemActive,
                       pressed && !isActive && styles.itemPressed,
                     ]}
-                    onPress={() => onSelect(p.numLicence)}
+                    onPress={() => onSelect(p.id)}
                     disabled={isLoading}
                   >
                     <View style={styles.itemAvatar}>

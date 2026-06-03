@@ -52,8 +52,14 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
-     * Profils accessibles depuis un user (primaire ou lié) : le primaire et
-     * tous les autres rattachés au même primaire.
+     * Profils accessibles depuis un user. On combine deux mécanismes :
+     *   1) E-mail partagé : le primaire + tous les autres rattachés via
+     *      linkedToUser (hérité de l'import CSV familial).
+     *   2) Relation famille explicite (table user_parent_child) :
+     *      - si le user est parent → on ajoute ses enfants
+     *      - si le user est enfant → on ajoute ses parents
+     *
+     * Renvoie une liste dédupliquée par id, ordonnée par date de naissance.
      *
      * @return list<User>
      */
@@ -61,12 +67,41 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         $primary = $user->getPrimaryUser();
 
-        return $this->createQueryBuilder('u')
+        // 1) Profils via e-mail partagé
+        $emailLinked = $this->createQueryBuilder('u')
             ->where('u = :primary OR u.linkedToUser = :primary')
             ->setParameter('primary', $primary)
-            ->orderBy('u.dateNaissance', 'ASC')
             ->getQuery()
             ->getResult();
+
+        // 2) Relation famille (parent → enfants et enfant → parents)
+        $byId = [];
+        foreach ($emailLinked as $u) {
+            $byId[$u->getId()] = $u;
+        }
+        // Le user courant doit toujours être présent (il l'est déjà via 1
+        // dans la plupart des cas, mais on s'assure)
+        $byId[$user->getId()] = $user;
+        foreach ($user->getChildren() as $child) {
+            $byId[$child->getId()] = $child;
+        }
+        foreach ($user->getParents() as $parent) {
+            $byId[$parent->getId()] = $parent;
+        }
+
+        $all = array_values($byId);
+
+        // Tri par date de naissance (les sans-date en queue)
+        usort($all, static function (User $a, User $b): int {
+            $da = $a->getDateNaissance();
+            $db = $b->getDateNaissance();
+            if ($da === null && $db === null) return $a->getId() <=> $b->getId();
+            if ($da === null) return 1;
+            if ($db === null) return -1;
+            return $da <=> $db;
+        });
+
+        return $all;
     }
 
     public function findOneByNumLicence(string $numLicence): ?User

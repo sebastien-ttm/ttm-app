@@ -174,8 +174,12 @@ export const auth = {
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
   linkedProfiles: () =>
     api.get<{ data: LinkedProfile[] }>('/api/me/linked-profiles'),
-  switchProfile: (numLicence: string) =>
-    api.post<LoginResponse>('/api/me/switch-profile', { num_licence: numLicence }),
+  /** Préférer userId (marche aussi pour les comptes externes sans licence). */
+  switchProfile: (params: { userId?: number; numLicence?: string }) =>
+    api.post<LoginResponse>('/api/me/switch-profile', {
+      user_id: params.userId,
+      num_licence: params.numLicence,
+    }),
 
   /**
    * Upload de l'avatar (multipart). `uri` accepte une URI native d'image
