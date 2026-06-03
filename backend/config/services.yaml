@@ -52,6 +52,10 @@ services:
         arguments:
             $trainingSlotsDir: '%app.uploads.training_slots_dir%'
 
+    App\Controller\Admin\PoolBadgeCrudController:
+        arguments:
+            $poolBadgesDir: '%app.uploads.pool_badges_dir%'
+
     App\Service\AvatarService:
         arguments:
             $avatarsDir: '%app.uploads.avatars_dir%'
