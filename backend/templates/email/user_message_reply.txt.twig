@@ -1,0 +1,23 @@
+Bonjour {{ sender.prenom }},
+
+{{ message.repliedBy.fullName }}{% if message.recipient is null %} (équipe du club){% endif %} a répondu à votre message{% if message.subject %} « {{ message.subject }} »{% endif %}.
+
+Sa réponse :
+---
+{{ message.reply }}
+---
+
+Pour rappel, votre message initial :
+---
+{{ message.body }}
+---
+
+Voir dans l'application :
+{{ messagesUrl }}
+
+Une seule réponse est possible par message. Pour relancer la conversation, envoyez un nouveau message depuis l'app.
+
+Réponse envoyée le {{ message.repliedAt|date('d/m/Y à H:i') }}.
+
+---
+Triathlon Toulouse Métropole — message automatique, ne pas répondre.

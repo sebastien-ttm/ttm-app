@@ -60,6 +60,20 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $repliedAt = null;
 
+    /**
+     * Horodate la dispatch de la notification « nouveau message » aux
+     * destinataires (admins ou entraîneur ciblé). Garantit l'idempotence
+     * en cas de retry de la queue Messenger.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $recipientsNotifiedAt = null;
+
+    /**
+     * Horodate la dispatch de la notification de réponse à l'expéditeur.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $senderRepliedNotifiedAt = null;
+
     public function __construct()
     {
         $this->sentAt = new \DateTimeImmutable();
@@ -106,6 +120,12 @@ class UserMessage
     public function getRepliedBy(): ?User { return $this->repliedBy; }
     public function getRepliedAt(): ?\DateTimeImmutable { return $this->repliedAt; }
     public function hasReply(): bool { return $this->repliedAt !== null; }
+
+    public function getRecipientsNotifiedAt(): ?\DateTimeImmutable { return $this->recipientsNotifiedAt; }
+    public function setRecipientsNotifiedAt(?\DateTimeImmutable $d): self { $this->recipientsNotifiedAt = $d; return $this; }
+
+    public function getSenderRepliedNotifiedAt(): ?\DateTimeImmutable { return $this->senderRepliedNotifiedAt; }
+    public function setSenderRepliedNotifiedAt(?\DateTimeImmutable $d): self { $this->senderRepliedNotifiedAt = $d; return $this; }
 
     /**
      * Cible humainement lisible pour les vues (« Le club » ou nom de l'entraîneur).

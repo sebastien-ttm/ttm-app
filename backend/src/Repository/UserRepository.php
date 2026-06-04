@@ -218,6 +218,25 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         return array_values($byEmail);
     }
 
+    /**
+     * Tous les utilisateurs actifs ayant un rôle backend donné.
+     * Utilisé pour les notifications (ex : email à tous les admins quand
+     * un message « au club » est reçu).
+     *
+     * @return list<User>
+     */
+    public function findActiveByRole(string $role): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere('u.email IS NOT NULL')
+            ->andWhere('u.role = :role')
+            ->setParameter('role', $role)
+            ->orderBy('u.nom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         if (!$user instanceof User) {

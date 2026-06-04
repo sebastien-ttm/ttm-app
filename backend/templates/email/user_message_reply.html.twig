@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Réponse à votre message</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+        <tr>
+            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:30px;">
+                <p>Bonjour <strong>{{ sender.prenom }}</strong>,</p>
+
+                <p>
+                    <strong>{{ message.repliedBy.fullName }}</strong>
+                    {% if message.recipient is null %}
+                        (équipe du club)
+                    {% endif %}
+                    a répondu à votre message
+                    {% if message.subject %} « {{ message.subject }} »{% endif %}.
+                </p>
+
+                <p style="margin:18px 0 4px; font-size:13px; color:#666;">Sa réponse :</p>
+                <div style="margin:0 0 18px; padding:14px; background:#f0fdf4; border-left:4px solid #16a34a; border-radius:4px; font-size:14px; color:#0d2148; line-height:1.5;">
+                    {{ message.reply|nl2br }}
+                </div>
+
+                <p style="margin:24px 0 4px; font-size:12px; color:#888;">
+                    Pour rappel, votre message initial :
+                </p>
+                <div style="margin:0; padding:12px; background:#fafafa; border-left:3px solid #ddd; border-radius:4px; font-size:13px; color:#555; line-height:1.5;">
+                    {{ message.body|nl2br }}
+                </div>
+
+                <p style="text-align:center; margin:30px 0;">
+                    <a href="{{ messagesUrl }}" style="display:inline-block; background:#D32F2F; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; font-weight:bold;">
+                        Voir dans l'application
+                    </a>
+                </p>
+
+                <p style="font-size:12px; color:#888;">
+                    Une seule réponse est possible par message. Pour relancer la conversation,
+                    envoyez un nouveau message depuis l'app.
+                </p>
+
+                <hr style="border:none; border-top:1px solid #eee; margin:30px 0;">
+
+                <p style="font-size:12px; color:#999;">
+                    Réponse envoyée le {{ message.repliedAt|date('d/m/Y à H:i') }}.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="background:#222; color:#aaa; padding:15px; text-align:center; font-size:12px;">
+                Triathlon Toulouse Métropole — message automatique, ne pas répondre
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

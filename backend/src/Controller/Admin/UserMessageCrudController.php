@@ -4,9 +4,11 @@ namespace App\Controller\Admin;
 
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Message\NotifyUserMessageReplyMessage;
 use App\Repository\UserMessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
+use Symfony\Component\Messenger\MessageBusInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -36,6 +38,7 @@ class UserMessageCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly UserMessageRepository $messages,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -140,6 +143,17 @@ class UserMessageCrudController extends AbstractCrudController
         yield AssociationField::new('repliedBy', 'Répondu par')
             ->hideOnForm()
             ->setRequired(false);
+
+        yield DateTimeField::new('recipientsNotifiedAt', 'Email destinataires envoyé le')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->hideOnForm()
+            ->onlyOnDetail()
+            ->setHelp('Horodatage de la dispatch async. Vide = pas encore traité par la queue Messenger.');
+
+        yield DateTimeField::new('senderRepliedNotifiedAt', 'Email réponse envoyé le')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->hideOnForm()
+            ->onlyOnDetail();
     }
 
     /**
@@ -170,12 +184,18 @@ class UserMessageCrudController extends AbstractCrudController
         // Première réponse : si le texte est non vide, crédite l'auteur +
         // horodatage via setReplyOnce (refuse aussi les whitespace-only).
         $reply = $entityInstance->getReply();
+        $replyAccepted = false;
         if (is_string($reply) && trim($reply) !== '') {
             /** @var User $author */
             $author = $this->getUser();
-            $entityInstance->setReplyOnce($reply, $author);
+            $replyAccepted = $entityInstance->setReplyOnce($reply, $author);
         }
 
         parent::updateEntity($em, $entityInstance);
+
+        // Notification email à l'expéditeur (idempotence via timestamp côté handler).
+        if ($replyAccepted && $entityInstance->getId() !== null) {
+            $this->bus->dispatch(new NotifyUserMessageReplyMessage($entityInstance->getId()));
+        }
     }
 }

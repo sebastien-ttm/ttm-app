@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Enum\Profile;
+use App\Message\NotifyNewUserMessageMessage;
 use App\Repository\UserMessageRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -12,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -22,6 +24,7 @@ class MessageController extends AbstractController
         private readonly UserMessageRepository $messages,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -110,6 +113,12 @@ class MessageController extends AbstractController
 
         $this->em->persist($msg);
         $this->em->flush();
+
+        // Notification email aux destinataires (admins ou entraîneur ciblé).
+        // Handler async + idempotent via UserMessage::recipientsNotifiedAt.
+        if ($msg->getId() !== null) {
+            $this->bus->dispatch(new NotifyNewUserMessageMessage($msg->getId()));
+        }
 
         return new JsonResponse($this->serializeMessage($msg), Response::HTTP_CREATED);
     }

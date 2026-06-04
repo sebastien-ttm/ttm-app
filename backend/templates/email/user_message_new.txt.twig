@@ -1,0 +1,17 @@
+Bonjour {{ recipient.prenom }},
+
+Vous avez reçu un nouveau message{% if message.recipient is null %} adressé au club{% endif %} de la part de {{ message.sender.fullName }}.
+
+{% if message.subject %}Objet : {{ message.subject }}
+
+{% endif %}---
+{{ message.body }}
+---
+
+Répondez depuis le backend (une seule réponse possible) :
+{{ adminUrl }}
+
+Message envoyé le {{ message.sentAt|date('d/m/Y à H:i') }}.
+
+---
+Triathlon Toulouse Métropole — message automatique, ne pas répondre.
