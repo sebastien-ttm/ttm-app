@@ -2,7 +2,9 @@
 
 namespace App\Repository;
 
+use App\Entity\TrainingPlan;
 use App\Entity\User;
+use App\Enum\Profile;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
@@ -155,6 +157,65 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->setParameter('cutoff', $cutoff)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Liste des destinataires d'un email de notification pour un plan
+     * d'entraînement nouvellement publié.
+     *
+     * Critères (intersection) :
+     *  - actif
+     *  - email renseigné
+     *  - licencié (numLicence non null — exclut les parents externes et amis)
+     *  - typeLicence ≠ 'Dirigeant' (cohérent avec la règle canSeeTraining mobile)
+     *  - profil NE contient PAS 'jeune' (exclu explicitement par la demande)
+     *  - si plan.audience non vide : au moins un profil en intersection
+     *    (sinon : visible à tous → on garde l'utilisateur)
+     *
+     * Dédup par email : un parent et son enfant qui partagent une adresse
+     * ne reçoivent qu'un seul mail (le premier rencontré, choix arbitraire
+     * stable).
+     *
+     * @return list<User>
+     */
+    public function findTrainingPlanEmailRecipients(TrainingPlan $plan): array
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere('u.email IS NOT NULL')
+            ->andWhere('u.numLicence IS NOT NULL')
+            ->andWhere("(u.typeLicence IS NULL OR u.typeLicence <> 'Dirigeant')")
+            // Exclut les Jeunes : JSON_CONTAINS retourne 1 si présent
+            ->andWhere('JSON_CONTAINS(u.profiles, :jeune_tag) = 0')
+            ->setParameter('jeune_tag', json_encode(Profile::Jeune->value));
+
+        // Audience ciblée du plan : on garde les users dont au moins un
+        // profil intersecte. Plan sans audience → on garde tout le monde.
+        $audience = $plan->getAudience();
+        if ($audience !== []) {
+            $orParts = [];
+            foreach ($audience as $i => $p) {
+                $key = "aud_{$i}";
+                $orParts[] = "JSON_CONTAINS(u.profiles, :{$key}) = 1";
+                $qb->setParameter($key, json_encode($p));
+            }
+            $qb->andWhere('('.implode(' OR ', $orParts).')');
+        }
+
+        $users = $qb->getQuery()->getResult();
+
+        // Dédup par email : un parent + un enfant qui partagent l'adresse
+        // ne doivent pas recevoir 2 fois le même mail.
+        $byEmail = [];
+        foreach ($users as $u) {
+            $email = mb_strtolower((string) $u->getEmail(), 'UTF-8');
+            if ($email === '' || isset($byEmail[$email])) {
+                continue;
+            }
+            $byEmail[$email] = $u;
+        }
+
+        return array_values($byEmail);
     }
 
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void

@@ -53,6 +53,14 @@ class TrainingPlan
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    /**
+     * Horodate l'envoi des emails de notification.
+     * NULL = pas encore envoyés. Garantit l'idempotence en cas de retry
+     * de la queue Messenger ou de re-publication.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $emailsSentAt = null;
+
     public function __construct()
     {
         $this->postedAt = new \DateTimeImmutable();
@@ -183,6 +191,9 @@ class TrainingPlan
             (string) $fmtEnd->format($end),
         );
     }
+
+    public function getEmailsSentAt(): ?\DateTimeImmutable { return $this->emailsSentAt; }
+    public function setEmailsSentAt(?\DateTimeImmutable $d): self { $this->emailsSentAt = $d; return $this; }
 
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }

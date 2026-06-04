@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Nouveau plan d'entraînement</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+        <tr>
+            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:30px;">
+                <p>Bonjour <strong>{{ user.prenom }}</strong>,</p>
+
+                <p>Un nouveau plan d'entraînement vient d'être publié :</p>
+
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f9fafb; border-left:4px solid #D32F2F; padding:14px 18px; margin:18px 0;">
+                    <tr><td>
+                        <p style="margin:0 0 4px; font-size:18px; font-weight:bold; color:#0d2148;">
+                            {{ plan.displayTitle }}
+                        </p>
+                        {% if plan.weekRangeLabel %}
+                            <p style="margin:4px 0; font-size:13px; color:#555;">
+                                {{ plan.weekRangeLabel }}
+                            </p>
+                        {% endif %}
+                        <p style="margin:4px 0 0; font-size:12px; color:#777;">
+                            Publié par {{ plan.postedBy.fullName }}
+                            le {{ plan.postedAt|date('d/m/Y') }}
+                        </p>
+                    </td></tr>
+                </table>
+
+                {% if plan.description %}
+                    <div style="margin:12px 0; padding:12px; background:#fafafa; border-radius:4px; font-size:14px; color:#444;">
+                        {{ plan.description|nl2br }}
+                    </div>
+                {% endif %}
+
+                <p style="text-align:center; margin:30px 0;">
+                    <a href="{{ trainingUrl }}" style="display:inline-block; background:#D32F2F; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; font-weight:bold;">
+                        Consulter le plan
+                    </a>
+                </p>
+
+                <p style="font-size:12px; color:#888;">
+                    Connectez-vous à l'application pour télécharger le PDF.
+                </p>
+
+                <hr style="border:none; border-top:1px solid #eee; margin:30px 0;">
+
+                <p style="font-size:12px; color:#999;">
+                    Vous recevez cet e-mail parce que vous êtes adhérent licencié du club.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="background:#222; color:#aaa; padding:15px; text-align:center; font-size:12px;">
+                Triathlon Toulouse Métropole — message automatique, ne pas répondre
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

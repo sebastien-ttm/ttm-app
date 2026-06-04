@@ -1,0 +1,18 @@
+Bonjour {{ user.prenom }},
+
+Un nouveau plan d'entraînement vient d'être publié :
+
+  {{ plan.displayTitle }}
+{% if plan.weekRangeLabel %}  {{ plan.weekRangeLabel }}
+{% endif %}  Publié par {{ plan.postedBy.fullName }} le {{ plan.postedAt|date('d/m/Y') }}
+{% if plan.description %}
+
+{{ plan.description }}
+{% endif %}
+
+Consultez le plan dans l'application :
+{{ trainingUrl }}
+
+---
+Triathlon Toulouse Métropole — message automatique, ne pas répondre.
+Vous recevez cet e-mail parce que vous êtes adhérent licencié du club.

@@ -72,6 +72,9 @@ class TrainingPlanCrudController extends AbstractCrudController
             ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
         yield AssociationField::new('postedBy', 'Posté par')->onlyOnDetail();
         yield DateTimeField::new('postedAt', 'Posté le')->hideOnForm();
+        yield DateTimeField::new('emailsSentAt', 'Emails envoyés le')
+            ->hideOnForm()
+            ->setHelp('Horodatage de la dispatch des notifications email (jeunes et non-licenciés exclus). Vide si pas encore traité par la queue.');
     }
 
     public function createEntity(string $entityFqcn): TrainingPlan
