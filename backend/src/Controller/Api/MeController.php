@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\DevicePlatform;
 use App\Enum\Profile;
 use App\EventListener\AuthSuccessListener;
+use App\EventListener\JWTCreatedListener;
 use App\Repository\DeviceTokenRepository;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
@@ -47,34 +48,43 @@ class MeController extends AbstractController
     }
 
     /**
-     * Liste des profils accessibles depuis le user courant (lui + ses dépendants
-     * ou son primaire + co-dépendants). Vide si pas de profils liés.
+     * Liste des profils accessibles depuis le user courant. La recherche
+     * est rootée sur l'« origine de session » (compte qui s'est réellement
+     * connecté avec un mot de passe / magic link), pas sur le user courant
+     * — pour empêcher le switch latéral vers un autre parent partageant
+     * un enfant. Voir docblock de serializeLinkedProfiles().
      */
     #[Route('/api/me/linked-profiles', methods: ['GET'])]
-    public function linkedProfiles(): JsonResponse
+    public function linkedProfiles(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
+        $origin = $this->resolveOriginUser($request, $user);
         return new JsonResponse([
-            'data' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+            'data' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users, $origin),
         ]);
     }
 
     /**
-     * Bascule vers un autre profil accessible (parent ↔ enfants ↔ frères/sœurs
-     * via e-mail partagé OU via la relation user_parent_child).
+     * Bascule vers un autre profil accessible.
+     *
+     * Le profil cible doit être accessible depuis l'origine de session
+     * (pas seulement depuis le user courant) — sinon un parent connecté
+     * pourrait, via le compte d'un enfant commun, sauter sur le compte
+     * d'un autre parent.
      *
      * Accepte `user_id` (préféré, fonctionne aussi pour les comptes externes
      * sans licence) OU `num_licence` (rétrocompat).
-     * Renvoie un nouveau JWT pour ce profil.
+     * Renvoie un nouveau JWT qui porte la MÊME origine de session.
      */
     #[Route('/api/me/switch-profile', methods: ['POST'])]
     public function switchProfile(Request $request): JsonResponse
     {
         /** @var User $current */
         $current = $this->getUser();
-        $payload = json_decode($request->getContent(), true);
+        $origin = $this->resolveOriginUser($request, $current);
 
+        $payload = json_decode($request->getContent(), true);
         $targetId = is_array($payload) && isset($payload['user_id']) ? (int) $payload['user_id'] : 0;
         $targetLicence = is_array($payload) ? trim((string) ($payload['num_licence'] ?? '')) : '';
 
@@ -82,7 +92,12 @@ class MeController extends AbstractController
             return new JsonResponse(['error' => 'user_id ou num_licence requis.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $accessible = $this->users->findLinkedProfiles($current);
+        // ← La sécurité tient à cette ligne : on cherche le target dans
+        // le réseau de l'ORIGINE, pas du current. Un Parent A connecté
+        // qui est dans le profil d'un enfant commun avec Parent B ne
+        // peut donc pas atteindre Parent B (qui n'est pas dans le
+        // réseau de Parent A).
+        $accessible = $this->users->findLinkedProfiles($origin);
         $target = null;
         foreach ($accessible as $u) {
             if ($targetId !== 0 && $u->getId() === $targetId) {
@@ -103,6 +118,12 @@ class MeController extends AbstractController
             return new JsonResponse(['error' => 'Profil désactivé.'], Response::HTTP_FORBIDDEN);
         }
 
+        // Propage l'origine au prochain JWT — sinon le claim serait défini
+        // par défaut sur target.id, et on perdrait la traçabilité.
+        $originId = $origin->getId();
+        if ($originId !== null) {
+            $request->attributes->set(JWTCreatedListener::ORIGIN_ATTRIBUTE, $originId);
+        }
         $accessToken = $this->jwt->create($target);
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($target, 2592000);
         $this->refreshTokenManager->save($refresh);
@@ -111,7 +132,7 @@ class MeController extends AbstractController
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
             'user' => AuthSuccessListener::serializeUser($target, $this->avatars->urlFor($target)),
-            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($target, $this->users),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($target, $this->users, $origin),
         ]);
     }
 
@@ -289,12 +310,14 @@ class MeController extends AbstractController
         $user->addChild($child);
         $this->em->flush();
 
+        $origin = $this->resolveOriginUser($request, $user);
         return new JsonResponse([
             'ok' => true,
             'child' => self::serializeChild($child),
             // Renvoie aussi la nouvelle liste des profils accessibles, pour
             // que le mobile mette à jour son ProfileSwitcher sans aller-retour.
-            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+            // Rooté sur l'origine de session (sécurité switch latéral).
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users, $origin),
         ], Response::HTTP_CREATED);
     }
 
@@ -302,7 +325,7 @@ class MeController extends AbstractController
      * Délie un enfant. Ne supprime PAS le compte enfant — juste le lien.
      */
     #[Route('/api/me/children/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    public function removeChild(int $id): JsonResponse
+    public function removeChild(int $id, Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -330,9 +353,10 @@ class MeController extends AbstractController
         $user->removeChild($child);
         $this->em->flush();
 
+        $origin = $this->resolveOriginUser($request, $user);
         return new JsonResponse([
             'ok' => true,
-            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users, $origin),
         ]);
     }
 
@@ -365,5 +389,43 @@ class MeController extends AbstractController
             return true;
         }
         return $user->isParentExterne();
+    }
+
+    /**
+     * Décode l'« origine de session » depuis le JWT courant.
+     *
+     * - Login initial / magic link / register : le JWT a été créé avec
+     *   origin_user_id = uid (cf. JWTCreatedListener), donc l'origine
+     *   est le user lui-même.
+     * - Après un /switch-profile : le claim a été propagé explicitement
+     *   vers le compte d'origine (jamais réécrit en route).
+     * - Anciens JWT (avant Phase E+) : pas de claim → on retombe sur le
+     *   user courant (= comportement historique, dégradation gracieuse
+     *   jusqu'à la prochaine reconnexion).
+     */
+    private function resolveOriginUser(Request $request, User $current): User
+    {
+        $auth = (string) $request->headers->get('Authorization', '');
+        if (!str_starts_with($auth, 'Bearer ')) {
+            return $current;
+        }
+        try {
+            $payload = $this->jwt->parse(substr($auth, 7));
+        } catch (\Throwable) {
+            return $current;
+        }
+        $originId = $payload['origin_user_id'] ?? null;
+        if (!is_int($originId) || $originId <= 0 || $originId === $current->getId()) {
+            return $current;
+        }
+        $origin = $this->users->find($originId);
+        if ($origin === null || !$origin->isActive()) {
+            // L'origine a été désactivée / supprimée : on garde quand même
+            // une session navigable en retombant sur le user courant. Le
+            // switcher ne montrera que ses voisins immédiats — pas idéal
+            // mais on évite de bloquer un user piégé.
+            return $current;
+        }
+        return $origin;
     }
 }

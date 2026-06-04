@@ -78,11 +78,19 @@ class AuthSuccessListener
      * (lui-même + ses dépendants, OU son primaire + tous les dépendants
      * du primaire).
      *
+     * Le réseau est calculé depuis $origin si fourni — sinon depuis $user.
+     * Cette indirection permet de bloquer le « switch latéral » : quand
+     * Parent A est connecté puis switché dans le profil d'un enfant
+     * commun avec Parent B, on calcule les profils accessibles depuis
+     * Parent A (l'origine de session) et non depuis l'enfant. Parent B
+     * n'apparaît donc pas dans le switcher.
+     *
      * @return list<array<string, mixed>>
      */
-    public static function serializeLinkedProfiles(User $user, UserRepository $users): array
+    public static function serializeLinkedProfiles(User $user, UserRepository $users, ?User $origin = null): array
     {
-        $profiles = $users->findLinkedProfiles($user);
+        $rootUser = $origin ?? $user;
+        $profiles = $users->findLinkedProfiles($rootUser);
         if (count($profiles) < 2) {
             return []; // pas la peine d'envoyer une liste s'il n'y a qu'un seul profil
         }
