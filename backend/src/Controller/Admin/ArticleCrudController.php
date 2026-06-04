@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Article;
 use App\Entity\User;
+use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -41,7 +42,7 @@ class ArticleCrudController extends AbstractCrudController
             ->setHelp('Glissez-déposez ou collez une image dans l\'éditeur pour l\'insérer. Cliquez sur l\'image pour la redimensionner.')
             ->onlyOnForms();
         yield AssociationField::new('author', 'Auteur')
-            ->setQueryBuilder(fn ($qb) => $qb->andWhere("entity.role = 'admin'"));
+            ->setQueryBuilder(fn ($qb) => $qb->andWhere("entity.role IN ('editeur', 'entraineur', 'admin')"));
         yield DateTimeField::new('publishedAt', 'Publication')
             ->setRequired(false)
             ->setHelp('Laisser vide = publier immédiatement. Date future = publication programmée.');
@@ -53,6 +54,16 @@ class ArticleCrudController extends AbstractCrudController
             ->setRequired(false)
             ->renderAsBadges()
             ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
+        yield ChoiceField::new('contentAudience', 'Catégorie de contenu')
+            ->setChoices(ContentAudience::choices())
+            ->allowMultipleChoices()
+            ->setRequired(false)
+            ->renderAsBadges()
+            ->setHelp(
+                'Sans tag = contenu public (visible par tous). '
+                .'Tag « École de Triathlon » : reste visible par tous, mais devient '
+                .'l\'unique catégorie visible pour les comptes Dirigeant.'
+            );
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnIndex();
     }
 

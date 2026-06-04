@@ -32,6 +32,7 @@ class EventRepository extends ServiceEntityRepository
             ->orderBy('e.startsAt', 'ASC');
 
         $this->audienceFilter->apply($qb, $viewer, 'e');
+        $this->audienceFilter->applyContentAudienceForDirigeant($qb, $viewer, 'e');
 
         return $qb->getQuery()->getResult();
     }

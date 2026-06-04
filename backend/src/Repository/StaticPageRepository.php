@@ -30,6 +30,9 @@ class StaticPageRepository extends ServiceEntityRepository
         if (!$this->audienceFilter->isVisible($page->getAudience(), $viewer)) {
             return null;
         }
+        if (!$this->audienceFilter->isContentVisibleForDirigeant($page->getContentAudience(), $viewer)) {
+            return null;
+        }
         return $page;
     }
 
@@ -43,6 +46,7 @@ class StaticPageRepository extends ServiceEntityRepository
             ->orderBy('p.position', 'ASC')
             ->addOrderBy('p.title', 'ASC');
         $this->audienceFilter->apply($qb, $viewer, 'p');
+        $this->audienceFilter->applyContentAudienceForDirigeant($qb, $viewer, 'p');
         return $qb->getQuery()->getResult();
     }
 
@@ -59,6 +63,7 @@ class StaticPageRepository extends ServiceEntityRepository
             ->orderBy('p.position', 'ASC')
             ->addOrderBy('p.title', 'ASC');
         $this->audienceFilter->apply($qb, $viewer, 'p');
+        $this->audienceFilter->applyContentAudienceForDirigeant($qb, $viewer, 'p');
         return $qb->getQuery()->getResult();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Entity\Trait\AudienceAwareTrait;
+use App\Entity\Trait\ContentAudienceAwareTrait;
 use App\Repository\ArticleRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -16,6 +17,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Article
 {
     use AudienceAwareTrait;
+    use ContentAudienceAwareTrait;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

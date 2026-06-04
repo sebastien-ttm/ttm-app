@@ -77,9 +77,10 @@ class WeeklyScheduleService
                 }
                 $override = $overridesByTemplate[$tpl->getId()] ?? null;
                 // Filtre audience : si l'override a une audience perso, elle prime ;
-                // sinon on prend celle du template.
+                // sinon on prend celle du template. Encadrant/Entraîneur bypass —
+                // ils voient tous les créneaux (vision staff / supervision).
                 $effectiveAudience = $override?->getAudience() ?: $tpl->getAudience();
-                if ($viewer !== null && !$this->audienceFilter->isVisible($effectiveAudience, $viewer)) {
+                if ($viewer !== null && !$this->audienceFilter->isSlotVisible($effectiveAudience, $viewer)) {
                     continue;
                 }
                 if ($override !== null) {
@@ -90,9 +91,9 @@ class WeeklyScheduleService
             }
         }
 
-        // 2) Créneaux occasionnels (sans template) — filtrés par audience aussi
+        // 2) Créneaux occasionnels (sans template) — même règle (staff = bypass)
         foreach ($occasionals as $s) {
-            if ($viewer !== null && !$this->audienceFilter->isVisible($s->getAudience(), $viewer)) {
+            if ($viewer !== null && !$this->audienceFilter->isSlotVisible($s->getAudience(), $viewer)) {
                 continue;
             }
             $rows[] = $this->serializeOverride($s, $monday);

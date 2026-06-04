@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Entity\Trait\AudienceAwareTrait;
+use App\Entity\Trait\ContentAudienceAwareTrait;
 use App\Enum\EventType;
 use App\Repository\EventRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -14,6 +15,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Event
 {
     use AudienceAwareTrait;
+    use ContentAudienceAwareTrait;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

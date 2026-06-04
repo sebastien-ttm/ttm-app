@@ -61,6 +61,7 @@ class ApiSerializer
             'myReactions' => $myReactions,
             'commentCount' => $a->getComments()->count(),
             'audience' => $a->getAudience(),
+            'contentAudience' => $a->getContentAudience(),
         ];
     }
 
@@ -128,6 +129,7 @@ class ApiSerializer
             'updatedAt' => $p->getUpdatedAt()->format(\DATE_ATOM),
             'parentSlug' => $p->getParent()?->getSlug(),
             'audience' => $p->getAudience(),
+            'contentAudience' => $p->getContentAudience(),
         ];
         if ($includeChildren) {
             $data['children'] = array_map(
@@ -187,6 +189,7 @@ class ApiSerializer
             'type' => $e->getType()->value,
             'color' => $e->getColor(),
             'audience' => $e->getAudience(),
+            'contentAudience' => $e->getContentAudience(),
         ];
     }
 

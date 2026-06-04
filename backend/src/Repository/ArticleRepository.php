@@ -39,6 +39,7 @@ class ArticleRepository extends ServiceEntityRepository
             ->setMaxResults($limit);
 
         $this->audienceFilter->apply($qb, $viewer, 'a');
+        $this->audienceFilter->applyContentAudienceForDirigeant($qb, $viewer, 'a');
 
         return new Paginator($qb->getQuery(), fetchJoinCollection: true);
     }

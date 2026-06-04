@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\StaticPage;
+use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use Doctrine\ORM\EntityRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -72,6 +73,16 @@ class StaticPageCrudController extends AbstractCrudController
             ->setRequired(false)
             ->renderAsBadges()
             ->setHelp('Si vide, visible par tous. Sinon, visible uniquement aux profils sélectionnés.');
+        yield ChoiceField::new('contentAudience', 'Catégorie de contenu')
+            ->setChoices(ContentAudience::choices())
+            ->allowMultipleChoices()
+            ->setRequired(false)
+            ->renderAsBadges()
+            ->setHelp(
+                'Sans tag = page publique (visible par tous). '
+                .'Tag « École de Triathlon » : reste visible par tous, mais devient '
+                .'l\'unique catégorie visible pour les comptes Dirigeant.'
+            );
         yield DateTimeField::new('updatedAt', 'Mis à jour le')->onlyOnIndex();
     }
 }
