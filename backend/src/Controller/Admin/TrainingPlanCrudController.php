@@ -29,7 +29,7 @@ class TrainingPlanCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Plan d\'entraînement')
             ->setEntityLabelInPlural('Plans d\'entraînement')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_ENTRAINEUR')
             ->setDefaultSort(['postedAt' => 'DESC'])
             ->setSearchFields(['title', 'description']);
     }

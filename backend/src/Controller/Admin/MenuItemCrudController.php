@@ -23,7 +23,7 @@ class MenuItemCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Onglet du menu')
             ->setEntityLabelInPlural('Menu mobile')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['position' => 'ASC']);
     }
 

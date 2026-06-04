@@ -23,7 +23,7 @@ class CommentCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Commentaire')
             ->setEntityLabelInPlural('Commentaires')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['createdAt' => 'DESC']);
     }
 

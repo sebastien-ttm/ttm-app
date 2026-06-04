@@ -62,7 +62,12 @@ class UserCrudController extends AbstractCrudController
                     'Ami' => User::SUBTYPE_AMI,
                 ]))
             ->add(ChoiceFilter::new('role', 'Rôle')
-                ->setChoices(['Utilisateur' => 'user', 'Administrateur' => 'admin']))
+                ->setChoices([
+                    'Utilisateur (mobile)' => User::ROLE_USER,
+                    'Éditeur (communication)' => User::ROLE_EDITEUR,
+                    'Entraîneur (entraînements)' => User::ROLE_ENTRAINEUR,
+                    'Administrateur (tout)' => User::ROLE_ADMIN,
+                ]))
             ->add('lastLoginAt');
     }
 
@@ -117,13 +122,25 @@ class UserCrudController extends AbstractCrudController
                 .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
             );
 
-        yield ChoiceField::new('role', 'Rôle')
-            ->setChoices(['Utilisateur (mobile)' => 'user', 'Administrateur (mobile + backend)' => 'admin'])
-            ->renderAsBadges([
-                'user' => 'secondary',
-                'admin' => 'danger',
+        yield ChoiceField::new('role', 'Rôle backend')
+            ->setChoices([
+                'Utilisateur (mobile uniquement)' => User::ROLE_USER,
+                'Éditeur (communication + config)' => User::ROLE_EDITEUR,
+                'Entraîneur (éditeur + entraînements + présences)' => User::ROLE_ENTRAINEUR,
+                'Administrateur (tout, dont adhérents et charte)' => User::ROLE_ADMIN,
             ])
-            ->setHelp('« Administrateur » donne accès à ce backend. À combiner avec le profil Entraîneur pour les coachs.');
+            ->renderAsBadges([
+                User::ROLE_USER => 'secondary',
+                User::ROLE_EDITEUR => 'info',
+                User::ROLE_ENTRAINEUR => 'primary',
+                User::ROLE_ADMIN => 'danger',
+            ])
+            ->setHelp(
+                'Hiérarchie : Administrateur ⊃ Entraîneur ⊃ Éditeur ⊃ Utilisateur. '
+                .'« Éditeur » : articles, calendrier, pages, bannière, badge piscines. '
+                .'« Entraîneur » : tout l\'éditeur + créneaux, semaine type, plans, présences staff. '
+                .'« Administrateur » : tout l\'entraîneur + adhérents, import CSV, charte du club.'
+            );
 
         yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
         yield ChoiceField::new('typeLicence', 'Type de licence')

@@ -26,7 +26,7 @@ class PoolBadgeCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Badge piscines')
             ->setEntityLabelInPlural('Badge piscines')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setHelp(Crud::PAGE_INDEX,
                 'Le QR code transmis chaque saison par la mairie pour l\'accès aux piscines. '
                 .'Une seule entrée à la fois — remplace celle existante en réuploadant.')

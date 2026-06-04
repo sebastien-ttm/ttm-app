@@ -3,11 +3,14 @@ security:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
     role_hierarchy:
-        # Modèle simplifié : 2 rôles seulement.
-        # user (ROLE_USER) = accès mobile uniquement
-        # admin (ROLE_ADMIN) = accès backend EasyAdmin + mobile
-        # Les permissions fines (sections accessibles) sont dérivées du profile.
-        ROLE_ADMIN: ROLE_USER
+        # 4 tiers d'accès. Chaque niveau "contient" le précédent :
+        #   ROLE_USER       = accès mobile uniquement
+        #   ROLE_EDITEUR    = + Communication & Configuration (backend)
+        #   ROLE_ENTRAINEUR = + Entraînements & Présences staff
+        #   ROLE_ADMIN      = + Adhérents & Charte du club (tout)
+        ROLE_EDITEUR: ROLE_USER
+        ROLE_ENTRAINEUR: ROLE_EDITEUR
+        ROLE_ADMIN: ROLE_ENTRAINEUR
 
     providers:
         app_user_provider:
@@ -68,7 +71,10 @@ security:
     access_control:
         - { path: ^/admin/login, roles: PUBLIC_ACCESS }
         - { path: ^/admin/logout, roles: PUBLIC_ACCESS }
-        - { path: ^/admin, roles: ROLE_ADMIN }
+        # Accès au backend = tout user avec au moins ROLE_EDITEUR.
+        # Le filtrage section-par-section est fait par setEntityPermission
+        # sur chaque CRUD et par setPermission sur les MenuItem.
+        - { path: ^/admin, roles: ROLE_EDITEUR }
         - { path: ^/api/auth, roles: PUBLIC_ACCESS }
         - { path: ^/api/banner/active, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }

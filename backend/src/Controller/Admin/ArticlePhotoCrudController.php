@@ -20,7 +20,7 @@ class ArticlePhotoCrudController extends AbstractCrudController
 
     public function configureCrud(Crud $crud): Crud
     {
-        return $crud->setEntityPermission('ROLE_ADMIN');
+        return $crud->setEntityPermission('ROLE_EDITEUR');
     }
 
     public function configureFields(string $pageName): iterable

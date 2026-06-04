@@ -21,7 +21,7 @@ class TrainingSeasonCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Saison d\'entraînement')
             ->setEntityLabelInPlural('Saison d\'entraînement')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_ENTRAINEUR')
             ->setHelp(Crud::PAGE_INDEX,
                 'Définit la période sur laquelle la <strong>semaine type</strong> est appliquée. '
                 .'En dehors de cette période (par ex. l\'été), aucun créneau récurrent n\'est affiché — '

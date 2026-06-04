@@ -68,38 +68,39 @@ class DashboardController extends AbstractDashboardController
 
         yield AdminMenuItem::section('Communication');
         yield AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
 
         yield AdminMenuItem::section('Entraînements');
         yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class);
+            ->setPermission('ROLE_ENTRAINEUR');
+        yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)
+            ->setPermission('ROLE_ENTRAINEUR');
 
         yield AdminMenuItem::section('Présences staff');
         yield AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_ENTRAINEUR');
 
         yield AdminMenuItem::section('Configuration');
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Menu mobile', 'fa fa-bars', MenuItem::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)
-            ->setPermission('ROLE_ADMIN');
+            ->setPermission('ROLE_EDITEUR');
 
         yield AdminMenuItem::section('Adhérents');
         yield AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)

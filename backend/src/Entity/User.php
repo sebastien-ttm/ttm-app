@@ -543,38 +543,59 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return '';
     }
 
+    public const ROLE_USER = 'user';
+    public const ROLE_EDITEUR = 'editeur';
+    public const ROLE_ENTRAINEUR = 'entraineur';
+    public const ROLE_ADMIN = 'admin';
+    public const ALLOWED_ROLES = [
+        self::ROLE_USER,
+        self::ROLE_EDITEUR,
+        self::ROLE_ENTRAINEUR,
+        self::ROLE_ADMIN,
+    ];
+
     /**
-     * Symfony Security : on dérive les rôles depuis le champ simple $role.
-     * 'admin' ⇒ ROLE_ADMIN (+ ROLE_USER), sinon juste ROLE_USER.
+     * Symfony Security : on dérive les rôles depuis le champ $role.
+     * La hiérarchie (security.yaml) propage : ROLE_ADMIN > ROLE_ENTRAINEUR
+     * > ROLE_EDITEUR > ROLE_USER. On renvoie ROLE_USER + le tier courant.
      *
      * @return list<string>
      */
     public function getRoles(): array
     {
         $roles = ['ROLE_USER'];
-        if ($this->role === 'admin') {
-            $roles[] = 'ROLE_ADMIN';
-        }
-        return $roles;
+        $roles[] = match ($this->role) {
+            self::ROLE_ADMIN => 'ROLE_ADMIN',
+            self::ROLE_ENTRAINEUR => 'ROLE_ENTRAINEUR',
+            self::ROLE_EDITEUR => 'ROLE_EDITEUR',
+            default => 'ROLE_USER',
+        };
+        return array_values(array_unique($roles));
     }
 
     public function getRole(): string { return $this->role; }
 
     public function setRole(string $role): self
     {
-        $this->role = $role === 'admin' ? 'admin' : 'user';
+        if (!in_array($role, self::ALLOWED_ROLES, true)) {
+            $role = self::ROLE_USER;
+        }
+        $this->role = $role;
         return $this;
     }
 
     /**
      * Compatibilité Symfony Form/CRUD existants qui appellent setRoles([...]).
-     * On en extrait juste si 'ROLE_ADMIN' est présent pour passer role=admin.
+     * On prend le plus élevé trouvé.
      *
      * @param list<string> $roles
      */
     public function setRoles(array $roles): self
     {
-        return $this->setRole(in_array('ROLE_ADMIN', $roles, true) ? 'admin' : 'user');
+        if (in_array('ROLE_ADMIN', $roles, true))      return $this->setRole(self::ROLE_ADMIN);
+        if (in_array('ROLE_ENTRAINEUR', $roles, true)) return $this->setRole(self::ROLE_ENTRAINEUR);
+        if (in_array('ROLE_EDITEUR', $roles, true))    return $this->setRole(self::ROLE_EDITEUR);
+        return $this->setRole(self::ROLE_USER);
     }
 
     public function hasRole(string $role): bool
@@ -582,7 +603,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return in_array($role, $this->getRoles(), true);
     }
 
-    public function isAdmin(): bool { return $this->role === 'admin'; }
+    public function isAdmin(): bool { return $this->role === self::ROLE_ADMIN; }
+    public function isEntraineurAdmin(): bool { return $this->role === self::ROLE_ENTRAINEUR; }
+    public function isEditeur(): bool { return $this->role === self::ROLE_EDITEUR; }
+    /** True si le user a un accès quelconque au backend. */
+    public function hasBackendAccess(): bool
+    {
+        return in_array($this->role, [self::ROLE_EDITEUR, self::ROLE_ENTRAINEUR, self::ROLE_ADMIN], true);
+    }
 
     public function getPassword(): ?string
     {

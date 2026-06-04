@@ -28,7 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *                                 encadrants pour une semaine, modifiable.
  *  - "Emploi du temps coachs"   : semaine de chaque entraîneur.
  */
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted('ROLE_ENTRAINEUR')]
 class StaffPresenceController extends AbstractController
 {
     public function __construct(

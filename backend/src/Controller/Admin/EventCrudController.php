@@ -25,7 +25,7 @@ class EventCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Événement')
             ->setEntityLabelInPlural('Calendrier')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['startsAt' => 'ASC']);
     }
 

@@ -27,7 +27,7 @@ class StaticPageCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Page')
             ->setEntityLabelInPlural('Pages')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['parent' => 'ASC', 'position' => 'ASC', 'title' => 'ASC']);
     }
 

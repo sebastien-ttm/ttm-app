@@ -25,7 +25,7 @@ class BannerCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Bannière')
             ->setEntityLabelInPlural('Bannières')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['id' => 'DESC']);
     }
 
