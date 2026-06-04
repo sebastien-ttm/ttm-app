@@ -15,6 +15,7 @@ use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
+use App\Entity\UserMessage;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
@@ -73,6 +74,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)
             ->setPermission('ROLE_EDITEUR');
+        yield AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)
+            ->setPermission('ROLE_ENTRAINEUR');
 
         yield AdminMenuItem::section('Entraînements');
         yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')

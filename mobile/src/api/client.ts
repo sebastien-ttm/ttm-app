@@ -1,4 +1,4 @@
-import type { LinkedChild, LinkedChildrenResponse } from '@/api/types';
+import type { LinkedChild, LinkedChildrenResponse, Trainer, UserMessage } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 
@@ -227,4 +227,10 @@ export const auth = {
     ),
   removeChild: (id: number) =>
     api.delete<{ ok: boolean; linkedProfiles: LinkedProfile[] }>(`/api/me/children/${id}`),
+
+  // ---- Messages vers le club ou un entraîneur ----
+  listTrainers: () => api.get<{ data: Trainer[] }>('/api/me/trainers'),
+  listMessages: () => api.get<{ data: UserMessage[] }>('/api/me/messages'),
+  sendMessage: (payload: { recipientId: number | null; subject?: string; body: string }) =>
+    api.post<UserMessage>('/api/me/messages', payload),
 };

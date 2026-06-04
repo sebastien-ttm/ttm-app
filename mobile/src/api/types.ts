@@ -232,3 +232,27 @@ export type LinkedChildrenResponse = {
   data: LinkedChild[];
   canManage: boolean;
 };
+
+/** Entraîneur sélectionnable comme destinataire de message (Phase messages). */
+export type Trainer = {
+  id: number;
+  fullName: string;
+};
+
+/** Message envoyé depuis l'app vers le club ou un entraîneur. */
+export type UserMessage = {
+  id: number;
+  /** null si adressé « au club » (= aux admins). */
+  recipientId: number | null;
+  /** « Le club » ou nom de l'entraîneur. */
+  recipientLabel: string;
+  subject: string | null;
+  body: string;
+  sentAt: string;
+  /** Réponse (text) si reçue. */
+  reply: string | null;
+  repliedAt: string | null;
+  /** Nom de l'admin/entraîneur qui a répondu. */
+  repliedByLabel: string | null;
+  hasReply: boolean;
+};

@@ -206,6 +206,24 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      <View style={styles.card}>
+        <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+          onPress={() => router.push('/profile/messages' as never)}
+        >
+          <View style={styles.qrIcon}>
+            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Mes messages</Text>
+            <Text style={styles.actionHint}>
+              Contacter le club ou un entraîneur, voir les réponses
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+        </Pressable>
+      </View>
+
       <Pressable style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
       </Pressable>
