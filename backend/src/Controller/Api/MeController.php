@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\DeviceToken;
 use App\Entity\User;
 use App\Enum\DevicePlatform;
+use App\Enum\Profile;
 use App\EventListener\AuthSuccessListener;
 use App\Repository\DeviceTokenRepository;
 use App\Repository\UserRepository;
@@ -212,5 +213,157 @@ class MeController extends AbstractController
         $user = $this->getUser();
         $this->avatars->remove($user);
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    // ================================================================
+    //   Phase E — gestion des enfants liés par le parent
+    // ================================================================
+
+    /**
+     * Liste les enfants actuellement liés à ce compte.
+     * Disponible à tout user authentifié — la liste est simplement
+     * vide pour ceux qui n'ont pas d'enfants liés.
+     */
+    #[Route('/api/me/children', methods: ['GET'])]
+    public function listChildren(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        return new JsonResponse([
+            'data' => array_map(
+                fn (User $c) => self::serializeChild($c),
+                $user->getChildren()->toArray(),
+            ),
+            'canManage' => self::canManageChildren($user),
+        ]);
+    }
+
+    /**
+     * Lie un nouvel enfant adhérent à ce compte par son numéro de licence.
+     *
+     * Body : { "numLicence": "AB12345..." }
+     *
+     * Réservé aux comptes qui s'identifient comme parents (profile Parent
+     * OU sub_type='parent'). Permet à un parent qui s'est inscrit sans
+     * tous ses enfants — ou dont l'email diffère de celui de l'adhérent
+     * — de compléter la liaison après coup.
+     */
+    #[Route('/api/me/children', methods: ['POST'])]
+    public function addChild(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!self::canManageChildren($user)) {
+            return new JsonResponse(
+                ['error' => 'Cette action est réservée aux comptes parents.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        $raw = is_array($payload) ? trim((string) ($payload['numLicence'] ?? '')) : '';
+        if ($raw === '') {
+            return new JsonResponse(['error' => 'numLicence est requis.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $child = $this->users->findActiveByLicenceNormalized($raw);
+        if ($child === null) {
+            return new JsonResponse(
+                ['error' => 'Numéro de licence inconnu ou compte inactif.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+        if ($child->getId() === $user->getId()) {
+            return new JsonResponse(
+                ['error' => 'Vous ne pouvez pas vous lier à vous-même.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+        if ($user->getChildren()->contains($child)) {
+            return new JsonResponse(
+                ['error' => 'Cet adhérent est déjà rattaché à votre compte.'],
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        $user->addChild($child);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'child' => self::serializeChild($child),
+            // Renvoie aussi la nouvelle liste des profils accessibles, pour
+            // que le mobile mette à jour son ProfileSwitcher sans aller-retour.
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Délie un enfant. Ne supprime PAS le compte enfant — juste le lien.
+     */
+    #[Route('/api/me/children/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function removeChild(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!self::canManageChildren($user)) {
+            return new JsonResponse(
+                ['error' => 'Cette action est réservée aux comptes parents.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        $child = null;
+        foreach ($user->getChildren() as $c) {
+            if ($c->getId() === $id) {
+                $child = $c;
+                break;
+            }
+        }
+        if ($child === null) {
+            return new JsonResponse(
+                ['error' => 'Aucun enfant lié avec cet identifiant.'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        $user->removeChild($child);
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function serializeChild(User $child): array
+    {
+        return [
+            'id' => $child->getId(),
+            'fullName' => $child->getFullName(),
+            'prenom' => $child->getPrenom(),
+            'nom' => $child->getNom(),
+            'numLicence' => $child->getNumLicence(),
+            'licenceLabel' => $child->getLicenceLabel(),
+            'categorieFFTri' => $child->getCategorieFFTri(),
+            'profiles' => $child->getProfiles(),
+            'isActive' => $child->isActive(),
+        ];
+    }
+
+    /**
+     * Un user est-il autorisé à gérer une liste d'enfants depuis le mobile ?
+     * Critère : il s'identifie comme parent — profil Parent OU
+     * (compte externe avec sub_type='parent').
+     */
+    private static function canManageChildren(User $user): bool
+    {
+        if (in_array(Profile::Parent->value, $user->getProfiles(), true)) {
+            return true;
+        }
+        return $user->isParentExterne();
     }
 }

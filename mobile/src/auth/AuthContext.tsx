@@ -23,6 +23,12 @@ type AuthContextValue = AuthState & {
   refreshMe: () => Promise<void>;
   acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
   switchProfile: (userId: number) => Promise<void>;
+  /**
+   * Remplace localement la liste des profils liés (parent ↔ enfants).
+   * Utilisé par l'écran de gestion des enfants pour synchroniser
+   * ProfileSwitcher sans aller-retour /api/me/linked-profiles.
+   */
+  replaceLinkedProfiles: (list: LinkedProfile[]) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -186,6 +192,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist, router],
   );
 
+  const replaceLinkedProfiles = useCallback((list: LinkedProfile[]) => {
+    setState((s) => ({ ...s, linkedProfiles: list }));
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -196,8 +206,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshMe,
       acknowledgeCharter,
       switchProfile,
+      replaceLinkedProfiles,
     }),
-    [state, loginWithPassword, consumeMagicLink, registerParent, signOut, refreshMe, acknowledgeCharter, switchProfile],
+    [state, loginWithPassword, consumeMagicLink, registerParent, signOut, refreshMe, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,3 +1,4 @@
+import type { LinkedChild, LinkedChildrenResponse } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 
@@ -216,4 +217,14 @@ export const auth = {
   },
 
   deleteAvatar: () => api.delete<void>('/api/me/avatar'),
+
+  // ---- Enfants liés (Phase E : self-service parent) ----
+  listChildren: () => api.get<LinkedChildrenResponse>('/api/me/children'),
+  addChild: (numLicence: string) =>
+    api.post<{ ok: boolean; child: LinkedChild; linkedProfiles: LinkedProfile[] }>(
+      '/api/me/children',
+      { numLicence },
+    ),
+  removeChild: (id: number) =>
+    api.delete<{ ok: boolean; linkedProfiles: LinkedProfile[] }>(`/api/me/children/${id}`),
 };

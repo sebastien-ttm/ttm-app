@@ -214,3 +214,21 @@ export type CharterAnswers = Record<string, string | number | boolean | null>;
 
 export const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '👏'] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
+
+/** Enfant adhérent lié à mon compte parent (Phase E). */
+export type LinkedChild = {
+  id: number;
+  fullName: string;
+  prenom: string;
+  nom: string;
+  numLicence: string | null;
+  licenceLabel: string;
+  categorieFFTri: string | null;
+  profiles: string[];
+  isActive: boolean;
+};
+
+export type LinkedChildrenResponse = {
+  data: LinkedChild[];
+  canManage: boolean;
+};
