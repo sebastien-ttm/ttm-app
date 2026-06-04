@@ -1,4 +1,4 @@
-import type { UserAccountType, UserProfile } from '@/api/client';
+import type { AuthenticatedUser, UserAccountType, UserProfile, UserSubType } from '@/api/client';
 
 /**
  * Libellé d'affichage d'un profil (utilisé pour les badges).
@@ -59,4 +59,43 @@ const PROFILE_ORDER: UserProfile[] = ['jeune', 'senior', 'u25', 'parent', 'entra
 
 export function sortProfiles(profiles: UserProfile[]): UserProfile[] {
   return [...profiles].sort((a, b) => PROFILE_ORDER.indexOf(a) - PROFILE_ORDER.indexOf(b));
+}
+
+const SUBTYPE_LABELS: Record<UserSubType, string> = {
+  club: 'Licencié au club',
+  autre_club: 'Licencié autre club',
+  parent: 'Parent d\'adhérent',
+  ami: 'Ami du club',
+};
+
+export function subTypeLabel(s: UserSubType): string {
+  return SUBTYPE_LABELS[s] ?? s;
+}
+
+/**
+ * Un utilisateur a-t-il accès à l'onglet « Entraînement » dans la nav ?
+ *
+ * Règles (alignées avec la spec Phase D) :
+ *  - Sans numéro de licence (parent externe, ami du club) → non.
+ *  - Dirigeant (typeLicence='Dirigeant') → non (rôle administratif sans entraînement).
+ *  - Sinon → oui.
+ *
+ * Sont en revanche TOUJOURS autorisés les Encadrants / Entraîneurs : le
+ * back-end leur expose toutes les séances (bypass d'audience Phase C),
+ * ce qui leur permet de superviser n'importe quel créneau.
+ */
+export function canSeeTraining(user: AuthenticatedUser | null | undefined): boolean {
+  if (!user) return false;
+  if (!user.numLicence) return false;
+  if (user.isDirigeant) return false;
+  return true;
+}
+
+/**
+ * Le compte donne-t-il droit au QR code piscines (badge d'accès club) ?
+ * Réservé aux adhérents licenciés. Un dirigeant garde l'accès (il est licencié).
+ */
+export function canSeePoolBadge(user: AuthenticatedUser | null | undefined): boolean {
+  if (!user) return false;
+  return !!user.numLicence;
 }

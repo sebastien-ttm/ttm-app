@@ -2,10 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 
+import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
+import { canSeeTraining } from '@/utils/profile';
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+  const showTraining = canSeeTraining(user);
+
   return (
     <Tabs
       screenOptions={{
@@ -46,6 +51,10 @@ export default function TabsLayout() {
         name="training"
         options={{
           title: 'Entraînement',
+          // Parent externe non-licencié + Dirigeant : pas d'entraînement à voir.
+          // href: null retire l'onglet de la barre tout en gardant la route
+          // résolvable (utile pour un éventuel deep link / fallback).
+          href: showTraining ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'fitness' : 'fitness-outline'} color={color} size={22} />
           ),

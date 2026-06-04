@@ -106,8 +106,18 @@ export type UserProfile = 'jeune' | 'senior' | 'u25' | 'parent' | 'entraineur' |
 /** Provenance du compte. */
 export type UserAccountType = 'adherent' | 'externe';
 
-/** Niveau d'accès (gate, pas permission fine). */
-export type UserRole = 'user' | 'admin';
+/**
+ * Sous-type, précise davantage selon le type :
+ *  - adherent : 'club' (licencié au club) | 'autre_club' (licencié ailleurs)
+ *  - externe  : 'parent' (parent d'adhérent) | 'ami' (ancien adhérent / soutien)
+ */
+export type UserSubType = 'club' | 'autre_club' | 'parent' | 'ami';
+
+/**
+ * Niveau d'accès au backend (gate, pas permission fine).
+ * 4 tiers hiérarchiques depuis Phase B.
+ */
+export type UserRole = 'user' | 'editeur' | 'entraineur' | 'admin';
 
 export type AuthenticatedUser = {
   id: number;
@@ -117,12 +127,19 @@ export type AuthenticatedUser = {
   fullName: string;
   /** Null pour les comptes externes (parents inscrits via mobile). */
   numLicence: string | null;
+  /** Libellé prêt à afficher : 'Non licencié' OU le numéro. */
+  licenceLabel: string;
   type: UserAccountType;
+  subType: UserSubType;
   profiles: UserProfile[];
   role: UserRole;
+  /** True si typeLicence = 'Dirigeant' (filtrage UI spécifique). */
+  isDirigeant: boolean;
+  /** Catégorie FFTri calculée depuis la date de naissance (Senior, V1, Junior, ...). */
+  categorieFFTri: string | null;
   /** Rétrocompat : 'jeune' / 'senior' / null. Dérivé de profiles[]. */
   categorie: 'senior' | 'jeune' | null;
-  /** Rétrocompat : tableau de rôles Symfony (ROLE_USER, ROLE_ADMIN). */
+  /** Rétrocompat : tableau de rôles Symfony (ROLE_USER, ROLE_EDITEUR, ROLE_ENTRAINEUR, ROLE_ADMIN). */
   roles: string[];
   hasPassword: boolean;
   /** URL publique de l'avatar carré 400×400. Null si pas d'avatar. */

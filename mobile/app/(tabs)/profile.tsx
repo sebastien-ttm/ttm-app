@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { ApiError, auth as authApi } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
-import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles } from '@/utils/profile';
+import { accountTypeColor, accountTypeLabel, canSeePoolBadge, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
 
 const AVATAR_SIZE = 96;
 
@@ -19,8 +19,14 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const isAdmin = user.role === 'admin';
+  const hasBackendAccess = user.role === 'admin' || user.role === 'entraineur' || user.role === 'editeur';
+  const backendRoleLabel =
+    user.role === 'admin' ? 'Admin'
+    : user.role === 'entraineur' ? 'Entraîneur (backend)'
+    : user.role === 'editeur' ? 'Éditeur (backend)'
+    : null;
   const profiles = sortProfiles(user.profiles ?? []);
+  const showPoolBadge = canSeePoolBadge(user);
 
   async function pickAvatar() {
     if (uploading) return;
@@ -113,7 +119,8 @@ export default function ProfileScreen() {
 
         <View style={styles.badgeRow}>
           <Badge color={accountTypeColor(user.type)} label={accountTypeLabel(user.type)} />
-          {isAdmin && <Badge color="#D32F2F" label="Admin" />}
+          {user.isDirigeant && <Badge color="#f59e0b" label="Dirigeant" />}
+          {hasBackendAccess && backendRoleLabel && <Badge color="#D32F2F" label={backendRoleLabel} />}
           {profiles.map((p) => (
             <Badge key={p} color={profileColor(p)} label={profileLabel(p)} />
           ))}
@@ -121,7 +128,9 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.card}>
-        <Row label="N° de licence" value={user.numLicence ?? '—'} />
+        <Row label="N° de licence" value={user.licenceLabel} />
+        <Row label="Statut" value={subTypeLabel(user.subType)} />
+        {user.categorieFFTri && <Row label="Catégorie FFTri" value={user.categorieFFTri} />}
 
         <Pressable
           style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
@@ -139,21 +148,23 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
-          onPress={() => router.push('/pool-badge' as never)}
-        >
-          <View style={styles.qrIcon}>
-            <Ionicons name="qr-code-outline" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Accès piscines</Text>
-            <Text style={styles.actionHint}>QR code à présenter à l'entrée</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-        </Pressable>
-      </View>
+      {showPoolBadge && (
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+            onPress={() => router.push('/pool-badge' as never)}
+          >
+            <View style={styles.qrIcon}>
+              <Ionicons name="qr-code-outline" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Accès piscines</Text>
+              <Text style={styles.actionHint}>QR code à présenter à l'entrée</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+        </View>
+      )}
 
       {(user.profiles.includes('encadrant') || user.profiles.includes('entraineur')) && (
         <View style={styles.card}>

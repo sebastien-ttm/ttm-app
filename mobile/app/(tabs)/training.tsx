@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -13,15 +13,28 @@ import {
 import { ApiError } from '@/api/client';
 import { trainingSchedule as scheduleApi } from '@/api/resources';
 import type { TrainingPlan, TrainingSlot, TrainingSlotAttachment, WeeklySchedule } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { canSeeTraining } from '@/utils/profile';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingScreen() {
+  const { user } = useAuth();
+  // Garde-fou : si l'utilisateur n'est pas censé voir l'onglet
+  // (parent non-licencié / dirigeant), un deep link direct retombe sur le feed.
+  // Le check est en amont pour préserver la règle des hooks dans TrainingScreenInner.
+  if (!canSeeTraining(user)) {
+    return <Redirect href="/(tabs)" />;
+  }
+  return <TrainingScreenInner />;
+}
+
+function TrainingScreenInner() {
   const router = useRouter();
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
