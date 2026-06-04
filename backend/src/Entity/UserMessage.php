@@ -99,6 +99,19 @@ class UserMessage
     public function getReply(): ?string { return $this->reply; }
 
     /**
+     * Setter brut, requis par Symfony Form pour binder le champ d'édition.
+     * Ne porte AUCUNE garantie « une seule fois » : c'est le CRUD admin
+     * (UserMessageCrudController::updateEntity) qui rejette les mutations
+     * post-réponse en rechargeant l'entité depuis la BDD, et qui crédite
+     * l'auteur + l'horodatage via setReplyOnce() ci-dessous.
+     */
+    public function setReply(?string $reply): self
+    {
+        $this->reply = $reply;
+        return $this;
+    }
+
+    /**
      * Pose la réponse + horodate + crédite l'auteur. NO-OP si déjà répondu
      * (règle « une seule réponse »). Renvoie true si la réponse a été acceptée.
      */
