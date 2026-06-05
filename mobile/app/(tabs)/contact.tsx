@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
 import type { UserMessage } from '@/api/types';
@@ -18,10 +17,11 @@ import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
- * Liste de mes messages envoyés (vers le club ou un entraîneur).
- * Affiche la réponse en ligne quand elle existe.
+ * Onglet « Contact » : liste de mes messages envoyés au club ou à un
+ * entraîneur, avec leur réponse éventuelle. Bouton « Nouveau message »
+ * en tête. Précédemment sous /profile/messages — déplacé en tab dédié.
  */
-export default function ProfileMessagesScreen() {
+export default function ContactScreen() {
   const router = useRouter();
   const [items, setItems] = useState<UserMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,52 +41,50 @@ export default function ProfileMessagesScreen() {
     }
   }, []);
 
-  // Recharge à chaque retour sur l'écran (notamment après envoi).
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, styles.center]}>
-        <Stack.Screen options={{ title: 'Mes messages' }} />
+      <View style={[styles.container, styles.center]}>
         <ActivityIndicator color={COLORS.primary} />
-      </SafeAreaView>
+      </View>
     );
   }
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{ title: 'Mes messages' }} />
+      <View style={styles.container}>
         <ErrorState message={error} onRetry={() => { setLoading(true); void load(); }} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Mes messages' }} />
-      <FlatList
-        data={items}
-        keyExtractor={(m) => String(m.id)}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <Pressable
-            style={styles.newButton}
-            onPress={() => router.push('/profile/messages/new' as never)}
-          >
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.newButtonLabel}>Nouveau message</Text>
-          </Pressable>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Ionicons name="chatbubble-ellipses-outline" size={32} color={COLORS.textMuted} />
-            <Text style={styles.emptyLabel}>Vous n'avez pas encore envoyé de message.</Text>
-          </View>
-        }
-        renderItem={({ item }) => <MessageCard m={item} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
-      />
-    </SafeAreaView>
+    <FlatList
+      style={styles.container}
+      data={items}
+      keyExtractor={(m) => String(m.id)}
+      contentContainerStyle={styles.list}
+      ListHeaderComponent={
+        <Pressable
+          style={styles.newButton}
+          onPress={() => router.push('/contact/new' as never)}
+        >
+          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Text style={styles.newButtonLabel}>Nouveau message</Text>
+        </Pressable>
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyCard}>
+          <Ionicons name="chatbubble-ellipses-outline" size={32} color={COLORS.textMuted} />
+          <Text style={styles.emptyLabel}>
+            Vous n'avez pas encore envoyé de message.{'\n'}
+            Contactez le club ou un entraîneur depuis le bouton ci-dessus.
+          </Text>
+        </View>
+      }
+      renderItem={({ item }) => <MessageCard m={item} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+    />
   );
 }
 
@@ -149,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  emptyLabel: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyLabel: { color: COLORS.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 18 },
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,

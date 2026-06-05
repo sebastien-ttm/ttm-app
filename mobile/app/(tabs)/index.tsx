@@ -7,6 +7,7 @@ import type { Article } from '@/api/types';
 import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { UpcomingEvents } from '@/components/UpcomingEvents';
 import { COLORS } from '@/config';
 
 const PAGE_SIZE = 20;
@@ -74,7 +75,12 @@ export default function FeedScreen() {
         data={items}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <ArticleCard article={item} />}
-        ListHeaderComponent={<BannerImage />}
+        ListHeaderComponent={
+          <View>
+            <BannerImage />
+            <UpcomingEvents />
+          </View>
+        }
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         onEndReached={onEndReached}

@@ -41,7 +41,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Actus',
+          title: 'Vie du Club',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'newspaper' : 'newspaper-outline'} color={color} size={22} />
           ),
@@ -52,8 +52,6 @@ export default function TabsLayout() {
         options={{
           title: 'Entraînement',
           // Parent externe non-licencié + Dirigeant : pas d'entraînement à voir.
-          // href: null retire l'onglet de la barre tout en gardant la route
-          // résolvable (utile pour un éventuel deep link / fallback).
           href: showTraining ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'fitness' : 'fitness-outline'} color={color} size={22} />
@@ -61,20 +59,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="practical"
         options={{
-          title: 'Calendrier',
+          title: 'Pratique',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={22} />
+            <Ionicons name={focused ? 'compass' : 'compass-outline'} color={color} size={22} />
           ),
         }}
       />
       <Tabs.Screen
-        name="pages"
+        name="contact"
         options={{
-          title: 'Pages',
+          title: 'Contact',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'library' : 'library-outline'} color={color} size={22} />
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} size={22} />
           ),
         }}
       />
@@ -87,6 +85,11 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {/* Le calendrier reste accessible comme route (/calendar) — ouvert
+          depuis « Vie du club » via le lien « Voir tout le calendrier ».
+          On le déclare ici avec href=null pour qu'expo-router le résolve
+          dans le contexte du Tabs sans le faire apparaître dans la barre. */}
+      <Tabs.Screen name="calendar" options={{ href: null }} />
     </Tabs>
   );
 }

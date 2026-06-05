@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -36,6 +37,8 @@ export default function TrainingScreen() {
 
 function TrainingScreenInner() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isStaff = !!user && (user.profiles.includes('encadrant') || user.profiles.includes('entraineur'));
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +103,25 @@ function TrainingScreenInner() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
         >
+          {/* Raccourci Mes Présences (encadrant / entraîneur uniquement) */}
+          {isStaff && (
+            <Pressable
+              style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/staff-presence' as never)}
+            >
+              <View style={stylesStaff.iconWrap}>
+                <Ionicons name="checkmark-circle" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={stylesStaff.title}>Mes présences</Text>
+                <Text style={stylesStaff.sub}>
+                  Réserver / confirmer ma présence sur les créneaux que j'encadre
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          )}
+
           {/* Plans (PDF) de la semaine */}
           {(data?.plans ?? []).length > 0 && (
             <View style={styles.section}>
@@ -318,4 +340,28 @@ const styles = StyleSheet.create({
   planTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   planDesc: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
   planMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
+});
+
+const stylesStaff = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.brandNavy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });

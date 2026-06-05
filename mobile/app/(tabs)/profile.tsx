@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { ApiError, auth as authApi } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
-import { accountTypeColor, accountTypeLabel, canSeePoolBadge, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
+import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
 
 const AVATAR_SIZE = 96;
 
@@ -26,7 +26,6 @@ export default function ProfileScreen() {
     : user.role === 'editeur' ? 'Éditeur (backend)'
     : null;
   const profiles = sortProfiles(user.profiles ?? []);
-  const showPoolBadge = canSeePoolBadge(user);
   // Section « Mes enfants » : visible pour tout compte qui s'identifie
   // comme parent (profile Parent OU parent externe).
   const showChildrenManager = user.profiles.includes('parent') || (user.type === 'externe' && user.subType === 'parent');
@@ -151,41 +150,6 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      {showPoolBadge && (
-        <View style={styles.card}>
-          <Pressable
-            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
-            onPress={() => router.push('/pool-badge' as never)}
-          >
-            <View style={styles.qrIcon}>
-              <Ionicons name="qr-code-outline" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Accès piscines</Text>
-              <Text style={styles.actionHint}>QR code à présenter à l'entrée</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </Pressable>
-        </View>
-      )}
-
-      {(user.profiles.includes('encadrant') || user.profiles.includes('entraineur')) && (
-        <View style={styles.card}>
-          <Pressable
-            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
-            onPress={() => router.push('/staff-presence' as never)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Mes présences</Text>
-              <Text style={styles.actionHint}>
-                Réserver / confirmer ma présence sur les créneaux que j'encadre
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </Pressable>
-        </View>
-      )}
-
       {showChildrenManager && (
         <View style={styles.card}>
           <Pressable
@@ -205,24 +169,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       )}
-
-      <View style={styles.card}>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
-          onPress={() => router.push('/profile/messages' as never)}
-        >
-          <View style={styles.qrIcon}>
-            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Mes messages</Text>
-            <Text style={styles.actionHint}>
-              Contacter le club ou un entraîneur, voir les réponses
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-        </Pressable>
-      </View>
 
       <Pressable style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
