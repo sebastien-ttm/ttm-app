@@ -8,8 +8,8 @@ use App\Enum\EventType;
 use App\Enum\Profile;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ColorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -38,14 +38,17 @@ class EventCrudController extends AbstractCrudController
                 array_map(fn ($c) => $c->label(), EventType::cases()),
                 EventType::cases()
             ))
-            ->renderAsBadges();
-        yield DateTimeField::new('startsAt', 'Début');
-        yield DateTimeField::new('endsAt', 'Fin')->setRequired(false);
+            ->renderAsBadges()
+            ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
+        yield BooleanField::new('isAllDay', 'Toute la journée')
+            ->setHelp('Cocher si l\'événement n\'a pas d\'heure précise — l\'heure ne sera pas affichée dans l\'app mobile.');
+        yield DateTimeField::new('startsAt', 'Début')
+            ->setHelp('Si « Toute la journée » est coché, seule la date compte.');
+        yield DateTimeField::new('endsAt', 'Fin')
+            ->setRequired(false)
+            ->setHelp('Optionnel. Pour un événement multi-jours, mettez la date de fin.');
         yield TextField::new('location', 'Lieu')->setRequired(false);
         yield TextareaField::new('description')->setRequired(false)->hideOnIndex();
-        yield ColorField::new('color', 'Couleur')
-            ->setRequired(false)
-            ->setHelp('Vide = couleur par défaut du type.');
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()

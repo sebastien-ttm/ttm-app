@@ -99,7 +99,9 @@ function EventRow({ event }: { event: EventItem }) {
         <Text style={styles.eventSub} numberOfLines={1}>
           {isMultiDay && end
             ? `${weekdayShort(start)} → ${weekdayShort(end)}`
-            : `${weekdayShort(start)} ${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
+            : event.isAllDay
+              ? weekdayShort(start)
+              : `${weekdayShort(start)} ${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
           {event.location ? ` · ${event.location}` : ''}
         </Text>
       </View>

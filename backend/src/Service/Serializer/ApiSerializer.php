@@ -188,6 +188,7 @@ class ApiSerializer
             'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
             'type' => $e->getType()->value,
             'color' => $e->getColor(),
+            'isAllDay' => $e->isAllDay(),
             'audience' => $e->getAudience(),
             'contentAudience' => $e->getContentAudience(),
         ];

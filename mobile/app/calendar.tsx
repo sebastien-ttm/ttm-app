@@ -8,13 +8,14 @@ import type { EventItem } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MonthCalendar } from '@/components/MonthCalendar';
 import { COLORS } from '@/config';
-import { formatDateTime } from '@/utils/html';
+import { formatDate, formatDateTime } from '@/utils/html';
 
 const TYPE_LABEL: Record<EventItem['type'], string> = {
-  course: 'Course',
+  course: 'Compétition',
   stage: 'Stage',
-  entrainement: 'Entraînement',
-  social: 'Événement',
+  entrainement: 'Entraînement exceptionnel',
+  social: 'Événement social',
+  organisation: 'Organisation',
 };
 
 function startOfYear(d: Date): Date {
@@ -149,7 +150,9 @@ function EventRow({ event }: { event: EventItem }) {
       <View style={styles.body}>
         <View style={styles.header}>
           <Text style={[styles.type, { color: event.color }]}>{TYPE_LABEL[event.type]}</Text>
-          <Text style={styles.date}>{formatDateTime(event.startsAt)}</Text>
+          <Text style={styles.date}>
+            {event.isAllDay ? formatDate(event.startsAt) : formatDateTime(event.startsAt)}
+          </Text>
         </View>
         <Text style={styles.title}>{event.title}</Text>
         {event.location && <Text style={styles.location}>📍 {event.location}</Text>}

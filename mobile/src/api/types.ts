@@ -85,8 +85,10 @@ export type EventItem = {
   location: string | null;
   startsAt: string;
   endsAt: string | null;
-  type: 'course' | 'stage' | 'entrainement' | 'social';
+  type: 'course' | 'stage' | 'entrainement' | 'social' | 'organisation';
   color: string;
+  /** True = événement « toute la journée » : ne pas afficher l'heure. */
+  isAllDay: boolean;
 };
 
 export type Banner = {

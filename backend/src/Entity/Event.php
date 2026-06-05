@@ -42,9 +42,12 @@ class Event
     #[ORM\Column(length: 16, enumType: EventType::class)]
     private EventType $type = EventType::Entrainement;
 
-    #[ORM\Column(length: 7, nullable: true)]
-    #[Assert\Regex(pattern: '/^#[0-9A-Fa-f]{6}$/', message: 'Format hex attendu : #RRGGBB')]
-    private ?string $color = null;
+    /**
+     * Événement « toute la journée » : pas d'heure significative.
+     * L'app mobile masque l'heure (et le créneau) si vrai.
+     */
+    #[ORM\Column(name: 'is_all_day', options: ['default' => false])]
+    private bool $isAllDay = false;
 
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
@@ -60,12 +63,14 @@ class Event
     public function getType(): EventType { return $this->type; }
     public function setType(EventType $type): self { $this->type = $type; return $this; }
 
+    public function isAllDay(): bool { return $this->isAllDay; }
+    public function setIsAllDay(bool $v): self { $this->isAllDay = $v; return $this; }
+
+    /** Couleur dérivée du type — plus de surcharge possible (palette club). */
     public function getColor(): string
     {
-        return $this->color ?? $this->type->defaultColor();
+        return $this->type->color();
     }
-
-    public function setColor(?string $color): self { $this->color = $color; return $this; }
 
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }
