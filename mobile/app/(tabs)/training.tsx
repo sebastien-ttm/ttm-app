@@ -105,21 +105,23 @@ function TrainingScreenInner() {
         >
           {/* Raccourci Mes Présences (encadrant / entraîneur uniquement) */}
           {isStaff && (
-            <Pressable
-              style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
-              onPress={() => router.push('/staff-presence' as never)}
-            >
-              <View style={stylesStaff.iconWrap}>
-                <Ionicons name="checkmark-circle" size={22} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={stylesStaff.title}>Mes présences</Text>
-                <Text style={stylesStaff.sub}>
-                  Réserver / confirmer ma présence sur les créneaux que j'encadre
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-            </Pressable>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>✅ Mes présences</Text>
+              <Pressable
+                style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
+                onPress={() => router.push('/staff-presence' as never)}
+              >
+                <View style={stylesStaff.iconWrap}>
+                  <Ionicons name="checkmark-circle" size={22} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesStaff.title}>
+                    Réserver / Confirmer ma présence sur les créneaux que j'encadre
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            </View>
           )}
 
           {/* Plans (PDF) de la semaine */}

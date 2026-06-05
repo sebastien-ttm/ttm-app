@@ -50,7 +50,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="training"
         options={{
-          title: 'Entraînement',
+          title: 'Entraînements',
           // Parent externe non-licencié + Dirigeant : pas d'entraînement à voir.
           href: showTraining ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
@@ -85,11 +85,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Le calendrier reste accessible comme route (/calendar) — ouvert
-          depuis « Vie du club » via le lien « Voir tout le calendrier ».
-          On le déclare ici avec href=null pour qu'expo-router le résolve
-          dans le contexte du Tabs sans le faire apparaître dans la barre. */}
-      <Tabs.Screen name="calendar" options={{ href: null }} />
     </Tabs>
   );
 }

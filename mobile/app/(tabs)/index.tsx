@@ -79,6 +79,7 @@ export default function FeedScreen() {
           <View>
             <BannerImage />
             <UpcomingEvents />
+            {items.length > 0 && <Text style={styles.sectionTitle}>📰 Actus</Text>}
           </View>
         }
         contentContainerStyle={styles.content}
@@ -111,4 +112,14 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   footer: { paddingVertical: 16, alignItems: 'center' },
   endLabel: { textAlign: 'center', color: COLORS.textMuted, paddingVertical: 20, fontSize: 13 },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
 });

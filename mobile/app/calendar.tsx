@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -85,49 +86,59 @@ export default function CalendarScreen() {
     });
   }, [items, selectedDate]);
 
-  if (loading) return <FullScreenLoading />;
+  if (loading) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Calendrier' }} />
+        <FullScreenLoading />
+      </>
+    );
+  }
 
   return (
-    <FlatList
-      data={listData}
-      keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <EventRow event={item} />}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
-      ListHeaderComponent={
-        <>
-          <MonthCalendar
-            visibleMonth={visibleMonth}
-            events={items}
-            selectedDate={selectedDate}
-            onChangeMonth={setVisibleMonth}
-            onSelectDate={setSelectedDate}
-          />
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>
-              {selectedDate
-                ? `Événements du ${selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
-                : 'Tous les événements à venir'}
-            </Text>
-            {selectedDate && (
-              <Pressable onPress={() => setSelectedDate(null)} hitSlop={6}>
-                <Text style={styles.clearLabel}>Tout afficher</Text>
-              </Pressable>
-            )}
-          </View>
-        </>
-      }
-      ListEmptyComponent={
-        error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : selectedDate ? (
-          <EmptyState icon="📅" title="Aucun événement ce jour" />
-        ) : (
-          <EmptyState icon="📅" title="Pas d'événement programmé" message="Le calendrier sera bientôt rempli." />
-        )
-      }
-      style={{ backgroundColor: COLORS.background }}
-    />
+    <>
+      <Stack.Screen options={{ title: 'Calendrier' }} />
+      <FlatList
+        data={listData}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => <EventRow event={item} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        ListHeaderComponent={
+          <>
+            <MonthCalendar
+              visibleMonth={visibleMonth}
+              events={items}
+              selectedDate={selectedDate}
+              onChangeMonth={setVisibleMonth}
+              onSelectDate={setSelectedDate}
+            />
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>
+                {selectedDate
+                  ? `Événements du ${selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+                  : 'Tous les événements à venir'}
+              </Text>
+              {selectedDate && (
+                <Pressable onPress={() => setSelectedDate(null)} hitSlop={6}>
+                  <Text style={styles.clearLabel}>Tout afficher</Text>
+                </Pressable>
+              )}
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          error ? (
+            <ErrorState message={error} onRetry={load} />
+          ) : selectedDate ? (
+            <EmptyState icon="📅" title="Aucun événement ce jour" />
+          ) : (
+            <EmptyState icon="📅" title="Pas d'événement programmé" message="Le calendrier sera bientôt rempli." />
+          )
+        }
+        style={{ backgroundColor: COLORS.background }}
+      />
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -52,6 +52,7 @@ export default function StaffPresenceScreen() {
   if (user && !user.profiles.includes('encadrant') && !user.profiles.includes('entraineur')) {
     return (
       <SafeAreaView style={styles.root}>
+        <Stack.Screen options={{ title: 'Mes Présences' }} />
         <EmptyState
           icon="🔒"
           title="Accès réservé"
@@ -136,6 +137,7 @@ export default function StaffPresenceScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
+        <Stack.Screen options={{ title: 'Mes Présences' }} />
         <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
         <FullScreenLoading />
       </SafeAreaView>
@@ -143,12 +145,9 @@ export default function StaffPresenceScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
+      <Stack.Screen options={{ title: 'Mes Présences' }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backLabel}>← Retour</Text>
-        </Pressable>
-        <Text style={styles.title}>Mes présences</Text>
         <Text style={styles.subtitle}>
           Positionnez-vous à l'avance ou confirmez votre présence sur les créneaux.
         </Text>

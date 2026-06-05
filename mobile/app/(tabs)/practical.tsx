@@ -59,21 +59,24 @@ export default function PracticalScreen() {
       keyExtractor={(item) => item.slug}
       renderItem={({ item }) => <PageNodeRow node={item} depth={0} />}
       ListHeaderComponent={
-        showPool ? (
-          <Pressable
-            onPress={() => router.push('/pool-badge' as never)}
-            style={({ pressed }) => [styles.poolCard, pressed && { opacity: 0.7 }]}
-          >
-            <View style={styles.poolIcon}>
-              <Ionicons name="qr-code" size={26} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.poolTitle}>Accès piscines</Text>
-              <Text style={styles.poolSub}>Afficher le QR code à présenter à l'entrée</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </Pressable>
-        ) : null
+        <View>
+          {showPool && (
+            <Pressable
+              onPress={() => router.push('/pool-badge' as never)}
+              style={({ pressed }) => [styles.poolCard, pressed && { opacity: 0.7 }]}
+            >
+              <View style={styles.poolIcon}>
+                <Ionicons name="qr-code" size={26} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.poolTitle}>Accès piscines</Text>
+                <Text style={styles.poolSub}>Afficher le QR code à présenter à l'entrée</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          )}
+          {tree.length > 0 && <Text style={styles.sectionTitle}>📚 Informations</Text>}
+        </View>
       }
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
@@ -160,6 +163,16 @@ const styles = StyleSheet.create({
   },
   poolTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   poolSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
