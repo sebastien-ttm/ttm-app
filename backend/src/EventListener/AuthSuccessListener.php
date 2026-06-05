@@ -2,9 +2,11 @@
 
 namespace App\EventListener;
 
+use App\Entity\LoginEvent;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\LoginRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -19,6 +21,7 @@ class AuthSuccessListener
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
         private readonly AvatarService $avatars,
+        private readonly LoginRecorder $loginRecorder,
         private readonly int $refreshTtl = 2592000,
     ) {
     }
@@ -41,9 +44,9 @@ class AuthSuccessListener
         $data['linkedProfiles'] = self::serializeLinkedProfiles($user, $this->users);
         $event->setData($data);
 
-        // Suivi de connexion (mobile)
-        $user->recordLogin();
-        $this->em->flush();
+        // Suivi de connexion (mobile) — met à jour lastLoginAt + loginCount
+        // ET persiste un LoginEvent pour les stats fines.
+        $this->loginRecorder->record($user, LoginEvent::CHANNEL_MOBILE);
     }
 
     /**

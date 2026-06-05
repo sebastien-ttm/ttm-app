@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\LoginEvent;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Enum\UserType;
@@ -9,6 +10,7 @@ use App\EventListener\AuthSuccessListener;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\LoginRecorder;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
@@ -37,6 +39,7 @@ class AuthController extends AbstractController
         private readonly UserPasswordHasherInterface $hasher,
         private readonly EntityManagerInterface $em,
         private readonly AvatarService $avatars,
+        private readonly LoginRecorder $loginRecorder,
     ) {
     }
 
@@ -100,9 +103,8 @@ class AuthController extends AbstractController
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($user, 2592000);
         $this->refreshTokenManager->save($refresh);
 
-        // Suivi de connexion (magic link)
-        $user->recordLogin();
-        $this->em->flush();
+        // Suivi de connexion (magic link) — User.lastLoginAt + LoginEvent
+        $this->loginRecorder->record($user, LoginEvent::CHANNEL_MOBILE);
 
         // IMPORTANT : le champ "token" doit avoir la même casse/clé que la
         // réponse du login JSON Lexik, sinon les clients (mobile) ne savent
@@ -218,8 +220,7 @@ class AuthController extends AbstractController
         $this->refreshTokenManager->save($refresh);
 
         // Suivi : inscription = première connexion
-        $parent->recordLogin();
-        $this->em->flush();
+        $this->loginRecorder->record($parent, LoginEvent::CHANNEL_MOBILE);
 
         return new JsonResponse([
             'token' => $accessToken,

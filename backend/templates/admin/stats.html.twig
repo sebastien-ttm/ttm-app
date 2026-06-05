@@ -1,0 +1,90 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}📊 Statistiques d'usage{% endblock %}
+
+{% block main %}
+    <p style="color:#666; margin-bottom: 24px;">
+        Activité de connexion (mobile + admin). Données agrégées à partir des
+        événements depuis la mise en place du tracking — l'historique antérieur
+        n'est pas reconstitué.
+    </p>
+
+    {# === KPIs ============================================================ #}
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
+        {{ _self.kpi('Connexions aujourd\'hui', kpis.loginsToday, '#0d2148', '🔥') }}
+        {{ _self.kpi('Comptes actifs cette semaine', kpis.activeThisWeek, '#16a34a', '👥', '7 derniers jours') }}
+        {{ _self.kpi('Connexions ce mois', kpis.loginsThisMonth, '#1d4ed8', '📈', '30 derniers jours') }}
+        {{ _self.kpi('Comptes actifs ce mois', kpis.activeThisMonth, '#7c3aed', '✨', '30 derniers jours') }}
+        {{ _self.kpi('Comptes jamais connectés', kpis.neverLoggedIn, kpis.neverLoggedIn > 0 ? '#ea580c' : '#999', '💤', 'sur ' ~ kpis.totalActiveAccounts ~ ' comptes actifs') }}
+    </div>
+
+    {# === Graphique évolution ============================================= #}
+    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px;">
+        <h3 style="margin-top:0; margin-bottom:16px;">Connexions par jour (30 derniers jours)</h3>
+        <div style="position: relative; height: 320px;">
+            <canvas id="loginsChart"></canvas>
+        </div>
+    </div>
+
+    {# === Accès rapides =================================================== #}
+    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <h3 style="margin-top:0; margin-bottom:12px;">Aller plus loin</h3>
+        <p style="color:#555; margin-bottom:16px;">
+            Pour explorer en détail (qui s'est connecté quand) : la liste des adhérents
+            est filtrable par dernière connexion.
+        </p>
+        <a href="{{ ea_url().setController('App\\Controller\\Admin\\UserCrudController').setAction('index') }}"
+           class="btn btn-secondary">
+            Liste des adhérents →
+        </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var labels = {{ series|map(p => p.label)|json_encode|raw }};
+            var data = {{ series|map(p => p.count)|json_encode|raw }};
+            var ctx = document.getElementById('loginsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Connexions',
+                        data: data,
+                        backgroundColor: 'rgba(211, 47, 47, 0.7)',
+                        borderColor: '#D32F2F',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function (c) { return c.parsed.y + ' connexion(s)'; } } },
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { grid: { display: false } },
+                    },
+                },
+            });
+        })();
+    </script>
+{% endblock %}
+
+{# === Macros ============================================================= #}
+{% macro kpi(label, value, color, emoji, sub = null) %}
+    <div style="background:#fff; border-left:4px solid {{ color }}; border-radius:8px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <span style="font-size:20px;">{{ emoji }}</span>
+            <span style="font-size:12px; color:#666; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">{{ label }}</span>
+        </div>
+        <div style="font-size:32px; font-weight:700; color:{{ color }}; line-height:1.1;">{{ value }}</div>
+        {% if sub %}
+            <div style="font-size:11px; color:#999; margin-top:4px;">{{ sub }}</div>
+        {% endif %}
+    </div>
+{% endmacro %}

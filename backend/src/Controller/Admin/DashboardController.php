@@ -66,6 +66,8 @@ class DashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield AdminMenuItem::linktoDashboard('Accueil', 'fa fa-home');
+        yield AdminMenuItem::linkToRoute('Statistiques', 'fa fa-chart-line', 'admin_stats')
+            ->setPermission('ROLE_ENTRAINEUR');
 
         yield AdminMenuItem::section('Communication');
         yield AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)

@@ -2,20 +2,21 @@
 
 namespace App\EventListener;
 
+use App\Entity\LoginEvent;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\LoginRecorder;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 
 /**
- * Met à jour lastLoginAt + loginCount à chaque connexion admin
- * (form login web). La connexion mobile (JWT) est gérée par
- * AuthSuccessListener.
+ * Met à jour lastLoginAt + loginCount + persiste un LoginEvent à
+ * chaque connexion admin (form login web). La connexion mobile (JWT)
+ * est gérée par AuthSuccessListener.
  */
 class AdminLoginListener
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly LoginRecorder $recorder,
     ) {
     }
 
@@ -26,7 +27,6 @@ class AdminLoginListener
         if (!$user instanceof User) {
             return;
         }
-        $user->recordLogin();
-        $this->em->flush();
+        $this->recorder->record($user, LoginEvent::CHANNEL_ADMIN);
     }
 }
