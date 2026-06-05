@@ -76,24 +76,50 @@ export function UpcomingEvents() {
 function EventRow({ event }: { event: EventItem }) {
   const router = useRouter();
   const start = new Date(event.startsAt);
+  const end = event.endsAt ? new Date(event.endsAt) : null;
+  const color = event.color || COLORS.primary;
+  const isMultiDay = end !== null && !sameDay(start, end);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       onPress={() => router.push('/calendar' as never)}
     >
-      <View style={[styles.dateBox, { backgroundColor: event.color || COLORS.primary }]}>
-        <Text style={styles.dateDay}>{start.getDate()}</Text>
-        <Text style={styles.dateMonth}>{monthShort(start)}</Text>
-      </View>
+      {isMultiDay && end ? (
+        <View style={styles.dateRange}>
+          <DateBox date={start} color={color} />
+          <Ionicons name="arrow-forward" size={12} color={COLORS.textMuted} style={styles.dateArrow} />
+          <DateBox date={end} color={color} />
+        </View>
+      ) : (
+        <DateBox date={start} color={color} />
+      )}
       <View style={{ flex: 1 }}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
         <Text style={styles.eventSub} numberOfLines={1}>
-          {weekdayShort(start)} {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          {isMultiDay && end
+            ? `${weekdayShort(start)} → ${weekdayShort(end)}`
+            : `${weekdayShort(start)} ${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
           {event.location ? ` · ${event.location}` : ''}
         </Text>
       </View>
     </Pressable>
   );
+}
+
+function DateBox({ date, color }: { date: Date; color: string }) {
+  return (
+    <View style={[styles.dateBox, { backgroundColor: color }]}>
+      <Text style={styles.dateDay}>{date.getDate()}</Text>
+      <Text style={styles.dateMonth}>{monthShort(date)}</Text>
+    </View>
+  );
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
 }
 
 function monthShort(d: Date): string {
@@ -120,12 +146,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dateBox: {
-    width: 48,
+    width: 44,
     height: 48,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dateRange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dateArrow: { marginHorizontal: 1 },
   dateDay: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
   dateMonth: { color: '#fff', fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
   eventTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
