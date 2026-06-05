@@ -240,8 +240,12 @@ function SlotCard({
   const presence = slot.myPresence;
   const isPlanned = presence?.status === 'scheduled';
   const isAttended = presence?.status === 'attended';
-  const today = toIsoDate(new Date());
-  const isPast = slot.date < today;
+  // « Passé » au sens de la bascule du bouton : le créneau a déjà commencé.
+  // On compare au start datetime exact (slot.date + slot.startTime), pas
+  // juste à la date — sinon un créneau à 18h apparaîtrait encore comme
+  // « Je serai là » à 17h le jour même.
+  const slotStart = new Date(`${slot.date}T${slot.startTime}:00`);
+  const isPast = Date.now() >= slotStart.getTime();
 
   return (
     <View style={styles.slot}>
