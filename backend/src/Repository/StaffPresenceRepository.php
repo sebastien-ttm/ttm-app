@@ -41,6 +41,21 @@ class StaffPresenceRepository extends ServiceEntityRepository
     }
 
     /**
+     * Combien d'utilisateurs se sont positionnés sur ce créneau ?
+     * Utilisé par « Restaurer le modèle » pour décider entre suppression
+     * franche (0 présence) et soft reset (préserve les présences).
+     */
+    public function countForSlot(TrainingSlot $slot): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->where('p.slot = :s')
+            ->setParameter('s', $slot)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * Toutes les présences d'une semaine pour TOUS les staff (encadrants
      * et entraîneurs), groupées par user_id.
      *

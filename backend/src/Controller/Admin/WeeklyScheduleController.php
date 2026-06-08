@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Enum\Sport;
+use App\Repository\StaffPresenceRepository;
 use App\Repository\TrainingSlotAttachmentRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
@@ -35,6 +36,7 @@ class WeeklyScheduleController extends AbstractController
         private readonly TrainingSlotRepository $slots,
         private readonly TrainingSlotAttachmentRepository $attachments,
         private readonly AttachmentService $attachmentService,
+        private readonly StaffPresenceRepository $presences,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -122,10 +124,36 @@ class WeeklyScheduleController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if ($slot->getTemplate() !== null) {
-            // Override : supprime pour revenir au template virtuel
-            $this->em->remove($slot);
-            $this->addFlash('success', 'Créneau restauré (la semaine type s\'applique à nouveau).');
+        $template = $slot->getTemplate();
+        if ($template !== null) {
+            // Stratégie hybride :
+            //  - Si le slot porte des présences staff OU des pièces jointes,
+            //    on NE supprime PAS la ligne (sinon cascade DELETE des
+            //    présences via FK onDelete=CASCADE). À la place, on
+            //    réinitialise les champs aux valeurs du template (soft
+            //    reset). differsMateriallyFromTemplate() retournera false
+            //    → le créneau redevient « virtuel » dans l'UI, sans badge
+            //    « Modifié » ni bouton « Restaurer ».
+            //  - Sinon (override pur, aucune donnée rattachée), suppression
+            //    franche comme avant : la ligne disparaît de la BDD.
+            $hasPresences = $this->presences->countForSlot($slot) > 0;
+            $hasAttachments = !$slot->getAttachments()->isEmpty();
+
+            if ($hasPresences || $hasAttachments) {
+                $slot->setIsCancelled(false);
+                $slot->fillFromTemplate($template);
+                $slot->setAudience([]); // hérite du template (cf. convention buildWeek)
+                $kept = [];
+                if ($hasPresences) $kept[] = sprintf('%d présence(s)', $this->presences->countForSlot($slot));
+                if ($hasAttachments) $kept[] = sprintf('%d pièce(s) jointe(s)', $slot->getAttachments()->count());
+                $this->addFlash('success', sprintf(
+                    'Créneau restauré (modèle réappliqué). %s conservée(s).',
+                    implode(' et ', $kept),
+                ));
+            } else {
+                $this->em->remove($slot);
+                $this->addFlash('success', 'Créneau restauré (la semaine type s\'applique à nouveau).');
+            }
         } else {
             // Occasionnel : juste réactiver
             $slot->setIsCancelled(false);

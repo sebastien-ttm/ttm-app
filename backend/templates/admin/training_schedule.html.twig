@@ -126,7 +126,7 @@
                                     </form>
                                     {% if r.isOverride %}
                                         <form method="post" action="{{ path('admin_training_schedule_restore') }}" style="display:inline;"
-                                              onsubmit="return confirm('Restaurer le créneau de la semaine type ? Les modifications de cette semaine seront perdues.');">
+                                              onsubmit="return confirm('Restaurer le créneau de la semaine type ? Les modifications de cette semaine (heure, titre, lieu…) seront perdues. Les présences staff et pièces jointes éventuelles sont préservées.');">
                                             <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
                                             <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
                                             <input type="hidden" name="slotId" value="{{ r.id }}" />
