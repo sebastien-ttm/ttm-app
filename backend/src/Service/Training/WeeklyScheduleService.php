@@ -179,7 +179,10 @@ class WeeklyScheduleService
             'location' => $s->getLocation(),
             'description' => $s->getDescription(),
             'isCancelled' => $s->isCancelled(),
-            'isOverride' => $tpl !== null,
+            // « Modifié » : le slot existe en BDD ET diffère matériellement
+            // du template. Un override créé uniquement pour porter une
+            // présence staff ou une pièce jointe ne passe pas en true.
+            'isOverride' => $tpl !== null && $s->differsMateriallyFromTemplate(),
             'isOccasional' => $tpl === null,
             'attachments' => array_map(
                 fn ($att) => [

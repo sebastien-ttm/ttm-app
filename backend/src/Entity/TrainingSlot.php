@@ -149,4 +149,47 @@ class TrainingSlot
         $this->description = $tpl->getDescription();
         return $this;
     }
+
+    /**
+     * Le slot diffère-t-il MATÉRIELLEMENT de son template ?
+     *
+     * On ignore volontairement :
+     *   - les présences staff (relation séparée, sur StaffPresence)
+     *   - les pièces jointes (relation OneToMany attachments)
+     *   - les ID, weekStartsAt (toujours per-semaine)
+     *
+     * Conséquence : un override créé uniquement pour porter une présence
+     * (StaffPresenceService::setForTemplate) ou un fichier attaché n'est
+     * PAS marqué « Modifié » dans l'UI, alors qu'il existe bien en BDD.
+     *
+     * Renvoie false pour un créneau occasionnel (pas de template à comparer).
+     */
+    public function differsMateriallyFromTemplate(): bool
+    {
+        $tpl = $this->template;
+        if ($tpl === null) {
+            return false;
+        }
+        // Annuler un créneau pour cette semaine = différence matérielle.
+        if ($this->isCancelled) {
+            return true;
+        }
+        if ($this->dayOfWeek !== $tpl->getDayOfWeek()) return true;
+        if ($this->startTime->format('H:i:s') !== $tpl->getStartTime()->format('H:i:s')) return true;
+        if ($this->durationMinutes !== $tpl->getDurationMinutes()) return true;
+        if ($this->sport !== $tpl->getSport()) return true;
+        if ($this->title !== $tpl->getTitle()) return true;
+        if ($this->location !== $tpl->getLocation()) return true;
+        if (($this->description ?? '') !== ($tpl->getDescription() ?? '')) return true;
+
+        // Audience : convention WeeklyScheduleService — un slot avec audience
+        // vide hérite de celle du template. Donc une audience vide sur le
+        // slot ne compte PAS comme une différence. Sinon on compare.
+        $slotAud = $this->getAudience();
+        if ($slotAud !== [] && $slotAud !== $tpl->getAudience()) {
+            return true;
+        }
+
+        return false;
+    }
 }
