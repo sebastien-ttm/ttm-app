@@ -39,11 +39,16 @@ class NotifyNewUserMessageMessageHandler
         }
 
         $recipients = $this->resolveRecipients($msg);
+
+        // Claim du verrou AVANT l'envoi (cf. SendTrainingPlanEmailsMessageHandler) :
+        // évite que le cron messenger ne rejoue toute la liste si le script
+        // est tué pendant l'envoi (max_execution_time / --time-limit du
+        // worker). Conséquence : si le worker meurt mid-loop, certains
+        // destinataires ne reçoivent pas le mail — préférable à des doublons.
+        $msg->setRecipientsNotifiedAt(new \DateTimeImmutable());
+        $this->em->flush();
+
         if ($recipients === []) {
-            // Aucun destinataire éligible (ex : entraîneur sans email) —
-            // on marque quand même pour ne pas retenter indéfiniment.
-            $msg->setRecipientsNotifiedAt(new \DateTimeImmutable());
-            $this->em->flush();
             return;
         }
 
@@ -78,23 +83,11 @@ class NotifyNewUserMessageMessageHandler
             }
         }
 
-        // Cas pathologique : aucun mail n'est parti (transport en panne).
-        // On laisse le retry messenger réessayer plus tard.
-        if ($sent === 0 && $failed > 0) {
-            $this->logger->warning('Notif nouveau message : aucun envoi réussi, retry programmé', [
-                'messageId' => $msg->getId(),
-                'failed' => $failed,
-            ]);
-            throw new \RuntimeException('Aucun email envoyé, retry attendu.');
-        }
-
-        $msg->setRecipientsNotifiedAt(new \DateTimeImmutable());
-        $this->em->flush();
-
         $this->logger->info('Notif nouveau message envoyée', [
             'messageId' => $msg->getId(),
             'sent' => $sent,
             'failed' => $failed,
+            'recipients' => count($recipients),
         ]);
     }
 

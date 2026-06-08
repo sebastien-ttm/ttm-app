@@ -34,17 +34,27 @@ class SendTrainingPlanEmailsMessageHandler
         }
 
         // Idempotence : si la dispatch a déjà eu lieu, on ne rejoue pas.
-        // Les retries de la queue Messenger sont donc safe.
         if ($plan->getEmailsSentAt() !== null) {
             return;
         }
 
         $recipients = $this->users->findTrainingPlanEmailRecipients($plan);
+
+        // ⚠️ ON MARQUE AVANT D'ENVOYER (claim du verrou). Pourquoi ?
+        // L'envoi peut prendre 1-2s par destinataire (SMTP O2Switch). Sur
+        // 100 adhérents = ~100-200s, ce qui dépasse parfois la limite de
+        // temps du worker (max_execution_time, --time-limit, etc.). Si le
+        // script est tué AVANT le flush final, emailsSentAt reste NULL et
+        // le prochain cron rejoue TOUTE la liste → envois multiples
+        // (= symptôme « emails toutes les heures » signalé par le user).
+        //
+        // Trade-off accepté : si le worker meurt mid-loop, certains
+        // destinataires ne reçoivent pas le mail. Mais 0 doublon, ce qui
+        // est largement préférable.
+        $plan->setEmailsSentAt(new \DateTimeImmutable());
+        $this->em->flush();
+
         if ($recipients === []) {
-            // Pas de destinataire : on marque quand même comme "envoyé" pour
-            // ne pas retenter à chaque retry.
-            $plan->setEmailsSentAt(new \DateTimeImmutable());
-            $this->em->flush();
             return;
         }
 
@@ -78,16 +88,11 @@ class SendTrainingPlanEmailsMessageHandler
             }
         }
 
-        // On marque comme envoyé même si certains destinataires ont échoué :
-        // sinon un retry rejouerait sur TOUS les destinataires, dont ceux
-        // qui ont déjà reçu le mail.
-        $plan->setEmailsSentAt(new \DateTimeImmutable());
-        $this->em->flush();
-
         $this->logger->info('Notification plan d\'entraînement', [
             'planId' => $plan->getId(),
             'sent' => $sent,
             'failed' => $failed,
+            'recipients' => count($recipients),
         ]);
     }
 }
