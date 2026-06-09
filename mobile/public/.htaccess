@@ -1,0 +1,47 @@
+# SPA fallback pour l'app mobile servie sur son propre sous-domaine
+# (ex : app.triathlontoulousemetropole.com → ce dossier).
+#
+# Quand le mobile est servi via le backend Symfony partagé (ancien
+# setup mono-domaine), c'est le .htaccess de backend/public/ qui
+# orchestre TOUT (Symfony + SPA fallback) et celui-ci est ignoré.
+# Sur sous-domaine dédié, c'est CE fichier qui prend le relais.
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Servir les fichiers et dossiers existants tels quels
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Toute autre route → index.html (Expo Router prend la main côté client)
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# MIME types
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml application/manifest+json
+</IfModule>
+
+# Cache
+<IfModule mod_expires.c>
+    ExpiresActive On
+    # Bundles versionnés (hash dans le nom) — cache long
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    # index.html : pas de cache (sinon les MAJ ne se voient pas)
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>

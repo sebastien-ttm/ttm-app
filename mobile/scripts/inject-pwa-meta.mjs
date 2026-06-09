@@ -13,12 +13,11 @@
  * Ou via npm script : `npm run build:web` (chaîné après expo export).
  */
 
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST_DIR = join(process.cwd(), 'dist');
 const INDEX = join(DIST_DIR, 'index.html');
-const HTACCESS = join(DIST_DIR, '.htaccess');
 
 const SENTINEL = 'data-pwa-injected="ttm"';
 
@@ -54,15 +53,6 @@ function info(msg) {
 
 if (!existsSync(INDEX)) {
   fail(`dist/index.html introuvable. Lance d'abord 'npx expo export --platform web'.`);
-}
-
-// Sécurité : si un vieux build a copié .htaccess depuis public/ vers dist/,
-// on le supprime. Sur O2Switch on déploie dist/ dans backend/public/ et le
-// .htaccess de Symfony (HTTPS, /admin, /api, etc.) doit primer — un
-// .htaccess concurrent l'écraserait silencieusement.
-if (existsSync(HTACCESS)) {
-  unlinkSync(HTACCESS);
-  info('dist/.htaccess supprimé (le .htaccess Symfony backend gère le routage).');
 }
 
 let html = readFileSync(INDEX, 'utf8');
