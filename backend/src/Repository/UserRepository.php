@@ -185,6 +185,9 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->andWhere('u.email IS NOT NULL')
             ->andWhere('u.numLicence IS NOT NULL')
             ->andWhere("(u.typeLicence IS NULL OR u.typeLicence <> 'Dirigeant')")
+            // Opt-in obligatoire (case à cocher dans le profil mobile,
+            // défaut FALSE depuis la migration Version20260609211458).
+            ->andWhere('u.notifyTrainingPlanEmail = true')
             // Exclut les Jeunes : JSON_CONTAINS retourne 1 si présent
             ->andWhere('JSON_CONTAINS(u.profiles, :jeune_tag) = 0')
             ->setParameter('jeune_tag', json_encode(Profile::Jeune->value));

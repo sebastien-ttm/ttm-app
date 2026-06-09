@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ApiError, auth as authApi } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -16,8 +16,21 @@ export default function ProfileScreen() {
   const { user, signOut, refreshMe } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [togglingNotif, setTogglingNotif] = useState(false);
 
   if (!user) return null;
+
+  async function toggleTrainingPlanEmail(next: boolean) {
+    setTogglingNotif(true);
+    try {
+      await authApi.updateNotificationPreferences({ notifyTrainingPlanEmail: next });
+      await refreshMe(); // resync l'état local depuis /api/me
+    } catch (e) {
+      Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
+    } finally {
+      setTogglingNotif(false);
+    }
+  }
 
   const hasBackendAccess = user.role === 'admin' || user.role === 'entraineur' || user.role === 'editeur';
   const backendRoleLabel =
@@ -170,6 +183,28 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Notifications par email</Text>
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Plans d'entraînement</Text>
+            <Text style={styles.actionHint}>
+              Recevoir un email à chaque nouveau plan publié par les entraîneurs.
+            </Text>
+          </View>
+          {togglingNotif ? (
+            <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
+          ) : (
+            <Switch
+              value={user.notifyTrainingPlanEmail}
+              onValueChange={toggleTrainingPlanEmail}
+              trackColor={{ false: '#d4d4d8', true: COLORS.primary }}
+              thumbColor="#fff"
+            />
+          )}
+        </View>
+      </View>
+
       <Pressable style={styles.logoutButton} onPress={signOut}>
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
       </Pressable>
@@ -266,6 +301,19 @@ const styles = StyleSheet.create({
   },
   actionRowPressed: { opacity: 0.6 },
   actionHint: { fontSize: 13, color: COLORS.text, fontWeight: '500', marginTop: 2 },
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
   qrIcon: {
     width: 36,
     height: 36,

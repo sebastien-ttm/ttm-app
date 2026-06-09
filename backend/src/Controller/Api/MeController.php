@@ -136,6 +136,34 @@ class MeController extends AbstractController
         ]);
     }
 
+    /**
+     * Mise à jour des préférences de notification.
+     * Body JSON : { "notifyTrainingPlanEmail": bool, ... }
+     *
+     * On accepte les champs un par un (PATCH-like) — seuls ceux présents
+     * dans le payload sont mis à jour, les autres restent inchangés.
+     */
+    #[Route('/api/me/notification-preferences', methods: ['PATCH', 'POST'])]
+    public function updateNotificationPreferences(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if (array_key_exists('notifyTrainingPlanEmail', $payload)) {
+            $user->setNotifyTrainingPlanEmail((bool) $payload['notifyTrainingPlanEmail']);
+        }
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
+        ]);
+    }
+
     #[Route('/api/me/password', methods: ['POST'])]
     public function setPassword(Request $request): JsonResponse
     {

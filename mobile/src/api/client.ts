@@ -145,6 +145,8 @@ export type AuthenticatedUser = {
   hasPassword: boolean;
   /** URL publique de l'avatar carré 400×400. Null si pas d'avatar. */
   avatarUrl: string | null;
+  /** Préférence opt-in : recevoir un email à chaque nouveau plan d'entraînement. */
+  notifyTrainingPlanEmail: boolean;
 };
 
 /** Profil lié (parent ou enfant partageant le même e-mail). */
@@ -190,6 +192,13 @@ export const auth = {
   me: () => api.get<AuthenticatedUser>('/api/me'),
   setPassword: (newPassword: string) =>
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
+
+  /** Mise à jour partielle des préférences de notification. */
+  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean }) =>
+    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean }>(
+      '/api/me/notification-preferences',
+      prefs,
+    ),
   linkedProfiles: () =>
     api.get<{ data: LinkedProfile[] }>('/api/me/linked-profiles'),
   /** Préférer userId (marche aussi pour les comptes externes sans licence). */

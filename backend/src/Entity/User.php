@@ -160,6 +160,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $loginCount = 0;
 
+    /**
+     * Préférence opt-in : recevoir un email à chaque publication de plan
+     * d'entraînement. Défaut FALSE — l'adhérent doit cocher la case dans
+     * son profil mobile pour s'abonner.
+     */
+    #[ORM\Column(name: 'notify_training_plan_email', options: ['default' => false])]
+    private bool $notifyTrainingPlanEmail = false;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -645,6 +653,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getLastLoginAt(): ?\DateTimeImmutable { return $this->lastLoginAt; }
     public function getLoginCount(): int { return $this->loginCount; }
+
+    public function isNotifyTrainingPlanEmail(): bool { return $this->notifyTrainingPlanEmail; }
+    public function setNotifyTrainingPlanEmail(bool $v): self { $this->notifyTrainingPlanEmail = $v; return $this; }
 
     /** Appelé par les listeners de login (JWT mobile + admin form). */
     public function recordLogin(?\DateTimeImmutable $at = null): self

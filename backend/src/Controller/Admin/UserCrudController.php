@@ -166,6 +166,9 @@ class UserCrudController extends AbstractCrudController
             ->setNumOfRows(4);
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
         yield BooleanField::new('isActive', 'Actif');
+        yield BooleanField::new('notifyTrainingPlanEmail', 'Email plans d\'entraînement')
+            ->hideOnIndex()
+            ->setHelp('Opt-in adhérent : recevoir un email à chaque publication de plan. L\'adhérent gère lui-même cette case depuis son profil mobile.');
 
         // Profil lié (parent/enfant partageant l'e-mail)
         yield TextField::new('linkLabel', 'Lien')

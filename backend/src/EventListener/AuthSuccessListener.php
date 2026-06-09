@@ -73,6 +73,7 @@ class AuthSuccessListener
             'roles' => $user->getRoles(),
             'hasPassword' => $user->getPassword() !== null,
             'avatarUrl' => $avatarUrl,
+            'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
         ];
     }
 
