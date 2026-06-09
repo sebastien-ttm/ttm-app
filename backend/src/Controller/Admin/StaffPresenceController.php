@@ -10,6 +10,7 @@ use App\Enum\Sport;
 use App\Repository\StaffPresenceRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
+use App\Repository\UserRepository;
 use App\Service\Training\StaffPresenceService;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,6 +36,7 @@ class StaffPresenceController extends AbstractController
         private readonly StaffPresenceRepository $presences,
         private readonly TrainingSlotRepository $slots,
         private readonly TrainingSlotTemplateRepository $templates,
+        private readonly UserRepository $users,
         private readonly StaffPresenceService $service,
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
@@ -206,6 +208,18 @@ class StaffPresenceController extends AbstractController
         $week = $this->parseWeek($request->query->get('week'));
         $staff = $this->presences->findActiveStaffByProfile($profile);
         $presencesByUser = $this->presences->findStaffPresencesForWeekGroupedByUser($week);
+        $slotRows = $this->schedule->buildWeek($week);
+
+        // Pour chaque encadrant, calcule les créneaux où il n'est PAS
+        // encore positionné — permet de proposer une dropdown « ajouter
+        // une présence » sans inclure les doublons.
+        $availableByUser = [];
+        foreach ($staff as $member) {
+            $availableByUser[$member->getId()] = $this->computeAvailableSlots(
+                $slotRows,
+                $presencesByUser[$member->getId()] ?? [],
+            );
+        }
 
         return $this->render('admin/staff_supervision.html.twig', [
             'title' => $title,
@@ -217,7 +231,93 @@ class StaffPresenceController extends AbstractController
             'today' => WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'))->format('Y-m-d'),
             'staff' => $staff,
             'presencesByUser' => $presencesByUser,
+            'availableByUser' => $availableByUser,
         ]);
+    }
+
+    /**
+     * Filtre la liste des créneaux de la semaine pour ne garder que ceux
+     * où l'utilisateur n'a pas déjà une présence (slot id ou template id).
+     * Ignore aussi les créneaux annulés (rien à y faire).
+     *
+     * @param list<array<string, mixed>> $slotRows
+     * @param list<\App\Entity\StaffPresence> $userPresences
+     * @return list<array<string, mixed>>
+     */
+    private function computeAvailableSlots(array $slotRows, array $userPresences): array
+    {
+        $takenSlotIds = [];
+        $takenTemplateIds = [];
+        foreach ($userPresences as $p) {
+            $s = $p->getSlot();
+            if ($s === null) continue;
+            $takenSlotIds[$s->getId()] = true;
+            $tpl = $s->getTemplate();
+            if ($tpl !== null) {
+                $takenTemplateIds[$tpl->getId()] = true;
+            }
+        }
+
+        $available = [];
+        foreach ($slotRows as $row) {
+            if (!empty($row['isCancelled'])) continue;
+            if ($row['id'] !== null && isset($takenSlotIds[$row['id']])) continue;
+            if ($row['id'] === null && $row['templateId'] !== null && isset($takenTemplateIds[$row['templateId']])) continue;
+            $available[] = $row;
+        }
+        return $available;
+    }
+
+    /**
+     * Endpoint admin/entraineur : ajoute une présence pour un encadrant
+     * tiers (pas le user connecté). Permet de pré-positionner quelqu'un.
+     */
+    #[Route('/admin/staff/supervision/add', name: 'admin_staff_supervision_add', methods: ['POST'])]
+    public function supervisionAdd(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'staff_presence');
+
+        $userId = (int) $request->request->get('userId');
+        $week = $this->parseWeek($request->request->get('week'));
+        $status = (string) $request->request->get('status', StaffPresence::STATUS_SCHEDULED);
+        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
+
+        // slotChoice encode soit s:<slotId> (créneau persisté), soit t:<templateId>
+        // (créneau virtuel à matérialiser via setForTemplate). Un seul champ
+        // dans le form simplifie l'UI et évite la dépendance à du JS inline.
+        $slotId = null;
+        $templateId = null;
+        $choice = (string) $request->request->get('slotChoice', '');
+        if (preg_match('/^s:(\d+)$/', $choice, $m)) {
+            $slotId = (int) $m[1];
+        } elseif (preg_match('/^t:(\d+)$/', $choice, $m)) {
+            $templateId = (int) $m[1];
+        }
+
+        $user = $this->users->find($userId);
+        if ($user === null || !$user->isActive()) {
+            throw $this->createNotFoundException();
+        }
+
+        if ($slotId !== null) {
+            $slot = $this->slots->find($slotId);
+            if ($slot === null) {
+                throw $this->createNotFoundException();
+            }
+            $this->service->setForSlot($user, $slot, $status);
+        } elseif ($templateId !== null) {
+            $template = $this->templates->find($templateId);
+            if ($template === null) {
+                throw $this->createNotFoundException();
+            }
+            $this->service->setForTemplate($user, $template, $week, $status);
+        } else {
+            throw $this->createNotFoundException();
+        }
+        $this->em->flush();
+
+        $this->addFlash('success', sprintf('Présence ajoutée pour %s.', $user->getFullName()));
+        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
     }
 
     /**

@@ -31,8 +31,10 @@
                     </small>
                 </h3>
 
+                {% set available = availableByUser[staffMember.id]|default([]) %}
+
                 {% if my_presences|length == 0 %}
-                    <p style="color:#999; font-style:italic; margin:0;">Aucune présence cette semaine.</p>
+                    <p style="color:#999; font-style:italic; margin:0 0 12px;">Aucune présence cette semaine.</p>
                 {% else %}
                     <table style="width:100%; border-collapse:collapse; font-size:14px;">
                         <thead>
@@ -99,6 +101,43 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                {% endif %}
+
+                {# Formulaire « Pré-positionner » : permet à l'admin de poser
+                   une présence pour cet encadrant sur n'importe quel créneau
+                   disponible de la semaine (ceux où il n'est pas déjà inscrit). #}
+                {% if available|length > 0 %}
+                    <form method="post" action="{{ path('admin_staff_supervision_add') }}"
+                          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:14px; padding:10px 12px; background:#f9fafb; border-radius:6px; border:1px dashed #d4d4d8;">
+                        <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                        <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                        <input type="hidden" name="back" value="{{ back_route }}">
+
+                        <strong style="font-size:13px; color:#52525b;">+ Pré-positionner sur</strong>
+                        <select name="slotChoice" required style="padding:6px 8px; border-radius:4px; border:1px solid #d4d4d8; font-size:13px; max-width:520px;">
+                            <option value="">— Choisir un créneau —</option>
+                            {% for row in available %}
+                                {# Encode soit s:slotId (créneau déjà persisté en BDD)
+                                   soit t:templateId (créneau virtuel à matérialiser) — parsé côté serveur #}
+                                <option value="{{ row.id ? 's:' ~ row.id : 't:' ~ row.templateId }}">
+                                    {{ ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][row.dayOfWeek - 1] }}
+                                    {{ row.startTime }} · {{ row.title }} ({{ row.sportLabel }}) — 📍 {{ row.location }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <select name="status" style="padding:6px 8px; border-radius:4px; border:1px solid #d4d4d8; font-size:13px;">
+                            <option value="scheduled">Réservé</option>
+                            <option value="attended">Présent</option>
+                        </select>
+
+                        <button class="btn btn-sm btn-primary">Ajouter</button>
+                    </form>
+                {% elseif my_presences|length > 0 %}
+                    <p style="color:#999; font-style:italic; font-size:12px; margin:10px 0 0;">
+                        Cet encadrant est positionné sur tous les créneaux disponibles.
+                    </p>
                 {% endif %}
             </div>
         {% endfor %}
