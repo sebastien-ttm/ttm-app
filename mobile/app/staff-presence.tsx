@@ -149,7 +149,8 @@ export default function StaffPresenceScreen() {
       <Stack.Screen options={{ title: 'Mes Présences' }} />
       <View style={styles.header}>
         <Text style={styles.subtitle}>
-          Positionnez-vous à l'avance ou confirmez votre présence sur les créneaux.
+          Positionnez-vous sur les créneaux que vous encadrez. La validation
+          finale (présence effective) est gérée par l'équipe depuis le backend.
         </Text>
       </View>
 
@@ -238,14 +239,12 @@ function SlotCard({
   onSetStatus: (status: StaffPresenceStatus | null) => void;
 }) {
   const presence = slot.myPresence;
-  const isPlanned = presence?.status === 'scheduled';
-  const isAttended = presence?.status === 'attended';
-  // « Passé » au sens de la bascule du bouton : le créneau a déjà commencé.
-  // On compare au start datetime exact (slot.date + slot.startTime), pas
-  // juste à la date — sinon un créneau à 18h apparaîtrait encore comme
-  // « Je serai là » à 17h le jour même.
+  const isPositioned = presence !== null;
+  // Libellé passé/futur basé sur le start datetime exact (date + heure)
+  // pour qu'un créneau à 18h ne soit pas encore « passé » à 17h le jour J.
   const slotStart = new Date(`${slot.date}T${slot.startTime}:00`);
   const isPast = Date.now() >= slotStart.getTime();
+  const label = isPast ? "J'étais là" : 'Je serai là';
 
   return (
     <View style={styles.slot}>
@@ -265,34 +264,22 @@ function SlotCard({
             <ActivityIndicator color={COLORS.secondary} />
           ) : (
             <>
-              {/* Bouton "Je serai là" / "J'étais là" selon date passé/futur */}
+              {/* Bouton « Je serai là / J'étais là » : vert si positionné,
+                  neutre sinon. Pose toujours status='scheduled' — la
+                  validation effective (status='attended') est réservée
+                  au backend. */}
               <Pressable
-                onPress={() => onSetStatus(isPast ? 'attended' : 'scheduled')}
-                style={[
-                  styles.actionBtn,
-                  isPlanned && styles.actionBtnPlanned,
-                  isAttended && styles.actionBtnAttended,
-                ]}
+                onPress={() => !isPositioned && onSetStatus('scheduled')}
+                disabled={isPositioned}
+                style={[styles.actionBtn, isPositioned && styles.actionBtnPlanned]}
               >
-                <Text
-                  style={[
-                    styles.actionLabel,
-                    (isPlanned || isAttended) && styles.actionLabelActive,
-                  ]}
-                >
-                  {isAttended ? '✓ Présent' : isPlanned ? '✓ Réservé' : isPast ? "J'étais là" : 'Je serai là'}
+                <Text style={[styles.actionLabel, isPositioned && styles.actionLabelActive]}>
+                  {isPositioned ? `✓ ${label}` : label}
                 </Text>
               </Pressable>
 
-              {/* Marquer présent si déjà réservé et passé/jour J */}
-              {isPlanned && !isPast && (
-                <Pressable onPress={() => onSetStatus('attended')} style={styles.actionBtnSecondary}>
-                  <Text style={styles.actionLabelSecondary}>Confirmer présence</Text>
-                </Pressable>
-              )}
-
-                {/* Annuler */}
-                {presence && (
+              {/* Annuler — visible uniquement quand positionné */}
+              {isPositioned && (
                 <Pressable onPress={() => onSetStatus(null)} style={styles.actionBtnDanger}>
                   <Text style={styles.actionLabelDanger}>Annuler</Text>
                 </Pressable>

@@ -125,10 +125,12 @@ class StaffPresenceController extends AbstractController
             return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $status = (string) ($payload['status'] ?? StaffPresence::STATUS_SCHEDULED);
-        if (!in_array($status, StaffPresence::STATUSES, true)) {
-            return new JsonResponse(['error' => 'Statut invalide.'], Response::HTTP_BAD_REQUEST);
-        }
+        // L'app mobile ne permet plus que la pose / annulation d'une présence
+        // (= « Je serai là »). La validation effective (status='attended')
+        // est désormais une prérogative backend uniquement. On force donc
+        // le statut côté serveur — un payload qui tente 'attended' est
+        // ignoré silencieusement (downgrade vers 'scheduled').
+        $status = StaffPresence::STATUS_SCHEDULED;
         $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
 
         $slotId = isset($payload['slotId']) && $payload['slotId'] !== '' ? (int) $payload['slotId'] : null;
