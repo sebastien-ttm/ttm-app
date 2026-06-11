@@ -95,10 +95,12 @@ class CsvImportService
                 }
 
                 $email = $this->cleanEmail((string) ($record[self::COL_EMAIL] ?? ''));
-                if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $result->addError($line, sprintf('Email invalide ou manquant (licence %s)', $numLicence), $record);
-                    continue;
-                }
+                $emailValid = $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL);
+                // L'email du CSV n'est CRITIQUE qu'à la création d'un nouveau
+                // compte (sinon on ne saurait pas qui notifier). Pour un
+                // adhérent existant on garde l'email local (cf. setEmail
+                // conditionné plus bas) — un email manquant dans le CSV
+                // n'est donc plus bloquant.
 
                 $statut = trim((string) ($record[self::COL_STATUT] ?? 'Validé'));
                 $isActive = $this->isStatutActive($statut);
@@ -125,6 +127,12 @@ class CsvImportService
                 $isNew = $user === null;
 
                 if ($isNew) {
+                    // Création : on a besoin d'un email valide, sinon impossible
+                    // de créer un compte exploitable.
+                    if (!$emailValid) {
+                        $result->addError($line, sprintf('Email invalide ou manquant (licence %s) — création impossible', $numLicence), $record);
+                        continue;
+                    }
                     $user = new User();
                     $user->setNumLicence($numLicence);
                     $user->setType(UserType::Adherent);
@@ -134,7 +142,14 @@ class CsvImportService
 
                 $user->setNom(trim((string) ($record[self::COL_NOM] ?? '')));
                 $user->setPrenom(trim((string) ($record[self::COL_PRENOM] ?? '')));
-                $user->setEmail($email);
+                // Email : posé UNIQUEMENT à la création. Sur un re-import,
+                // on conserve l'email actuellement en base — les admins le
+                // corrigent souvent en local (alias, domaine personnel, etc.)
+                // et un import ré-écraserait sinon ces ajustements à chaque
+                // sync FFTri.
+                if ($isNew) {
+                    $user->setEmail($email);
+                }
                 $user->setTelephone($tel !== '' ? $tel : null);
                 $user->setStatutLicence($statut);
                 $user->setIsActive($isActive);
