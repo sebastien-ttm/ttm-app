@@ -2,21 +2,34 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 /**
- * API base URL.
+ * API base URL. Résolution en cascade :
+ *  1. EXPO_PUBLIC_API_BASE_URL (env var) — override explicite au build
+ *  2. app.json `extra.apiBaseUrl` — override projet (rarement utilisé)
+ *  3. defaultBase() — détection auto selon la plateforme et l'hôte
  *
- * On native (iOS / Android emulators or device), `localhost` doesn't point to
- * your dev machine — it points to the device itself. So:
- *  - Web : http://127.0.0.1:8000  (browser & dev machine share localhost)
- *  - iOS simulator : http://127.0.0.1:8000 (works because simulator shares host)
- *  - Android emulator : http://10.0.2.2:8000 (special host alias)
- *  - Physical device : http://<your-LAN-ip>:8000  (configure in app.json `extra`)
+ * defaultBase() :
+ *  - Web hors localhost (= prod ou staging) → chaîne vide = même-origine
+ *    → fetch('/api/...') va vers la même origine que l'app. Fonctionne
+ *    tant que le backend Symfony et le SPA mobile partagent le même
+ *    domaine (setup mono-domaine O2Switch).
+ *  - Web localhost → http://127.0.0.1:8000 (Symfony dev sur port 8000)
+ *  - iOS simulator → http://127.0.0.1:8000 (partage l'hôte)
+ *  - Android emulator → http://10.0.2.2:8000 (alias spécial vers hôte)
+ *  - Device physique iOS/Android → nécessite EXPO_PUBLIC_API_BASE_URL
+ *    ou app.json extra.apiBaseUrl (pas de moyen de deviner l'IP LAN)
  */
 const fromConfig = (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl;
-// EXPO_PUBLIC_* env vars sont injectées au build par Expo ; permet de
-// pointer vers la prod sans modifier app.json.
 const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 function defaultBase(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Prod / staging : même-origine (chaîne vide → URLs relatives)
+    if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.local')) {
+      return '';
+    }
+    return 'http://127.0.0.1:8000';
+  }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:8000';
   }
