@@ -13,11 +13,12 @@
  * Ou via npm script : `npm run build:web` (chaîné après expo export).
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST_DIR = join(process.cwd(), 'dist');
 const INDEX = join(DIST_DIR, 'index.html');
+const HTACCESS = join(DIST_DIR, '.htaccess');
 
 const SENTINEL = 'data-pwa-injected="ttm"';
 
@@ -53,6 +54,18 @@ function info(msg) {
 
 if (!existsSync(INDEX)) {
   fail(`dist/index.html introuvable. Lance d'abord 'npx expo export --platform web'.`);
+}
+
+// Setup O2Switch : mobile + backend Symfony partagent le même dossier
+// (public_html/ttm-app/backend/public/ = document root du sous-domaine
+// app.*). Le .htaccess Symfony orchestre TOUT le routage (redirect
+// HTTPS, passthrough Authorization JWT, /admin + /api → index.php,
+// SPA fallback pour le reste). Si un .htaccess mobile se retrouve dans
+// dist/, l'upload l'écrase silencieusement et casse le backend.
+// On purge donc ici pour être safe même si un ancien build en laisse un.
+if (existsSync(HTACCESS)) {
+  unlinkSync(HTACCESS);
+  info('dist/.htaccess supprimé (le .htaccess Symfony backend gère le routage).');
 }
 
 let html = readFileSync(INDEX, 'utf8');
