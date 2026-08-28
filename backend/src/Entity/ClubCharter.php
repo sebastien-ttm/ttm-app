@@ -56,6 +56,16 @@ class ClubCharter
     #[ORM\Column]
     private bool $isActive = false;
 
+    /**
+     * Aperçu privé : si non null, la charte est visible UNIQUEMENT par cet
+     * utilisateur (l'admin qui teste) — pas pour le reste des adhérents.
+     * Permet de valider un nouveau formulaire, contenu, wording, sans
+     * bloquer tout le monde. Ignoré dès que isActive=true.
+     */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'preview_user_id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $previewUser = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $publishedAt;
 
@@ -84,6 +94,8 @@ class ClubCharter
     public function setContent(string $content): self { $this->content = $content; return $this; }
     public function isActive(): bool { return $this->isActive; }
     public function setIsActive(bool $b): self { $this->isActive = $b; return $this; }
+    public function getPreviewUser(): ?User { return $this->previewUser; }
+    public function setPreviewUser(?User $user): self { $this->previewUser = $user; return $this; }
     public function getPublishedAt(): \DateTimeImmutable { return $this->publishedAt; }
     public function setPublishedAt(\DateTimeImmutable $d): self { $this->publishedAt = $d; return $this; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }

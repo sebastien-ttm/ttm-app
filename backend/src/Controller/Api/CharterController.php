@@ -37,7 +37,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $charter = $this->charters->findCurrent();
+        $charter = $this->charters->findCurrent($user);
 
         if ($charter === null) {
             return new JsonResponse([
@@ -62,7 +62,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $charter = $this->charters->findCurrent();
+        $charter = $this->charters->findCurrent($user);
 
         if ($charter === null) {
             return new JsonResponse(

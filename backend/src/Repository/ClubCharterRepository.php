@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\ClubCharter;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,8 +17,32 @@ class ClubCharterRepository extends ServiceEntityRepository
         parent::__construct($registry, ClubCharter::class);
     }
 
-    public function findCurrent(): ?ClubCharter
+    /**
+     * Renvoie la charte à appliquer pour un utilisateur donné, dans cet
+     * ordre de priorité :
+     *   1. Charte en aperçu ciblée sur ce user (preview_user_id = user)
+     *      — permet à l'admin de tester avant activation générale.
+     *   2. Charte activée pour tous (is_active = true).
+     *   3. null (aucune charte à faire signer).
+     *
+     * Si $user est null (ex : appel non authentifié), fallback direct
+     * sur la charte active générale.
+     */
+    public function findCurrent(?User $user = null): ?ClubCharter
     {
+        if ($user !== null) {
+            $preview = $this->createQueryBuilder('c')
+                ->where('c.previewUser = :user')
+                ->setParameter('user', $user)
+                ->orderBy('c.publishedAt', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+            if ($preview !== null) {
+                return $preview;
+            }
+        }
+
         return $this->createQueryBuilder('c')
             ->where('c.isActive = true')
             ->orderBy('c.publishedAt', 'DESC')

@@ -8,6 +8,7 @@ use App\Service\Charter\FormSchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
@@ -91,6 +92,16 @@ JSON;
 
         yield BooleanField::new('isActive', 'Active')
             ->setHelp('Activer cette charte la rend obligatoire pour tous les utilisateurs et désactive automatiquement les autres.');
+
+        yield AssociationField::new('previewUser', 'Aperçu privé')
+            ->autocomplete()
+            ->setRequired(false)
+            ->setHelp(
+                'Optionnel. Si renseigné, la charte est visible uniquement par cet utilisateur '
+                .'(pratique pour tester le contenu et le formulaire avant d\'activer pour tout '
+                .'le monde). Ignoré dès que « Active » est coché.'
+            );
+
         yield DateTimeField::new('publishedAt', 'Publiée le')->onlyOnIndex();
     }
 
