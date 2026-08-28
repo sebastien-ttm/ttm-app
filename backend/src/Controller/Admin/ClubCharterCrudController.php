@@ -70,22 +70,23 @@ JSON;
             ->setHelp('Texte intégral présenté à l\'adhérent. L\'éditeur supporte les images, listes, mise en forme.')
             ->onlyOnForms();
 
-        yield TextareaField::new('fieldsJson', 'Champs du formulaire (JSON)')
+        yield TextareaField::new('fieldsJson', 'Champs du formulaire')
             ->onlyOnForms()
             ->setNumOfRows(20)
             ->setFormTypeOption('attr', [
+                // data-charter-builder → activé par js/admin/charter-form-builder.js :
+                // cache cette textarea, monte un builder visuel au-dessus, sync
+                // bidirectionnelle. Bouton « Éditer le JSON brut » réactive
+                // la textarea pour édition manuelle.
+                'data-charter-builder' => 'true',
                 'style' => 'font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; white-space: pre;',
                 'spellcheck' => 'false',
                 'placeholder' => self::FIELDS_TEMPLATE,
             ])
             ->setHelp(
-                'Optionnel. Laisser vide pour une charte "simple bouton J\'accepte".'
-                .' Sinon, fournir un tableau JSON décrivant les questions :'
-                .' chaque élément doit avoir <code>id</code> (slug : minuscules, chiffres, _),'
-                .' <code>label</code>, <code>type</code> (text, textarea, number, date, checkbox, select, radio),'
-                .' optionnellement <code>required</code>, <code>help</code>,'
-                .' et <code>options</code> (liste) pour select/radio.'
-                .' Voir le placeholder du champ pour un exemple complet.'
+                'Utilisez le builder ci-dessous pour construire le formulaire visuellement,'
+                .' ou basculez en mode JSON avancé si besoin.'
+                .' Laisser vide pour une charte « simple bouton J\'accepte ».'
             );
 
         yield BooleanField::new('isActive', 'Active')

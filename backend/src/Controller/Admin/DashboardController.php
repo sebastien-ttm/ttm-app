@@ -48,7 +48,11 @@ class DashboardController extends AbstractDashboardController
             // TinyMCE 7 (community / GPL) loaded from jsDelivr — includes
             // image plugin with native resize handles. Init lives in the
             // form_theme override.
-            ->addJsFile('https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js');
+            ->addJsFile('https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js')
+            // Éditeur visuel du schéma JSON du formulaire de charte —
+            // s'attache automatiquement aux textareas [data-charter-builder].
+            ->addJsFile('js/admin/charter-form-builder.js')
+            ->addCssFile('css/admin/charter-form-builder.css');
     }
 
     public function configureCrud(): Crud

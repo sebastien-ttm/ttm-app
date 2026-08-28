@@ -1,0 +1,243 @@
+/**
+ * Éditeur visuel de formulaire de charte (charter-form-builder.js).
+ * Design aligné sur EasyAdmin (Bootstrap) mais assez neutre pour se
+ * détacher visuellement du reste du formulaire (l'admin comprend que
+ * c'est un « widget » spécifique).
+ */
+
+.cfb-wrapper {
+  margin: 8px 0 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.cfb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cfb-count {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.cfb-add-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.cfb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cfb-field {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cfb-field-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cfb-field-type {
+  background: #0d2148;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cfb-required-badge {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cfb-field-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.cfb-btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: #475569;
+  transition: all 0.15s;
+}
+
+.cfb-btn-icon:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.cfb-btn-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cfb-btn-icon.cfb-btn-danger {
+  color: #dc2626;
+}
+
+.cfb-btn-icon.cfb-btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+.cfb-field-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+  padding: 14px;
+}
+
+.cfb-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cfb-row:has(.cfb-input-help) {
+  gap: 4px;
+}
+
+.cfb-input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+}
+
+.cfb-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.cfb-input:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+}
+
+.cfb-input.cfb-invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.cfb-input-help {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.cfb-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  align-self: end;
+}
+
+.cfb-checkbox-row input[type="checkbox"] {
+  margin: 0;
+}
+
+/* ---- Options éditeur (select/radio) ---- */
+
+.cfb-options {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+}
+
+.cfb-options-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.cfb-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.cfb-add-option {
+  margin-top: 4px;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* ---- Toggle mode avancé ---- */
+
+.cfb-toggle {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cfb-toggle:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+/* ---- Empty state ---- */
+
+.cfb-list:empty::before {
+  content: '';
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 768px) {
+  .cfb-field-body {
+    grid-template-columns: 1fr;
+  }
+}
