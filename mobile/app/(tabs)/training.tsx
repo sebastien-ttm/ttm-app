@@ -124,15 +124,25 @@ function TrainingScreenInner() {
             </View>
           )}
 
-          {/* Plans (PDF) de la semaine */}
-          {(data?.plans ?? []).length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📄 Plans de la semaine</Text>
-              {data!.plans.map((p) => (
+          {/* Plans (PDF) de la semaine + accès à l'historique */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📄 Plans d'entraînement</Text>
+            {(data?.plans ?? []).length > 0 ? (
+              data!.plans.map((p) => (
                 <PlanRow key={p.id} plan={p} onOpen={() => router.push(`/training-plan/${p.id}` as never)} />
-              ))}
-            </View>
-          )}
+              ))
+            ) : (
+              <Text style={styles.planEmpty}>Pas de plan publié pour cette semaine.</Text>
+            )}
+            <Pressable
+              onPress={() => router.push('/training-plans-history' as never)}
+              style={({ pressed }) => [stylesHistory.link, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="time-outline" size={16} color={COLORS.secondaryDark} />
+              <Text style={stylesHistory.linkLabel}>Voir l'historique des plans</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
+            </Pressable>
+          </View>
 
           {/* Créneaux jour par jour */}
           {(data?.slots ?? []).length === 0 ? (
@@ -264,6 +274,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  planEmpty: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
   dayBlock: { marginBottom: SPACING.md },
   dayHeader: {
     fontSize: 15,
@@ -342,6 +359,25 @@ const styles = StyleSheet.create({
   planTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   planDesc: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
   planMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
+});
+
+const stylesHistory = StyleSheet.create({
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.secondarySoft,
+    borderRadius: RADIUS.md,
+  },
+  linkLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.secondaryDark,
+  },
 });
 
 const stylesStaff = StyleSheet.create({
