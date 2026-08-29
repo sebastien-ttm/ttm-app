@@ -52,8 +52,23 @@ class DashboardController extends AbstractDashboardController
             ->addJsFile('https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js')
             // Éditeur visuel du schéma JSON du formulaire de charte —
             // s'attache automatiquement aux textareas [data-charter-builder].
-            ->addJsFile('js/admin/charter-form-builder.js')
-            ->addCssFile('css/admin/charter-form-builder.css');
+            // Suffixe basé sur le mtime du fichier pour casser le cache
+            // Apache (ExpiresByType application/javascript "access plus 1 year"
+            // dans .htaccess) à chaque modification.
+            ->addJsFile('js/admin/charter-form-builder.js?v='.$this->assetVersion('public/js/admin/charter-form-builder.js'))
+            ->addCssFile('css/admin/charter-form-builder.css?v='.$this->assetVersion('public/css/admin/charter-form-builder.css'));
+    }
+
+    /**
+     * Version d'un asset statique = mtime du fichier (10 chars du hash sha1).
+     * Injecté en query string pour forcer le rechargement dans les navigateurs
+     * qui ont mis l'asset en cache long grâce aux headers Expires du .htaccess.
+     */
+    private function assetVersion(string $relativePath): string
+    {
+        $absolute = \dirname(__DIR__, 3).'/'.$relativePath;
+        $mtime = @filemtime($absolute);
+        return $mtime !== false ? substr(sha1((string) $mtime), 0, 10) : 'dev';
     }
 
     public function configureCrud(): Crud
