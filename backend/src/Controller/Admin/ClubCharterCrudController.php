@@ -50,8 +50,8 @@ JSON;
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Charte')
-            ->setEntityLabelInPlural('Chartes du club')
+            ->setEntityLabelInSingular('Formulaire d\'acceptation')
+            ->setEntityLabelInPlural('Formulaires d\'acceptation')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['publishedAt' => 'DESC']);
     }

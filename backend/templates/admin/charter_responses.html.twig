@@ -5,13 +5,13 @@
 {% block main %}
     {% if charter is null %}
         <div style="background:#FEE; color:#C62828; padding:14px; border-radius:6px;">
-            Aucune charte active n'est définie. Créez-en une depuis le menu « Charte du club ».
+            Aucune charte active n'est définie. Créez-en une depuis le menu « Formulaires d'acceptation ».
         </div>
     {% elseif not charter.hasForm %}
         <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
             La charte active <strong>{{ charter.title }}</strong> ({{ charter.version }}) n'a pas de formulaire :
             les adhérents acceptent par simple clic. Ajoutez un schéma JSON dans
-            « Charte du club » pour collecter des réponses.
+            « Formulaires d'acceptation » pour collecter des réponses.
         </div>
     {% else %}
         <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">

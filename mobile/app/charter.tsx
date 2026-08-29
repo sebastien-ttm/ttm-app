@@ -49,7 +49,7 @@ export default function CharterReadScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Charte du club' }} />
+        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
         <FullScreenLoading />
       </SafeAreaView>
     );
@@ -57,7 +57,7 @@ export default function CharterReadScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Charte du club' }} />
+        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
         <ErrorState message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -65,7 +65,7 @@ export default function CharterReadScreen() {
   if (!charter) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Charte du club' }} />
+        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
         <EmptyState
           icon="📜"
           title="Pas de charte publiée"
@@ -82,7 +82,7 @@ export default function CharterReadScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Charte du club' }} />
+      <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{charter.title}</Text>
         <Text style={styles.meta}>
@@ -111,7 +111,8 @@ export default function CharterReadScreen() {
 function CommitmentCard({ field }: { field: CharterField }) {
   return (
     <View style={styles.commitCard}>
-      {field.description ? <Text style={styles.commitDescription}>{field.description}</Text> : null}
+      {/* description peut contenir des liens (HTML) — rendu via RichContent */}
+      {field.description ? <RichContent html={field.description} style={styles.commitDescription} /> : null}
       <View style={styles.commitAcceptRow}>
         <Text style={styles.commitCheck}>✓</Text>
         <Text style={styles.commitLabel}>{field.label}</Text>

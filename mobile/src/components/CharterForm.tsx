@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from '
 
 import type { AuthenticatedUser } from '@/api/client';
 import type { CharterAnswers, CharterField } from '@/api/types';
+import { RichContent } from '@/components/RichContent';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
@@ -73,9 +74,11 @@ function FieldRow({
   // Format cohérent quel que soit le contenu de la description.
   if (field.type === 'checkbox' && field.description) {
     const checked = value === true || value === 'true' || value === 1 || value === '1';
+    // description peut contenir de l'HTML (liens hypertexte notamment) —
+    // rendu via RichContent qui gère <a>, <p>, <br>, etc.
     return (
       <View style={styles.commitCard}>
-        <Text style={styles.commitDescription}>{field.description}</Text>
+        <RichContent html={field.description} style={styles.commitDescription} />
         <Pressable
           onPress={() => onChange(!checked)}
           style={({ pressed }) => [styles.commitAcceptRow, pressed && { opacity: 0.7 }]}
@@ -103,7 +106,7 @@ function FieldRow({
   return (
     <View style={styles.row}>
       {label}
-      {field.description ? <Text style={styles.description}>{field.description}</Text> : null}
+      {field.description ? <RichContent html={field.description} style={styles.description} /> : null}
       {field.help ? <Text style={styles.help}>{field.help}</Text> : null}
       <FieldInput field={field} value={value} onChange={onChange} />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}

@@ -198,7 +198,10 @@
         { placeholder: 'Ex : Je m\'engage à respecter les horaires' },
       ));
 
-      body.appendChild(this.rowTextarea(
+      // La description est stockée en HTML léger (rendue via RichContent
+      // côté mobile). Un bouton facilite l'insertion de liens sans avoir
+      // à connaître la syntaxe <a href="…">.
+      body.appendChild(this.rowTextareaWithLinkHelper(
         'Description / explication (optionnelle)',
         field.description || '',
         (v) => {
@@ -317,6 +320,76 @@
         help.textContent = opts.help;
         wrap.appendChild(help);
       }
+
+      return wrap;
+    }
+
+    /**
+     * Textarea + bouton « 🔗 Ajouter un lien » : demande texte + URL, insère
+     * l'HTML `<a href="URL" target="_blank" rel="noopener">TEXT</a>` à la
+     * position du curseur (ou remplace la sélection courante).
+     */
+    rowTextareaWithLinkHelper(label, value, onChange, opts = {}) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cfb-row';
+
+      const labRow = document.createElement('div');
+      labRow.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:4px;';
+
+      const lab = document.createElement('label');
+      lab.className = 'cfb-input-label';
+      lab.textContent = label;
+      lab.style.margin = '0';
+      labRow.appendChild(lab);
+
+      const linkBtn = document.createElement('button');
+      linkBtn.type = 'button';
+      linkBtn.className = 'btn btn-sm btn-secondary';
+      linkBtn.style.cssText = 'padding:2px 8px; font-size:12px;';
+      linkBtn.textContent = '🔗 Ajouter un lien';
+      labRow.appendChild(linkBtn);
+
+      wrap.appendChild(labRow);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'form-control cfb-input';
+      ta.rows = 3;
+      ta.value = value;
+      if (opts.placeholder) ta.placeholder = opts.placeholder;
+      ta.addEventListener('input', () => {
+        onChange(ta.value);
+        this.state.sync();
+      });
+      wrap.appendChild(ta);
+
+      linkBtn.addEventListener('click', () => {
+        const selStart = ta.selectionStart ?? ta.value.length;
+        const selEnd = ta.selectionEnd ?? selStart;
+        const selectedText = ta.value.substring(selStart, selEnd);
+        const label = window.prompt('Texte du lien affiché :', selectedText || 'en savoir plus');
+        if (label === null || label === '') return;
+        let url = window.prompt('URL cible (https://…) :', 'https://');
+        if (url === null || url === '') return;
+        // Sécurité basique : refuse les schemes javascript: / data:
+        if (/^\s*(javascript|data|vbscript):/i.test(url)) {
+          window.alert('URL non autorisée.');
+          return;
+        }
+        // Si l'admin oublie le protocole, on préfixe en https://
+        if (!/^[a-z][a-z0-9+.\-]*:\/\//i.test(url) && !url.startsWith('mailto:') && !url.startsWith('tel:')) {
+          url = 'https://' + url.replace(/^\/+/, '');
+        }
+        const escapedUrl = url.replace(/"/g, '&quot;');
+        const escapedLabel = label.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const snippet = '<a href="' + escapedUrl + '" target="_blank" rel="noopener">' + escapedLabel + '</a>';
+        ta.value = ta.value.substring(0, selStart) + snippet + ta.value.substring(selEnd);
+        // Replace le curseur juste après le snippet inséré
+        const cursor = selStart + snippet.length;
+        ta.focus();
+        ta.setSelectionRange(cursor, cursor);
+        onChange(ta.value);
+        this.state.sync();
+      });
 
       return wrap;
     }
