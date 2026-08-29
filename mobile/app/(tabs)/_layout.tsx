@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { Platform, Pressable } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
@@ -9,7 +9,22 @@ import { canSeeTraining } from '@/utils/profile';
 
 export default function TabsLayout() {
   const { user } = useAuth();
+  const router = useRouter();
   const showTraining = canSeeTraining(user);
+
+  // Bouton flèche retour utilisé sur les écrans article/page qui ne sont
+  // pas des tabs mais partagent la barre — Tabs n'injecte pas de retour
+  // automatique, donc on ajoute un headerLeft manuel qui appelle
+  // router.back() (ou retombe sur l'accueil si pas d'historique).
+  const backButton = () => (
+    <Pressable
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as never))}
+      hitSlop={12}
+      style={{ paddingHorizontal: 12 }}
+    >
+      <Ionicons name="chevron-back" size={26} color="#fff" />
+    </Pressable>
+  );
 
   return (
     <Tabs
@@ -26,15 +41,16 @@ export default function TabsLayout() {
           fontWeight: '600',
           marginBottom: Platform.OS === 'web' ? 6 : 0,
         },
+        // Header : blanc sur bleu marine (charte club) sur tous les tabs
+        // + écrans hébergés dans (tabs).
         headerStyle: {
-          backgroundColor: COLORS.surface,
-          borderBottomColor: COLORS.border,
-          borderBottomWidth: 1,
+          backgroundColor: COLORS.brandNavy,
+          borderBottomWidth: 0,
           shadowOpacity: 0,
           elevation: 0,
         },
-        headerTintColor: COLORS.text,
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '700', fontSize: 17, color: '#fff' },
         headerRight: () => <ProfileSwitcher />,
       }}
     >
@@ -89,9 +105,16 @@ export default function TabsLayout() {
       {/* Routes hébergées ici pour bénéficier de la barre d'onglets, mais
           masquées comme tabs (href:null) : elles sont accessibles via
           router.push('/article/42'), '/page/statuts' — Expo Router ignore
-          le préfixe (tabs) dans les URLs. */}
-      <Tabs.Screen name="article/[id]" options={{ href: null, title: 'Article' }} />
-      <Tabs.Screen name="page/[slug]" options={{ href: null, title: '' }} />
+          le préfixe (tabs) dans les URLs. Flèche retour manuelle car
+          Tabs n'en injecte pas automatiquement. */}
+      <Tabs.Screen
+        name="article/[id]"
+        options={{ href: null, title: 'Article', headerLeft: backButton }}
+      />
+      <Tabs.Screen
+        name="page/[slug]"
+        options={{ href: null, title: '', headerLeft: backButton }}
+      />
     </Tabs>
   );
 }
