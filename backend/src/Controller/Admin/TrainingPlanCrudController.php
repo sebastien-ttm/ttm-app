@@ -6,6 +6,7 @@ use App\Entity\TrainingPlan;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Enum\TrainingPlanCategory;
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -64,6 +65,13 @@ class TrainingPlanCrudController extends AbstractCrudController
             ->setFormTypeOptions(['allow_delete' => false, 'download_uri' => false])
             ->onlyOnForms();
         yield TextField::new('filePath', 'Fichier')->onlyOnIndex();
+        yield DateTimeField::new('publishedAt', 'Mise en ligne')
+            ->setRequired(false)
+            ->setHelp(
+                'Date à laquelle le plan devient visible et les notifications sont envoyées. '
+                .'Par défaut : dimanche 20h00 précédant la semaine cible. '
+                .'Vide ou date passée = publication immédiate.'
+            );
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()
@@ -86,6 +94,44 @@ class TrainingPlanCrudController extends AbstractCrudController
         }
         // Default to the current ISO week (Monday of this week)
         $plan->setIsoWeek((new \DateTimeImmutable())->format('o-\WW'));
+        // Default publish date = dimanche 20h00 précédant le lundi cible.
+        $monday = $plan->getWeekStartsAt();
+        if ($monday !== null) {
+            $plan->setPublishedAt(TrainingPlan::defaultPublishedAtForWeek($monday));
+        }
         return $plan;
+    }
+
+    public function persistEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        $this->normalisePublishedAt($entityInstance);
+        parent::persistEntity($em, $entityInstance);
+    }
+
+    public function updateEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        $this->normalisePublishedAt($entityInstance);
+        parent::updateEntity($em, $entityInstance);
+    }
+
+    /**
+     * Si publishedAt est vide, on ne force rien : NULL = publication immédiate
+     * (déjà géré par isPublished()). En revanche, si l'admin l'a laissé vide
+     * et qu'une semaine cible est renseignée, on remplit la valeur par défaut
+     * pour tracer explicitement la date de mise en ligne prévue.
+     */
+    private function normalisePublishedAt(mixed $entity): void
+    {
+        if (!$entity instanceof TrainingPlan) {
+            return;
+        }
+        if ($entity->getPublishedAt() !== null) {
+            return;
+        }
+        $monday = $entity->getWeekStartsAt();
+        if ($monday === null) {
+            return;
+        }
+        $entity->setPublishedAt(TrainingPlan::defaultPublishedAtForWeek($monday));
     }
 }

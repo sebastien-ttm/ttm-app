@@ -120,6 +120,7 @@ class ApiSerializer
             'weekStartsAt' => $t->getWeekStartsAt()?->format('Y-m-d'),
             'weekRangeLabel' => $t->getWeekRangeLabel(),
             'postedAt' => $t->getPostedAt()->format(\DATE_ATOM),
+            'publishedAt' => $t->getPublishedAt()?->format(\DATE_ATOM),
             'audience' => $t->getAudience(),
         ];
     }

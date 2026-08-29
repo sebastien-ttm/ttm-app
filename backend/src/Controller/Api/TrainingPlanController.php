@@ -29,7 +29,7 @@ class TrainingPlanController extends AbstractController
 
     private function ensureVisible(TrainingPlan $plan, ?User $viewer): void
     {
-        if (!$this->audienceFilter->isVisible($plan->getAudience(), $viewer)) {
+        if (!$plan->isPublished() || !$this->audienceFilter->isVisible($plan->getAudience(), $viewer)) {
             throw $this->createNotFoundException();
         }
     }

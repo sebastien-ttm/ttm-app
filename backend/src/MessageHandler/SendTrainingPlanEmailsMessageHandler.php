@@ -38,6 +38,13 @@ class SendTrainingPlanEmailsMessageHandler
             return;
         }
 
+        // Publication programmée dans le futur (admin a reporté la date après
+        // création) : on skippe. Une re-notification manuelle sera nécessaire
+        // si l'admin veut relancer les envois.
+        if (!$plan->isPublished()) {
+            return;
+        }
+
         $recipients = $this->users->findTrainingPlanEmailRecipients($plan);
 
         // ⚠️ ON MARQUE AVANT D'ENVOYER (claim du verrou). Pourquoi ?

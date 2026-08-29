@@ -31,6 +31,8 @@ class TrainingPlanRepository extends ServiceEntityRepository
 
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.postedBy', 'p')->addSelect('p')
+            ->andWhere('t.publishedAt IS NULL OR t.publishedAt <= :now')
+            ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('t.postedAt', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit);
@@ -52,7 +54,9 @@ class TrainingPlanRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.postedBy', 'p')->addSelect('p')
             ->where('t.weekStartsAt = :w')
+            ->andWhere('t.publishedAt IS NULL OR t.publishedAt <= :now')
             ->setParameter('w', $monday->format('Y-m-d'))
+            ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('t.category', 'ASC')
             ->addOrderBy('t.postedAt', 'DESC');
 

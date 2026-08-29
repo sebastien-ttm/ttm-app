@@ -61,6 +61,7 @@ export type TrainingPlan = {
   weekStartsAt: string | null;
   weekRangeLabel: string | null;
   postedAt: string;
+  publishedAt: string | null;
 };
 
 export type StaticPageSummary = { slug: string; title: string };

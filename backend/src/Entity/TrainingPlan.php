@@ -50,6 +50,14 @@ class TrainingPlan
     #[ORM\Column]
     private \DateTimeImmutable $postedAt;
 
+    /**
+     * Date de mise en ligne. NULL = publier immédiatement.
+     * Si dans le futur : le plan est masqué de l'API mobile et les
+     * notifications (push/email) sont différées jusqu'à cette date.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
@@ -194,6 +202,31 @@ class TrainingPlan
 
     public function getEmailsSentAt(): ?\DateTimeImmutable { return $this->emailsSentAt; }
     public function setEmailsSentAt(?\DateTimeImmutable $d): self { $this->emailsSentAt = $d; return $this; }
+
+    public function getPublishedAt(): ?\DateTimeImmutable { return $this->publishedAt; }
+    public function setPublishedAt(?\DateTimeImmutable $d): self { $this->publishedAt = $d; return $this; }
+
+    /**
+     * Publié dès maintenant ? (publishedAt NULL ou déjà passé).
+     * Utilisé pour filtrer l'API mobile et gérer la temporisation
+     * des notifications.
+     */
+    public function isPublished(?\DateTimeImmutable $now = null): bool
+    {
+        if ($this->publishedAt === null) {
+            return true;
+        }
+        return $this->publishedAt <= ($now ?? new \DateTimeImmutable());
+    }
+
+    /**
+     * Retourne la date de publication par défaut pour une semaine cible :
+     * dimanche 20h00 précédant le lundi de la semaine.
+     */
+    public static function defaultPublishedAtForWeek(\DateTimeImmutable $weekMonday): \DateTimeImmutable
+    {
+        return $weekMonday->modify('-1 day')->setTime(20, 0, 0);
+    }
 
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }
