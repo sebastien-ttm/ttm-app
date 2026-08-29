@@ -69,6 +69,16 @@ class Article
     #[ORM\OneToMany(targetEntity: Reaction::class, mappedBy: 'article', cascade: ['remove'], orphanRemoval: true)]
     private Collection $reactions;
 
+    /**
+     * Pièces jointes (PDF, docs, GPX, images additionnelles…).
+     * Différent de `photos` qui est spécifique aux images de la galerie.
+     *
+     * @var Collection<int, ArticleAttachment>
+     */
+    #[ORM\OneToMany(targetEntity: ArticleAttachment::class, mappedBy: 'article', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['uploadedAt' => 'ASC'])]
+    private Collection $attachments;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -76,7 +86,11 @@ class Article
         $this->photos = new ArrayCollection();
         $this->comments = new ArrayCollection();
         $this->reactions = new ArrayCollection();
+        $this->attachments = new ArrayCollection();
     }
+
+    /** @return Collection<int, ArticleAttachment> */
+    public function getAttachments(): Collection { return $this->attachments; }
 
     #[ORM\PreUpdate]
     public function touchUpdatedAt(): void

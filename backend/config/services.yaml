@@ -9,6 +9,7 @@ parameters:
     app.uploads.banners_dir: '%kernel.project_dir%/public/uploads/banners'
     app.uploads.training_dir: '%kernel.project_dir%/var/uploads/training'
     app.uploads.training_slots_dir: '%kernel.project_dir%/var/uploads/training-slots'
+    app.uploads.article_attachments_dir: '%kernel.project_dir%/var/uploads/article-attachments'
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
     app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
@@ -51,6 +52,10 @@ services:
     App\Service\Training\AttachmentService:
         arguments:
             $trainingSlotsDir: '%app.uploads.training_slots_dir%'
+
+    App\Service\Article\ArticleAttachmentService:
+        arguments:
+            $articleAttachmentsDir: '%app.uploads.article_attachments_dir%'
 
     App\Service\AvatarService:
         arguments:

@@ -50,6 +50,15 @@ class ApiSerializer
             }
         }
 
+        $attachments = array_map(fn ($att) => [
+            'id' => $att->getId(),
+            'name' => $att->getOriginalName(),
+            'size' => $att->getSize(),
+            'humanSize' => $att->getHumanSize(),
+            'mimeType' => $att->getMimeType(),
+            'url' => rtrim($this->publicUrl, '/').'/api/articles/attachments/'.$att->getId().'/file',
+        ], $a->getAttachments()->toArray());
+
         return [
             'id' => $a->getId(),
             'title' => $a->getTitle(),
@@ -57,6 +66,7 @@ class ApiSerializer
             'publishedAt' => $a->getPublishedAt()?->format(\DATE_ATOM),
             'author' => $this->user($a->getAuthor()),
             'photos' => array_map(fn (ArticlePhoto $p) => $this->photo($p), $a->getPhotos()->toArray()),
+            'attachments' => $attachments,
             'reactionCounts' => $a->getReactionCounts(),
             'myReactions' => $myReactions,
             'commentCount' => $a->getComments()->count(),

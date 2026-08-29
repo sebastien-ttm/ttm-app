@@ -12,6 +12,15 @@ export type Photo = {
   position: number;
 };
 
+export type ArticleAttachment = {
+  id: number;
+  name: string;
+  size: number;
+  humanSize: string;
+  mimeType: string;
+  url: string;
+};
+
 export type Article = {
   id: number;
   title: string;
@@ -19,6 +28,7 @@ export type Article = {
   publishedAt: string | null;
   author: UserSummary;
   photos: Photo[];
+  attachments: ArticleAttachment[];
   reactionCounts: Record<string, number>;
   myReactions: string[];
   commentCount: number;

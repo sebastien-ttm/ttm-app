@@ -7,6 +7,8 @@ use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -32,6 +34,21 @@ class ArticleCrudController extends AbstractCrudController
             ->setDefaultSort(['publishedAt' => 'DESC', 'createdAt' => 'DESC'])
             ->setPaginatorPageSize(25)
             ->setSearchFields(['title', 'content']);
+    }
+
+    public function configureActions(Actions $actions): Actions
+    {
+        // Bouton « Pièces jointes » sur l'index et le détail — accessible
+        // uniquement pour un article déjà persisté (l'id est requis pour
+        // la route d'upload).
+        $manageAttachments = Action::new('manageAttachments', '📎 Pièces jointes', null)
+            ->linkToRoute('admin_article_attachments', fn (Article $a) => ['id' => $a->getId()])
+            ->displayIf(fn (Article $a) => $a->getId() !== null);
+
+        return parent::configureActions($actions)
+            ->add(Crud::PAGE_INDEX, $manageAttachments)
+            ->add(Crud::PAGE_DETAIL, $manageAttachments)
+            ->add(Crud::PAGE_EDIT, $manageAttachments);
     }
 
     public function configureFields(string $pageName): iterable

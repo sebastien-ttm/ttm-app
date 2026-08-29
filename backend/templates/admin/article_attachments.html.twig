@@ -1,0 +1,72 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Pièces jointes — {{ article.title }}{% endblock %}
+{% block content_title %}📎 Pièces jointes — {{ article.title }}{% endblock %}
+
+{% block main %}
+    <div style="margin-bottom:20px;">
+        <a href="{{ ea_url().setController('App\\Controller\\Admin\\ArticleCrudController').setAction('edit').setEntityId(article.id) }}"
+           class="btn btn-secondary">← Retour à l'article</a>
+    </div>
+
+    {# === Liste des PJ existantes === #}
+    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+        <h3 style="margin-top:0;">Pièces jointes actuelles ({{ article.attachments|length }})</h3>
+
+        {% if article.attachments|length == 0 %}
+            <p style="color:#94a3b8; font-style:italic; margin:0;">Aucune pièce jointe pour cet article.</p>
+        {% else %}
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:10px; text-align:left;">Nom</th>
+                        <th style="padding:10px; text-align:left;">Type</th>
+                        <th style="padding:10px; text-align:left;">Taille</th>
+                        <th style="padding:10px; text-align:left;">Ajoutée le</th>
+                        <th style="padding:10px; text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for att in article.attachments %}
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:10px;">
+                                📄 {{ att.originalName }}
+                            </td>
+                            <td style="padding:10px; color:#64748b; font-family:monospace; font-size:12px;">
+                                {{ att.mimeType }}
+                            </td>
+                            <td style="padding:10px; color:#64748b;">{{ att.humanSize }}</td>
+                            <td style="padding:10px; color:#64748b;">{{ att.uploadedAt|date('d/m/Y H:i') }}</td>
+                            <td style="padding:10px; text-align:right;">
+                                <form method="post"
+                                      action="{{ path('admin_article_attachment_delete', {id: article.id, attId: att.id}) }}"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Supprimer « {{ att.originalName }} » ? Cette action est irréversible.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('article_attachment') }}">
+                                    <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    {# === Upload === #}
+    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <h3 style="margin-top:0;">Ajouter une pièce jointe</h3>
+        <p style="color:#64748b; font-size:13px; margin-bottom:14px;">
+            Types acceptés : tous. Taille maximale : {{ maxMB }} Mo par fichier.
+        </p>
+        <form method="post" enctype="multipart/form-data"
+              action="{{ path('admin_article_attachment_upload', {id: article.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('article_attachment') }}">
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <input type="file" name="file" required
+                       style="padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                <button type="submit" class="btn btn-primary">Uploader</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

@@ -1,4 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,7 +18,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { articles as articlesApi } from '@/api/resources';
-import type { Article, Comment } from '@/api/types';
+import type { Article, ArticleAttachment, Comment } from '@/api/types';
+import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
@@ -102,6 +104,17 @@ export default function ArticleScreen() {
 
             <RichContent html={article.content} style={styles.body} />
 
+            {article.attachments.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pièces jointes ({article.attachments.length})</Text>
+                <View style={styles.attachments}>
+                  {article.attachments.map((att) => (
+                    <AttachmentLink key={att.id} attachment={att} />
+                  ))}
+                </View>
+              </View>
+            )}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Réactions</Text>
               <ReactionBar
@@ -132,6 +145,21 @@ export default function ArticleScreen() {
       </KeyboardAvoidingView>
       )}
     </SafeAreaView>
+  );
+}
+
+function AttachmentLink({ attachment }: { attachment: ArticleAttachment }) {
+  async function open() {
+    const token = await storage.getItem(STORAGE_KEYS.accessToken);
+    const url = attachment.url + (token ? `?bearer=${encodeURIComponent(token)}` : '');
+    await WebBrowser.openBrowserAsync(url);
+  }
+  return (
+    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && styles.pressed]}>
+      <Text style={styles.attachmentIcon}>📎</Text>
+      <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
+      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
+    </Pressable>
   );
 }
 
@@ -240,4 +268,19 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { opacity: 0.5 },
   submitLabel: { color: '#fff', fontWeight: '700' },
+  attachments: { gap: 8 },
+  attachmentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  attachmentIcon: { fontSize: 16 },
+  attachmentName: { flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' },
+  attachmentSize: { fontSize: 12, color: COLORS.textMuted },
+  pressed: { opacity: 0.6 },
 });

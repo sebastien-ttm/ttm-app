@@ -6,16 +6,20 @@ use App\Entity\Article;
 use App\Entity\Comment;
 use App\Entity\Reaction;
 use App\Entity\User;
+use App\Repository\ArticleAttachmentRepository;
 use App\Repository\ArticleRepository;
 use App\Repository\CommentRepository;
 use App\Repository\ReactionRepository;
+use App\Service\Article\ArticleAttachmentService;
 use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -32,6 +36,8 @@ class ArticleController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ValidatorInterface $validator,
         private readonly AudienceFilter $audienceFilter,
+        private readonly ArticleAttachmentRepository $attachmentsRepo,
+        private readonly ArticleAttachmentService $attachmentsService,
     ) {
     }
 
@@ -122,6 +128,31 @@ class ArticleController extends AbstractController
         $this->em->flush();
 
         return new JsonResponse($this->serializer->comment($comment), Response::HTTP_CREATED);
+    }
+
+    /** Téléchargement authentifié d'une PJ d'article depuis le mobile. */
+    #[Route('/attachments/{attId}/file', methods: ['GET'], requirements: ['attId' => '\d+'])]
+    public function downloadAttachment(int $attId): BinaryFileResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $att = $this->attachmentsRepo->find($attId);
+        if ($att === null) {
+            throw $this->createNotFoundException();
+        }
+        $this->ensureVisible($att->getArticle(), $viewer);
+
+        $path = $this->attachmentsService->absolutePath($att);
+        if ($path === null || !is_file($path)) {
+            throw $this->createNotFoundException();
+        }
+        $resp = new BinaryFileResponse($path);
+        $resp->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $att->getOriginalName(),
+        );
+        $resp->headers->set('Content-Type', $att->getMimeType());
+        return $resp;
     }
 
     #[Route('/{id}/reactions', methods: ['PUT'], requirements: ['id' => '\d+'])]
