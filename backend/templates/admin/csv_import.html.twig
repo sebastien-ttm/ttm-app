@@ -30,6 +30,27 @@
 
         <form method="post" enctype="multipart/form-data" style="margin-top:24px;">
             <div style="margin-bottom:16px;">
+                <label style="display:block; font-weight:600; margin-bottom:6px;">Saison d'adhésion <span style="color:#dc2626;">*</span></label>
+                <select name="season_id" required style="min-width:280px; padding:6px;">
+                    <option value="">— Choisir la saison —</option>
+                    {% for s in seasons %}
+                        <option value="{{ s.id }}" {{ s.id == currentSeasonId ? 'selected' : '' }}>
+                            {{ s.name ?: s|striptags }}
+                            {% if s.startsAt and s.endsAt %}
+                                ({{ s.startsAt|date('d/m/Y') }} → {{ s.endsAt|date('d/m/Y') }})
+                            {% endif %}
+                            {% if s.id == currentSeasonId %} · courante{% endif %}
+                        </option>
+                    {% else %}
+                        <option value="" disabled>Aucune saison définie — créez-en une d'abord</option>
+                    {% endfor %}
+                </select>
+                <div style="font-size:12px; color:#64748b; margin-top:4px;">
+                    Chaque adhérent importé sera marqué comme adhérent de cette saison
+                    (statistiques historiques).
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
                 <label style="display:block; font-weight:600; margin-bottom:6px;">Fichier CSV</label>
                 <input type="file" name="csv_file" accept=".csv,.txt" required>
             </div>
@@ -53,6 +74,11 @@
         {% if result %}
             <hr style="margin:30px 0;">
             <h3>Résultat</h3>
+            {% if result.seasonLabel %}
+                <p style="font-size:14px; background:#dbeafe; border-left:4px solid #1d4ed8; padding:8px 12px; border-radius:4px;">
+                    📅 Adhésions enregistrées pour la saison <strong>{{ result.seasonLabel }}</strong>.
+                </p>
+            {% endif %}
             <ul style="font-size:15px;">
                 <li><strong>{{ result.created }}</strong> compte(s) créé(s)</li>
                 <li><strong>{{ result.updated }}</strong> compte(s) mis à jour</li>

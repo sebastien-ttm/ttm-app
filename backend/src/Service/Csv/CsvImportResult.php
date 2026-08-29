@@ -15,6 +15,8 @@ class CsvImportResult
     public int $deactivationDeferred = 0;
     /** Date jusqu'à laquelle la grâce s'applique (pour le message). */
     public ?\DateTimeImmutable $gracePeriodUntil = null;
+    /** Libellé de la saison associée à l'import (null si import sans saison). */
+    public ?string $seasonLabel = null;
     /** @var list<array{line: int, error: string, raw?: array<string, string>}> */
     public array $errors = [];
 
@@ -39,6 +41,7 @@ class CsvImportResult
             'deactivated' => $this->deactivated,
             'deactivationDeferred' => $this->deactivationDeferred,
             'gracePeriodUntil' => $this->gracePeriodUntil?->format('Y-m-d'),
+            'seasonLabel' => $this->seasonLabel,
             'skipped' => $this->skipped,
             'errors' => $this->errors,
         ];

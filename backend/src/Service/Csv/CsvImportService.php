@@ -2,12 +2,15 @@
 
 namespace App\Service\Csv;
 
+use App\Entity\TrainingSeason;
 use App\Entity\User;
+use App\Entity\UserSeasonMembership;
 use App\Enum\Profile;
 use App\Enum\UserType;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\MembershipSettingsRepository;
 use App\Repository\UserRepository;
+use App\Repository\UserSeasonMembershipRepository;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Csv\Reader;
@@ -60,12 +63,18 @@ class CsvImportService
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $csvImportLogger,
         private readonly MembershipSettingsRepository $membership,
+        private readonly UserSeasonMembershipRepository $memberships,
     ) {
     }
 
-    public function import(string $filePath, bool $sendWelcomeEmails = true, string $delimiter = ','): CsvImportResult
-    {
+    public function import(
+        string $filePath,
+        bool $sendWelcomeEmails = true,
+        string $delimiter = ',',
+        ?TrainingSeason $season = null,
+    ): CsvImportResult {
         $result = new CsvImportResult();
+        $result->seasonLabel = $season?->__toString();
         $importedAt = new \DateTimeImmutable();
 
         $csv = Reader::createFromPath($filePath, 'r');
@@ -199,6 +208,13 @@ class CsvImportService
                 } else {
                     $result->updated++;
                 }
+
+                // Trace l'adhésion pour la saison sélectionnée (statistiques
+                // historiques). Upsert : crée si absente, met à jour les
+                // snapshots licence + updatedAt sinon.
+                if ($season !== null) {
+                    $this->upsertMembership($user, $season, $importedAt, $record);
+                }
             } catch (\Throwable $e) {
                 $result->addError($line, $e->getMessage(), $record);
                 $this->csvImportLogger->error('CSV row error', ['line' => $line, 'exception' => $e]);
@@ -249,6 +265,35 @@ class CsvImportService
 
         $this->csvImportLogger->info('CSV import terminé', $result->toArray());
         return $result;
+    }
+
+    /**
+     * Crée (ou met à jour) le lien UserSeasonMembership pour l'adhésion de
+     * cet utilisateur à cette saison. Rejouable : deux imports successifs
+     * pour la même (user, saison) rafraîchissent les snapshots licence
+     * mais ne dupliquent pas la ligne.
+     *
+     * @param array<string, mixed> $record  ligne CSV brute (pour snapshots)
+     */
+    private function upsertMembership(User $user, TrainingSeason $season, \DateTimeImmutable $importedAt, array $record): void
+    {
+        // Un user tout juste créé (getId === null avant flush) ne peut pas
+        // encore avoir de membership existant. Sinon on cherche en base.
+        $existing = $user->getId() !== null
+            ? $this->memberships->findOneByUserAndSeason($user, $season)
+            : null;
+
+        $membership = $existing ?? new UserSeasonMembership($user, $season);
+        if ($existing !== null) {
+            $membership->touchUpdatedAt();
+        }
+        $membership->setStatutLicence(trim((string) ($record['Statut'] ?? '')) ?: null);
+        $membership->setTypeLicence(trim((string) ($record['Type de licence'] ?? '')) ?: null);
+        $membership->setCategorieAge(trim((string) ($record['Catégorie d\'âge'] ?? '')) ?: null);
+
+        if ($existing === null) {
+            $this->em->persist($membership);
+        }
     }
 
     private function cleanEmail(string $email): string

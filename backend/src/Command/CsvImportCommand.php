@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Repository\TrainingSeasonRepository;
 use App\Service\Csv\CsvImportService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -14,8 +15,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'app:csv:import', description: 'Importe un fichier CSV d\'adhérents (Espace Tri).')]
 class CsvImportCommand extends Command
 {
-    public function __construct(private readonly CsvImportService $importer)
-    {
+    public function __construct(
+        private readonly CsvImportService $importer,
+        private readonly TrainingSeasonRepository $seasons,
+    ) {
         parent::__construct();
     }
 
@@ -25,6 +28,7 @@ class CsvImportCommand extends Command
             ->addArgument('file', InputArgument::REQUIRED, 'Chemin vers le fichier CSV')
             ->addOption('delimiter', 'd', InputOption::VALUE_REQUIRED, 'Séparateur', ',')
             ->addOption('no-welcome', null, InputOption::VALUE_NONE, 'Ne pas envoyer d\'e-mail de bienvenue aux nouveaux comptes')
+            ->addOption('season', 's', InputOption::VALUE_REQUIRED, 'ID de la saison d\'adhésion (par défaut : saison courante)')
         ;
     }
 
@@ -38,13 +42,25 @@ class CsvImportCommand extends Command
             return Command::FAILURE;
         }
 
+        // Saison sélectionnée : --season=<id>, sinon la courante, sinon avertit.
+        $seasonId = $input->getOption('season');
+        $season = $seasonId !== null ? $this->seasons->find((int) $seasonId) : $this->seasons->findCurrent();
+        if ($season === null) {
+            $io->warning('Aucune saison trouvée : les adhésions ne seront pas tracées par saison. '
+                .'Précisez --season=<id> ou créez une saison courante.');
+        }
+
         $io->title('Import CSV adhérents');
         $io->text('Fichier : '.$file);
+        if ($season !== null) {
+            $io->text('Saison  : '.(string) $season);
+        }
 
         $result = $this->importer->import(
             filePath: $file,
             sendWelcomeEmails: !$input->getOption('no-welcome'),
             delimiter: (string) $input->getOption('delimiter'),
+            season: $season,
         );
 
         $io->definitionList(

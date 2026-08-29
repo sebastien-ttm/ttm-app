@@ -41,10 +41,11 @@ class MembershipSettingsCrudController extends AbstractCrudController
         yield DateField::new('oldMembersValidUntil', 'Anciens adhérents valides jusqu\'au')
             ->setRequired(false)
             ->setHelp(
-                'Tant qu\'on est avant cette date, les adhérents <strong>absents du dernier '
-                .'CSV importé</strong> restent actifs (le temps qu\'ils renouvellent leur '
-                .'licence). Après cette date, le prochain import CSV les désactive '
-                .'normalement. Laisser vide pour désactiver immédiatement à chaque import.'
+                'Date d\'échéance de la période de grâce pour les anciens adhérents. '
+                .'Les utilisateurs qui ne sont <strong>pas adhérents pour la saison en cours</strong> '
+                .'conservent l\'accès à l\'application jusqu\'à cette date, puis leur compte '
+                .'est désactivé au prochain import CSV. Laisser vide pour désactiver '
+                .'immédiatement à chaque import (aucune tolérance).'
             );
     }
 }
