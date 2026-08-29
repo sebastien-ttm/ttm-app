@@ -46,11 +46,16 @@ class CharterController extends AbstractController
             ]);
         }
 
+        // Mode aperçu : l'admin doit pouvoir itérer sur le contenu et le
+        // formulaire → on présente TOUJOURS la charte, même après acceptation.
+        // Sortir du mode preview (retirer previewUser dans le CRUD) rétablit
+        // le comportement standard.
+        $isPreview = $charter->getPreviewUser()?->getId() === $user->getId();
         $hasAccepted = $this->acceptances->hasAccepted($user, $charter);
 
         return new JsonResponse([
             'charter' => $this->serializer->charter($charter),
-            'acceptanceRequired' => !$hasAccepted,
+            'acceptanceRequired' => $isPreview || !$hasAccepted,
         ]);
     }
 
