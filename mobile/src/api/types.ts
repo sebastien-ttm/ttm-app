@@ -79,6 +79,8 @@ export type GouterSignupSummary = {
 export type GouterSlot = {
   date: string; // YYYY-MM-DD (Wednesday)
   capacity: number;
+  isCancelled: boolean;
+  cancellationReason: string | null;
   signups: GouterSignupSummary[];
 };
 

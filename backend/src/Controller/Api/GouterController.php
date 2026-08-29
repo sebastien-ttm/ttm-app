@@ -5,7 +5,9 @@ namespace App\Controller\Api;
 use App\Entity\GouterSignup;
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Repository\GouterCancellationRepository;
 use App\Repository\GouterSignupRepository;
+use App\Repository\TrainingSeasonRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,11 +24,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/gouters')]
 class GouterController extends AbstractController
 {
-    /** Nombre de mercredis renvoyés dans la vue par défaut. */
-    private const DEFAULT_WEEKS = 12;
+    /** Fallback (pas de saison définie) : nombre de mercredis renvoyés. */
+    private const FALLBACK_WEEKS = 12;
 
     public function __construct(
         private readonly GouterSignupRepository $signups,
+        private readonly GouterCancellationRepository $cancellations,
+        private readonly TrainingSeasonRepository $seasons,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -41,10 +45,9 @@ class GouterController extends AbstractController
     }
 
     /**
-     * Retourne les mercredis dans une plage, avec les positionnements par date.
-     * Params optionnels : ?from=YYYY-MM-DD&to=YYYY-MM-DD
-     * Défaut : à partir d'aujourd'hui (ou lundi de la semaine courante) +
-     * 12 semaines (soit 12 mercredis).
+     * Retourne les mercredis de la saison courante (ou de la plage
+     * demandée si ?from/?to explicites) avec les positionnements par date
+     * et le drapeau isCancelled si l'admin a annulé le créneau.
      */
     #[Route('', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -53,14 +56,22 @@ class GouterController extends AbstractController
         $viewer = $this->getUser();
         $this->ensureEligible($viewer);
 
-        $today = new \DateTimeImmutable('today');
         $fromRaw = $request->query->get('from');
         $toRaw = $request->query->get('to');
+        $from = $this->parseDate($fromRaw);
+        $to = $this->parseDate($toRaw);
 
-        $from = $this->parseDate($fromRaw) ?? $today;
-        $to = $this->parseDate($toRaw) ?? $from->modify('+'.self::DEFAULT_WEEKS.' weeks');
+        // Par défaut : bornes de la saison d'entraînement courante.
+        // Fallback (pas de saison / dates absentes) : 12 mercredis depuis aujourd'hui.
+        if ($from === null || $to === null) {
+            $season = $this->seasons->findCurrent();
+            $seasonStart = $season?->getStartsAt();
+            $seasonEnd = $season?->getEndsAt();
+            $today = new \DateTimeImmutable('today');
+            $from ??= $seasonStart ?? $today;
+            $to ??= $seasonEnd ?? $today->modify('+'.self::FALLBACK_WEEKS.' weeks');
+        }
 
-        // Génère la liste des mercredis dans la plage
         $wednesdays = $this->wednesdaysInRange($from, $to);
         if ($wednesdays === []) {
             return new JsonResponse(['slots' => []]);
@@ -69,8 +80,8 @@ class GouterController extends AbstractController
         $rangeStart = $wednesdays[0];
         $rangeEnd = end($wednesdays);
         $existing = $this->signups->findInRange($rangeStart, $rangeEnd);
+        $cancellationMap = $this->cancellations->findMapInRange($rangeStart, $rangeEnd);
 
-        // Groupe par date (Y-m-d)
         $byDate = [];
         foreach ($existing as $s) {
             $byDate[$s->getDate()->format('Y-m-d')][] = $s;
@@ -80,9 +91,12 @@ class GouterController extends AbstractController
         foreach ($wednesdays as $w) {
             $key = $w->format('Y-m-d');
             $signups = $byDate[$key] ?? [];
+            $cancel = $cancellationMap[$key] ?? null;
             $slots[] = [
                 'date' => $key,
                 'capacity' => GouterSignup::CAPACITY_PER_SLOT,
+                'isCancelled' => $cancel !== null,
+                'cancellationReason' => $cancel?->getReason(),
                 'signups' => array_map(fn (GouterSignup $s) => [
                     'id' => $s->getId(),
                     'userId' => $s->getUser()->getId(),
@@ -119,6 +133,10 @@ class GouterController extends AbstractController
         }
         if ($date < new \DateTimeImmutable('today')) {
             return new JsonResponse(['error' => 'On ne peut plus se positionner sur un mercredi passé.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($this->cancellations->findOneByDate($date) !== null) {
+            return new JsonResponse(['error' => 'Ce mercredi a été annulé (vacances, compétition…).'], Response::HTTP_CONFLICT);
         }
 
         // Déjà positionné ?

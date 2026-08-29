@@ -2,10 +2,13 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\GouterCancellation;
 use App\Entity\GouterSignup;
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Repository\GouterCancellationRepository;
 use App\Repository\GouterSignupRepository;
+use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,10 +28,13 @@ class GouterAdminController extends AbstractController
 {
     use EnsureAdminContextTrait;
 
-    private const DEFAULT_WEEKS = 16;
+    /** Fallback : nombre de mercredis affichés quand aucune saison n'existe. */
+    private const FALLBACK_WEEKS = 16;
 
     public function __construct(
         private readonly GouterSignupRepository $signups,
+        private readonly GouterCancellationRepository $cancellations,
+        private readonly TrainingSeasonRepository $seasons,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
     ) {
@@ -40,14 +46,24 @@ class GouterAdminController extends AbstractController
         if ($r = $this->ensureAdminContext($request, 'admin_gouters')) {
             return $r;
         }
-        $today = new \DateTimeImmutable('today');
-        $from = $this->parseDate((string) $request->query->get('from', '')) ?? $today;
-        $to = $this->parseDate((string) $request->query->get('to', '')) ?? $from->modify('+'.self::DEFAULT_WEEKS.' weeks');
+
+        // Défaut : bornes de la saison d'entraînement courante.
+        // L'admin peut restreindre avec ?from/?to.
+        $season = $this->seasons->findCurrent();
+        $from = $this->parseDate((string) $request->query->get('from', ''))
+            ?? $season?->getStartsAt()
+            ?? new \DateTimeImmutable('today');
+        $to = $this->parseDate((string) $request->query->get('to', ''))
+            ?? $season?->getEndsAt()
+            ?? $from->modify('+'.self::FALLBACK_WEEKS.' weeks');
 
         $wednesdays = $this->wednesdaysInRange($from, $to);
         $existing = $wednesdays === []
             ? []
             : $this->signups->findInRange($wednesdays[0], end($wednesdays));
+        $cancellationMap = $wednesdays === []
+            ? []
+            : $this->cancellations->findMapInRange($wednesdays[0], end($wednesdays));
 
         $byDate = [];
         foreach ($existing as $s) {
@@ -70,6 +86,7 @@ class GouterAdminController extends AbstractController
                 'date' => $w,
                 'dateLabel' => (string) $fmt->format($w),
                 'signups' => $byDate[$key] ?? [],
+                'cancellation' => $cancellationMap[$key] ?? null,
             ];
         }
 
@@ -88,7 +105,45 @@ class GouterAdminController extends AbstractController
             'to' => $to,
             'eligible' => $eligible,
             'capacity' => GouterSignup::CAPACITY_PER_SLOT,
+            'season' => $season,
         ]);
+    }
+
+    #[Route('/admin/gouters/cancel', name: 'admin_gouters_cancel', methods: ['POST'])]
+    public function cancel(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'gouter_admin');
+        $date = $this->parseDate((string) $request->request->get('date', ''));
+        if ($date === null || (int) $date->format('N') !== 3) {
+            $this->addFlash('error', 'Date invalide (mercredi requis).');
+            return $this->redirectBack($request);
+        }
+        if ($this->cancellations->findOneByDate($date) !== null) {
+            $this->addFlash('warning', 'Ce mercredi est déjà annulé.');
+            return $this->redirectBack($request);
+        }
+        $reason = trim((string) $request->request->get('reason', '')) ?: null;
+        /** @var User $admin */
+        $admin = $this->getUser();
+        $this->em->persist(new GouterCancellation($date, $admin, $reason));
+        $this->em->flush();
+        $this->addFlash('success', sprintf('Mercredi %s annulé.', $date->format('d/m/Y')));
+        return $this->redirectBack($request);
+    }
+
+    #[Route('/admin/gouters/reactivate/{id}', name: 'admin_gouters_reactivate', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function reactivate(int $id, Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'gouter_admin');
+        $cancel = $this->cancellations->find($id);
+        if ($cancel === null) {
+            throw $this->createNotFoundException();
+        }
+        $date = $cancel->getDate()->format('d/m/Y');
+        $this->em->remove($cancel);
+        $this->em->flush();
+        $this->addFlash('success', sprintf('Mercredi %s rétabli.', $date));
+        return $this->redirectBack($request);
     }
 
     #[Route('/admin/gouters/add', name: 'admin_gouters_add', methods: ['POST'])]

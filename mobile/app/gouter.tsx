@@ -178,12 +178,15 @@ function SlotCard({
   const iAmIn = slot.signups.some((s) => s.isMine);
   const remaining = Math.max(0, slot.capacity - slot.signups.length);
   const isPast = new Date(slot.date + 'T00:00:00') < new Date(new Date().toDateString());
+  const isCancelled = slot.isCancelled;
 
   return (
-    <View style={[styles.card, isPast && styles.cardPast]}>
+    <View style={[styles.card, isPast && styles.cardPast, isCancelled && styles.cardCancelled]}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardDate}>{formatDate(slot.date + 'T12:00:00')}</Text>
-        {isPast ? (
+        <Text style={[styles.cardDate, isCancelled && styles.cardDateCancelled]}>{formatDate(slot.date + 'T12:00:00')}</Text>
+        {isCancelled ? (
+          <Text style={styles.badgeCancelled}>🚫 Annulé</Text>
+        ) : isPast ? (
           <Text style={styles.badgePast}>passé</Text>
         ) : remaining === 0 ? (
           <Text style={styles.badgeFull}>Complet</Text>
@@ -192,36 +195,42 @@ function SlotCard({
         )}
       </View>
 
-      <View style={styles.slotList}>
-        {Array.from({ length: slot.capacity }).map((_, idx) => {
-          const s = slot.signups[idx];
-          if (s) {
+      {isCancelled && slot.cancellationReason && (
+        <Text style={styles.cancelReason}>« {slot.cancellationReason} »</Text>
+      )}
+
+      {!isCancelled && (
+        <View style={styles.slotList}>
+          {Array.from({ length: slot.capacity }).map((_, idx) => {
+            const s = slot.signups[idx];
+            if (s) {
+              return (
+                <View key={s.id} style={[styles.slotRow, s.isMine && styles.slotRowMine]}>
+                  <Ionicons name="person" size={16} color={s.isMine ? COLORS.primary : COLORS.textMuted} />
+                  <Text style={[styles.slotName, s.isMine && styles.slotNameMine]} numberOfLines={1}>
+                    {s.fullName}
+                    {s.isMine && ' (vous)'}
+                  </Text>
+                  {s.byAdmin && <Text style={styles.slotBadge}>ajouté</Text>}
+                  {s.isMine && !isPast && (
+                    <Pressable onPress={() => onCancel(s.id)} disabled={busy} hitSlop={8}>
+                      <Ionicons name="close-circle" size={20} color={COLORS.error} />
+                    </Pressable>
+                  )}
+                </View>
+              );
+            }
             return (
-              <View key={s.id} style={[styles.slotRow, s.isMine && styles.slotRowMine]}>
-                <Ionicons name="person" size={16} color={s.isMine ? COLORS.primary : COLORS.textMuted} />
-                <Text style={[styles.slotName, s.isMine && styles.slotNameMine]} numberOfLines={1}>
-                  {s.fullName}
-                  {s.isMine && ' (vous)'}
-                </Text>
-                {s.byAdmin && <Text style={styles.slotBadge}>ajouté</Text>}
-                {s.isMine && !isPast && (
-                  <Pressable onPress={() => onCancel(s.id)} disabled={busy} hitSlop={8}>
-                    <Ionicons name="close-circle" size={20} color={COLORS.error} />
-                  </Pressable>
-                )}
+              <View key={`empty-${idx}`} style={[styles.slotRow, styles.slotRowEmpty]}>
+                <Ionicons name="person-outline" size={16} color={COLORS.textSubtle} />
+                <Text style={styles.slotEmptyText}>Place disponible</Text>
               </View>
             );
-          }
-          return (
-            <View key={`empty-${idx}`} style={[styles.slotRow, styles.slotRowEmpty]}>
-              <Ionicons name="person-outline" size={16} color={COLORS.textSubtle} />
-              <Text style={styles.slotEmptyText}>Place disponible</Text>
-            </View>
-          );
-        })}
-      </View>
+          })}
+        </View>
+      )}
 
-      {!isPast && !iAmIn && remaining > 0 && (
+      {!isCancelled && !isPast && !iAmIn && remaining > 0 && (
         <Pressable
           onPress={onSignup}
           disabled={busy}
@@ -271,6 +280,17 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   cardPast: { opacity: 0.6 },
+  cardCancelled: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  cardDateCancelled: { color: COLORS.textMuted, textDecorationLine: 'line-through' },
+  badgeCancelled: {
+    fontSize: 11, fontWeight: '700', color: '#991b1b',
+    backgroundColor: '#fecaca', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  cancelReason: {
+    fontSize: 12, color: '#7f1d1d', fontStyle: 'italic',
+    marginTop: 4, marginBottom: SPACING.xs,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
