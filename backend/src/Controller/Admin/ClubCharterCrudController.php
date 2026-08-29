@@ -102,6 +102,7 @@ JSON;
 
     public function persistEntity(EntityManagerInterface $em, $entityInstance): void
     {
+        $this->normalizeSchema($entityInstance);
         $this->validateSchema($entityInstance);
         $this->ensureSingleActive($em, $entityInstance);
         parent::persistEntity($em, $entityInstance);
@@ -109,9 +110,41 @@ JSON;
 
     public function updateEntity(EntityManagerInterface $em, $entityInstance): void
     {
+        $this->normalizeSchema($entityInstance);
         $this->validateSchema($entityInstance);
         $this->ensureSingleActive($em, $entityInstance);
         parent::updateEntity($em, $entityInstance);
+    }
+
+    /**
+     * Nettoie chaque champ pour se conformer au format « charte simplifiée » :
+     *  - type forcé à 'checkbox' (seul type supporté désormais)
+     *  - required forcé à true (tous les engagements bloquants)
+     *  - help/options supprimés
+     *
+     * Rend les schémas legacy conformes automatiquement au prochain save,
+     * en miroir de ce que fait le form builder JS côté rendu.
+     */
+    private function normalizeSchema(mixed $entity): void
+    {
+        if (!$entity instanceof ClubCharter) {
+            return;
+        }
+        $fields = $entity->getFields();
+        if ($fields === null || $fields === []) {
+            return;
+        }
+        $normalized = [];
+        foreach ($fields as $f) {
+            if (!is_array($f)) {
+                continue;
+            }
+            unset($f['help'], $f['options']);
+            $f['type'] = 'checkbox';
+            $f['required'] = true;
+            $normalized[] = $f;
+        }
+        $entity->setFields($normalized);
     }
 
     private function validateSchema(mixed $entity): void

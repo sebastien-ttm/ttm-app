@@ -111,14 +111,14 @@
       count.className = 'cfb-count';
       const n = this.state.fields.length;
       count.textContent = n === 0
-        ? 'Aucun champ (charte « simple bouton J\'accepte »)'
-        : (n === 1 ? '1 champ' : n + ' champs');
+        ? 'Aucun engagement (charte « simple bouton J\'accepte »)'
+        : (n === 1 ? '1 engagement' : n + ' engagements');
       toolbar.appendChild(count);
 
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-primary cfb-add-btn';
-      addBtn.innerHTML = '<i class="fa fa-plus"></i>&nbsp;Ajouter un champ';
+      addBtn.innerHTML = '<i class="fa fa-plus"></i>&nbsp;Ajouter un engagement';
       addBtn.addEventListener('click', () => {
         this.state.fields.push(this.newField());
         this.state.sync();
@@ -135,9 +135,8 @@
     }
 
     newField() {
+      // Case à cocher obligatoire — c'est le seul type supporté désormais.
       // ID unique : engagement_1, engagement_2, …
-      // Défaut = case à cocher (recommandé pour la nouvelle charte). Les
-      // autres types restent disponibles via le sélecteur.
       const existing = new Set(this.state.fields.map((f) => f.id));
       let n = this.state.fields.length + 1;
       while (existing.has('engagement_' + n)) n++;
@@ -154,21 +153,15 @@
       const card = document.createElement('div');
       card.className = 'cfb-field';
 
-      // === Header : badge type + actions
+      // === Header : uniquement audience + actions (le type/required
+      // sont désormais constants : « case à cocher obligatoire »).
       const header = document.createElement('div');
       header.className = 'cfb-field-header';
 
       const typeBadge = document.createElement('span');
       typeBadge.className = 'cfb-field-type';
-      typeBadge.textContent = (TYPES.find((t) => t.value === field.type)?.label) || field.type;
+      typeBadge.textContent = '☑ Engagement';
       header.appendChild(typeBadge);
-
-      if (field.required) {
-        const req = document.createElement('span');
-        req.className = 'cfb-required-badge';
-        req.textContent = 'Requis';
-        header.appendChild(req);
-      }
 
       if (field.audience && field.audience !== 'all') {
         const aud = document.createElement('span');
@@ -191,20 +184,20 @@
       const body = document.createElement('div');
       body.className = 'cfb-field-body';
 
+      // Normalisation silencieuse des schémas legacy : la charte est
+      // maintenant checkbox-only, toujours obligatoire, sans texte d'aide.
+      field.type = 'checkbox';
+      field.required = true;
+      delete field.help;
+      delete field.options;
+
       body.appendChild(this.rowInput(
-        field.type === 'checkbox' ? 'Phrase d\'acceptation *' : 'Libellé affiché *',
+        'Phrase d\'acceptation *',
         field.label || '',
         (v) => { field.label = v; },
-        {
-          placeholder: field.type === 'checkbox'
-            ? 'Ex : Je m\'engage à respecter les horaires'
-            : 'Ex : Taille de t-shirt',
-        },
+        { placeholder: 'Ex : Je m\'engage à respecter les horaires' },
       ));
 
-      // Description multi-ligne : explication de l'engagement (surtout
-      // utile pour les cases à cocher). Rendue sur mobile au-dessus du
-      // libellé pour contextualiser à quoi l'adhérent s'engage.
       body.appendChild(this.rowTextarea(
         'Description / explication (optionnelle)',
         field.description || '',
@@ -212,11 +205,7 @@
           if (v && v.trim() !== '') field.description = v;
           else delete field.description;
         },
-        {
-          placeholder: field.type === 'checkbox'
-            ? 'Expliquez le contexte : à quoi l\'adhérent s\'engage exactement, pourquoi c\'est important…'
-            : 'Contexte affiché avant le champ (optionnel).',
-        },
+        { placeholder: 'Expliquez à quoi l\'adhérent s\'engage exactement, pourquoi c\'est important…' },
       ));
 
       body.appendChild(this.rowInput('Identifiant technique *', field.id || '', (v) => {
@@ -225,23 +214,6 @@
         placeholder: 'lettres minuscules, chiffres, _',
         pattern: ID_PATTERN,
         help: 'Doit commencer par une lettre. Utilisé comme clé dans les réponses stockées.',
-      }));
-
-      body.appendChild(this.rowSelect('Type', field.type, TYPES, (v) => {
-        field.type = v;
-        if ((v === 'select' || v === 'radio') && !Array.isArray(field.options)) {
-          field.options = ['Option 1', 'Option 2'];
-        } else if (v !== 'select' && v !== 'radio') {
-          delete field.options;
-        }
-        this.state.sync();
-        this.render(); // full re-render pour montrer/cacher les options
-      }));
-
-      body.appendChild(this.rowInput('Texte d\'aide (optionnel)', field.help || '', (v) => {
-        if (v) field.help = v; else delete field.help;
-      }, {
-        placeholder: 'Ex : Format attendu, exemple…',
       }));
 
       // Normalise l'alias rétro-compat 'other' → 'senior' pour l'affichage
@@ -258,18 +230,7 @@
         },
       ));
 
-      body.appendChild(this.rowCheckbox('Champ obligatoire', !!field.required, (v) => {
-        if (v) field.required = true; else delete field.required;
-        this.render(); // re-render pour maj badge "Requis"
-      }));
-
       card.appendChild(body);
-
-      // === Options éditeur (select/radio)
-      if (field.type === 'select' || field.type === 'radio') {
-        card.appendChild(this.renderOptions(field));
-      }
-
       return card;
     }
 
