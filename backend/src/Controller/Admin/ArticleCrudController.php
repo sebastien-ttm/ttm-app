@@ -6,6 +6,7 @@ use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Service\Article\ArticleAttachmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -15,12 +16,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class ArticleCrudController extends AbstractCrudController
 {
+    /** 10 Mo max par PJ — même limite que la page dédiée. */
+    private const ATTACHMENT_MAX_BYTES = 10_000_000;
+
+    public function __construct(
+        private readonly ArticleAttachmentService $attachments,
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Article::class;
@@ -84,20 +95,22 @@ class ArticleCrudController extends AbstractCrudController
             );
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnIndex();
 
-        // Rappel visible uniquement sur le formulaire de création : les PJ
-        // (PDF, GPX, docs…) ne peuvent être attachées qu'après un premier
-        // enregistrement, car le stockage sur disque a besoin de l'id de
-        // l'article. Une fois enregistré, le bouton « 📎 Pièces jointes »
-        // apparaît en haut à droite (page d'édition ou d'index).
-        if ($pageName === Crud::PAGE_NEW) {
-            yield FormField::addFieldset('Pièces jointes')
-                ->setHelp(
-                    '📎 Les pièces jointes (PDF, GPX, documents…) pourront '
-                    .'être ajoutées après avoir enregistré l\'article, via '
-                    .'le bouton « 📎 Pièces jointes » qui apparaîtra en '
-                    .'haut à droite de la page d\'édition.'
-                );
-        }
+        // Upload multi-fichiers, non persisté sur l'entité : le contrôleur
+        // traite les fichiers dans persistEntity/updateEntity (après flush,
+        // pour disposer de l'id de l'article requis par le service).
+        yield Field::new('newAttachments', '📎 Pièces jointes')
+            ->setFormType(FileType::class)
+            ->setFormTypeOptions([
+                'multiple' => true,
+                'required' => false,
+                'attr' => ['multiple' => 'multiple'],
+            ])
+            ->onlyOnForms()
+            ->setHelp(
+                'PDF, GPX, documents, images additionnelles… — 10 Mo max par fichier. '
+                .'Les pièces déjà attachées se gèrent via le bouton « 📎 Pièces jointes » '
+                .'en haut à droite (liste + suppression).'
+            );
     }
 
     public function createEntity(string $entityFqcn): Article
@@ -114,12 +127,50 @@ class ArticleCrudController extends AbstractCrudController
     {
         $this->defaultPublishedAtToNow($entityInstance);
         parent::persistEntity($em, $entityInstance);
+        $this->processNewAttachments($em, $entityInstance);
     }
 
     public function updateEntity(EntityManagerInterface $em, $entityInstance): void
     {
         $this->defaultPublishedAtToNow($entityInstance);
         parent::updateEntity($em, $entityInstance);
+        $this->processNewAttachments($em, $entityInstance);
+    }
+
+    /**
+     * Attache les fichiers uploadés (champ non persisté `newAttachments`).
+     * Appelé APRÈS le flush parent pour que l'article ait un id (requis par
+     * ArticleAttachmentService::upload pour le dossier de stockage).
+     */
+    private function processNewAttachments(EntityManagerInterface $em, mixed $entity): void
+    {
+        if (!$entity instanceof Article) {
+            return;
+        }
+        $files = $entity->getNewAttachments();
+        $entity->setNewAttachments(null);
+        if ($files === null || $files === []) {
+            return;
+        }
+        $rejected = [];
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile || !$file->isValid()) {
+                continue;
+            }
+            if ($file->getSize() > self::ATTACHMENT_MAX_BYTES) {
+                $rejected[] = $file->getClientOriginalName();
+                continue;
+            }
+            $this->attachments->upload($entity, $file);
+        }
+        $em->flush();
+        if ($rejected !== []) {
+            $this->addFlash('warning', sprintf(
+                'Pièce(s) jointe(s) ignorée(s) (>%d Mo) : %s',
+                (int) (self::ATTACHMENT_MAX_BYTES / 1_000_000),
+                implode(', ', $rejected),
+            ));
+        }
     }
 
     /**

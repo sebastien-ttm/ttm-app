@@ -79,6 +79,12 @@ class Article
     #[ORM\OrderBy(['uploadedAt' => 'ASC'])]
     private Collection $attachments;
 
+    /**
+     * Uploads transitoires depuis le formulaire admin. Non persisté.
+     * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
+     */
+    private ?array $newAttachments = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -91,6 +97,11 @@ class Article
 
     /** @return Collection<int, ArticleAttachment> */
     public function getAttachments(): Collection { return $this->attachments; }
+
+    /** @return array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null */
+    public function getNewAttachments(): ?array { return $this->newAttachments; }
+    /** @param array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null $files */
+    public function setNewAttachments(?array $files): self { $this->newAttachments = $files; return $this; }
 
     #[ORM\PreUpdate]
     public function touchUpdatedAt(): void
