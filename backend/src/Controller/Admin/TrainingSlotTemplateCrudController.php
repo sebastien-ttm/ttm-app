@@ -72,8 +72,8 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         $scope = $this->currentScope();
         $help = match ($scope) {
             self::SCOPE_ARCHIVED => '📦 <strong>Vue Archivés</strong> : créneaux dont la date de fin est passée. Ils ne s\'affichent plus dans le planning mais restent en base pour l\'historique.',
-            self::SCOPE_ALL => '📋 <strong>Vue Tous</strong> : historique complet (actuels + archivés).',
-            default => '✅ <strong>Vue Actuels</strong> : créneaux dont la validité couvre aujourd\'hui. Les créneaux dont la date de fin est passée sont masqués (voir « Archivés »).',
+            self::SCOPE_ALL => '📋 <strong>Vue Tous</strong> : historique complet (actuels + à venir + archivés).',
+            default => '✅ <strong>Vue Actuels</strong> : créneaux valides aujourd\'hui OU à venir (démarrage futur). Seuls les créneaux dont la date de fin est passée sont masqués.',
         };
 
         return $crud
@@ -130,9 +130,11 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
                 break;
             case self::SCOPE_CURRENT:
             default:
-                // Validité en cours : startsAt null ou passée, ET endsAt null ou future
-                $qb->andWhere('entity.startsAt IS NULL OR entity.startsAt <= :today')
-                    ->andWhere('entity.endsAt IS NULL OR entity.endsAt >= :today')
+                // « Actuels » = tout ce qui n'est pas archivé : validité
+                // en cours OU à venir (startsAt futur). Pas de restriction
+                // sur startsAt — l'admin doit voir/gérer les créneaux
+                // préparés pour la saison à venir avant qu'elle démarre.
+                $qb->andWhere('entity.endsAt IS NULL OR entity.endsAt >= :today')
                     ->setParameter('today', $today);
                 break;
         }
