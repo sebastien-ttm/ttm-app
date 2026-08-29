@@ -15,6 +15,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
@@ -82,6 +83,21 @@ class ArticleCrudController extends AbstractCrudController
                 .'l\'unique catégorie visible pour les comptes Dirigeant.'
             );
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnIndex();
+
+        // Rappel visible uniquement sur le formulaire de création : les PJ
+        // (PDF, GPX, docs…) ne peuvent être attachées qu'après un premier
+        // enregistrement, car le stockage sur disque a besoin de l'id de
+        // l'article. Une fois enregistré, le bouton « 📎 Pièces jointes »
+        // apparaît en haut à droite (page d'édition ou d'index).
+        if ($pageName === Crud::PAGE_NEW) {
+            yield FormField::addFieldset('Pièces jointes')
+                ->setHelp(
+                    '📎 Les pièces jointes (PDF, GPX, documents…) pourront '
+                    .'être ajoutées après avoir enregistré l\'article, via '
+                    .'le bouton « 📎 Pièces jointes » qui apparaîtra en '
+                    .'haut à droite de la page d\'édition.'
+                );
+        }
     }
 
     public function createEntity(string $entityFqcn): Article
