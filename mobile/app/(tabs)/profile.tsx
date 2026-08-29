@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { ApiError, auth as authApi } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
-import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
+import { accountTypeColor, accountTypeLabel, canSeeGouter, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
 
 const AVATAR_SIZE = 96;
 
@@ -176,6 +176,26 @@ export default function ProfileScreen() {
               <Text style={styles.rowLabel}>Mes enfants</Text>
               <Text style={styles.actionHint}>
                 Lier un enfant adhérent par n° de licence pour basculer vers son profil
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+        </View>
+      )}
+
+      {canSeeGouter(user) && (
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+            onPress={() => router.push('/gouter' as never)}
+          >
+            <View style={[styles.qrIcon, { backgroundColor: COLORS.primary }]}>
+              <Text style={{ fontSize: 22 }}>🍪</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Goûter du mercredi</Text>
+              <Text style={styles.actionHint}>
+                Positionnez-vous pour amener le goûter (2 places par mercredi)
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />

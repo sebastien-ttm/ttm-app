@@ -1,0 +1,96 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Goûter du mercredi{% endblock %}
+{% block content_title %}🍪 Goûter du mercredi{% endblock %}
+
+{% block main %}
+    {# Filtres de plage #}
+    <form method="get" action="{{ path('admin_gouters') }}"
+          style="display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:18px; padding:12px 16px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <div>
+            <label style="display:block; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Du</label>
+            <input type="date" name="from" value="{{ from|date('Y-m-d') }}" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px;">
+        </div>
+        <div>
+            <label style="display:block; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Au</label>
+            <input type="date" name="to" value="{{ to|date('Y-m-d') }}" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px;">
+        </div>
+        <button type="submit" class="btn btn-primary">Afficher</button>
+        <a href="{{ path('admin_gouters') }}" class="btn btn-link">Réinitialiser</a>
+    </form>
+
+    {# Table chronologique #}
+    <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead>
+                <tr style="background:#f8fafc; text-align:left;">
+                    <th style="padding:10px 14px;">Mercredi</th>
+                    <th style="padding:10px 14px;">Positionnés (max {{ capacity }})</th>
+                    <th style="padding:10px 14px; text-align:right; white-space:nowrap;">Ajouter</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    {% set full = row.signups|length >= capacity %}
+                    {% set past = row.date < date('today') %}
+                    <tr style="border-top:1px solid #f1f5f9; {{ past ? 'opacity:0.55;' : '' }}">
+                        <td style="padding:12px 14px; vertical-align:top; font-weight:600; white-space:nowrap;">
+                            {{ row.date|format_datetime(locale='fr', pattern='EEEE d MMMM y') }}
+                            {% if past %}<span style="font-weight:400; font-size:11px; color:#94a3b8; margin-left:6px;">(passé)</span>{% endif %}
+                        </td>
+                        <td style="padding:12px 14px; vertical-align:top;">
+                            {% if row.signups|length == 0 %}
+                                <span style="color:#94a3b8; font-style:italic;">— personne —</span>
+                            {% else %}
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    {% for s in row.signups %}
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span style="font-weight:500;">{{ s.user.fullName }}</span>
+                                            {% if s.createdBy and s.createdBy.id != s.user.id %}
+                                                <span style="font-size:11px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:3px;" title="Ajouté par {{ s.createdBy.fullName }}">manuel</span>
+                                            {% endif %}
+                                            <span style="font-size:11px; color:#94a3b8;">({{ s.createdAt|date('d/m H:i') }})</span>
+                                            <form method="post" action="{{ path('admin_gouters_delete', {id: s.id}) }}"
+                                                  style="display:inline; margin-left:auto;"
+                                                  onsubmit="return confirm('Retirer {{ s.user.fullName }} du {{ row.date|date('d/m/Y') }} ?');">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('gouter_admin') }}">
+                                                <input type="hidden" name="return_from" value="{{ from|date('Y-m-d') }}">
+                                                <input type="hidden" name="return_to" value="{{ to|date('Y-m-d') }}">
+                                                <button type="submit" class="btn btn-sm btn-danger" style="padding:2px 8px; font-size:12px;">×</button>
+                                            </form>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">
+                            {% if not past %}
+                                <form method="post" action="{{ path('admin_gouters_add') }}"
+                                      style="display:flex; gap:6px; align-items:center; justify-content:flex-end;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('gouter_admin') }}">
+                                    <input type="hidden" name="date" value="{{ row.date|date('Y-m-d') }}">
+                                    <input type="hidden" name="return_from" value="{{ from|date('Y-m-d') }}">
+                                    <input type="hidden" name="return_to" value="{{ to|date('Y-m-d') }}">
+                                    <select name="userId" required style="padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; max-width:220px;">
+                                        <option value="">— Choisir un adhérent —</option>
+                                        {% for u in eligible %}
+                                            <option value="{{ u.id }}">{{ u.nom }} {{ u.prenom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-primary" style="padding:4px 10px; font-size:12px;" {% if full %}title="Créneau complet — l'ajout dépassera la capacité"{% endif %}>
+                                        + Ajouter
+                                    </button>
+                                </form>
+                                {% if full %}
+                                    <div style="font-size:11px; color:#f59e0b; margin-top:4px;">⚠ Créneau complet</div>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3" style="padding:20px; text-align:center; color:#94a3b8;">Aucun mercredi dans la plage sélectionnée.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

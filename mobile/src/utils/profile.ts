@@ -99,3 +99,12 @@ export function canSeePoolBadge(user: AuthenticatedUser | null | undefined): boo
   if (!user) return false;
   return !!user.numLicence;
 }
+
+/**
+ * Le compte peut-il accéder au planning goûter du mercredi ?
+ * Réservé aux profils Parent et Jeune (ceux qui apportent le goûter).
+ */
+export function canSeeGouter(user: AuthenticatedUser | null | undefined): boolean {
+  if (!user) return false;
+  return user.profiles.includes('parent') || user.profiles.includes('jeune');
+}

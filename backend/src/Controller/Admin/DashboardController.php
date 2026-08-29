@@ -100,6 +100,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')
             ->setPermission('ROLE_ENTRAINEUR');
+        yield AdminMenuItem::linkToRoute('Goûter du mercredi', 'fa fa-cookie-bite', 'admin_gouters')
+            ->setPermission('ROLE_EDITEUR');
 
         yield AdminMenuItem::section('Configuration');
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)

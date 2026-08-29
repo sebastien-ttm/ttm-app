@@ -66,6 +66,26 @@ export type TrainingPlan = {
 
 export type StaticPageSummary = { slug: string; title: string };
 
+export type GouterSignupSummary = {
+  id: number;
+  userId: number;
+  fullName: string;
+  isMine: boolean;
+  notes: string | null;
+  createdAt: string;
+  byAdmin: boolean;
+};
+
+export type GouterSlot = {
+  date: string; // YYYY-MM-DD (Wednesday)
+  capacity: number;
+  signups: GouterSignupSummary[];
+};
+
+export type GouterPlanning = {
+  slots: GouterSlot[];
+};
+
 export type StaticPageNode = {
   slug: string;
   title: string;

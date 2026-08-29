@@ -6,6 +6,7 @@ import type {
   CharterStatus,
   Comment,
   EventItem,
+  GouterPlanning,
   MenuItem,
   Paginated,
   PoolBadge,
@@ -87,6 +88,19 @@ export const staffPresence = {
     api.delete<{ ok: boolean; unavailable: false }>(
       `/api/me/staff-presence/unavailable?week=${encodeURIComponent(week)}`,
     ),
+};
+
+export const gouters = {
+  planning: (from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const q = qs.toString();
+    return api.get<GouterPlanning>(`/api/gouters${q ? '?' + q : ''}`);
+  },
+  signup: (date: string) =>
+    api.post<{ id: number; date: string }>('/api/gouters', { date }),
+  cancel: (id: number) => api.delete<void>(`/api/gouters/${id}`),
 };
 
 export const pages = {
