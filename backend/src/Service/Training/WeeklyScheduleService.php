@@ -63,7 +63,10 @@ class WeeklyScheduleService
         // Filtre global saison : si la semaine n'est pas dans la saison,
         // on ne projette PAS les templates (mais on garde les occasionnels
         // qui ont été ajoutés explicitement pour cette semaine).
-        $season = $this->seasons->findCurrent();
+        // Passe le lundi de la semaine cible : quand on navigue sur une
+        // semaine hors saison courante mais dans une saison passée/future,
+        // c'est la bonne saison qui est retournée.
+        $season = $this->seasons->findCurrent($monday);
         $weekInSeason = $season === null || $season->contains($monday);
 
         $rows = [];
