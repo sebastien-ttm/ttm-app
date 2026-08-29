@@ -244,6 +244,15 @@ export function validateCharterAnswers(
   const errors: Record<string, string> = {};
   for (const f of fields) {
     const v = answers[f.id];
+    // Cas spécial case à cocher requise : doit être VRAIE, pas juste
+    // « répondue ». Un engagement obligatoire non coché bloque l'accès.
+    if (f.type === 'checkbox' && f.required) {
+      const truthy = v === true || v === 'true' || v === 1 || v === '1';
+      if (!truthy) {
+        errors[f.id] = 'Vous devez cocher cet engagement pour continuer.';
+      }
+      continue;
+    }
     const isEmpty = v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     if (f.required && isEmpty) {
       errors[f.id] = `« ${f.label} » est obligatoire.`;

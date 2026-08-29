@@ -55,8 +55,18 @@ export default function CharterAcceptanceScreen() {
   }
 
   // Quand il y a un formulaire, la "lecture complète" du contenu n'est plus
-  // un prérequis (le focus passe sur les champs).
-  const canSubmit = hasForm ? true : hasReadAll;
+  // un prérequis (le focus passe sur les champs). En revanche, TOUS les
+  // engagements obligatoires (cases à cocher requises) doivent être cochés
+  // pour activer le bouton — feedback immédiat plutôt qu'erreur au submit.
+  const allRequiredChecked = useMemo(() => {
+    return fields
+      .filter((f) => f.type === 'checkbox' && f.required)
+      .every((f) => {
+        const v = answers[f.id];
+        return v === true || v === 'true' || v === 1 || v === '1';
+      });
+  }, [fields, answers]);
+  const canSubmit = hasForm ? allRequiredChecked : hasReadAll;
 
   async function onAccept() {
     if (!canSubmit || busy) return;
@@ -163,6 +173,11 @@ export default function CharterAcceptanceScreen() {
             {hasReadAll
               ? '✓ Vous avez lu la charte intégralement.'
               : 'Faites défiler le texte jusqu\'en bas pour activer le bouton.'}
+          </Text>
+        )}
+        {hasForm && !allRequiredChecked && (
+          <Text style={styles.hint}>
+            Cochez tous les engagements ci-dessus pour activer l'acceptation.
           </Text>
         )}
 

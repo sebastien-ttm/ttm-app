@@ -118,6 +118,17 @@ class FormSchemaValidator
             $required = !empty($field['required']);
             $value = $answers[$id] ?? null;
 
+            // Cas spécial case à cocher requise : doit être VRAIE, pas
+            // juste « répondue ». Un engagement obligatoire non coché
+            // (valeur false, 0, '0', 'false', null…) bloque l'acceptation.
+            if ($type === 'checkbox' && $required) {
+                $truthy = in_array($value, [true, 1, '1', 'true'], true);
+                if (!$truthy) {
+                    $errors[] = "« $label » : vous devez cocher cet engagement.";
+                }
+                continue;
+            }
+
             $isEmpty = $value === null || $value === '' || $value === [];
             if ($required && $isEmpty) {
                 $errors[] = "« $label » est obligatoire.";
