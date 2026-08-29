@@ -49,11 +49,21 @@ class GouterAdminController extends AbstractController
             $byDate[$s->getDate()->format('Y-m-d')][] = $s;
         }
 
+        $fmt = new \IntlDateFormatter(
+            'fr_FR',
+            \IntlDateFormatter::LONG,
+            \IntlDateFormatter::NONE,
+            null,
+            null,
+            'EEEE d MMMM y',
+        );
+
         $rows = [];
         foreach ($wednesdays as $w) {
             $key = $w->format('Y-m-d');
             $rows[] = [
                 'date' => $w,
+                'dateLabel' => (string) $fmt->format($w),
                 'signups' => $byDate[$key] ?? [],
             ];
         }

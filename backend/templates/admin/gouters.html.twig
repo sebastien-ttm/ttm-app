@@ -34,9 +34,9 @@
                     {% set full = row.signups|length >= capacity %}
                     {% set past = row.date < date('today') %}
                     <tr style="border-top:1px solid #f1f5f9; {{ past ? 'opacity:0.55;' : '' }}">
-                        <td style="padding:12px 14px; vertical-align:top; font-weight:600; white-space:nowrap;">
-                            {{ row.date|format_datetime(locale='fr', pattern='EEEE d MMMM y') }}
-                            {% if past %}<span style="font-weight:400; font-size:11px; color:#94a3b8; margin-left:6px;">(passé)</span>{% endif %}
+                        <td style="padding:12px 14px; vertical-align:top; font-weight:600; white-space:nowrap; text-transform:capitalize;">
+                            {{ row.dateLabel }}
+                            {% if past %}<span style="font-weight:400; font-size:11px; color:#94a3b8; margin-left:6px; text-transform:none;">(passé)</span>{% endif %}
                         </td>
                         <td style="padding:12px 14px; vertical-align:top;">
                             {% if row.signups|length == 0 %}
