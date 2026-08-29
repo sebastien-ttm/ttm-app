@@ -7,14 +7,15 @@ use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use Doctrine\ORM\EntityRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class StaticPageCrudController extends AbstractCrudController
 {
@@ -30,6 +31,16 @@ class StaticPageCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Pages')
             ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['parent' => 'ASC', 'position' => 'ASC', 'title' => 'ASC']);
+    }
+
+    /**
+     * L'index EasyAdmin (tableau plat) est remplacé par la vue arborescente
+     * avec drag-and-drop (admin_pages_reorder). Les actions edit/new/delete
+     * du CRUD standard restent accessibles via les liens de cette vue.
+     */
+    public function index(AdminContext $context)
+    {
+        return new RedirectResponse($this->generateUrl('admin_pages_reorder'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -57,10 +68,6 @@ class StaticPageCrudController extends AbstractCrudController
                 }
                 return $qb;
             });
-
-        yield IntegerField::new('position', 'Ordre')
-            ->setHelp('Plus petit = affiché en premier.')
-            ->setColumns(2);
 
         yield TextEditorField::new('content', 'Contenu')
             ->setHelp('Optionnel : peut rester vide si la page sert juste de catégorie regroupant des sous-pages.')

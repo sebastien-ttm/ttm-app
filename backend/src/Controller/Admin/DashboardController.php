@@ -121,8 +121,6 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::section('Configuration');
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)
             ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToRoute('Ordre des pages', 'fa fa-arrows-up-down', 'admin_pages_reorder')
-            ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)
