@@ -71,7 +71,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         $help = match ($this->currentSeasonFilter()) {
             self::SEASON_ALL => '📋 <strong>Toutes les saisons</strong> — historique complet, y compris les templates non rattachés.',
             self::SEASON_NONE => '❔ <strong>Sans saison</strong> — templates legacy à rattacher manuellement à une saison via le champ « Saison ».',
-            default => '✅ Filtrage par saison. Utilisez les boutons ci-dessous pour changer de saison ou tout afficher.',
+            default => '✅ Filtrage par saison. La saison qui contient aujourd\'hui est marquée ⭐ (fond bleu clair quand non sélectionnée).',
         };
 
         return $crud
@@ -87,6 +87,11 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         $result = parent::configureActions($actions);
         $current = $this->currentSeasonFilter();
 
+        // Repère la saison qui contient aujourd'hui pour la mettre en
+        // évidence même quand elle n'est pas sélectionnée.
+        $today = $this->seasons->findCurrent();
+        $todayId = $today?->getId();
+
         // Un bouton par saison (triées récentes d'abord)
         $seasons = $this->seasons->createQueryBuilder('s')
             ->orderBy('s.startsAt', 'DESC')
@@ -95,11 +100,25 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
         foreach ($seasons as $s) {
             /** @var TrainingSeason $s */
-            $label = $this->seasonLabel($s);
             $id = (string) $s->getId();
+            $isSelected = $current === $id;
+            $isCurrent = $todayId !== null && $todayId === $s->getId();
+            $label = $this->seasonLabel($s).($isCurrent ? ' ⭐' : '');
+
+            // CSS : rouge (primary) si sélectionné, contour bleu si
+            // saison courante non sélectionnée, gris sinon.
+            $css = 'btn ';
+            if ($isSelected) {
+                $css .= 'btn-primary';
+            } elseif ($isCurrent) {
+                $css .= 'btn-info';
+            } else {
+                $css .= 'btn-secondary';
+            }
+
             $btn = Action::new('season_'.$id, $label)
                 ->linkToUrl($this->seasonUrl($id))
-                ->setCssClass('btn '.($current === $id ? 'btn-primary' : 'btn-secondary'))
+                ->setCssClass($css)
                 ->createAsGlobalAction();
             $result->add(Crud::PAGE_INDEX, $btn);
         }
@@ -244,15 +263,9 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
     private function seasonLabel(TrainingSeason $s): string
     {
-        $start = $s->getStartsAt();
-        $end = $s->getEndsAt();
-        if ($start === null && $end === null) {
-            return 'Saison #'.$s->getId();
-        }
-        if ($start !== null && $end !== null) {
-            return $start->format('Y').'-'.$end->format('Y');
-        }
-        return ($start ?? $end)->format('Y');
+        // Utilise __toString() de l'entité : name si défini, sinon
+        // fallback année-année, sinon #id.
+        return (string) $s;
     }
 
 }

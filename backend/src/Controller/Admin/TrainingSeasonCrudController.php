@@ -11,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -61,6 +62,9 @@ class TrainingSeasonCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
+        yield TextField::new('name', 'Nom')
+            ->setRequired(false)
+            ->setHelp('Optionnel — libellé humain, ex. « Saison 2027-2028 ». Affiché partout à la place de « #id ». Laisser vide pour retomber sur un fallback année-année.');
         yield DateField::new('startsAt', 'Début de saison')
             ->setRequired(false)
             ->setHelp('Date de début (incluse). Ex. 25 août pour une saison qui démarre fin août.');

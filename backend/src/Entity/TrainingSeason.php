@@ -24,6 +24,15 @@ class TrainingSeason
     #[ORM\Column]
     private ?int $id = null;
 
+    /**
+     * Nom de la saison, ex : « Saison 2027-2028 », « Été 2027 »…
+     * Affiché partout à la place de « TrainingSeason #id ». Optionnel :
+     * si vide, le fallback __toString() reconstruit un libellé depuis
+     * les dates (« 2027-2028 » ou « #id »).
+     */
+    #[ORM\Column(length: 80, nullable: true)]
+    private ?string $name = null;
+
     /** Premier lundi de la saison (inclus). Null = pas de limite basse. */
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $startsAt = null;
@@ -55,5 +64,29 @@ class TrainingSeason
     public function isEmpty(): bool
     {
         return $this->startsAt === null && $this->endsAt === null;
+    }
+
+    public function getName(): ?string { return $this->name; }
+    public function setName(?string $n): self { $this->name = $n !== null ? trim($n) ?: null : null; return $this; }
+
+    /**
+     * Libellé affichable : le name s'il est défini, sinon une plage
+     * d'années (« 2027-2028 »), sinon l'id.
+     */
+    public function __toString(): string
+    {
+        if ($this->name !== null && $this->name !== '') {
+            return $this->name;
+        }
+        if ($this->startsAt !== null && $this->endsAt !== null) {
+            return $this->startsAt->format('Y').'-'.$this->endsAt->format('Y');
+        }
+        if ($this->startsAt !== null) {
+            return $this->startsAt->format('Y');
+        }
+        if ($this->endsAt !== null) {
+            return $this->endsAt->format('Y');
+        }
+        return '#'.($this->id ?? '?');
     }
 }
