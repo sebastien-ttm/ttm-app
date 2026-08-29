@@ -44,18 +44,22 @@ class MagicLinkService
      * On évite volontairement les schemes custom (ttm://...) car la plupart
      * des clients mail (Gmail en tête) refusent de les rendre cliquables.
      */
-    public function buildWebUrl(string $token): string
+    public function buildWebUrl(string $token, ?string $next = null): string
     {
-        return rtrim($this->publicUrl, '/').'/auth/magic-link?token='.urlencode($token);
+        $url = rtrim($this->publicUrl, '/').'/auth/magic-link?token='.urlencode($token);
+        if ($next !== null && $next !== '') {
+            $url .= '&next='.urlencode($next);
+        }
+        return $url;
     }
 
     /**
      * Alias rétro-compatible — même URL que buildWebUrl (les Universal Links
      * sont des URLs HTTPS classiques, pas des schemes custom).
      */
-    public function buildMobileUrl(string $token): string
+    public function buildMobileUrl(string $token, ?string $next = null): string
     {
-        return $this->buildWebUrl($token);
+        return $this->buildWebUrl($token, $next);
     }
 
     public function consume(string $clearToken): ?User

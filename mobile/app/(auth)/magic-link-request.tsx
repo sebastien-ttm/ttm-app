@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { auth } from '@/api/client';
+import { peekIntendedPath } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 
 type State = 'sending' | 'sent' | 'error';
@@ -21,7 +22,12 @@ export default function MagicLinkRequest() {
     sentRef.current = true;
     (async () => {
       try {
-        await auth.requestMagicLink(email);
+        // Deep-link : si l'user a atterri sur login depuis une URL profonde
+        // (ex: /page/entrainements), on passe la cible au backend pour qu'elle
+        // soit encodée dans le magic link — survit ainsi au changement d'onglet
+        // (email → nouvel onglet) où sessionStorage n'est plus lisible.
+        const next = peekIntendedPath();
+        await auth.requestMagicLink(email, next);
         setState('sent');
       } catch (err) {
         setState('error');

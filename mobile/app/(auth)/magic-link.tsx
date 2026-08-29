@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/auth/AuthContext';
+import { rememberIntendedPath, useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 
 /**
@@ -14,7 +14,7 @@ import { COLORS } from '@/config';
  * Either way, expo-router parses the `?token=...` into `useLocalSearchParams()`.
  */
 export default function MagicLinkVerify() {
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{ token?: string; next?: string }>();
   const router = useRouter();
   const { consumeMagicLink } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +24,22 @@ export default function MagicLinkVerify() {
     const token = params.token?.toString();
     if (!token || consumedRef.current) return;
     consumedRef.current = true;
+    // Deep-link : si le magic link porte un ?next=/xxx (encodé côté serveur
+    // au moment de la demande), on le pousse dans l'intendedPath AVANT
+    // l'auth. AuthGate le consommera après login réussi.
+    const next = params.next?.toString();
+    if (next) {
+      rememberIntendedPath(next);
+    }
     (async () => {
       try {
         await consumeMagicLink(token);
-        // _layout will redirect to /(tabs)
+        // _layout will redirect to /(tabs) OR to the remembered intended path
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Lien invalide');
       }
     })();
-  }, [params.token, consumeMagicLink]);
+  }, [params.token, params.next, consumeMagicLink]);
 
   if (error) {
     return (

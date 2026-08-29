@@ -37,6 +37,18 @@ export function rememberIntendedPath(path: string): void {
   }
 }
 
+/**
+ * Lit l'intended path SANS le consommer. Utile pour passer la cible dans
+ * un magic-link avant que le flow d'auth ne l'efface.
+ */
+export function peekIntendedPath(): string | null {
+  let p = intendedPathMemory;
+  if ((!p || p === '') && typeof window !== 'undefined' && window.sessionStorage) {
+    try { p = window.sessionStorage.getItem(INTENDED_PATH_KEY); } catch {}
+  }
+  return p && isValidIntendedPath(p) ? p : null;
+}
+
 export function consumeIntendedPath(): string | null {
   let p = intendedPathMemory;
   intendedPathMemory = null;

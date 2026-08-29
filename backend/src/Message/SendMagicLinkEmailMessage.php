@@ -8,6 +8,8 @@ final readonly class SendMagicLinkEmailMessage
         public int $userId,
         public string $clearToken,
         public bool $isWelcome = false,
+        /** Deep-link cible à ouvrir après auth (ex: /page/entrainements). */
+        public ?string $next = null,
     ) {
     }
 }

@@ -181,8 +181,8 @@ export type RegisterParentPayload = {
 export const auth = {
   loginWithPassword: (email: string, password: string) =>
     api.post<LoginResponse>('/api/auth/login', { email, password }, { public: true }),
-  requestMagicLink: (email: string) =>
-    api.post<void>('/api/auth/magic-link/request', { email }, { public: true }),
+  requestMagicLink: (email: string, next?: string | null) =>
+    api.post<void>('/api/auth/magic-link/request', next ? { email, next } : { email }, { public: true }),
   verifyMagicLink: (token: string) =>
     api.get<LoginResponse>(`/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`, { public: true }),
   refresh: (refreshToken: string) =>

@@ -26,8 +26,8 @@ class SendMagicLinkEmailMessageHandler
             return;
         }
 
-        $webUrl = $this->magicLinks->buildWebUrl($message->clearToken);
-        $mobileUrl = $this->magicLinks->buildMobileUrl($message->clearToken);
+        $webUrl = $this->magicLinks->buildWebUrl($message->clearToken, $message->next);
+        $mobileUrl = $this->magicLinks->buildMobileUrl($message->clearToken, $message->next);
 
         $subject = $message->isWelcome
             ? 'Bienvenue sur l\'application TTM'

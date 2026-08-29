@@ -51,6 +51,8 @@ class AuthController extends AbstractController
     ): JsonResponse {
         $payload = json_decode($request->getContent(), true);
         $email = is_array($payload) ? trim((string) ($payload['email'] ?? '')) : '';
+        $next = is_array($payload) ? trim((string) ($payload['next'] ?? '')) : '';
+        $next = $this->sanitizeNext($next);
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return new JsonResponse(['error' => 'Email invalide.'], Response::HTTP_BAD_REQUEST);
@@ -77,10 +79,38 @@ class AuthController extends AbstractController
                 userId: $user->getId(),
                 clearToken: $issued['token'],
                 isWelcome: false,
+                next: $next,
             ));
         }
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Filtre un paramètre `next` fourni par le client pour un magic link :
+     * - doit commencer par un unique `/` (URL relative interne, pas d'origin)
+     * - refuse les routes d'auth pour éviter les boucles ou fuites de token
+     * - refuse les schemes/protocoles absolus (redirection ouverte)
+     * - garde-fou de longueur pour l'URL email (2048 chars typiques)
+     */
+    private function sanitizeNext(string $raw): ?string
+    {
+        if ($raw === '' || strlen($raw) > 512) {
+            return null;
+        }
+        if ($raw[0] !== '/' || (isset($raw[1]) && $raw[1] === '/')) {
+            return null; // pas d'URL absolue "//evil.com/..." ou "http://..."
+        }
+        // Refuse les schemes cachés (curieux, mais possible avec des caractères
+        // encodés — on filtre par sécurité)
+        if (preg_match('#^[a-z][a-z0-9+.\-]*:#i', ltrim($raw, '/'))) {
+            return null;
+        }
+        // Refuse les paths d'auth (évite boucle magic-link → magic-link, etc.)
+        if (str_starts_with($raw, '/auth/') || str_starts_with($raw, '/(auth)')) {
+            return null;
+        }
+        return $raw;
     }
 
     #[Route('/api/auth/magic-link/verify', methods: ['GET', 'POST'])]
