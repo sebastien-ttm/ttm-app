@@ -23,6 +23,11 @@ class CsvImportService
 {
     private const COL_NUM_LICENCE = 'Numéro de licence';
     private const COL_NOM = 'Nom';
+    /**
+     * Nom d'usage FFTri (nom marital, pseudonyme, etc.). Optionnel dans le CSV.
+     * Quand renseigné, remplace le "Nom" (nom de naissance) à l'import.
+     */
+    private const COL_NOM_USAGE = 'Nom d\'usage';
     private const COL_PRENOM = 'Prénom';
     private const COL_DATE_NAISSANCE = 'Date de naissance';
     private const COL_SEXE = 'Sexe';
@@ -140,7 +145,13 @@ class CsvImportService
                     $user->setRole('user');
                 }
 
-                $user->setNom(trim((string) ($record[self::COL_NOM] ?? '')));
+                // "Nom d'usage" (optionnel FFTri) prime sur "Nom" quand présent :
+                // couvre les cas nom marital, pseudonyme, etc. La colonne peut
+                // être absente des CSV plus anciens — dans ce cas on retombe
+                // silencieusement sur "Nom".
+                $nomLegal = trim((string) ($record[self::COL_NOM] ?? ''));
+                $nomUsage = trim((string) ($record[self::COL_NOM_USAGE] ?? ''));
+                $user->setNom($nomUsage !== '' ? $nomUsage : $nomLegal);
                 $user->setPrenom(trim((string) ($record[self::COL_PRENOM] ?? '')));
                 // Email : posé UNIQUEMENT à la création. Sur un re-import,
                 // on conserve l'email actuellement en base — les admins le
