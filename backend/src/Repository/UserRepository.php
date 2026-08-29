@@ -240,6 +240,24 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
+    /**
+     * Adhérents actifs pour le trombinoscope admin, ordonnés nom + prénom.
+     * On garde uniquement les type='adherent' — les comptes externes
+     * (parents non-licenciés, amis) n'ont pas leur place dans ce recap.
+     *
+     * @return list<User>
+     */
+    public function findActiveAdherentsForRecap(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere("u.type = 'adherent'")
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         if (!$user instanceof User) {
