@@ -146,9 +146,8 @@ export default function CharterAcceptanceScreen() {
 
         {hasForm && (
           <View style={styles.formBlock}>
-            <Text style={styles.formTitle}>Informations à compléter</Text>
             <Text style={styles.formIntro}>
-              Merci de remplir les champs ci-dessous avant de valider votre acceptation.
+              Merci de valider les champs ci-dessous avant de valider votre acceptation.
             </Text>
             <CharterForm
               fields={fields}
