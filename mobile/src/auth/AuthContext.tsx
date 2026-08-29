@@ -7,6 +7,30 @@ import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { registerForPushNotifications } from '@/notifications/registerForPush';
 
+/**
+ * Deep-link : mémorise l'URL demandée quand un user non authentifié est
+ * redirigé vers login. Après login réussi, on l'y renvoie au lieu de la
+ * home. Module-level (pas dans le state React) parce que ça n'a pas
+ * besoin de déclencher un re-render — juste lu une fois à l'auth.
+ *
+ * Seules les URLs qui ont du sens comme deep link sont acceptées :
+ * pas /(auth), pas /charter-acceptance.
+ */
+let intendedPath: string | null = null;
+
+export function rememberIntendedPath(path: string): void {
+  if (!path || path === '/' || path.startsWith('/(auth)') || path.startsWith('/auth/') || path === '/charter-acceptance') {
+    return;
+  }
+  intendedPath = path;
+}
+
+export function consumeIntendedPath(): string | null {
+  const p = intendedPath;
+  intendedPath = null;
+  return p;
+}
+
 type AuthState = {
   status: 'loading' | 'authenticated' | 'unauthenticated';
   user: AuthenticatedUser | null;

@@ -28,11 +28,19 @@ export default function TrainingPlanDetailScreen() {
       const data = await plansApi.get(id);
       setPlan(data);
     } catch (err) {
+      // 403 / 404 → redirection vers l'écran « Contenu non autorisé »
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        router.replace({
+          pathname: '/access-denied',
+          params: { reason: err.status === 403 ? 'forbidden' : 'not-found' },
+        } as never);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Plan introuvable');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, router]);
 
   useEffect(() => {
     void load();

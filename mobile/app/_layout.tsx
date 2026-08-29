@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AuthProvider, useAuth } from '@/auth/AuthContext';
+import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -24,6 +24,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     if (status === 'unauthenticated') {
       if (!inAuthGroup) {
+        // Deep-link : mémorise la route demandée pour y renvoyer le user
+        // après login réussi. Permet de partager un lien /article/42 :
+        // le destinataire login, puis atterrit sur l'article et pas sur
+        // la home.
+        rememberIntendedPath('/' + segments.join('/'));
         router.replace('/(auth)/login');
       }
       return;
@@ -37,9 +42,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // No charter required, but currently stuck on auth or charter screen → home
+    // No charter required, but currently stuck on auth or charter screen →
+    // reprend la route mémorisée (deep-link) ou tombe sur la home.
     if (inAuthGroup || inCharterScreen) {
-      router.replace('/(tabs)');
+      const intended = consumeIntendedPath();
+      router.replace((intended ?? '/(tabs)') as never);
     }
   }, [status, charterRequired, segments, router]);
 

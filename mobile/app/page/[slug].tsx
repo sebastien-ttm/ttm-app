@@ -13,6 +13,7 @@ import { htmlToText } from '@/utils/html';
 
 export default function PageScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
+  const router = useRouter();
   const slug = String(params.slug ?? '');
 
   const [page, setPage] = useState<StaticPage | null>(null);
@@ -26,11 +27,19 @@ export default function PageScreen() {
       const data = await pagesApi.get(slug);
       setPage(data);
     } catch (err) {
+      // 403 / 404 → redirection vers l'écran « Contenu non autorisé »
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        router.replace({
+          pathname: '/access-denied',
+          params: { reason: err.status === 403 ? 'forbidden' : 'not-found' },
+        } as never);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Page introuvable');
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, router]);
 
   useEffect(() => {
     void load();

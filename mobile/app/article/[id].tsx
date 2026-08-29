@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +26,7 @@ import { formatDate, formatRelativeFr } from '@/utils/html';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const id = Number(params.id);
 
   const [article, setArticle] = useState<Article | null>(null);
@@ -41,11 +42,20 @@ export default function ArticleScreen() {
       setArticle(art);
       setComments(cmts.data);
     } catch (err) {
+      // 403 / 404 → redirection vers l'écran « Contenu non autorisé »
+      // (contenu masqué par l'audience filter serveur, ou article supprimé)
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        router.replace({
+          pathname: '/access-denied',
+          params: { reason: err.status === 403 ? 'forbidden' : 'not-found' },
+        } as never);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, router]);
 
   useEffect(() => {
     void load();
