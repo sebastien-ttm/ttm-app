@@ -56,20 +56,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [status, charterRequired, segments, router]);
 
-  // Rend un spinner tant que la destination finale n'est pas connue :
-  // - status=loading : session en cours de restauration
-  // - unauthenticated sur route non-auth : redirect vers login imminent
-  // - charter requis mais pas encore accepté et pas sur l'écran charter
-  // Empêche les enfants (ex: PageScreen) de monter et de déclencher des
-  // fetch API qui échoueront en 401 pendant la fenêtre de transition.
-  const inAuthGroup = segments[0] === '(auth)' || segments[0] === 'auth';
-  const inCharterScreen = segments[0] === 'charter-acceptance';
-  const shouldWait =
-    status === 'loading' ||
-    (status === 'unauthenticated' && !inAuthGroup) ||
-    (status === 'authenticated' && charterRequired && !inCharterScreen);
-
-  if (shouldWait) {
+  // Uniquement l'état "session pas encore restaurée" bloque le rendu.
+  // Une fois status connu, on rend les children (indispensable : le Stack
+  // navigateur DOIT être monté avant qu'un router.replace() dans un
+  // useEffect puisse fonctionner — sinon Expo Router lève
+  // « Attempted to navigate before mounting the Root Layout »).
+  //
+  // Les cas transitoires (unauthenticated sur route protégée, charter
+  // requis) sont couverts par la redirection dans le useEffect ci-dessus.
+  if (status === 'loading') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
         <ActivityIndicator size="large" color={COLORS.primary} />
