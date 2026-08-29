@@ -8,6 +8,7 @@ use App\Enum\Profile;
 use App\Repository\GouterSignupRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Provider\AdminContextProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,12 +30,41 @@ class GouterAdminController extends AbstractController
         private readonly GouterSignupRepository $signups,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly AdminContextProvider $adminContextProvider,
     ) {
+    }
+
+    /**
+     * Redirige vers l'URL "dashboard-forwardée" (`/admin?routeName=…`) quand
+     * l'accès direct au path Symfony `/admin/gouters` bypasse le subscriber
+     * EasyAdmin qui pose le contexte `ea` (indispensable au layout admin).
+     * Sans ce garde-fou, une nav directe (bookmark, URL tapée à la main)
+     * provoque une 500 « ea is null ».
+     *
+     * On construit l'URL manuellement (via admin_dashboard + query params)
+     * plutôt que via AdminUrlGenerator pour éviter une boucle éventuelle
+     * si la route se retrouvait cachée comme "pretty URL".
+     */
+    private function ensureAdminContext(Request $request, string $routeName): ?RedirectResponse
+    {
+        if ($this->adminContextProvider->getContext() !== null) {
+            return null;
+        }
+        $params = ['routeName' => $routeName];
+        $queryParams = $request->query->all();
+        if ($queryParams !== []) {
+            $params['routeParams'] = $queryParams;
+        }
+        $url = $this->generateUrl('admin_dashboard', $params);
+        return $this->redirect($url);
     }
 
     #[Route('/admin/gouters', name: 'admin_gouters', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        if ($r = $this->ensureAdminContext($request, 'admin_gouters')) {
+            return $r;
+        }
         $today = new \DateTimeImmutable('today');
         $from = $this->parseDate((string) $request->query->get('from', '')) ?? $today;
         $to = $this->parseDate((string) $request->query->get('to', '')) ?? $from->modify('+'.self::DEFAULT_WEEKS.' weeks');
