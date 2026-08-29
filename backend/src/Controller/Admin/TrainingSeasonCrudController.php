@@ -124,31 +124,40 @@ class TrainingSeasonCrudController extends AbstractCrudController
             ->getQuery()
             ->getResult();
 
-        // Étape 2 (fallback) : si aucun créneau vivant (typique après un
-        // clonage précédent qui a figé tous les créneaux), on prend la
-        // dernière « fournée » archivée — les templates avec le MAX(endsAt)
-        // strictement antérieur à la nouvelle saison. C'est presque
-        // toujours ce que l'admin veut : repartir de la saison précédente.
+        // Étape 2 (fallback) : si aucun créneau vivant, on ratisse TOUS les
+        // templates archivés avant la nouvelle saison — indépendamment de
+        // leur endsAt exact. Puis on déduplique par « identité » (jour +
+        // heure + sport + titre) en gardant la version la plus récente de
+        // chacun. Ça évite de cloner en double si un créneau a été
+        // archivé plusieurs fois au fil des saisons, mais couvre le cas où
+        // différents créneaux ont été archivés à des dates différentes
+        // (retraits ponctuels en cours de saison, etc.).
         if (count($sourceTemplates) === 0) {
-            $maxEndsAt = $this->templates->createQueryBuilder('t')
-                ->select('MAX(t.endsAt)')
+            $archived = $this->templates->createQueryBuilder('t')
                 ->where('t.isActive = true')
+                ->andWhere('t.endsAt IS NOT NULL')
                 ->andWhere('t.endsAt < :seasonStart')
                 ->setParameter('seasonStart', $seasonStart->format('Y-m-d'))
+                ->orderBy('t.endsAt', 'DESC')  // plus récent d'abord
+                ->addOrderBy('t.dayOfWeek', 'ASC')
+                ->addOrderBy('t.startTime', 'ASC')
                 ->getQuery()
-                ->getSingleScalarResult();
+                ->getResult();
 
-            if ($maxEndsAt !== null) {
-                $sourceTemplates = $this->templates->createQueryBuilder('t')
-                    ->where('t.isActive = true')
-                    ->andWhere('t.endsAt = :d')
-                    ->setParameter('d', $maxEndsAt)
-                    ->orderBy('t.dayOfWeek', 'ASC')
-                    ->addOrderBy('t.startTime', 'ASC')
-                    ->getQuery()
-                    ->getResult();
-                $sourceLabel = 'issus de la dernière saison ('
-                    .(is_string($maxEndsAt) ? substr($maxEndsAt, 0, 10) : $maxEndsAt->format('Y-m-d')).')';
+            $latestByIdentity = [];
+            foreach ($archived as $t) {
+                $key = $t->getDayOfWeek()
+                    .'|'.$t->getStartTime()->format('H:i:s')
+                    .'|'.$t->getSport()->value
+                    .'|'.$t->getTitle();
+                // Premier vu = le plus récent (tri endsAt DESC), on ignore les suivants
+                if (!isset($latestByIdentity[$key])) {
+                    $latestByIdentity[$key] = $t;
+                }
+            }
+            $sourceTemplates = array_values($latestByIdentity);
+            if ($sourceTemplates !== []) {
+                $sourceLabel = 'issus des saisons précédentes (dédupliqués par créneau)';
             }
         }
 
