@@ -169,6 +169,10 @@ export type StaffPresenceWeek = {
   week: string;
   slots: StaffPresenceSlot[];
   customTasks: StaffPresence[];
+  /** True si le user a déclaré être non-dispo cette semaine (marqueur global). */
+  unavailable: boolean;
+  /** Note libre associée à l'indisponibilité (« vacances », « déplacement pro »). */
+  unavailableNotes: string | null;
 };
 
 export type PoolBadge = {

@@ -7,7 +7,9 @@ use App\Entity\TrainingSlot;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Enum\Sport;
+use App\Entity\StaffWeekUnavailability;
 use App\Repository\StaffPresenceRepository;
+use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Repository\UserRepository;
@@ -40,6 +42,7 @@ class StaffPresenceController extends AbstractController
         private readonly StaffPresenceService $service,
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
+        private readonly StaffWeekUnavailabilityRepository $unavailabilities,
     ) {
     }
 
@@ -210,6 +213,12 @@ class StaffPresenceController extends AbstractController
         $presencesByUser = $this->presences->findStaffPresencesForWeekGroupedByUser($week);
         $slotRows = $this->schedule->buildWeek($week);
 
+        // Indexe les indisponibilités déclarées par user_id pour cette semaine
+        $unavailableByUser = [];
+        foreach ($this->unavailabilities->findForWeek($week) as $u) {
+            $unavailableByUser[$u->getUser()->getId()] = $u;
+        }
+
         // Pour chaque encadrant, calcule les créneaux où il n'est PAS
         // encore positionné — permet de proposer une dropdown « ajouter
         // une présence » sans inclure les doublons.
@@ -232,7 +241,46 @@ class StaffPresenceController extends AbstractController
             'staff' => $staff,
             'presencesByUser' => $presencesByUser,
             'availableByUser' => $availableByUser,
+            'unavailableByUser' => $unavailableByUser,
         ]);
+    }
+
+    /**
+     * Admin toggle : marque un membre du staff comme (non-)disponible pour
+     * une semaine. Utile quand l'encadrant a prévenu de vive voix et que
+     * l'admin renseigne pour lui.
+     */
+    #[Route('/admin/staff/supervision/unavailable', name: 'admin_staff_supervision_unavailable', methods: ['POST'])]
+    public function toggleUnavailable(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'staff_presence');
+        $userId = (int) $request->request->get('userId');
+        $week = $this->parseWeek($request->request->get('week'));
+        $action = (string) $request->request->get('action', 'set');
+        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
+
+        $user = $this->users->find($userId);
+        if ($user === null || !$user->isActive()) {
+            throw $this->createNotFoundException();
+        }
+
+        $existing = $this->unavailabilities->findOneByUserAndWeek($user, $week);
+        if ($action === 'unset') {
+            if ($existing !== null) {
+                $this->em->remove($existing);
+                $this->em->flush();
+                $this->addFlash('success', sprintf('%s marqué à nouveau disponible.', $user->getFullName()));
+            }
+        } else {
+            if ($existing === null) {
+                $notes = trim((string) $request->request->get('notes', '')) ?: null;
+                $this->em->persist(new StaffWeekUnavailability($user, $week, $notes));
+                $this->em->flush();
+                $this->addFlash('success', sprintf('%s marqué non-dispo cette semaine.', $user->getFullName()));
+            }
+        }
+
+        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
     }
 
     /**

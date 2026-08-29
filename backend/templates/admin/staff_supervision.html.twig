@@ -20,18 +20,63 @@
     {% else %}
         {% for staffMember in staff %}
             {% set my_presences = presencesByUser[staffMember.id]|default([]) %}
+            {% set unav = unavailableByUser[staffMember.id]|default(null) %}
             <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
-                <h3 style="margin:0 0 12px 0; display:flex; align-items:center; gap:10px;">
+                <h3 style="margin:0 0 12px 0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span style="background:{{ profile == 'encadrant' ? '#dc2626' : '#0d2148' }}; color:#fff; padding:2px 8px; border-radius:4px; font-size:12px;">
                         {{ profile == 'encadrant' ? 'Encadrant' : 'Entraîneur' }}
                     </span>
                     {{ staffMember.fullName }}
-                    <small style="color:#888; font-weight:normal;">
-                        {{ my_presences|length }} créneau(x) cette semaine
-                    </small>
+
+                    {# Badge de statut : distingue les 3 états #}
+                    {% if unav %}
+                        <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                            ❌ Non dispo cette semaine
+                            {% if unav.notes %}<span style="font-weight:normal;">— {{ unav.notes }}</span>{% endif %}
+                        </span>
+                    {% elseif my_presences|length > 0 %}
+                        <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                            ✓ {{ my_presences|length }} créneau(x)
+                        </span>
+                    {% else %}
+                        <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                            ⏳ Aucune réponse
+                        </span>
+                    {% endif %}
+
+                    {# Toggle non-dispo par l'admin #}
+                    <span style="margin-left:auto;">
+                        {% if unav %}
+                            <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                <input type="hidden" name="action" value="unset">
+                                <input type="hidden" name="back" value="{{ back_route }}">
+                                <button class="btn btn-sm btn-secondary" title="Retirer le marqueur non-dispo">Marquer dispo</button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline;"
+                                  onsubmit="return confirm('Marquer {{ staffMember.fullName }} comme non-dispo cette semaine ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                <input type="hidden" name="action" value="set">
+                                <input type="hidden" name="back" value="{{ back_route }}">
+                                <button class="btn btn-sm btn-link" style="color:#991b1b;">Marquer non-dispo</button>
+                            </form>
+                        {% endif %}
+                    </span>
                 </h3>
 
                 {% set available = availableByUser[staffMember.id]|default([]) %}
+
+                {# Signale un conflit : encadrant marqué non-dispo mais avec présences #}
+                {% if unav and my_presences|length > 0 %}
+                    <div style="background:#fef3c7; color:#92400e; padding:10px 12px; border-radius:4px; margin-bottom:12px; font-size:13px;">
+                        ⚠️ Contradiction : cet encadrant est déclaré non-dispo mais a {{ my_presences|length }} présence(s) enregistrée(s). Décidez laquelle prime.
+                    </div>
+                {% endif %}
 
                 {% if my_presences|length == 0 %}
                     <p style="color:#999; font-style:italic; margin:0 0 12px;">Aucune présence cette semaine.</p>

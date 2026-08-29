@@ -75,6 +75,18 @@ export const staffPresence = {
     durationMinutes: number;
   }>) => api.patch<StaffPresence>(`/api/me/staff-presence/${id}`, patch),
   remove: (id: number) => api.delete<void>(`/api/me/staff-presence/${id}`),
+
+  /** Marque le user comme non-dispo pour la semaine cible. */
+  setUnavailable: (week: string, notes?: string) =>
+    api.post<{ ok: boolean; unavailable: boolean; unavailableNotes: string | null }>(
+      '/api/me/staff-presence/unavailable',
+      { week, notes },
+    ),
+  /** Retire le marqueur non-dispo. */
+  unsetUnavailable: (week: string) =>
+    api.delete<{ ok: boolean; unavailable: false }>(
+      `/api/me/staff-presence/unavailable?week=${encodeURIComponent(week)}`,
+    ),
 };
 
 export const pages = {

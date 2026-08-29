@@ -108,6 +108,23 @@ export default function StaffPresenceScreen() {
     return map;
   }, [filteredSlots]);
 
+  async function toggleUnavailable() {
+    const iso = toIsoDate(weekStart);
+    setUpdatingKey('unavail');
+    try {
+      if (data?.unavailable) {
+        await api.unsetUnavailable(iso);
+      } else {
+        await api.setUnavailable(iso);
+      }
+      await load(iso);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur mise à jour');
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   async function setStatus(slot: StaffPresenceSlot, status: StaffPresenceStatus | null) {
     const key = `slot-${slot.id ?? `tpl${slot.templateId}`}`;
     setUpdatingKey(key);
@@ -160,6 +177,28 @@ export default function StaffPresenceScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Bouton non-dispo cette semaine */}
+        <Pressable
+          onPress={toggleUnavailable}
+          disabled={updatingKey === 'unavail'}
+          style={[stylesUnav.card, data?.unavailable && stylesUnav.cardActive]}
+        >
+          {updatingKey === 'unavail' ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : (
+            <>
+              <Text style={[stylesUnav.title, data?.unavailable && stylesUnav.titleActive]}>
+                {data?.unavailable ? '❌ Non dispo cette semaine' : 'Je ne suis pas dispo cette semaine'}
+              </Text>
+              <Text style={[stylesUnav.sub, data?.unavailable && stylesUnav.subActive]}>
+                {data?.unavailable
+                  ? 'Cliquez pour retirer ce marqueur'
+                  : 'Signale à l\'équipe que vous n\'êtes pas positionnable cette semaine'}
+              </Text>
+            </>
+          )}
+        </Pressable>
+
         {/* Filtre sport */}
         <View style={styles.filterRow}>
           {SPORT_FILTERS.map((f) => (
@@ -411,4 +450,38 @@ const styles = StyleSheet.create({
     borderColor: COLORS.error,
   },
   actionLabelDanger: { fontSize: 13, fontWeight: '600', color: COLORS.error },
+});
+
+const stylesUnav = StyleSheet.create({
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  cardActive: {
+    backgroundColor: '#fee2e2',
+    borderColor: COLORS.error,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  titleActive: {
+    color: '#991b1b',
+    fontWeight: '700',
+  },
+  sub: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  subActive: {
+    color: '#991b1b',
+  },
 });

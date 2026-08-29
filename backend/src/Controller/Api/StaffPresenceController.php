@@ -5,7 +5,9 @@ namespace App\Controller\Api;
 use App\Entity\StaffPresence;
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Entity\StaffWeekUnavailability;
 use App\Repository\StaffPresenceRepository;
+use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\StaffPresenceService;
@@ -33,6 +35,7 @@ class StaffPresenceController extends AbstractController
         private readonly StaffPresenceService $service,
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
+        private readonly StaffWeekUnavailabilityRepository $unavailabilities,
     ) {
     }
 
@@ -95,10 +98,88 @@ class StaffPresenceController extends AbstractController
             return $slot;
         }, $slotRows);
 
+        // 3) Statut d'indisponibilité déclarée pour cette semaine
+        $unav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+
         return new JsonResponse([
             'week' => $monday->format('Y-m-d'),
             'slots' => $slotsWithPresence,
             'customTasks' => $customTasks,
+            'unavailable' => $unav !== null,
+            'unavailableNotes' => $unav?->getNotes(),
+        ]);
+    }
+
+    /**
+     * Marque le user comme non-disponible sur cette semaine.
+     * Body : { week: "YYYY-MM-DD", notes?: string }
+     * Idempotent (met à jour la note si déjà posé).
+     */
+    #[Route('/api/me/staff-presence/unavailable', name: 'api_staff_presence_set_unavailable', methods: ['POST'])]
+    public function setUnavailable(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $weekRaw = (string) ($payload['week'] ?? '');
+        try {
+            $week = $weekRaw !== '' ? new \DateTimeImmutable($weekRaw) : new \DateTimeImmutable('today');
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $monday = WeeklyScheduleService::snapToMonday($week);
+        $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
+
+        $existing = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+        if ($existing !== null) {
+            $existing->setNotes($notes);
+        } else {
+            $this->em->persist(new StaffWeekUnavailability($user, $monday, $notes));
+        }
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'week' => $monday->format('Y-m-d'),
+            'unavailable' => true,
+            'unavailableNotes' => $notes,
+        ]);
+    }
+
+    /**
+     * Retire la déclaration d'indisponibilité pour la semaine.
+     * Body : { week: "YYYY-MM-DD" }
+     */
+    #[Route('/api/me/staff-presence/unavailable', name: 'api_staff_presence_unset_unavailable', methods: ['DELETE'])]
+    public function unsetUnavailable(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $weekRaw = (string) $request->query->get('week', '');
+        try {
+            $week = $weekRaw !== '' ? new \DateTimeImmutable($weekRaw) : new \DateTimeImmutable('today');
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $monday = WeeklyScheduleService::snapToMonday($week);
+
+        $existing = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+        if ($existing !== null) {
+            $this->em->remove($existing);
+            $this->em->flush();
+        }
+
+        return new JsonResponse([
+            'ok' => true,
+            'week' => $monday->format('Y-m-d'),
+            'unavailable' => false,
         ]);
     }
 
