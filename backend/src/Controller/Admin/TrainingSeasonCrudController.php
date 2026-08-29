@@ -110,11 +110,12 @@ class TrainingSeasonCrudController extends AbstractCrudController
         }
 
         $dayBeforeStart = $seasonStart->modify('-1 day');
+        $sourceLabel = 'encore actifs';
 
-        // Ne prend QUE les templates encore vivants au début de la nouvelle
-        // saison : endsAt null OU endsAt >= seasonStart. Les templates
-        // déjà archivés (endsAt < seasonStart) ne sont pas re-clonés.
-        $liveTemplates = $this->templates->createQueryBuilder('t')
+        // Étape 1 : templates encore vivants au début de la nouvelle saison
+        // (endsAt null ou postérieur). Cas nominal : on repart des créneaux
+        // « courants », on les fige puis on les duplique.
+        $sourceTemplates = $this->templates->createQueryBuilder('t')
             ->where('t.isActive = true')
             ->andWhere('t.endsAt IS NULL OR t.endsAt >= :seasonStart')
             ->setParameter('seasonStart', $seasonStart->format('Y-m-d'))
@@ -123,16 +124,47 @@ class TrainingSeasonCrudController extends AbstractCrudController
             ->getQuery()
             ->getResult();
 
-        if (count($liveTemplates) === 0) {
-            $this->addFlash('info', 'Aucun créneau actif à cloner. Créez d\'abord des créneaux dans la semaine type.');
+        // Étape 2 (fallback) : si aucun créneau vivant (typique après un
+        // clonage précédent qui a figé tous les créneaux), on prend la
+        // dernière « fournée » archivée — les templates avec le MAX(endsAt)
+        // strictement antérieur à la nouvelle saison. C'est presque
+        // toujours ce que l'admin veut : repartir de la saison précédente.
+        if (count($sourceTemplates) === 0) {
+            $maxEndsAt = $this->templates->createQueryBuilder('t')
+                ->select('MAX(t.endsAt)')
+                ->where('t.isActive = true')
+                ->andWhere('t.endsAt < :seasonStart')
+                ->setParameter('seasonStart', $seasonStart->format('Y-m-d'))
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            if ($maxEndsAt !== null) {
+                $sourceTemplates = $this->templates->createQueryBuilder('t')
+                    ->where('t.isActive = true')
+                    ->andWhere('t.endsAt = :d')
+                    ->setParameter('d', $maxEndsAt)
+                    ->orderBy('t.dayOfWeek', 'ASC')
+                    ->addOrderBy('t.startTime', 'ASC')
+                    ->getQuery()
+                    ->getResult();
+                $sourceLabel = 'issus de la dernière saison ('
+                    .(is_string($maxEndsAt) ? substr($maxEndsAt, 0, 10) : $maxEndsAt->format('Y-m-d')).')';
+            }
+        }
+
+        if (count($sourceTemplates) === 0) {
+            $this->addFlash('info', 'Aucun créneau à cloner. Créez d\'abord des créneaux dans la semaine type.');
             return $this->redirectToIndex();
         }
 
         $cloned = 0;
-        foreach ($liveTemplates as $old) {
-            // Fige l'ancien
-            $old->setEndsAt($dayBeforeStart);
-            // Crée le nouveau
+        foreach ($sourceTemplates as $old) {
+            // On ne re-fige que les templates encore vivants ; ceux déjà
+            // archivés (fallback) gardent leur endsAt d'origine — sinon
+            // on écraserait la date de fin de la saison précédente.
+            if ($old->getEndsAt() === null || $old->getEndsAt() >= $seasonStart) {
+                $old->setEndsAt($dayBeforeStart);
+            }
             $new = $old->duplicateForRange($seasonStart, null);
             $this->em->persist($new);
             $cloned++;
@@ -140,8 +172,9 @@ class TrainingSeasonCrudController extends AbstractCrudController
         $this->em->flush();
 
         $this->addFlash('success', sprintf(
-            '%d créneau(x) clonés pour la saison démarrant le %s. Ajustez les nouveaux librement — les anciens gardent leur historique.',
+            '%d créneau(x) clonés (%s) pour la saison démarrant le %s. Ajustez les nouveaux librement — les anciens gardent leur historique.',
             $cloned,
+            $sourceLabel,
             $seasonStart->format('d/m/Y'),
         ));
 
