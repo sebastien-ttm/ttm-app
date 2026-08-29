@@ -14,7 +14,7 @@ import { COLORS } from '@/config';
  * Either way, expo-router parses the `?token=...` into `useLocalSearchParams()`.
  */
 export default function MagicLinkVerify() {
-  const params = useLocalSearchParams<{ token?: string; next?: string }>();
+  const params = useLocalSearchParams<{ token?: string; next?: string; impersonate?: string }>();
   const router = useRouter();
   const { consumeMagicLink } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +31,13 @@ export default function MagicLinkVerify() {
     if (next) {
       rememberIntendedPath(next);
     }
+    // Impersonation admin : pose un flag localStorage AVANT l'auth. Le
+    // bandeau global (ImpersonationBanner) le lit et s'affiche sur toutes
+    // les pages avec un bouton « Se déconnecter » pour sortir proprement.
+    const impersonate = params.impersonate?.toString() === '1';
+    if (impersonate && typeof window !== 'undefined' && window.localStorage) {
+      try { window.localStorage.setItem('ttm.impersonating', '1'); } catch {}
+    }
     (async () => {
       try {
         await consumeMagicLink(token);
@@ -39,7 +46,7 @@ export default function MagicLinkVerify() {
         setError(err instanceof Error ? err.message : 'Lien invalide');
       }
     })();
-  }, [params.token, params.next, consumeMagicLink]);
+  }, [params.token, params.next, params.impersonate, consumeMagicLink]);
 
   if (error) {
     return (

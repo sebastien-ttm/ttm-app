@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from '@/auth/AuthContext';
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { COLORS } from '@/config';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -81,6 +82,7 @@ export default function RootLayout() {
       <AuthProvider>
         <AuthGate>
           <StatusBar style="auto" />
+          <ImpersonationBanner />
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: COLORS.primary },

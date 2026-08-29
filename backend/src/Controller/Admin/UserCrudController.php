@@ -209,8 +209,19 @@ class UserCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
+        // Bouton « Se connecter en tant que » : disponible aux admins,
+        // sur les comptes actifs uniquement. Ouvre un nouvel onglet pour
+        // ne pas casser la session admin en cours.
+        $impersonate = Action::new('impersonate', '🎭 Se connecter en tant que', null)
+            ->linkToRoute('admin_impersonate', fn (User $u) => ['id' => $u->getId()])
+            ->displayIf(fn (User $u) => $u->getId() !== null && $u->isActive())
+            ->setHtmlAttributes(['target' => '_blank']);
+
         return $actions
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+            ->add(Crud::PAGE_INDEX, $impersonate)
+            ->add(Crud::PAGE_DETAIL, $impersonate)
+            ->add(Crud::PAGE_EDIT, $impersonate);
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void

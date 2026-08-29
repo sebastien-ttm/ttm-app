@@ -149,6 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storage.removeItem(STORAGE_KEYS.refreshToken),
       storage.removeItem(STORAGE_KEYS.user),
     ]);
+    // Nettoie aussi le flag d'impersonation admin (voir ImpersonationBanner).
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try { window.localStorage.removeItem('ttm.impersonating'); } catch {}
+    }
     setState({ ...initialState, status: 'unauthenticated' });
   }, []);
 
