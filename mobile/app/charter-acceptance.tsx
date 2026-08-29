@@ -132,7 +132,7 @@ export default function CharterAcceptanceScreen() {
       <View style={styles.header}>
         <Text style={styles.brand}>{APP_NAME}</Text>
         <Text style={styles.title}>{pendingCharter.title}</Text>
-        <Text style={styles.version}>Version {pendingCharter.version}</Text>
+        <Text style={styles.version}>Saison {pendingCharter.version}</Text>
       </View>
 
       <ScrollView

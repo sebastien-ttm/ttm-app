@@ -86,7 +86,7 @@ export default function CharterReadScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{charter.title}</Text>
         <Text style={styles.meta}>
-          Version {charter.version} · publiée le {formatDate(charter.publishedAt)}
+          Saison {charter.version} · publiée le {formatDate(charter.publishedAt)}
         </Text>
 
         {charter.content ? (
