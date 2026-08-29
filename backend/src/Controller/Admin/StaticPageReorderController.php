@@ -21,6 +21,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_EDITEUR')]
 class StaticPageReorderController extends AbstractController
 {
+    use EnsureAdminContextTrait;
+
     public function __construct(
         private readonly StaticPageRepository $pages,
         private readonly EntityManagerInterface $em,
@@ -28,8 +30,11 @@ class StaticPageReorderController extends AbstractController
     }
 
     #[Route('/admin/pages/reorder', name: 'admin_pages_reorder', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        if ($r = $this->ensureAdminContext($request, 'admin_pages_reorder')) {
+            return $r;
+        }
         $all = $this->pages->createQueryBuilder('p')
             ->orderBy('p.position', 'ASC')
             ->addOrderBy('p.title', 'ASC')
