@@ -16,6 +16,7 @@ use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Entity\WelcomeEmailTemplate;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
@@ -121,6 +122,8 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')
             ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)
             ->setPermission('ROLE_ADMIN');

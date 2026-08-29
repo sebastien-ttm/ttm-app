@@ -1,0 +1,13 @@
+Bonjour {{ user.prenom }},
+
+Bienvenue au Triathlon Toulouse Métropole !
+
+{# Version texte : on strippe le HTML du corps admin pour donner un
+   fallback lisible aux clients mail qui n'affichent pas le HTML. #}
+{{ bodyHtml|striptags|raw }}
+
+Pour vous connecter à l'application, ouvrez ce lien :
+{{ magicLink }}
+
+À bientôt sur les bords du canal,
+L'équipe TTM

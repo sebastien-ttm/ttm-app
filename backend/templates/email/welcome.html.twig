@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Bienvenue au TTM</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+        <tr>
+            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:30px; line-height:1.5;">
+                {# bodyHtml est déjà personnalisé côté handler (str_replace des
+                   placeholders, échappement des valeurs utilisateur). On rend
+                   le HTML tel quel — le contenu est écrit par un admin de confiance. #}
+                {{ bodyHtml|raw }}
+            </td>
+        </tr>
+        <tr>
+            <td style="background:#f8f8f8; color:#666; padding:15px; text-align:center; font-size:11px;">
+                <p style="margin:0;">Ce message est envoyé automatiquement suite à votre adhésion.</p>
+                <p style="margin:5px 0 0 0;">Si le bouton ne fonctionne pas, copiez ce lien : <br>
+                    <a href="{{ magicLink }}" style="color:#D32F2F; word-break:break-all;">{{ magicLink }}</a>
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
