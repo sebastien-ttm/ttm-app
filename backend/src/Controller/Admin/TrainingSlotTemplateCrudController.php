@@ -69,19 +69,19 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
     public function configureCrud(Crud $crud): Crud
     {
+        $scope = $this->currentScope();
+        $help = match ($scope) {
+            self::SCOPE_ARCHIVED => '📦 <strong>Vue Archivés</strong> : créneaux dont la date de fin est passée. Ils ne s\'affichent plus dans le planning mais restent en base pour l\'historique.',
+            self::SCOPE_ALL => '📋 <strong>Vue Tous</strong> : historique complet (actuels + archivés).',
+            default => '✅ <strong>Vue Actuels</strong> : créneaux dont la validité couvre aujourd\'hui. Les créneaux dont la date de fin est passée sont masqués (voir « Archivés »).',
+        };
+
         return $crud
             ->setEntityLabelInSingular('Créneau (semaine type)')
             ->setEntityLabelInPlural('Semaine type d\'entraînement')
             ->setEntityPermission('ROLE_ENTRAINEUR')
             ->setDefaultSort(['dayOfWeek' => 'ASC', 'startTime' => 'ASC'])
-            ->setHelp(Crud::PAGE_INDEX, function () {
-                $scope = $this->currentScope();
-                return match ($scope) {
-                    self::SCOPE_ARCHIVED => '📦 <strong>Vue Archivés</strong> : créneaux dont la date de fin est passée. Ils ne s\'affichent plus dans le planning mais restent en base pour l\'historique.',
-                    self::SCOPE_ALL => '📋 <strong>Vue Tous</strong> : historique complet (actuels + archivés).',
-                    default => '✅ <strong>Vue Actuels</strong> : créneaux dont la validité couvre aujourd\'hui. Les créneaux dont la date de fin est passée sont masqués (voir « Archivés »).',
-                };
-            });
+            ->setHelp(Crud::PAGE_INDEX, $help);
     }
 
     public function configureActions(Actions $actions): Actions
