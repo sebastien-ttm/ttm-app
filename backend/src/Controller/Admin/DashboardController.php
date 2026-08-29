@@ -8,7 +8,6 @@ use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\MembershipSettings;
-use App\Entity\MenuItem;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
@@ -123,8 +122,6 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToRoute('Ordre des pages', 'fa fa-arrows-up-down', 'admin_pages_reorder')
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToCrud('Menu mobile', 'fa fa-bars', MenuItem::class)
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)
             ->setPermission('ROLE_EDITEUR');
