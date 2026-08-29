@@ -10,25 +10,55 @@ import { registerForPushNotifications } from '@/notifications/registerForPush';
 /**
  * Deep-link : mémorise l'URL demandée quand un user non authentifié est
  * redirigé vers login. Après login réussi, on l'y renvoie au lieu de la
- * home. Module-level (pas dans le state React) parce que ça n'a pas
- * besoin de déclencher un re-render — juste lu une fois à l'auth.
+ * home.
+ *
+ * Persisté dans sessionStorage sur web (survit à un reload navigateur
+ * pendant le formulaire de login). Module-level en fallback native.
  *
  * Seules les URLs qui ont du sens comme deep link sont acceptées :
  * pas /(auth), pas /charter-acceptance.
  */
-let intendedPath: string | null = null;
+const INTENDED_PATH_KEY = 'ttm.intendedPath';
+let intendedPathMemory: string | null = null;
+
+function isValidIntendedPath(path: string): boolean {
+  if (!path || path === '/' || path === '') return false;
+  if (path.startsWith('/(auth)') || path.startsWith('/auth/')) return false;
+  if (path === '/charter-acceptance') return false;
+  if (path === '/access-denied' || path.startsWith('/access-denied?')) return false;
+  return true;
+}
 
 export function rememberIntendedPath(path: string): void {
-  if (!path || path === '/' || path.startsWith('/(auth)') || path.startsWith('/auth/') || path === '/charter-acceptance') {
-    return;
+  if (!isValidIntendedPath(path)) return;
+  intendedPathMemory = path;
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try { window.sessionStorage.setItem(INTENDED_PATH_KEY, path); } catch {}
   }
-  intendedPath = path;
 }
 
 export function consumeIntendedPath(): string | null {
-  const p = intendedPath;
-  intendedPath = null;
-  return p;
+  let p = intendedPathMemory;
+  intendedPathMemory = null;
+  if ((!p || p === '') && typeof window !== 'undefined' && window.sessionStorage) {
+    try { p = window.sessionStorage.getItem(INTENDED_PATH_KEY); } catch {}
+  }
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try { window.sessionStorage.removeItem(INTENDED_PATH_KEY); } catch {}
+  }
+  return p && isValidIntendedPath(p) ? p : null;
+}
+
+/**
+ * Capture l'URL initiale du navigateur au moment du chargement du module.
+ * Nécessaire parce que `useSegments()` peut retourner un tableau vide au
+ * premier render avant qu'Expo Router n'ait parsé l'URL.
+ */
+if (typeof window !== 'undefined' && window.location) {
+  const initial = window.location.pathname + (window.location.search || '');
+  if (isValidIntendedPath(initial)) {
+    rememberIntendedPath(initial);
+  }
 }
 
 type AuthState = {
