@@ -78,6 +78,33 @@ class TrainingSlotTemplate
         $this->startTime = new \DateTimeImmutable('18:30:00');
     }
 
+    /**
+     * Duplique le template pour une nouvelle plage de dates. Utilisé lors
+     * du clonage de semaine type pour une nouvelle saison — l'ancien
+     * garde ses dates (généralement bornées par le clonage), le nouveau
+     * démarre à la nouvelle saison. Copie tous les champs métier
+     * (horaire, sport, titre, lieu, description, audience, position,
+     * isActive) mais PAS l'id, les startsAt/endsAt (à définir par le
+     * caller) ni les relations.
+     */
+    public function duplicateForRange(?\DateTimeImmutable $startsAt, ?\DateTimeImmutable $endsAt): self
+    {
+        $copy = new self();
+        $copy->setDayOfWeek($this->dayOfWeek);
+        $copy->setStartTime($this->startTime);
+        $copy->setDurationMinutes($this->durationMinutes);
+        $copy->setSport($this->sport);
+        $copy->setTitle($this->title);
+        $copy->setLocation($this->location);
+        $copy->setDescription($this->description);
+        $copy->setIsActive($this->isActive);
+        $copy->setPosition($this->position);
+        $copy->setAudience($this->getAudience());
+        $copy->setStartsAt($startsAt);
+        $copy->setEndsAt($endsAt);
+        return $copy;
+    }
+
     public function getId(): ?int { return $this->id; }
 
     public function getDayOfWeek(): int { return $this->dayOfWeek; }
