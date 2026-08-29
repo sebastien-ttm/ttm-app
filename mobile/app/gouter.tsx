@@ -90,7 +90,7 @@ export default function GouterScreen() {
   if (!canSee) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Goûter du mercredi' }} />
+        <Stack.Screen options={{ title: 'Goûters du mercredi' }} />
         <EmptyState
           icon="🍪"
           title="Accès réservé"
@@ -103,7 +103,7 @@ export default function GouterScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Goûter du mercredi' }} />
+        <Stack.Screen options={{ title: 'Goûters du mercredi' }} />
         <FullScreenLoading />
       </SafeAreaView>
     );
@@ -112,7 +112,7 @@ export default function GouterScreen() {
   if (error && slots.length === 0) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Goûter du mercredi' }} />
+        <Stack.Screen options={{ title: 'Goûters du mercredi' }} />
         <ErrorState message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -120,7 +120,7 @@ export default function GouterScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Goûter du mercredi' }} />
+      <Stack.Screen options={{ title: 'Goûters du mercredi' }} />
 
       <ScrollView
         contentContainerStyle={styles.content}

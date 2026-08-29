@@ -193,7 +193,7 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: 22 }}>🍪</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Goûter du mercredi</Text>
+              <Text style={styles.rowLabel}>Goûters du mercredi</Text>
               <Text style={styles.actionHint}>
                 Positionnez-vous pour amener le goûter (2 places par mercredi)
               </Text>
