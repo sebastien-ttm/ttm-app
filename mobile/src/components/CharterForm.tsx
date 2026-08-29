@@ -9,7 +9,8 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  * Filtre les champs d'une charte selon le profil de l'adhérent :
  *  - audience 'all' ou absent → toujours affiché
  *  - audience 'parent_jeune'  → uniquement si Parent ou Jeune
- *  - audience 'other'         → uniquement si ni Parent ni Jeune
+ *  - audience 'senior'        → uniquement si Sénior (inclut U25)
+ *  - audience 'other'         → alias rétro-compat = 'senior'
  * Utilisé côté formulaire d'acceptation ET lecture seule.
  */
 export function filterCharterFields(
@@ -18,11 +19,12 @@ export function filterCharterFields(
 ): CharterField[] {
   const profiles = user?.profiles ?? [];
   const isParentOrJeune = profiles.includes('parent') || profiles.includes('jeune');
+  const isSenior = profiles.includes('senior') || profiles.includes('u25');
   return fields.filter((f) => {
     const aud = f.audience ?? 'all';
     if (aud === 'all') return true;
     if (aud === 'parent_jeune') return isParentOrJeune;
-    if (aud === 'other') return !isParentOrJeune;
+    if (aud === 'senior' || aud === 'other') return isSenior;
     return true;
   });
 }

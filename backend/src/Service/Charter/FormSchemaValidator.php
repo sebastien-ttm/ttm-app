@@ -9,13 +9,14 @@ namespace App\Service\Charter;
 class FormSchemaValidator
 {
     private const ALLOWED_TYPES = ['text', 'textarea', 'number', 'date', 'checkbox', 'select', 'radio'];
-    private const ALLOWED_AUDIENCES = ['all', 'parent_jeune', 'other'];
+    // 'other' est un alias rétro-compat de 'senior' — accepté à l'entrée.
+    private const ALLOWED_AUDIENCES = ['all', 'parent_jeune', 'senior', 'other'];
 
     /**
      * Filtre les champs applicables à un adhérent selon leur audience :
      *  - 'all' (défaut si absent) → visible par tout le monde
      *  - 'parent_jeune'           → uniquement Parent ou Jeune
-     *  - 'other'                  → uniquement les non Parent/Jeune
+     *  - 'senior' (ou 'other')    → uniquement les Sénior (U25 inclus)
      *
      * @param list<array<string, mixed>>|null $schema
      * @param list<string>                    $profiles  slugs des profils user
@@ -27,11 +28,12 @@ class FormSchemaValidator
             return [];
         }
         $isParentOrJeune = in_array('parent', $profiles, true) || in_array('jeune', $profiles, true);
-        return array_values(array_filter($schema, static function (array $f) use ($isParentOrJeune): bool {
+        $isSenior = in_array('senior', $profiles, true) || in_array('u25', $profiles, true);
+        return array_values(array_filter($schema, static function (array $f) use ($isParentOrJeune, $isSenior): bool {
             $aud = $f['audience'] ?? 'all';
             return match ($aud) {
                 'parent_jeune' => $isParentOrJeune,
-                'other' => !$isParentOrJeune,
+                'senior', 'other' => $isSenior,
                 default => true, // 'all' + valeur inconnue → visible
             };
         }));

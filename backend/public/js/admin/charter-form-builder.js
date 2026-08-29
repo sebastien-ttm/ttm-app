@@ -25,7 +25,7 @@
   const AUDIENCES = [
     { value: 'all',          label: 'Tous les adhérents (défaut)' },
     { value: 'parent_jeune', label: 'Uniquement Parent ou Jeune' },
-    { value: 'other',        label: 'Uniquement Autres (Sénior/staff — pas Parent/Jeune)' },
+    { value: 'senior',       label: 'Uniquement Sénior (U25 inclus)' },
   ];
 
   const ID_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -175,7 +175,7 @@
         aud.className = 'cfb-audience-badge';
         aud.textContent = field.audience === 'parent_jeune'
           ? '👨‍👩‍👧 Parent/Jeune'
-          : '🎽 Autres';
+          : '🎽 Sénior';
         header.appendChild(aud);
       }
 
@@ -244,9 +244,11 @@
         placeholder: 'Ex : Format attendu, exemple…',
       }));
 
+      // Normalise l'alias rétro-compat 'other' → 'senior' pour l'affichage
+      const currentAudience = (field.audience === 'other') ? 'senior' : (field.audience || 'all');
       body.appendChild(this.rowSelect(
         'Visible par',
-        field.audience || 'all',
+        currentAudience,
         AUDIENCES,
         (v) => {
           if (v === 'all') delete field.audience;
