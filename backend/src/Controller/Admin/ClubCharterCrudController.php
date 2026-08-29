@@ -20,23 +20,18 @@ class ClubCharterCrudController extends AbstractCrudController
     private const FIELDS_TEMPLATE = <<<'JSON'
 [
   {
-    "id": "size",
-    "label": "Taille de t-shirt",
-    "type": "select",
-    "required": true,
-    "options": ["XS", "S", "M", "L", "XL", "XXL"]
-  },
-  {
-    "id": "emergency_contact",
-    "label": "Personne à prévenir en cas d'urgence (nom + téléphone)",
-    "type": "text",
-    "required": true
-  },
-  {
-    "id": "newsletter",
-    "label": "J'accepte de recevoir la newsletter du club",
+    "id": "engagement_horaires",
+    "label": "Je m'engage à respecter les horaires d'entraînement",
     "type": "checkbox",
-    "required": false
+    "required": true,
+    "description": "En arrivant à l'heure et en prévenant en cas d'absence, je permets au groupe de démarrer ensemble et je contribue à la cohésion collective."
+  },
+  {
+    "id": "engagement_materiel",
+    "label": "Je m'engage à respecter le matériel du club",
+    "type": "checkbox",
+    "required": true,
+    "description": "Le matériel prêté est fragile et coûteux : je le manipule avec soin, le range à sa place et signale toute dégradation à un encadrant."
   }
 ]
 JSON;

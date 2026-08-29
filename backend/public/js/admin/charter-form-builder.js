@@ -129,15 +129,18 @@
     }
 
     newField() {
-      // ID unique : champ_1, champ_2, …
+      // ID unique : engagement_1, engagement_2, …
+      // Défaut = case à cocher (recommandé pour la nouvelle charte). Les
+      // autres types restent disponibles via le sélecteur.
       const existing = new Set(this.state.fields.map((f) => f.id));
       let n = this.state.fields.length + 1;
-      while (existing.has('champ_' + n)) n++;
+      while (existing.has('engagement_' + n)) n++;
       return {
-        id: 'champ_' + n,
-        label: 'Nouveau champ',
-        type: 'text',
-        required: false,
+        id: 'engagement_' + n,
+        label: 'J\'accepte…',
+        type: 'checkbox',
+        description: '',
+        required: true,
       };
     }
 
@@ -173,9 +176,33 @@
       const body = document.createElement('div');
       body.className = 'cfb-field-body';
 
-      body.appendChild(this.rowInput('Libellé affiché *', field.label || '', (v) => { field.label = v; }, {
-        placeholder: 'Ex : Taille de t-shirt',
-      }));
+      body.appendChild(this.rowInput(
+        field.type === 'checkbox' ? 'Phrase d\'acceptation *' : 'Libellé affiché *',
+        field.label || '',
+        (v) => { field.label = v; },
+        {
+          placeholder: field.type === 'checkbox'
+            ? 'Ex : Je m\'engage à respecter les horaires'
+            : 'Ex : Taille de t-shirt',
+        },
+      ));
+
+      // Description multi-ligne : explication de l'engagement (surtout
+      // utile pour les cases à cocher). Rendue sur mobile au-dessus du
+      // libellé pour contextualiser à quoi l'adhérent s'engage.
+      body.appendChild(this.rowTextarea(
+        'Description / explication (optionnelle)',
+        field.description || '',
+        (v) => {
+          if (v && v.trim() !== '') field.description = v;
+          else delete field.description;
+        },
+        {
+          placeholder: field.type === 'checkbox'
+            ? 'Expliquez le contexte : à quoi l\'adhérent s\'engage exactement, pourquoi c\'est important…'
+            : 'Contexte affiché avant le champ (optionnel).',
+        },
+      ));
 
       body.appendChild(this.rowInput('Identifiant technique *', field.id || '', (v) => {
         field.id = v;
@@ -301,6 +328,28 @@
         wrap.appendChild(help);
       }
 
+      return wrap;
+    }
+
+    rowTextarea(label, value, onChange, opts = {}) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cfb-row';
+
+      const lab = document.createElement('label');
+      lab.className = 'cfb-input-label';
+      lab.textContent = label;
+      wrap.appendChild(lab);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'form-control cfb-input';
+      ta.rows = 3;
+      ta.value = value;
+      if (opts.placeholder) ta.placeholder = opts.placeholder;
+      ta.addEventListener('input', () => {
+        onChange(ta.value);
+        this.state.sync();
+      });
+      wrap.appendChild(ta);
       return wrap;
     }
 

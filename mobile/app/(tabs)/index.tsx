@@ -1,5 +1,7 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { articles as articlesApi } from '@/api/resources';
@@ -8,11 +10,12 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
-import { COLORS } from '@/config';
+import { COLORS, RADIUS, SPACING } from '@/config';
 
 const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
+  const router = useRouter();
   const [items, setItems] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -79,6 +82,17 @@ export default function FeedScreen() {
           <View>
             <BannerImage />
             <UpcomingEvents />
+            <Pressable
+              onPress={() => router.push('/charter' as never)}
+              style={({ pressed }) => [styles.charterLink, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.charterIcon}>📜</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.charterTitle}>Charte du club</Text>
+                <Text style={styles.charterSub}>Nos engagements — à relire à tout moment</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+            </Pressable>
             {items.length > 0 && <Text style={styles.sectionTitle}>📰 Actus</Text>}
           </View>
         }
@@ -122,4 +136,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  charterLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  charterIcon: { fontSize: 24 },
+  charterTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  charterSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });

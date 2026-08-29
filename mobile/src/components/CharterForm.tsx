@@ -43,6 +43,31 @@ function FieldRow({
   error?: string;
   onChange: (v: CharterAnswers[string]) => void;
 }) {
+  // Rendu spécifique « engagement à cocher » quand une description est
+  // fournie : bloc explicatif + phrase d'acceptation + case en ligne.
+  // Format cohérent quel que soit le contenu de la description.
+  if (field.type === 'checkbox' && field.description) {
+    const checked = value === true || value === 'true' || value === 1 || value === '1';
+    return (
+      <View style={styles.commitCard}>
+        <Text style={styles.commitDescription}>{field.description}</Text>
+        <Pressable
+          onPress={() => onChange(!checked)}
+          style={({ pressed }) => [styles.commitAcceptRow, pressed && { opacity: 0.7 }]}
+        >
+          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+            {checked && <Text style={styles.checkboxMark}>✓</Text>}
+          </View>
+          <Text style={styles.commitAcceptLabel}>
+            {field.label}
+            {field.required ? <Text style={styles.required}> *</Text> : null}
+          </Text>
+        </Pressable>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      </View>
+    );
+  }
+
   const label = (
     <Text style={styles.label}>
       {field.label}
@@ -53,6 +78,7 @@ function FieldRow({
   return (
     <View style={styles.row}>
       {label}
+      {field.description ? <Text style={styles.description}>{field.description}</Text> : null}
       {field.help ? <Text style={styles.help}>{field.help}</Text> : null}
       <FieldInput field={field} value={value} onChange={onChange} />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -235,6 +261,38 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   required: { color: COLORS.error },
   help: { fontSize: 12, color: COLORS.textMuted },
+  description: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18, marginBottom: 4 },
+  commitCard: {
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  commitDescription: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  commitAcceptRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  commitAcceptLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text, lineHeight: 20 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: COLORS.borderStrong,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  checkboxMark: { color: '#fff', fontWeight: '700', fontSize: 14, lineHeight: 14 },
   input: {
     borderWidth: 1,
     borderColor: COLORS.border,

@@ -232,6 +232,12 @@ export type CharterField = {
   required?: boolean;
   help?: string;
   options?: string[];
+  /**
+   * Explication multi-ligne de l'engagement — surtout utile pour les
+   * cases à cocher : le `label` est la phrase d'acceptation, la
+   * `description` détaille ce à quoi l'adhérent s'engage.
+   */
+  description?: string;
 };
 
 export type Charter = {
