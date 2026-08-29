@@ -22,6 +22,12 @@
     { value: 'radio',    label: 'Boutons radio' },
   ];
 
+  const AUDIENCES = [
+    { value: 'all',          label: 'Tous les adhérents (défaut)' },
+    { value: 'parent_jeune', label: 'Uniquement Parent ou Jeune' },
+    { value: 'other',        label: 'Uniquement Autres (Sénior/staff — pas Parent/Jeune)' },
+  ];
+
   const ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -164,6 +170,15 @@
         header.appendChild(req);
       }
 
+      if (field.audience && field.audience !== 'all') {
+        const aud = document.createElement('span');
+        aud.className = 'cfb-audience-badge';
+        aud.textContent = field.audience === 'parent_jeune'
+          ? '👨‍👩‍👧 Parent/Jeune'
+          : '🎽 Autres';
+        header.appendChild(aud);
+      }
+
       const actions = document.createElement('div');
       actions.className = 'cfb-field-actions';
       actions.appendChild(this.iconBtn('↑', 'Monter', idx === 0, () => this.move(idx, -1)));
@@ -228,6 +243,18 @@
       }, {
         placeholder: 'Ex : Format attendu, exemple…',
       }));
+
+      body.appendChild(this.rowSelect(
+        'Visible par',
+        field.audience || 'all',
+        AUDIENCES,
+        (v) => {
+          if (v === 'all') delete field.audience;
+          else field.audience = v;
+          this.state.sync();
+          this.render(); // maj du badge audience
+        },
+      ));
 
       body.appendChild(this.rowCheckbox('Champ obligatoire', !!field.required, (v) => {
         if (v) field.required = true; else delete field.required;

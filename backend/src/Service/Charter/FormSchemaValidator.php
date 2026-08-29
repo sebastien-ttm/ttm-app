@@ -9,6 +9,33 @@ namespace App\Service\Charter;
 class FormSchemaValidator
 {
     private const ALLOWED_TYPES = ['text', 'textarea', 'number', 'date', 'checkbox', 'select', 'radio'];
+    private const ALLOWED_AUDIENCES = ['all', 'parent_jeune', 'other'];
+
+    /**
+     * Filtre les champs applicables à un adhérent selon leur audience :
+     *  - 'all' (défaut si absent) → visible par tout le monde
+     *  - 'parent_jeune'           → uniquement Parent ou Jeune
+     *  - 'other'                  → uniquement les non Parent/Jeune
+     *
+     * @param list<array<string, mixed>>|null $schema
+     * @param list<string>                    $profiles  slugs des profils user
+     * @return list<array<string, mixed>>
+     */
+    public function filterForUser(?array $schema, array $profiles): array
+    {
+        if ($schema === null || $schema === []) {
+            return [];
+        }
+        $isParentOrJeune = in_array('parent', $profiles, true) || in_array('jeune', $profiles, true);
+        return array_values(array_filter($schema, static function (array $f) use ($isParentOrJeune): bool {
+            $aud = $f['audience'] ?? 'all';
+            return match ($aud) {
+                'parent_jeune' => $isParentOrJeune,
+                'other' => !$isParentOrJeune,
+                default => true, // 'all' + valeur inconnue → visible
+            };
+        }));
+    }
 
     /**
      * Vérifie qu'un schéma est bien formé. Retourne la liste des erreurs (vide si OK).
@@ -56,6 +83,9 @@ class FormSchemaValidator
                 if (!isset($field['options']) || !is_array($field['options']) || count($field['options']) < 1) {
                     $errors[] = "$prefix : un champ \"select\"/\"radio\" doit avoir au moins une option.";
                 }
+            }
+            if (isset($field['audience']) && !in_array($field['audience'], self::ALLOWED_AUDIENCES, true)) {
+                $errors[] = "$prefix : audience \"{$field['audience']}\" invalide. Valeurs : ".implode(', ', self::ALLOWED_AUDIENCES);
             }
         }
         return $errors;

@@ -1,8 +1,31 @@
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
+import type { AuthenticatedUser } from '@/api/client';
 import type { CharterAnswers, CharterField } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
+
+/**
+ * Filtre les champs d'une charte selon le profil de l'adhérent :
+ *  - audience 'all' ou absent → toujours affiché
+ *  - audience 'parent_jeune'  → uniquement si Parent ou Jeune
+ *  - audience 'other'         → uniquement si ni Parent ni Jeune
+ * Utilisé côté formulaire d'acceptation ET lecture seule.
+ */
+export function filterCharterFields(
+  fields: CharterField[],
+  user: AuthenticatedUser | null | undefined,
+): CharterField[] {
+  const profiles = user?.profiles ?? [];
+  const isParentOrJeune = profiles.includes('parent') || profiles.includes('jeune');
+  return fields.filter((f) => {
+    const aud = f.audience ?? 'all';
+    if (aud === 'all') return true;
+    if (aud === 'parent_jeune') return isParentOrJeune;
+    if (aud === 'other') return !isParentOrJeune;
+    return true;
+  });
+}
 
 type Props = {
   fields: CharterField[];

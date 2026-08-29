@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import type { Charter, CharterField } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
+import { filterCharterFields } from '@/components/CharterForm';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -17,6 +19,7 @@ import { formatDate } from '@/utils/html';
  * hors du flux d'acceptation.
  */
 export default function CharterReadScreen() {
+  const { user } = useAuth();
   const [charter, setCharter] = useState<Charter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +75,10 @@ export default function CharterReadScreen() {
     );
   }
 
-  const commitmentFields = (charter.fields ?? []).filter((f) => f.type === 'checkbox');
+  // Filtre par profil (Parent/Jeune / Autre / Tous) ET restreint aux
+  // cases à cocher (les engagements formels de la charte).
+  const commitmentFields = filterCharterFields(charter.fields ?? [], user)
+    .filter((f) => f.type === 'checkbox');
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>

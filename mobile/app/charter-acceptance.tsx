@@ -15,16 +15,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CharterAnswers } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { CharterForm, validateCharterAnswers } from '@/components/CharterForm';
+import { CharterForm, filterCharterFields, validateCharterAnswers } from '@/components/CharterForm';
 import { RichContent } from '@/components/RichContent';
 import { APP_NAME, COLORS, SPACING } from '@/config';
 
 const SCROLL_THRESHOLD_PX = 12;
 
 export default function CharterAcceptanceScreen() {
-  const { pendingCharter, acknowledgeCharter, signOut } = useAuth();
-  const hasForm = !!pendingCharter?.hasForm;
-  const fields = useMemo(() => pendingCharter?.fields ?? [], [pendingCharter]);
+  const { user, pendingCharter, acknowledgeCharter, signOut } = useAuth();
+  // Filtre chaque engagement selon le profil de l'utilisateur (audience
+  // Parent/Jeune / Autre / Tous). Le backend applique le même filtre
+  // avant validation — cohérence garantie.
+  const fields = useMemo(
+    () => filterCharterFields(pendingCharter?.fields ?? [], user),
+    [pendingCharter, user],
+  );
+  const hasForm = fields.length > 0;
 
   const [hasReadAll, setHasReadAll] = useState(false);
   const [answers, setAnswers] = useState<CharterAnswers>({});

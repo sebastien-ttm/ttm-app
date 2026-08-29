@@ -225,6 +225,14 @@ export type CharterFieldType =
   | 'select'
   | 'radio';
 
+/**
+ * Public cible d'un engagement :
+ *  - 'all' (défaut si absent) : visible par tout le monde
+ *  - 'parent_jeune'           : uniquement pour les profils Parent ou Jeune
+ *  - 'other'                  : pour tous SAUF Parent et Jeune (Sénior/staff)
+ */
+export type CharterFieldAudience = 'all' | 'parent_jeune' | 'other';
+
 export type CharterField = {
   id: string;
   label: string;
@@ -238,6 +246,7 @@ export type CharterField = {
    * `description` détaille ce à quoi l'adhérent s'engage.
    */
   description?: string;
+  audience?: CharterFieldAudience;
 };
 
 export type Charter = {

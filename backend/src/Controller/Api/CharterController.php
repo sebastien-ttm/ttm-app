@@ -86,7 +86,15 @@ class CharterController extends AbstractController
             $payload = json_decode($request->getContent() ?: '{}', true);
             $rawAnswers = is_array($payload) ? ($payload['answers'] ?? null) : null;
 
-            $errors = $this->formValidator->validateAnswers($charter->getFields(), $rawAnswers);
+            // Restreint le schéma aux champs applicables au profil de l'user.
+            // Un champ hors audience n'est ni requis, ni validé, ni stocké —
+            // même si le client tente de l'envoyer.
+            $applicableFields = $this->formValidator->filterForUser(
+                $charter->getFields(),
+                $user->getProfiles(),
+            );
+
+            $errors = $this->formValidator->validateAnswers($applicableFields, $rawAnswers);
             if ($errors !== []) {
                 return new JsonResponse(
                     ['error' => 'Formulaire invalide.', 'details' => $errors],
@@ -94,10 +102,10 @@ class CharterController extends AbstractController
                 );
             }
 
-            // Ne conserver que les clés du schéma (pas d'inputs parasites)
+            // Ne conserver que les clés du schéma applicable (pas d'inputs parasites)
             $allowedIds = array_map(
                 static fn (array $f) => $f['id'] ?? null,
-                $charter->getFields() ?? [],
+                $applicableFields,
             );
             $answers = array_intersect_key(
                 is_array($rawAnswers) ? $rawAnswers : [],
