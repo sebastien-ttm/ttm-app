@@ -1,6 +1,10 @@
 twig:
     file_name_pattern: '*.twig'
     default_path: '%kernel.project_dir%/templates'
+    # Filtre |date affiche toutes les DATETIME au fuseau France (admin EasyAdmin
+    # + emails). Sinon le rendu suit le fuseau système, souvent UTC.
+    date:
+        timezone: 'Europe/Paris'
     globals:
         app_name: 'Triathlon Toulouse Métropole'
 
