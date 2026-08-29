@@ -73,22 +73,34 @@ class TrainingSlotTemplate
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $endsAt = null;
 
+    /**
+     * Saison de rattachement. Null = template legacy / permanent
+     * (peut être migré manuellement vers une saison spécifique).
+     * Sert de filtre principal dans le CRUD admin — les startsAt/endsAt
+     * restent utilisables pour sur-restreindre dans la saison (ex. PPG
+     * qui démarre en janvier au milieu d'une saison sept→juin).
+     */
+    #[ORM\ManyToOne(targetEntity: TrainingSeason::class)]
+    #[ORM\JoinColumn(name: 'season_id', nullable: true, onDelete: 'SET NULL')]
+    private ?TrainingSeason $season = null;
+
     public function __construct()
     {
         $this->startTime = new \DateTimeImmutable('18:30:00');
     }
 
     /**
-     * Duplique le template pour une nouvelle plage de dates. Utilisé lors
-     * du clonage de semaine type pour une nouvelle saison — l'ancien
+     * Duplique le template vers une nouvelle saison, avec plage de dates
+     * optionnelle. Utilisé lors du clonage de semaine type — l'ancien
      * garde ses dates (généralement bornées par le clonage), le nouveau
-     * démarre à la nouvelle saison. Copie tous les champs métier
-     * (horaire, sport, titre, lieu, description, audience, position,
-     * isActive) mais PAS l'id, les startsAt/endsAt (à définir par le
-     * caller) ni les relations.
+     * démarre à la nouvelle saison. Copie tous les champs métier mais
+     * PAS l'id ni les startsAt/endsAt (à définir par le caller).
      */
-    public function duplicateForRange(?\DateTimeImmutable $startsAt, ?\DateTimeImmutable $endsAt): self
-    {
+    public function duplicateForSeason(
+        ?TrainingSeason $season,
+        ?\DateTimeImmutable $startsAt = null,
+        ?\DateTimeImmutable $endsAt = null,
+    ): self {
         $copy = new self();
         $copy->setDayOfWeek($this->dayOfWeek);
         $copy->setStartTime($this->startTime);
@@ -102,7 +114,14 @@ class TrainingSlotTemplate
         $copy->setAudience($this->getAudience());
         $copy->setStartsAt($startsAt);
         $copy->setEndsAt($endsAt);
+        $copy->setSeason($season);
         return $copy;
+    }
+
+    /** Alias rétro-compat de duplicateForSeason(null, $startsAt, $endsAt). */
+    public function duplicateForRange(?\DateTimeImmutable $startsAt, ?\DateTimeImmutable $endsAt): self
+    {
+        return $this->duplicateForSeason(null, $startsAt, $endsAt);
     }
 
     public function getId(): ?int { return $this->id; }
@@ -139,6 +158,9 @@ class TrainingSlotTemplate
 
     public function getEndsAt(): ?\DateTimeImmutable { return $this->endsAt; }
     public function setEndsAt(?\DateTimeImmutable $d): self { $this->endsAt = $d; return $this; }
+
+    public function getSeason(): ?TrainingSeason { return $this->season; }
+    public function setSeason(?TrainingSeason $s): self { $this->season = $s; return $this; }
 
     /** Renvoie true si ce créneau s'applique au lundi donné. */
     public function appliesOn(\DateTimeImmutable $monday): bool

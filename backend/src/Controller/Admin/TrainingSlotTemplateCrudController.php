@@ -2,18 +2,21 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
 use App\Enum\Sport;
+use App\Repository\TrainingSeasonRepository;
+use App\Repository\TrainingSlotTemplateRepository;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
-use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
@@ -36,23 +39,19 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         'Dimanche' => 7,
     ];
 
-    /**
-     * Vues du bouton toggle en haut de la liste.
-     * Valeurs de query param ?scope=…
-     */
-    private const SCOPE_CURRENT = 'current';   // par défaut : validité en cours
-    private const SCOPE_ARCHIVED = 'archived'; // endsAt passé
-    private const SCOPE_ALL = 'all';
+    /** Valeurs spéciales pour le filtre saison. */
+    private const SEASON_ALL = 'all';       // toutes les saisons + sans saison
+    private const SEASON_NONE = 'none';     // uniquement sans saison rattachée
 
     public function __construct(
         private readonly RequestStack $requestStack,
         private readonly AdminUrlGenerator $adminUrlGenerator,
+        private readonly TrainingSeasonRepository $seasons,
+        private readonly TrainingSlotTemplateRepository $templates,
     ) {
     }
 
-    /**
-     * @return array<string, Sport>
-     */
+    /** @return array<string, Sport> */
     private static function sportChoices(): array
     {
         $out = [];
@@ -69,11 +68,10 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
     public function configureCrud(Crud $crud): Crud
     {
-        $scope = $this->currentScope();
-        $help = match ($scope) {
-            self::SCOPE_ARCHIVED => '📦 <strong>Vue Archivés</strong> : créneaux dont la date de fin est passée. Ils ne s\'affichent plus dans le planning mais restent en base pour l\'historique.',
-            self::SCOPE_ALL => '📋 <strong>Vue Tous</strong> : historique complet (actuels + à venir + archivés).',
-            default => '✅ <strong>Vue Actuels</strong> : créneaux valides aujourd\'hui OU à venir (démarrage futur). Seuls les créneaux dont la date de fin est passée sont masqués.',
+        $help = match ($this->currentSeasonFilter()) {
+            self::SEASON_ALL => '📋 <strong>Toutes les saisons</strong> — historique complet, y compris les templates non rattachés.',
+            self::SEASON_NONE => '❔ <strong>Sans saison</strong> — templates legacy à rattacher manuellement à une saison via le champ « Saison ».',
+            default => '✅ Filtrage par saison. Utilisez les boutons ci-dessous pour changer de saison ou tout afficher.',
         };
 
         return $crud
@@ -86,30 +84,52 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        // Boutons de bascule dans la barre d'action de l'index.
-        $scope = $this->currentScope();
+        $result = parent::configureActions($actions);
+        $current = $this->currentSeasonFilter();
 
-        $btnCurrent = Action::new('scopeCurrent', '✅ Actuels', null)
-            ->linkToUrl($this->scopeUrl(self::SCOPE_CURRENT))
-            ->setCssClass('btn '.($scope === self::SCOPE_CURRENT ? 'btn-primary' : 'btn-secondary'))
-            ->createAsGlobalAction();
-        $btnArchived = Action::new('scopeArchived', '📦 Archivés', null)
-            ->linkToUrl($this->scopeUrl(self::SCOPE_ARCHIVED))
-            ->setCssClass('btn '.($scope === self::SCOPE_ARCHIVED ? 'btn-primary' : 'btn-secondary'))
-            ->createAsGlobalAction();
-        $btnAll = Action::new('scopeAll', '📋 Tous', null)
-            ->linkToUrl($this->scopeUrl(self::SCOPE_ALL))
-            ->setCssClass('btn '.($scope === self::SCOPE_ALL ? 'btn-primary' : 'btn-secondary'))
-            ->createAsGlobalAction();
+        // Un bouton par saison (triées récentes d'abord)
+        $seasons = $this->seasons->createQueryBuilder('s')
+            ->orderBy('s.startsAt', 'DESC')
+            ->getQuery()
+            ->getResult();
 
-        return parent::configureActions($actions)
-            ->add(Crud::PAGE_INDEX, $btnCurrent)
-            ->add(Crud::PAGE_INDEX, $btnArchived)
-            ->add(Crud::PAGE_INDEX, $btnAll);
+        foreach ($seasons as $s) {
+            /** @var TrainingSeason $s */
+            $label = $this->seasonLabel($s);
+            $id = (string) $s->getId();
+            $btn = Action::new('season_'.$id, $label)
+                ->linkToUrl($this->seasonUrl($id))
+                ->setCssClass('btn '.($current === $id ? 'btn-primary' : 'btn-secondary'))
+                ->createAsGlobalAction();
+            $result->add(Crud::PAGE_INDEX, $btn);
+        }
+
+        // « Sans saison » : uniquement s'il en existe (évite de polluer sinon)
+        $unassignedCount = (int) $this->templates->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.season IS NULL')
+            ->getQuery()
+            ->getSingleScalarResult();
+        if ($unassignedCount > 0) {
+            $btnNone = Action::new('seasonNone', '❔ Sans saison ('.$unassignedCount.')')
+                ->linkToUrl($this->seasonUrl(self::SEASON_NONE))
+                ->setCssClass('btn '.($current === self::SEASON_NONE ? 'btn-primary' : 'btn-secondary'))
+                ->createAsGlobalAction();
+            $result->add(Crud::PAGE_INDEX, $btnNone);
+        }
+
+        // « Toutes »
+        $btnAll = Action::new('seasonAll', '📋 Toutes')
+            ->linkToUrl($this->seasonUrl(self::SEASON_ALL))
+            ->setCssClass('btn '.($current === self::SEASON_ALL ? 'btn-primary' : 'btn-secondary'))
+            ->createAsGlobalAction();
+        $result->add(Crud::PAGE_INDEX, $btnAll);
+
+        return $result;
     }
 
     /**
-     * Filtre la requête d'index selon le scope courant.
+     * Filtre la requête d'index selon la saison sélectionnée.
      */
     public function createIndexQueryBuilder(
         SearchDto $searchDto,
@@ -118,31 +138,26 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         FilterCollection $filters,
     ): QueryBuilder {
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
-        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        $filter = $this->currentSeasonFilter();
 
-        switch ($this->currentScope()) {
-            case self::SCOPE_ARCHIVED:
-                $qb->andWhere('entity.endsAt IS NOT NULL AND entity.endsAt < :today')
-                    ->setParameter('today', $today);
-                break;
-            case self::SCOPE_ALL:
-                // Aucun filtre
-                break;
-            case self::SCOPE_CURRENT:
-            default:
-                // « Actuels » = tout ce qui n'est pas archivé : validité
-                // en cours OU à venir (startsAt futur). Pas de restriction
-                // sur startsAt — l'admin doit voir/gérer les créneaux
-                // préparés pour la saison à venir avant qu'elle démarre.
-                $qb->andWhere('entity.endsAt IS NULL OR entity.endsAt >= :today')
-                    ->setParameter('today', $today);
-                break;
+        if ($filter === self::SEASON_ALL) {
+            return $qb;
         }
-        return $qb;
+        if ($filter === self::SEASON_NONE) {
+            return $qb->andWhere('entity.season IS NULL');
+        }
+        // Saison spécifique par id
+        return $qb->andWhere('entity.season = :seasonId')
+            ->setParameter('seasonId', (int) $filter);
     }
 
     public function configureFields(string $pageName): iterable
     {
+        yield AssociationField::new('season', 'Saison')
+            ->autocomplete()
+            ->setRequired(false)
+            ->setHelp('Rattachement à une saison — sert de filtre principal. Laisser vide pour un créneau « permanent » (à éviter dans le nouveau modèle).');
+
         yield ChoiceField::new('dayOfWeek', 'Jour')
             ->setChoices(self::DAY_CHOICES)
             ->renderAsBadges();
@@ -176,19 +191,15 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setHelp('Optionnel : ordre d\'affichage à heure égale (0 par défaut).');
 
-        // Startsat / endsAt visibles sur index dans les vues archivés/tous
-        // (essentiels pour comprendre pourquoi un créneau est archivé)
-        $showDatesOnIndex = in_array($this->currentScope(), [self::SCOPE_ARCHIVED, self::SCOPE_ALL], true);
-
-        $startsAt = DateField::new('startsAt', 'Début de validité')
+        yield DateField::new('startsAt', 'Début de validité')
+            ->hideOnIndex()
             ->setRequired(false)
-            ->setHelp('Si défini, ce créneau ne s\'applique qu\'à partir de cette date (ex. PPG démarrant en janvier). Laisser vide = toute la saison.');
-        yield $showDatesOnIndex ? $startsAt : $startsAt->hideOnIndex();
+            ->setHelp('Optionnel — pour sur-restreindre dans la saison (ex. PPG démarrant en janvier alors que la saison va de septembre à juin).');
 
-        $endsAt = DateField::new('endsAt', 'Fin de validité')
+        yield DateField::new('endsAt', 'Fin de validité')
+            ->hideOnIndex()
             ->setRequired(false)
-            ->setHelp('Si défini, ce créneau ne s\'applique que jusqu\'à cette date (inclus). Une date passée = créneau archivé.');
-        yield $showDatesOnIndex ? $endsAt : $endsAt->hideOnIndex();
+            ->setHelp('Optionnel — pour sur-restreindre dans la saison.');
 
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(\App\Enum\Profile::choices())
@@ -200,21 +211,48 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
 
     // ==== Helpers ====
 
-    private function currentScope(): string
+    /**
+     * Renvoie le filtre saison courant, sous forme de string :
+     *   - "all" | "none" | id numérique en chaîne
+     * Défaut : la saison courante (findCurrent) si elle existe, sinon "all".
+     */
+    private function currentSeasonFilter(): string
     {
         $req = $this->requestStack->getCurrentRequest();
-        $scope = $req?->query->get('scope', self::SCOPE_CURRENT);
-        return in_array($scope, [self::SCOPE_CURRENT, self::SCOPE_ARCHIVED, self::SCOPE_ALL], true)
-            ? $scope
-            : self::SCOPE_CURRENT;
+        $raw = $req?->query->get('seasonFilter');
+        if ($raw === self::SEASON_ALL || $raw === self::SEASON_NONE) {
+            return $raw;
+        }
+        if (is_string($raw) && ctype_digit($raw)) {
+            return $raw;
+        }
+        // Défaut : saison courante
+        $current = $this->seasons->findCurrent();
+        return $current !== null && $current->getId() !== null
+            ? (string) $current->getId()
+            : self::SEASON_ALL;
     }
 
-    private function scopeUrl(string $scope): string
+    private function seasonUrl(string $filter): string
     {
         return $this->adminUrlGenerator
             ->setController(self::class)
             ->setAction(Action::INDEX)
-            ->set('scope', $scope)
+            ->set('seasonFilter', $filter)
             ->generateUrl();
     }
+
+    private function seasonLabel(TrainingSeason $s): string
+    {
+        $start = $s->getStartsAt();
+        $end = $s->getEndsAt();
+        if ($start === null && $end === null) {
+            return 'Saison #'.$s->getId();
+        }
+        if ($start !== null && $end !== null) {
+            return $start->format('Y').'-'.$end->format('Y');
+        }
+        return ($start ?? $end)->format('Y');
+    }
+
 }

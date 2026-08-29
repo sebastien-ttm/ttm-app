@@ -174,7 +174,9 @@ class TrainingSeasonCrudController extends AbstractCrudController
             if ($old->getEndsAt() === null || $old->getEndsAt() >= $seasonStart) {
                 $old->setEndsAt($dayBeforeStart);
             }
-            $new = $old->duplicateForRange($seasonStart, null);
+            // Nouveau : rattache le clone à la saison cible (permet le
+            // filtre par saison dans le CRUD template).
+            $new = $old->duplicateForSeason($season, $seasonStart, null);
             $this->em->persist($new);
             $cloned++;
         }
