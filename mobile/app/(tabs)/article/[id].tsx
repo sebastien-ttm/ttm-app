@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -29,12 +29,19 @@ import { formatDate, formatRelativeFr } from '@/utils/html';
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const id = Number(params.id);
 
   const [article, setArticle] = useState<Article | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Titre dynamique dans le header : setOptions sur la nav parente,
+  // compatible aussi bien avec un Stack qu'avec un Tabs.
+  useEffect(() => {
+    navigation.setOptions({ title: article?.title ?? 'Article' });
+  }, [navigation, article?.title]);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id)) return;
@@ -65,7 +72,6 @@ export default function ArticleScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: article?.title ?? 'Article' }} />
       {loading ? (
         <FullScreenLoading />
       ) : error ? (

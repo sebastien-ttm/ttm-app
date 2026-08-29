@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -14,11 +14,17 @@ import { htmlToText } from '@/utils/html';
 export default function PageScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const slug = String(params.slug ?? '');
 
   const [page, setPage] = useState<StaticPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Titre dynamique dans le header (compatible Tabs et Stack parents).
+  useEffect(() => {
+    navigation.setOptions({ title: page?.title ?? '' });
+  }, [navigation, page?.title]);
 
   const load = useCallback(async () => {
     if (!slug) return;
@@ -51,15 +57,6 @@ export default function PageScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header natif stylé : fond rouge club + texte blanc (titre unique). */}
-      <Stack.Screen
-        options={{
-          title: page?.title ?? '',
-          headerStyle: { backgroundColor: COLORS.primary },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '700', color: '#fff' },
-        }}
-      />
       {loading ? (
         <FullScreenLoading />
       ) : error ? (

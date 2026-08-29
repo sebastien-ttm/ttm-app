@@ -85,6 +85,13 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Routes hébergées ici pour bénéficier de la barre d'onglets, mais
+          masquées comme tabs (href:null) : elles sont accessibles via
+          router.push('/article/42'), '/page/statuts' — Expo Router ignore
+          le préfixe (tabs) dans les URLs. */}
+      <Tabs.Screen name="article/[id]" options={{ href: null, title: 'Article' }} />
+      <Tabs.Screen name="page/[slug]" options={{ href: null, title: '' }} />
     </Tabs>
   );
 }
