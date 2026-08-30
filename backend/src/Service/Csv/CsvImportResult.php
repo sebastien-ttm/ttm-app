@@ -17,6 +17,11 @@ class CsvImportResult
     public ?\DateTimeImmutable $gracePeriodUntil = null;
     /** Libellé de la saison associée à l'import (null si import sans saison). */
     public ?string $seasonLabel = null;
+    /**
+     * Nombre d'emails de bienvenue effectivement dispatchés (nouveaux
+     * comptes + adhérents renouvelant après une saison manquée).
+     */
+    public int $welcomeEmailsSent = 0;
     /** @var list<array{line: int, error: string, raw?: array<string, string>}> */
     public array $errors = [];
 
@@ -42,6 +47,7 @@ class CsvImportResult
             'deactivationDeferred' => $this->deactivationDeferred,
             'gracePeriodUntil' => $this->gracePeriodUntil?->format('Y-m-d'),
             'seasonLabel' => $this->seasonLabel,
+            'welcomeEmailsSent' => $this->welcomeEmailsSent,
             'skipped' => $this->skipped,
             'errors' => $this->errors,
         ];

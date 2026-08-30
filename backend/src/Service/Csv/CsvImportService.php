@@ -96,7 +96,8 @@ class CsvImportService
 
         $records = (new Statement())->process($csv);
         $line = 1;
-        $newUsers = [];
+        /** @var list<User> $welcomeCandidates users à qui envoyer l'email de bienvenue */
+        $welcomeCandidates = [];
 
         foreach ($records as $record) {
             $line++;
@@ -204,7 +205,6 @@ class CsvImportService
                 if ($isNew) {
                     $this->em->persist($user);
                     $result->created++;
-                    $newUsers[] = $user;
                 } else {
                     $result->updated++;
                 }
@@ -212,8 +212,15 @@ class CsvImportService
                 // Trace l'adhésion pour la saison sélectionnée (statistiques
                 // historiques). Upsert : crée si absente, met à jour les
                 // snapshots licence + updatedAt sinon.
+                // Retourne true si une NOUVELLE membership a été créée →
+                // l'user est candidat à un email de bienvenue (nouveau OU
+                // adhérent existant renouvelant après une saison manquée).
+                $freshMembership = false;
                 if ($season !== null) {
-                    $this->upsertMembership($user, $season, $importedAt, $record);
+                    $freshMembership = $this->upsertMembership($user, $season, $importedAt, $record);
+                }
+                if ($isNew || $freshMembership) {
+                    $welcomeCandidates[] = $user;
                 }
             } catch (\Throwable $e) {
                 $result->addError($line, $e->getMessage(), $record);
@@ -252,14 +259,26 @@ class CsvImportService
             $this->em->flush();
         }
 
+        // Email de bienvenue envoyé à chaque adhérent qui rejoint une (nouvelle)
+        // saison, y compris les renouvellements après une saison manquée.
+        // Le backfill (app:memberships:backfill) ne passe pas par ici — pas
+        // de spam pour des adhésions rétroactives.
         if ($sendWelcomeEmails) {
-            foreach ($newUsers as $u) {
+            // Dedup par id (si un user apparaît deux fois dans le CSV)
+            $seen = [];
+            foreach ($welcomeCandidates as $u) {
+                $uid = $u->getId();
+                if ($uid === null || isset($seen[$uid])) {
+                    continue;
+                }
+                $seen[$uid] = true;
                 $issued = $this->magicLinks->issue($u);
                 $this->bus->dispatch(new SendMagicLinkEmailMessage(
-                    userId: $u->getId(),
+                    userId: $uid,
                     clearToken: $issued['token'],
                     isWelcome: true,
                 ));
+                $result->welcomeEmailsSent++;
             }
         }
 
@@ -273,9 +292,11 @@ class CsvImportService
      * pour la même (user, saison) rafraîchissent les snapshots licence
      * mais ne dupliquent pas la ligne.
      *
-     * @param array<string, mixed> $record  ligne CSV brute (pour snapshots)
+     * @param  array<string, mixed> $record  ligne CSV brute (pour snapshots)
+     * @return bool  true si une NOUVELLE membership vient d'être créée
+     *               (permet au caller de déclencher l'email de bienvenue)
      */
-    private function upsertMembership(User $user, TrainingSeason $season, \DateTimeImmutable $importedAt, array $record): void
+    private function upsertMembership(User $user, TrainingSeason $season, \DateTimeImmutable $importedAt, array $record): bool
     {
         // Un user tout juste créé (getId === null avant flush) ne peut pas
         // encore avoir de membership existant. Sinon on cherche en base.
@@ -293,7 +314,9 @@ class CsvImportService
 
         if ($existing === null) {
             $this->em->persist($membership);
+            return true;
         }
+        return false;
     }
 
     private function cleanEmail(string $email): string
