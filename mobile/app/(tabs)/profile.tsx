@@ -13,7 +13,7 @@ import { accountTypeColor, accountTypeLabel, canSeeGouter, profileColor, profile
 const AVATAR_SIZE = 96;
 
 export default function ProfileScreen() {
-  const { user, signOut, refreshMe } = useAuth();
+  const { user, signOut, refreshMe, linkedProfiles } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [togglingNotif, setTogglingNotif] = useState(false);
@@ -39,9 +39,10 @@ export default function ProfileScreen() {
     : user.role === 'editeur' ? 'Éditeur (backend)'
     : null;
   const profiles = sortProfiles(user.profiles ?? []);
-  // Section « Mes enfants » : visible pour tout compte qui s'identifie
-  // comme parent (profile Parent OU parent externe).
-  const showChildrenManager = user.profiles.includes('parent') || (user.type === 'externe' && user.subType === 'parent');
+  // Section « Ma famille » : visible dès qu'il y a AU MOINS un autre
+  // compte lié à celui-ci (email partagé, ou déjà famille). Sans lien
+  // il n'y a rien à déclarer — inutile d'afficher la carte.
+  const showChildrenManager = linkedProfiles.filter((p) => p.id !== user.id).length > 0;
 
   async function pickAvatar() {
     if (uploading) return;
@@ -167,15 +168,15 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Pressable
             style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
-            onPress={() => router.push('/profile/children' as never)}
+            onPress={() => router.push('/profile/family' as never)}
           >
             <View style={styles.qrIcon}>
               <Ionicons name="people-outline" size={22} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Mes enfants</Text>
+              <Text style={styles.rowLabel}>Ma famille</Text>
               <Text style={styles.actionHint}>
-                Lier un enfant adhérent par n° de licence pour basculer vers son profil
+                Déclarer qui est votre enfant ou votre parent parmi vos comptes liés
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />

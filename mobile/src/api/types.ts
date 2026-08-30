@@ -289,6 +289,17 @@ export type LinkedChildrenResponse = {
   canManage: boolean;
 };
 
+/** Réponse GET /api/me/family + POST /api/me/family-link. */
+export type FamilyResponse = {
+  children: LinkedChild[];
+  parents: LinkedChild[];
+  /** Comptes liés (email/famille) pas encore déclarés comme enfant/parent. */
+  assignable: LinkedChild[];
+  linkedProfiles: LinkedProfile[];
+};
+
+export type FamilyRelation = 'child' | 'parent' | 'none';
+
 /** Entraîneur sélectionnable comme destinataire de message (Phase messages). */
 export type Trainer = {
   id: number;

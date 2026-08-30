@@ -273,6 +273,115 @@ class MeController extends AbstractController
      * Disponible à tout user authentifié — la liste est simplement
      * vide pour ceux qui n'ont pas d'enfants liés.
      */
+    /**
+     * Vue « famille » : mes enfants + mes parents + les comptes liés
+     * (email partagé, etc.) qui ne sont pas encore déclarés en relation.
+     * Base de l'écran mobile /profile/family.
+     */
+    #[Route('/api/me/family', methods: ['GET'])]
+    public function family(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $origin = $this->resolveOriginUser($request, $user);
+
+        $childrenIds = [];
+        $children = [];
+        foreach ($user->getChildren() as $c) {
+            $childrenIds[$c->getId()] = true;
+            $children[] = self::serializeChild($c);
+        }
+        $parentsIds = [];
+        $parents = [];
+        foreach ($user->getParents() as $p) {
+            $parentsIds[$p->getId()] = true;
+            $parents[] = self::serializeChild($p);
+        }
+
+        // Candidats à l'ajout : profils liés (email/famille) — excluant
+        // moi-même + ceux déjà déclarés en relation. On repart de la
+        // liste primaire pour rester cohérent avec le ProfileSwitcher.
+        $linked = $this->users->findLinkedProfiles($user);
+        $assignable = [];
+        foreach ($linked as $u) {
+            $id = $u->getId();
+            if ($id === $user->getId()) continue;
+            if (isset($childrenIds[$id]) || isset($parentsIds[$id])) continue;
+            $assignable[] = self::serializeChild($u);
+        }
+
+        return new JsonResponse([
+            'children' => $children,
+            'parents' => $parents,
+            'assignable' => $assignable,
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users, $origin),
+        ]);
+    }
+
+    /**
+     * Déclare une relation familiale avec un compte déjà lié.
+     * Body : { "targetUserId": int, "relation": "child"|"parent"|"none" }
+     *
+     * Sécurité : la cible DOIT figurer dans les profils liés du user
+     * (email partagé ou déjà famille) — pas d'ouverture arbitraire sur
+     * toute la base. Aucun besoin de numéro de licence.
+     *
+     * Effet spécial « parent » : la cible se voit ajouter le profil
+     * Parent automatiquement (elle devient officiellement parent).
+     */
+    #[Route('/api/me/family-link', methods: ['POST'])]
+    public function setFamilyLink(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $payload = json_decode($request->getContent(), true);
+        $targetId = is_array($payload) ? (int) ($payload['targetUserId'] ?? 0) : 0;
+        $relation = is_array($payload) ? (string) ($payload['relation'] ?? '') : '';
+
+        if ($targetId <= 0 || !in_array($relation, ['child', 'parent', 'none'], true)) {
+            return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        if ($targetId === $user->getId()) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas vous lier à vous-même.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Cible doit être dans la liste des comptes liés
+        $target = null;
+        foreach ($this->users->findLinkedProfiles($user) as $u) {
+            if ($u->getId() === $targetId) { $target = $u; break; }
+        }
+        if ($target === null) {
+            return new JsonResponse(['error' => 'Ce compte n\'est pas dans vos comptes liés.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Nettoie toute relation préexistante entre les deux (dans un sens
+        // comme dans l'autre) — un compte est soit enfant, soit parent,
+        // soit sans relation ; jamais les deux.
+        if ($user->getChildren()->contains($target)) {
+            $user->removeChild($target);
+        }
+        if ($user->getParents()->contains($target)) {
+            $target->removeChild($user); // parent → moi : je suis child du target
+        }
+
+        if ($relation === 'child') {
+            $user->addChild($target);
+        } elseif ($relation === 'parent') {
+            $target->addChild($user); // target est parent de moi ⇒ moi est enfant de target
+            // Bonus demandé : la cible devient officiellement « Parent »
+            $profiles = $target->getProfiles();
+            if (!in_array(Profile::Parent->value, $profiles, true)) {
+                $profiles[] = Profile::Parent->value;
+                $target->setProfiles(array_values($profiles));
+            }
+        }
+        // relation === 'none' : rien de plus, on a déjà nettoyé au-dessus.
+
+        $this->em->flush();
+
+        return $this->family($request); // renvoie l'état à jour
+    }
+
     #[Route('/api/me/children', methods: ['GET'])]
     public function listChildren(): JsonResponse
     {
