@@ -2,29 +2,52 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
     <title>Bienvenue au TTM</title>
+    {# Gmail applique <style> dans le <head> uniquement dans certains contextes,
+       mais notre priorité est le style inline sur chaque élément — le bloc ci-dessous
+       n'est qu'un filet de sécurité pour la version desktop. #}
+    <style>
+        @media only screen and (max-width: 620px) {
+            .ttm-container { width: 100% !important; }
+            .ttm-body-cell { padding: 20px !important; }
+            .ttm-header-cell { padding: 16px !important; }
+            .ttm-footer-cell { padding: 14px !important; }
+        }
+        img { max-width: 100%; height: auto; }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
-    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background:#f4f4f4; color:#222;">
+    {# Wrapper 100% pour gérer les clients qui zooment / centrent mal #}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f4f4;">
         <tr>
-            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
-                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding:30px; line-height:1.5;">
-                {# bodyHtml est déjà personnalisé côté handler (str_replace des
-                   placeholders, échappement des valeurs utilisateur). On rend
-                   le HTML tel quel — le contenu est écrit par un admin de confiance. #}
-                {{ bodyHtml|raw }}
-            </td>
-        </tr>
-        <tr>
-            <td style="background:#f8f8f8; color:#666; padding:15px; text-align:center; font-size:11px;">
-                <p style="margin:0;">Ce message est envoyé automatiquement suite à votre adhésion.</p>
-                <p style="margin:5px 0 0 0;">Si le bouton ne fonctionne pas, copiez ce lien : <br>
-                    <a href="{{ magicLink }}" style="color:#D32F2F; word-break:break-all;">{{ magicLink }}</a>
-                </p>
+            <td align="center" style="padding:20px 10px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
+                       class="ttm-container"
+                       style="width:100%; max-width:600px; background:#fff; border-radius:8px; overflow:hidden; border-collapse:collapse;">
+                    <tr>
+                        <td class="ttm-header-cell" style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                            <h1 style="margin:0; font-size:22px; line-height:1.2;">Triathlon Toulouse Métropole</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ttm-body-cell" style="padding:24px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">
+                            {# bodyHtml est déjà personnalisé côté handler (str_replace des
+                               placeholders, échappement des valeurs utilisateur). #}
+                            {{ bodyHtml|raw }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ttm-footer-cell" style="background:#f8f8f8; color:#666; padding:14px; text-align:center; font-size:11px; line-height:1.5;">
+                            <p style="margin:0;">Ce message est envoyé automatiquement suite à votre adhésion.</p>
+                            <p style="margin:6px 0 0 0; word-wrap:break-word; overflow-wrap:break-word; word-break:break-all;">
+                                Si le bouton ne fonctionne pas, copiez ce lien&nbsp;:<br>
+                                <a href="{{ magicLink }}" style="color:#D32F2F; word-wrap:break-word; overflow-wrap:break-word; word-break:break-all;">{{ magicLink }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
