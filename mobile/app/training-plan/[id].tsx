@@ -65,7 +65,7 @@ export default function TrainingPlanDetailScreen() {
       <Stack.Screen
         options={{
           title: plan?.displayTitle ?? plan?.title ?? 'Plan d\'entraînement',
-          headerStyle: { backgroundColor: COLORS.primary },
+          headerStyle: { backgroundColor: COLORS.brandNavy },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700', color: '#fff' },
         }}

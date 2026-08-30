@@ -42,7 +42,7 @@ export default function PoolBadgeScreen() {
       <Stack.Screen
         options={{
           title: 'Accès piscines',
-          headerStyle: { backgroundColor: COLORS.primary },
+          headerStyle: { backgroundColor: COLORS.brandNavy },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700', color: '#fff' },
         }}
