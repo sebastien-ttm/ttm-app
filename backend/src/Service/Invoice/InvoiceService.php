@@ -12,6 +12,7 @@ use App\Enum\Profile;
 use App\Repository\InvoiceSettingsRepository;
 use App\Repository\MembershipFeeRepository;
 use App\Repository\UserSeasonMembershipRepository;
+use App\Service\Csv\CsvImportService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Twig\Environment;
@@ -53,8 +54,15 @@ class InvoiceService
         }
 
         // Type licence : snapshot du membership (spécifique à la saison),
-        // fallback sur la valeur courante du user.
-        $type = $membership?->getTypeLicence() ?? $user->getTypeLicence() ?? MembershipFee::TYPE_LOISIR;
+        // fallback sur la valeur courante du user. Re-normalisation
+        // défensive : les snapshots pré-normalisation stockaient parfois
+        // la valeur brute FFTri (« Compétition 2026-27 - Sénior »), qui ne
+        // matcherait pas la comparaison stricte contre MembershipFee::TYPES.
+        $rawType = $membership?->getTypeLicence() ?? $user->getTypeLicence();
+        $type = null;
+        if ($rawType !== null) {
+            $type = CsvImportService::normalizeTypeLicence($rawType) ?? $rawType;
+        }
         if (!in_array($type, MembershipFee::TYPES, true)) {
             $type = MembershipFee::TYPE_LOISIR;
         }
