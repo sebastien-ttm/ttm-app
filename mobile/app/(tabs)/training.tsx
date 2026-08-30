@@ -129,7 +129,7 @@ function TrainingScreenInner() {
             <Text style={styles.sectionTitle}>📄 Plans d'entraînement</Text>
             {(data?.plans ?? []).length > 0 ? (
               data!.plans.map((p) => (
-                <PlanRow key={p.id} plan={p} onOpen={() => router.push(`/training-plan/${p.id}` as never)} />
+                <PlanRow key={p.id} plan={p} onOpen={() => router.push({ pathname: '/training-plan/[id]', params: { id: String(p.id), title: p.displayTitle } } as never)} />
               ))
             ) : (
               <Text style={styles.planEmpty}>Pas de plan publié pour cette semaine.</Text>

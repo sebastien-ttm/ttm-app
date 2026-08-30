@@ -12,8 +12,12 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingPlanDetailScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; title?: string }>();
   const id = Number(params.id ?? 0);
+  // Titre transmis par la page appelante (training tab ou historique) —
+  // utilisé comme fallback pendant le chargement pour éviter le flash
+  // du placeholder générique « Plan d'entraînement ».
+  const initialTitle = typeof params.title === 'string' ? params.title : '';
   const router = useRouter();
 
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
@@ -70,7 +74,7 @@ export default function TrainingPlanDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: plan?.displayTitle ?? plan?.title ?? 'Plan d\'entraînement',
+          title: plan?.displayTitle ?? plan?.title ?? initialTitle,
           headerStyle: { backgroundColor: COLORS.brandNavy },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700', color: '#fff' },

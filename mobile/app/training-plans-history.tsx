@@ -121,7 +121,7 @@ export default function TrainingPlansHistoryScreen() {
         renderItem={({ item }) => (
           <PlanRow
             plan={item}
-            onOpen={() => router.push(`/training-plan/${item.id}` as never)}
+            onOpen={() => router.push({ pathname: '/training-plan/[id]', params: { id: String(item.id), title: item.displayTitle } } as never)}
           />
         )}
         refreshControl={
