@@ -6,6 +6,8 @@ use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\ClubCharterRepository;
+use App\Repository\TrainingSeasonRepository;
+use App\Repository\UserSeasonMembershipRepository;
 use App\Service\Charter\FormSchemaValidator;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +27,26 @@ class CharterController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ApiSerializer $serializer,
         private readonly FormSchemaValidator $formValidator,
+        private readonly TrainingSeasonRepository $seasons,
+        private readonly UserSeasonMembershipRepository $memberships,
     ) {
+    }
+
+    /**
+     * L'user est-il adhérent pour la saison courante ? Base pour décider
+     * si le formulaire d'acceptation doit lui être présenté.
+     *
+     * Si aucune saison courante n'est définie (config incomplète) : on
+     * retombe sur `true` — mieux vaut afficher le formulaire à tout le
+     * monde que de bloquer la feature entière.
+     */
+    private function isAdherentForCurrentSeason(User $user): bool
+    {
+        $currentSeason = $this->seasons->findCurrent();
+        if ($currentSeason === null) {
+            return true;
+        }
+        return $this->memberships->findOneByUserAndSeason($user, $currentSeason) !== null;
     }
 
     /**
@@ -47,15 +68,22 @@ class CharterController extends AbstractController
         }
 
         // Mode aperçu : l'admin doit pouvoir itérer sur le contenu et le
-        // formulaire → on présente TOUJOURS la charte, même après acceptation.
+        // formulaire → on présente TOUJOURS le formulaire, même après
+        // acceptation, et indépendamment de sa saison d'adhésion.
         // Sortir du mode preview (retirer previewUser dans le CRUD) rétablit
         // le comportement standard.
         $isPreview = $charter->getPreviewUser()?->getId() === $user->getId();
         $hasAccepted = $this->acceptances->hasAccepted($user, $charter);
 
+        // Filtre saison : n'imposer le formulaire qu'aux adhérents de la
+        // saison courante (via UserSeasonMembership). Un user détaché
+        // manuellement d'une saison (correction d'import, etc.) n'est
+        // plus bloqué par l'écran d'acceptation.
+        $isCurrentAdherent = $this->isAdherentForCurrentSeason($user);
+
         return new JsonResponse([
             'charter' => $this->serializer->charter($charter),
-            'acceptanceRequired' => $isPreview || !$hasAccepted,
+            'acceptanceRequired' => $isPreview || (!$hasAccepted && $isCurrentAdherent),
         ]);
     }
 
