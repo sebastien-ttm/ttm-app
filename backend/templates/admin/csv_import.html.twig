@@ -69,23 +69,44 @@
                     <strong>et</strong> renouvellements)
                 </label>
             </div>
-            <button type="submit" class="btn btn-primary">Lancer l'import</button>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <button type="submit" name="action" value="dry_run" class="btn btn-secondary">
+                    🔍 Simuler d'abord
+                </button>
+                <button type="submit" name="action" value="commit" class="btn btn-primary"
+                        onclick="return confirm('Import réel — les comptes seront créés/mis à jour et les emails de bienvenue partiront. Confirmer ?');">
+                    ✅ Importer réellement
+                </button>
+            </div>
+            <div style="margin-top:8px; font-size:12px; color:#64748b;">
+                💡 Toujours simuler d'abord pour vérifier l'aperçu avant l'import réel.
+            </div>
         </form>
 
         {% if result %}
             <hr style="margin:30px 0;">
-            <h3>Résultat</h3>
-            {% if result.seasonLabel %}
-                <p style="font-size:14px; background:#dbeafe; border-left:4px solid #1d4ed8; padding:8px 12px; border-radius:4px;">
-                    📅 Adhésions enregistrées pour la saison <strong>{{ result.seasonLabel }}</strong>.
+            <h3>{{ result.dryRun ? 'Aperçu (simulation)' : 'Résultat' }}</h3>
+            {% if result.dryRun %}
+                <p style="font-size:14px; background:#fef3c7; border-left:4px solid #f59e0b; padding:10px 14px; border-radius:4px; margin-bottom:12px;">
+                    🔍 <strong>Simulation — rien n'a été écrit en base.</strong> Les chiffres ci-dessous
+                    représentent ce qui SERA fait si vous confirmez avec « Importer réellement ».
                 </p>
             {% endif %}
+            {% if result.seasonLabel %}
+                <p style="font-size:14px; background:#dbeafe; border-left:4px solid #1d4ed8; padding:8px 12px; border-radius:4px;">
+                    📅 {{ result.dryRun ? 'Adhésions qui seraient enregistrées' : 'Adhésions enregistrées' }}
+                    pour la saison <strong>{{ result.seasonLabel }}</strong>.
+                </p>
+            {% endif %}
+            {% set willBe = result.dryRun ? ' seraient' : '' %}
             <ul style="font-size:15px;">
-                <li><strong>{{ result.created }}</strong> compte(s) créé(s)</li>
-                <li><strong>{{ result.updated }}</strong> compte(s) mis à jour</li>
-                <li><strong>{{ result.deactivated }}</strong> compte(s) désactivé(s)</li>
+                <li><strong>{{ result.created }}</strong> compte(s){{ willBe }} créé(s)</li>
+                <li><strong>{{ result.updated }}</strong> compte(s){{ willBe }} mis à jour</li>
+                <li><strong>{{ result.deactivated }}</strong> compte(s){{ willBe }} désactivé(s)</li>
                 {% if result.welcomeEmailsSent > 0 %}
-                    <li>📧 <strong>{{ result.welcomeEmailsSent }}</strong> email(s) de bienvenue dispatché(s) (nouveaux + renouvellements)</li>
+                    <li>📧 <strong>{{ result.welcomeEmailsSent }}</strong> email(s) de bienvenue
+                        {{ result.dryRun ? 'seraient envoyés' : 'dispatché(s)' }} (nouveaux + renouvellements)
+                    </li>
                 {% endif %}
                 {% if result.deactivationDeferred > 0 %}
                     <li style="color:#92400E;">

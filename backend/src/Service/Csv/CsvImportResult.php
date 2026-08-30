@@ -17,6 +17,8 @@ class CsvImportResult
     public ?\DateTimeImmutable $gracePeriodUntil = null;
     /** Libellé de la saison associée à l'import (null si import sans saison). */
     public ?string $seasonLabel = null;
+    /** true = simulation (rollback à la fin, aucun email dispatché). */
+    public bool $dryRun = false;
     /**
      * Nombre d'emails de bienvenue effectivement dispatchés (nouveaux
      * comptes + adhérents renouvelant après une saison manquée).
@@ -47,6 +49,7 @@ class CsvImportResult
             'deactivationDeferred' => $this->deactivationDeferred,
             'gracePeriodUntil' => $this->gracePeriodUntil?->format('Y-m-d'),
             'seasonLabel' => $this->seasonLabel,
+            'dryRun' => $this->dryRun,
             'welcomeEmailsSent' => $this->welcomeEmailsSent,
             'skipped' => $this->skipped,
             'errors' => $this->errors,

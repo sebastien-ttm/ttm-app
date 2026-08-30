@@ -48,9 +48,15 @@ class CsvImportController extends AbstractController
                 $tmpPath = $file->getRealPath();
                 $delimiter = (string) ($request->request->get('delimiter') ?? ',');
                 $sendWelcome = (bool) $request->request->get('send_welcome', '1');
+                // Deux boutons de soumission :
+                //   name=action, value=dry_run  → simulation (rollback DB, aucun email)
+                //   name=action, value=commit   → import réel
+                // Défaut : dry-run, pour éviter tout import accidentel.
+                $action = (string) $request->request->get('action', 'dry_run');
+                $dryRun = $action !== 'commit';
 
                 try {
-                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season);
+                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season, $dryRun);
                 } catch (\Throwable $e) {
                     $error = 'Erreur lors de l\'import : '.$e->getMessage();
                 }

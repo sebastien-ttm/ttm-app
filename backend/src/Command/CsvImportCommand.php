@@ -29,6 +29,7 @@ class CsvImportCommand extends Command
             ->addOption('delimiter', 'd', InputOption::VALUE_REQUIRED, 'Séparateur', ',')
             ->addOption('no-welcome', null, InputOption::VALUE_NONE, 'Ne pas envoyer d\'e-mail de bienvenue aux nouveaux comptes')
             ->addOption('season', 's', InputOption::VALUE_REQUIRED, 'ID de la saison d\'adhésion (par défaut : saison courante)')
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Simulation : parse le CSV et affiche les compteurs SANS écrire en base ni envoyer d\'emails')
         ;
     }
 
@@ -56,11 +57,17 @@ class CsvImportCommand extends Command
             $io->text('Saison  : '.(string) $season);
         }
 
+        $dryRun = (bool) $input->getOption('dry-run');
+        if ($dryRun) {
+            $io->note('MODE DRY-RUN — aucune écriture DB, aucun email dispatché.');
+        }
+
         $result = $this->importer->import(
             filePath: $file,
             sendWelcomeEmails: !$input->getOption('no-welcome'),
             delimiter: (string) $input->getOption('delimiter'),
             season: $season,
+            dryRun: $dryRun,
         );
 
         $io->definitionList(

@@ -72,10 +72,17 @@ class CsvImportService
         bool $sendWelcomeEmails = true,
         string $delimiter = ',',
         ?TrainingSeason $season = null,
+        bool $dryRun = false,
     ): CsvImportResult {
         $result = new CsvImportResult();
         $result->seasonLabel = $season?->__toString();
+        $result->dryRun = $dryRun;
         $importedAt = new \DateTimeImmutable();
+
+        // Transaction : en dry-run on rollback tout à la fin ; en réel on
+        // commit. Isole aussi les erreurs partielles (si un flush plante
+        // à mi-parcours, aucun user à moitié importé ne reste en base).
+        $this->em->beginTransaction();
 
         $csv = Reader::createFromPath($filePath, 'r');
         $csv->setDelimiter($delimiter);
@@ -90,6 +97,7 @@ class CsvImportService
                     'Colonne "%s" manquante. Le fichier doit être un export Excel de l\'Espace Tri (FFTri).',
                     $required,
                 ));
+                $this->em->rollback();
                 return $result;
             }
         }
@@ -259,22 +267,43 @@ class CsvImportService
             $this->em->flush();
         }
 
+        // Dedup + comptage des candidats bienvenue (dry-run compté, dispatch
+        // effectif hors dry-run + case cochée). Fait AVANT rollback pour
+        // que le résultat affiché soit fidèle en simulation.
+        $uniqueCandidates = [];
+        $seen = [];
+        foreach ($welcomeCandidates as $u) {
+            $uid = $u->getId();
+            if ($uid === null || isset($seen[$uid])) continue;
+            $seen[$uid] = true;
+            $uniqueCandidates[] = $u;
+        }
+
+        if ($dryRun) {
+            // Aperçu : compte ce qui SERAIT envoyé mais ne dispatch rien
+            // (aucun email ni push effectif), et rollback toutes les
+            // modifications DB.
+            if ($sendWelcomeEmails) {
+                $result->welcomeEmailsSent = count($uniqueCandidates);
+            }
+            $this->em->rollback();
+            $this->em->clear();
+            $this->csvImportLogger->info('CSV import terminé (DRY-RUN)', $result->toArray());
+            return $result;
+        }
+
+        // Import réel : on commit puis on dispatch les emails de bienvenue.
+        $this->em->commit();
+
         // Email de bienvenue envoyé à chaque adhérent qui rejoint une (nouvelle)
         // saison, y compris les renouvellements après une saison manquée.
         // Le backfill (app:memberships:backfill) ne passe pas par ici — pas
         // de spam pour des adhésions rétroactives.
         if ($sendWelcomeEmails) {
-            // Dedup par id (si un user apparaît deux fois dans le CSV)
-            $seen = [];
-            foreach ($welcomeCandidates as $u) {
-                $uid = $u->getId();
-                if ($uid === null || isset($seen[$uid])) {
-                    continue;
-                }
-                $seen[$uid] = true;
+            foreach ($uniqueCandidates as $u) {
                 $issued = $this->magicLinks->issue($u);
                 $this->bus->dispatch(new SendMagicLinkEmailMessage(
-                    userId: $uid,
+                    userId: $u->getId(),
                     clearToken: $issued['token'],
                     isWelcome: true,
                 ));
