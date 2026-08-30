@@ -85,9 +85,9 @@ export default function RootLayout() {
           <ImpersonationBanner />
           <Stack
             screenOptions={{
-              headerStyle: { backgroundColor: COLORS.primary },
+              headerStyle: { backgroundColor: COLORS.brandNavy },
               headerTintColor: '#fff',
-              headerTitleStyle: { fontWeight: '600' },
+              headerTitleStyle: { fontWeight: '600', color: '#fff' },
             }}
           >
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />

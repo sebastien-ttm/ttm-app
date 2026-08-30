@@ -12,13 +12,23 @@ export default function TabsLayout() {
   const router = useRouter();
   const showTraining = canSeeTraining(user);
 
-  // Bouton flèche retour utilisé sur les écrans article/page qui ne sont
-  // pas des tabs mais partagent la barre — Tabs n'injecte pas de retour
-  // automatique, donc on ajoute un headerLeft manuel qui appelle
-  // router.back() (ou retombe sur l'accueil si pas d'historique).
+  // Boutons flèche retour manuels : Tabs n'injecte pas de retour
+  // automatique sur les écrans hébergés hors barre principale.
+  // - article : back historique (retombe sur l'accueil si vide)
+  // - page statique : retour explicite vers l'onglet Pratique
+  //   (les pages sont accédées depuis l'arbre de Pratique, back cohérent)
   const backButton = () => (
     <Pressable
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as never))}
+      hitSlop={12}
+      style={{ paddingHorizontal: 12 }}
+    >
+      <Ionicons name="chevron-back" size={26} color="#fff" />
+    </Pressable>
+  );
+  const backToPractical = () => (
+    <Pressable
+      onPress={() => router.replace('/(tabs)/practical' as never)}
       hitSlop={12}
       style={{ paddingHorizontal: 12 }}
     >
@@ -113,7 +123,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="page/[slug]"
-        options={{ href: null, title: '', headerLeft: backButton }}
+        options={{ href: null, title: '', headerLeft: backToPractical }}
       />
     </Tabs>
   );
