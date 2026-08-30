@@ -51,6 +51,17 @@ class UserSeasonMembership
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $categorieAge = null;
 
+    /**
+     * Mode de paiement pour cette adhésion. CB par défaut, modifiable par
+     * l'admin (formulaire édition user ou action dédiée facturation).
+     */
+    #[ORM\Column(length: 24, options: ['default' => 'cb'])]
+    private string $paymentType = 'cb';
+
+    /** Horodatage de dernière génération/envoi de facture. NULL = jamais. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $invoicedAt = null;
+
     public function __construct(User $user, TrainingSeason $season)
     {
         $this->user = $user;
@@ -71,4 +82,8 @@ class UserSeasonMembership
     public function setTypeLicence(?string $s): self { $this->typeLicence = $s; return $this; }
     public function getCategorieAge(): ?string { return $this->categorieAge; }
     public function setCategorieAge(?string $s): self { $this->categorieAge = $s; return $this; }
+    public function getPaymentType(): string { return $this->paymentType; }
+    public function setPaymentType(string $t): self { $this->paymentType = $t; return $this; }
+    public function getInvoicedAt(): ?\DateTimeImmutable { return $this->invoicedAt; }
+    public function markInvoiced(): self { $this->invoicedAt = new \DateTimeImmutable(); return $this; }
 }

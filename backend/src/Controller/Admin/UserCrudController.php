@@ -232,11 +232,18 @@ class UserCrudController extends AbstractCrudController
             ->displayIf(fn (User $u) => $u->getId() !== null && $u->isActive())
             ->setHtmlAttributes(['target' => '_blank']);
 
+        $memberships = Action::new('memberships', '🧾 Adhésions / facture', null)
+            ->linkToRoute('admin_user_memberships', fn (User $u) => ['id' => $u->getId()])
+            ->displayIf(fn (User $u) => $u->getId() !== null);
+
         $result = $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
             ->add(Crud::PAGE_INDEX, $impersonate)
+            ->add(Crud::PAGE_INDEX, $memberships)
             ->add(Crud::PAGE_DETAIL, $impersonate)
-            ->add(Crud::PAGE_EDIT, $impersonate);
+            ->add(Crud::PAGE_DETAIL, $memberships)
+            ->add(Crud::PAGE_EDIT, $impersonate)
+            ->add(Crud::PAGE_EDIT, $memberships);
 
         // Barre de boutons « saison » au-dessus de l'index — même pattern
         // que TrainingSlotTemplate. Un bouton par saison connue + « Toutes ».

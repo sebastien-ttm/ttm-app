@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture adhésion {{ user.fullName }} — {{ season.name ?: season.id }}</title>
+    <style>
+        @page { margin: 24mm 20mm; }
+        body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.4; }
+        h1 { font-size: 20pt; margin: 0 0 6pt 0; color: #0d2148; }
+        .header { display: block; overflow: hidden; margin-bottom: 20pt; }
+        .header .from { float: left; width: 55%; font-size: 10pt; }
+        .header .to   { float: right; width: 40%; text-align: right; font-size: 10pt; }
+        .meta { margin-top: 18pt; padding: 8pt 12pt; background: #f4f6fa; border-left: 3pt solid #0d2148; font-size: 10pt; }
+        .meta strong { color: #0d2148; }
+        table.items { width: 100%; border-collapse: collapse; margin: 24pt 0 10pt 0; font-size: 11pt; }
+        table.items th { background: #0d2148; color: #fff; padding: 8pt 10pt; text-align: left; font-weight: 700; }
+        table.items td { padding: 10pt; border-bottom: 1pt solid #dfe3ec; }
+        table.items td.amount { text-align: right; white-space: nowrap; }
+        .total { text-align: right; font-size: 14pt; font-weight: 700; color: #0d2148; margin-top: 8pt; }
+        .payment { margin-top: 20pt; padding: 8pt 12pt; background: #ecfdf5; border-left: 3pt solid #16a34a; font-size: 10pt; }
+        .footer { position: fixed; bottom: -12mm; left: 0; right: 0; text-align: center; color: #6b7280; font-size: 8pt; padding-top: 6pt; border-top: 1pt solid #dfe3ec; }
+        .signature { margin-top: 26pt; text-align: right; font-size: 10pt; }
+        .signature img { max-width: 140pt; max-height: 60pt; display: block; margin: 6pt 0 6pt auto; }
+        .legal { margin-top: 26pt; padding-top: 8pt; border-top: 1pt solid #dfe3ec; color: #6b7280; font-size: 9pt; white-space: pre-line; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div class="from">
+        <strong>{{ settings.clubName }}</strong><br>
+        {{ settings.clubAddress|nl2br }}
+    </div>
+    <div class="to">
+        <strong>Facturé à</strong><br>
+        {{ user.fullName }}<br>
+        {% if user.adresse %}{{ user.adresse|nl2br }}<br>{% endif %}
+        {% if user.email %}<em>{{ user.email }}</em>{% endif %}
+    </div>
+</div>
+
+<h1>Facture d'adhésion</h1>
+
+<div class="meta">
+    <strong>N° facture :</strong> {{ invoiceNumber }}<br>
+    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y') }}<br>
+    <strong>Saison :</strong> {{ season.name ?: '—' }}
+    {% if season.startsAt and season.endsAt %}
+        ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }})
+    {% endif %}
+</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th>Prestation</th>
+            <th style="text-align:right;">Montant TTC</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                Adhésion au {{ settings.clubName }}<br>
+                <small>Profil : {{ profile|capitalize }} · Licence : {{ typeLicence }}</small>
+            </td>
+            <td class="amount">{{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="total">
+    Total à régler : {{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €
+</div>
+
+<div class="payment">
+    <strong>Mode de paiement :</strong> {{ paymentTypeLabel }}
+</div>
+
+<div class="signature">
+    {{ settings.presidentName }}<br>
+    {% if signatureDataUri %}
+        <img src="{{ signatureDataUri }}" alt="Signature">
+    {% endif %}
+    <em>Président</em>
+</div>
+
+{% if settings.legalFooter %}
+    <div class="legal">{{ settings.legalFooter }}</div>
+{% endif %}
+
+<div class="footer">
+    {{ settings.clubName }} — Facture générée le {{ issuedAt|date('d/m/Y H:i') }}
+</div>
+</body>
+</html>

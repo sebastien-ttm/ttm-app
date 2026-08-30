@@ -13,6 +13,7 @@ parameters:
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
     app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
+    app.uploads.invoice_signatures_dir: '%kernel.project_dir%/var/uploads/invoice-signatures'
 
 services:
     _defaults:
@@ -48,6 +49,14 @@ services:
     App\Controller\Api\TrainingPlanController:
         arguments:
             $trainingDir: '%app.uploads.training_dir%'
+
+    App\Service\Invoice\InvoiceService:
+        arguments:
+            $signatureDir: '%app.uploads.invoice_signatures_dir%'
+
+    App\Controller\Admin\InvoiceSettingsCrudController:
+        arguments:
+            $signatureDir: '%app.uploads.invoice_signatures_dir%'
 
     App\Service\Training\AttachmentService:
         arguments:

@@ -13,6 +13,8 @@ use App\Entity\StaticPage;
 use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
+use App\Entity\InvoiceSettings;
+use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Entity\WelcomeEmailTemplate;
@@ -138,6 +140,12 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)
+            ->setPermission('ROLE_ADMIN');
+
+        yield AdminMenuItem::section('Facturation');
+        yield AdminMenuItem::linkToCrud('Grille tarifaire', 'fa fa-euro-sign', MembershipFee::class)
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToCrud('Paramètres facture', 'fa fa-file-invoice', InvoiceSettings::class)
             ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section('Acceptation');

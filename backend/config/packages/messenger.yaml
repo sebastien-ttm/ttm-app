@@ -16,5 +16,6 @@ framework:
             App\Message\SendPushNotificationsMessage: async
             App\Message\SendMagicLinkEmailMessage: async
             App\Message\SendTrainingPlanEmailsMessage: async
+            App\Message\SendInvoiceEmailMessage: async
             App\Message\NotifyNewUserMessageMessage: async
             App\Message\NotifyUserMessageReplyMessage: async

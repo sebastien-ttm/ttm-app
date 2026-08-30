@@ -1,0 +1,8 @@
+Bonjour {{ user.prenom }},
+
+Vous trouverez ci-joint votre facture d'adhésion pour la saison {{ season.name ?: season.id }}{% if season.startsAt and season.endsAt %} ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }}){% endif %}.
+
+Conservez-la pour vos remboursements employeur / mutuelle si concerné.
+
+Sportivement,
+L'équipe TTM
