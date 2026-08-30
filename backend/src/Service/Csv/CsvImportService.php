@@ -189,7 +189,7 @@ class CsvImportService
                 $user->setDateNaissance($dateNaissance);
                 $user->setSexe($this->cleanSexe((string) ($record[self::COL_SEXE] ?? '')));
                 $user->setAdresse($this->buildAdresse($record));
-                $user->setTypeLicence($this->normalizeTypeLicence($typeLicenceRaw));
+                $user->setTypeLicence(self::normalizeTypeLicence($typeLicenceRaw));
                 $user->setCategorieAge(trim((string) ($record[self::COL_CATEGORIE_AGE] ?? '')) ?: null);
 
                 $errors = $this->validator->validate($user);
@@ -309,7 +309,10 @@ class CsvImportService
             $membership->touchUpdatedAt();
         }
         $membership->setStatutLicence(trim((string) ($record['Statut'] ?? '')) ?: null);
-        $membership->setTypeLicence(trim((string) ($record['Type de licence'] ?? '')) ?: null);
+        // Snapshot NORMALISÉ (Compétition / Loisir / Dirigeant / null) —
+        // sinon la valeur brute FFTri (« Loisir 2026-27 - Sénior », etc.)
+        // ne matcherait aucune catégorie côté stats.
+        $membership->setTypeLicence(self::normalizeTypeLicence((string) ($record['Type de licence'] ?? '')));
         $membership->setCategorieAge(trim((string) ($record['Catégorie d\'âge'] ?? '')) ?: null);
 
         if ($existing === null) {
@@ -400,7 +403,7 @@ class CsvImportService
      *  - "Loisir"      si "loisir"
      *  - null sinon
      */
-    private function normalizeTypeLicence(string $raw): ?string
+    public static function normalizeTypeLicence(string $raw): ?string
     {
         $lower = mb_strtolower($raw, 'UTF-8');
         if (str_contains($lower, 'dirigeant')) {

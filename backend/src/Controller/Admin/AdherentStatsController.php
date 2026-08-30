@@ -6,6 +6,7 @@ use App\Entity\TrainingSeason;
 use App\Entity\UserSeasonMembership;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
+use App\Service\Csv\CsvImportService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -66,8 +67,12 @@ class AdherentStatsController extends AbstractController
 
         foreach ($rows as $m) {
             $u = $m->getUser();
-            // Type licence : snapshot pris à l'import, sinon valeur courante
-            $type = $m->getTypeLicence() ?? $u->getTypeLicence() ?? 'Non renseigné';
+            // Type licence : snapshot pris à l'import (spécifique à la
+            // saison — un adhérent peut avoir Loisir une saison et
+            // Compétition la suivante). Re-normalisation défensive au
+            // cas où le snapshot serait une valeur brute ancienne.
+            $raw = $m->getTypeLicence();
+            $type = $raw !== null ? (CsvImportService::normalizeTypeLicence($raw) ?? $raw) : null;
             $type = in_array($type, ['Compétition', 'Loisir', 'Dirigeant'], true) ? $type : 'Non renseigné';
             $byType[$type]++;
 
