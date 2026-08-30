@@ -74,9 +74,9 @@ export default function ProfileFamilyScreen() {
       <Stack.Screen options={{ title: 'Ma famille' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.intro}>
-          Sélectionnez parmi vos comptes liés qui est votre <Text style={styles.bold}>enfant</Text>
-          {' '}ou votre <Text style={styles.bold}>parent</Text>. Ces liens apparaîtront dans les profils
-          concernés. Marquer un compte comme parent lui assigne automatiquement le rôle Parent.
+          Déclarez qui sont vos <Text style={styles.bold}>enfants</Text> parmi vos comptes liés.
+          Vous serez automatiquement identifié comme leur parent. Un compte enfant voit ses parents
+          mais ne peut pas modifier ce lien : seul le parent le gère.
         </Text>
 
         {error && <Text style={styles.flash}>{error}</Text>}
@@ -84,14 +84,11 @@ export default function ProfileFamilyScreen() {
         {data.parents.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>👨‍👩 Mes parents</Text>
+            <Text style={styles.readOnlyHint}>
+              Ces comptes vous ont déclaré comme leur enfant. Contactez-les pour modifier ce lien.
+            </Text>
             {data.parents.map((p) => (
-              <RelationRow
-                key={'p-' + p.id}
-                person={p}
-                relation="parent"
-                busy={busyId === p.id}
-                onRemove={() => setLink(p.id, 'none')}
-              />
+              <ReadOnlyRow key={'p-' + p.id} person={p} icon="people" />
             ))}
           </View>
         )}
@@ -103,7 +100,6 @@ export default function ProfileFamilyScreen() {
               <RelationRow
                 key={'c-' + c.id}
                 person={c}
-                relation="child"
                 busy={busyId === c.id}
                 onRemove={() => setLink(c.id, 'none')}
               />
@@ -113,7 +109,7 @@ export default function ProfileFamilyScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {noRelations ? '➕ Déclarer une relation' : '➕ Autres comptes liés'}
+            {noRelations ? '➕ Déclarer un enfant' : '➕ Autres comptes liés'}
           </Text>
           {data.assignable.length === 0 ? (
             <Text style={styles.empty}>
@@ -127,7 +123,7 @@ export default function ProfileFamilyScreen() {
                 key={'a-' + p.id}
                 person={p}
                 busy={busyId === p.id}
-                onPick={(r) => setLink(p.id, r)}
+                onPick={() => setLink(p.id, 'child')}
               />
             ))
           )}
@@ -139,19 +135,17 @@ export default function ProfileFamilyScreen() {
 
 function RelationRow({
   person,
-  relation,
   busy,
   onRemove,
 }: {
   person: LinkedChild;
-  relation: 'child' | 'parent';
   busy: boolean;
   onRemove: () => void;
 }) {
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
-        <Ionicons name={relation === 'parent' ? 'people' : 'happy'} size={18} color="#fff" />
+        <Ionicons name="happy" size={18} color="#fff" />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.name}>{person.fullName}</Text>
@@ -168,6 +162,25 @@ function RelationRow({
   );
 }
 
+/**
+ * Rangée en lecture seule — utilisée pour la section « Mes parents ».
+ * Un compte enfant peut voir ses parents mais ne peut pas les retirer :
+ * seul le parent gère le lien depuis son propre profil.
+ */
+function ReadOnlyRow({ person, icon }: { person: LinkedChild; icon: keyof typeof Ionicons.glyphMap }) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowIcon}>
+        <Ionicons name={icon} size={18} color="#fff" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{person.fullName}</Text>
+        {person.licenceLabel ? <Text style={styles.meta}>{person.licenceLabel}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 function AssignRow({
   person,
   busy,
@@ -175,7 +188,7 @@ function AssignRow({
 }: {
   person: LinkedChild;
   busy: boolean;
-  onPick: (relation: 'child' | 'parent') => void;
+  onPick: () => void;
 }) {
   return (
     <View style={styles.row}>
@@ -186,22 +199,13 @@ function AssignRow({
         <Text style={styles.name}>{person.fullName}</Text>
         {person.licenceLabel ? <Text style={styles.meta}>{person.licenceLabel}</Text> : null}
       </View>
-      <View style={styles.assignActions}>
-        <Pressable
-          onPress={() => onPick('child')}
-          disabled={busy}
-          style={({ pressed }) => [styles.smallBtn, styles.btnPrimary, (busy || pressed) && { opacity: 0.6 }]}
-        >
-          <Text style={styles.smallBtnLabel}>Mon enfant</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onPick('parent')}
-          disabled={busy}
-          style={({ pressed }) => [styles.smallBtn, styles.btnSecondary, (busy || pressed) && { opacity: 0.6 }]}
-        >
-          <Text style={styles.smallBtnLabel}>Mon parent</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        onPress={onPick}
+        disabled={busy}
+        style={({ pressed }) => [styles.smallBtn, styles.btnPrimary, (busy || pressed) && { opacity: 0.6 }]}
+      >
+        {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.smallBtnLabel}>Mon enfant</Text>}
+      </Pressable>
     </View>
   );
 }
@@ -245,7 +249,6 @@ const styles = StyleSheet.create({
   },
   smallBtnLabel: { color: '#fff', fontSize: 12, fontWeight: '700' },
   btnPrimary: { backgroundColor: COLORS.primary },
-  btnSecondary: { backgroundColor: COLORS.secondary },
   btnDanger: { backgroundColor: COLORS.error },
-  assignActions: { flexDirection: 'row', gap: 6 },
+  readOnlyHint: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 4 },
 });

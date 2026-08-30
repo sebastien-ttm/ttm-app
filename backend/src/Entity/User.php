@@ -497,13 +497,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->children->contains($child)) {
             $this->children->add($child);
+            // Sync du côté inverse : sinon le mobile qui lit
+            // $child->getParents() juste après flush voit une collection
+            // périmée (l'inverse ManyToMany n'est pas rafraîchi en mémoire).
+            if (!$child->parents->contains($this)) {
+                $child->parents->add($this);
+            }
         }
         return $this;
     }
 
     public function removeChild(User $child): self
     {
-        $this->children->removeElement($child);
+        if ($this->children->removeElement($child)) {
+            $child->parents->removeElement($this);
+        }
         return $this;
     }
 

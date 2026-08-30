@@ -319,15 +319,19 @@ class MeController extends AbstractController
     }
 
     /**
-     * Déclare une relation familiale avec un compte déjà lié.
-     * Body : { "targetUserId": int, "relation": "child"|"parent"|"none" }
+     * Déclare une relation familiale enfant (ou en retire une existante).
+     * Body : { "targetUserId": int, "relation": "child"|"none" }
      *
      * Sécurité : la cible DOIT figurer dans les profils liés du user
      * (email partagé ou déjà famille) — pas d'ouverture arbitraire sur
      * toute la base. Aucun besoin de numéro de licence.
      *
-     * Effet spécial « parent » : la cible se voit ajouter le profil
-     * Parent automatiquement (elle devient officiellement parent).
+     * Modèle : seul le PARENT déclare la relation. Le compte enfant voit
+     * ensuite ses parents mais ne peut pas éditer la relation depuis son
+     * propre profil (garde-fous côté client + serveur).
+     *
+     * Effet : le déclarant se voit ajouter le profil Parent automatiquement
+     * si absent (relation=child).
      */
     #[Route('/api/me/family-link', methods: ['POST'])]
     public function setFamilyLink(Request $request): JsonResponse
@@ -338,7 +342,7 @@ class MeController extends AbstractController
         $targetId = is_array($payload) ? (int) ($payload['targetUserId'] ?? 0) : 0;
         $relation = is_array($payload) ? (string) ($payload['relation'] ?? '') : '';
 
-        if ($targetId <= 0 || !in_array($relation, ['child', 'parent', 'none'], true)) {
+        if ($targetId <= 0 || !in_array($relation, ['child', 'none'], true)) {
             return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
         }
         if ($targetId === $user->getId()) {
@@ -354,28 +358,29 @@ class MeController extends AbstractController
             return new JsonResponse(['error' => 'Ce compte n\'est pas dans vos comptes liés.'], Response::HTTP_FORBIDDEN);
         }
 
-        // Nettoie toute relation préexistante entre les deux (dans un sens
-        // comme dans l'autre) — un compte est soit enfant, soit parent,
-        // soit sans relation ; jamais les deux.
-        if ($user->getChildren()->contains($target)) {
-            $user->removeChild($target);
-        }
-        if ($user->getParents()->contains($target)) {
-            $target->removeChild($user); // parent → moi : je suis child du target
-        }
-
-        if ($relation === 'child') {
-            $user->addChild($target);
-        } elseif ($relation === 'parent') {
-            $target->addChild($user); // target est parent de moi ⇒ moi est enfant de target
-            // Bonus demandé : la cible devient officiellement « Parent »
-            $profiles = $target->getProfiles();
+        // Si on retire — on ne peut retirer qu'un enfant que J'AI déclaré.
+        // Le lien inverse (« mon parent m'a déclaré comme son enfant »)
+        // ne se retire pas depuis le compte enfant : le parent doit le faire.
+        if ($relation === 'none') {
+            if ($user->getChildren()->contains($target)) {
+                $user->removeChild($target);
+            } elseif ($user->getParents()->contains($target)) {
+                return new JsonResponse(
+                    ['error' => 'Seul le compte parent peut retirer ce lien.'],
+                    Response::HTTP_FORBIDDEN,
+                );
+            }
+        } elseif ($relation === 'child') {
+            if (!$user->getChildren()->contains($target)) {
+                $user->addChild($target);
+            }
+            // Le déclarant devient officiellement Parent s'il ne l'est pas.
+            $profiles = $user->getProfiles();
             if (!in_array(Profile::Parent->value, $profiles, true)) {
                 $profiles[] = Profile::Parent->value;
-                $target->setProfiles(array_values($profiles));
+                $user->setProfiles(array_values($profiles));
             }
         }
-        // relation === 'none' : rien de plus, on a déjà nettoyé au-dessus.
 
         $this->em->flush();
 

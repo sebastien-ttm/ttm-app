@@ -298,7 +298,13 @@ export type FamilyResponse = {
   linkedProfiles: LinkedProfile[];
 };
 
-export type FamilyRelation = 'child' | 'parent' | 'none';
+/**
+ * Types de relation posables depuis le mobile.
+ * Seul le compte parent gère le lien vers ses enfants ; l'inverse
+ * (« mon parent m'a déclaré ») apparaît dans la vue de l'enfant mais
+ * n'est pas éditable côté enfant.
+ */
+export type FamilyRelation = 'child' | 'none';
 
 /** Entraîneur sélectionnable comme destinataire de message (Phase messages). */
 export type Trainer = {
