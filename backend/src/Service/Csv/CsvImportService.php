@@ -267,6 +267,30 @@ class CsvImportService
             $this->em->flush();
         }
 
+        // Réconcilie les parents externes selon la présence d'enfants actifs.
+        //  - 0 enfant actif  → parent désactivé (perte d'accès mobile)
+        //  - ≥ 1 actif       → parent réactivé (retour d'un enfant qui
+        //    renouvelle sa licence)
+        // Les parents ADHÉRENTS (avec leur propre licence) sont gérés par
+        // la logique deactivation ci-dessus (findActiveNotSyncedSince) et
+        // pas concernés par ce bloc.
+        foreach ($this->users->findExternalParents() as $parent) {
+            $activeChildren = 0;
+            foreach ($parent->getChildren() as $c) {
+                if ($c->isActive()) { $activeChildren++; }
+            }
+            $wasActive = $parent->isActive();
+            $shouldBeActive = $activeChildren > 0;
+            if ($wasActive && !$shouldBeActive) {
+                $parent->setIsActive(false);
+                $result->externalParentsDeactivated++;
+            } elseif (!$wasActive && $shouldBeActive) {
+                $parent->setIsActive(true);
+                $result->externalParentsReactivated++;
+            }
+        }
+        $this->em->flush();
+
         // Dedup + comptage des candidats bienvenue (dry-run compté, dispatch
         // effectif hors dry-run + case cochée). Fait AVANT rollback pour
         // que le résultat affiché soit fidèle en simulation.

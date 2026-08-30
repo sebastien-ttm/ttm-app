@@ -103,6 +103,12 @@
                 <li><strong>{{ result.created }}</strong> compte(s){{ willBe }} créé(s)</li>
                 <li><strong>{{ result.updated }}</strong> compte(s){{ willBe }} mis à jour</li>
                 <li><strong>{{ result.deactivated }}</strong> compte(s){{ willBe }} désactivé(s)</li>
+                {% if result.externalParentsDeactivated > 0 %}
+                    <li>👨‍👧 <strong>{{ result.externalParentsDeactivated }}</strong> parent(s) externe(s){{ willBe }} désactivé(s) (plus aucun enfant actif)</li>
+                {% endif %}
+                {% if result.externalParentsReactivated > 0 %}
+                    <li>👨‍👧 <strong>{{ result.externalParentsReactivated }}</strong> parent(s) externe(s){{ willBe }} réactivé(s) (un enfant a repris sa licence)</li>
+                {% endif %}
                 {% if result.welcomeEmailsSent > 0 %}
                     <li>📧 <strong>{{ result.welcomeEmailsSent }}</strong> email(s) de bienvenue
                         {{ result.dryRun ? 'seraient envoyés' : 'dispatché(s)' }} (nouveaux + renouvellements)

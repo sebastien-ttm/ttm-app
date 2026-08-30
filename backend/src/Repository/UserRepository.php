@@ -160,6 +160,23 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Comptes « parents externes » : existent uniquement parce qu'ils ont
+     * un ou plusieurs enfants adhérents rattachés. Leur validité doit
+     * suivre celle de leurs enfants : plus d'enfant actif → désactivation ;
+     * un enfant redevient actif → réactivation.
+     *
+     * @return list<User>
+     */
+    public function findExternalParents(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where("u.type = 'externe' AND u.subType = 'parent'")
+            ->andWhere("u.role <> 'admin'")
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Liste des destinataires d'un email de notification pour un plan
      * d'entraînement nouvellement publié.
      *

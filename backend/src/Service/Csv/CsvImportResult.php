@@ -19,6 +19,10 @@ class CsvImportResult
     public ?string $seasonLabel = null;
     /** true = simulation (rollback à la fin, aucun email dispatché). */
     public bool $dryRun = false;
+    /** Parents externes désactivés (plus aucun enfant actif). */
+    public int $externalParentsDeactivated = 0;
+    /** Parents externes réactivés (au moins un enfant redevenu actif). */
+    public int $externalParentsReactivated = 0;
     /**
      * Nombre d'emails de bienvenue effectivement dispatchés (nouveaux
      * comptes + adhérents renouvelant après une saison manquée).
@@ -51,6 +55,8 @@ class CsvImportResult
             'seasonLabel' => $this->seasonLabel,
             'dryRun' => $this->dryRun,
             'welcomeEmailsSent' => $this->welcomeEmailsSent,
+            'externalParentsDeactivated' => $this->externalParentsDeactivated,
+            'externalParentsReactivated' => $this->externalParentsReactivated,
             'skipped' => $this->skipped,
             'errors' => $this->errors,
         ];
