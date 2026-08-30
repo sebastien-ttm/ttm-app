@@ -284,27 +284,33 @@ class MeController extends AbstractController
         $user = $this->resolveCurrentUser($request);
         $origin = $this->resolveOriginUser($request, $user);
 
+        // Filtre les comptes inactifs (non-renouvellement d'adhésion) — les
+        // liens en base restent mais on ne les expose plus au mobile pour
+        // éviter d'afficher des profils devenus obsolètes. Ils réapparaîtront
+        // automatiquement au prochain renouvellement (isActive = true).
         $childrenIds = [];
         $children = [];
         foreach ($user->getChildren() as $c) {
+            if (!$c->isActive()) continue;
             $childrenIds[$c->getId()] = true;
             $children[] = self::serializeChild($c);
         }
         $parentsIds = [];
         $parents = [];
         foreach ($user->getParents() as $p) {
+            if (!$p->isActive()) continue;
             $parentsIds[$p->getId()] = true;
             $parents[] = self::serializeChild($p);
         }
 
         // Candidats à l'ajout : profils liés (email/famille) — excluant
-        // moi-même + ceux déjà déclarés en relation. On repart de la
-        // liste primaire pour rester cohérent avec le ProfileSwitcher.
+        // moi-même, ceux déjà déclarés en relation, ET les comptes inactifs.
         $linked = $this->users->findLinkedProfiles($user);
         $assignable = [];
         foreach ($linked as $u) {
             $id = $u->getId();
             if ($id === $user->getId()) continue;
+            if (!$u->isActive()) continue;
             if (isset($childrenIds[$id]) || isset($parentsIds[$id])) continue;
             $assignable[] = self::serializeChild($u);
         }
