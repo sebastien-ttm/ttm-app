@@ -281,8 +281,7 @@ class MeController extends AbstractController
     #[Route('/api/me/family', methods: ['GET'])]
     public function family(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->resolveCurrentUser($request);
         $origin = $this->resolveOriginUser($request, $user);
 
         $childrenIds = [];
@@ -336,8 +335,7 @@ class MeController extends AbstractController
     #[Route('/api/me/family-link', methods: ['POST'])]
     public function setFamilyLink(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->resolveCurrentUser($request);
         $payload = json_decode($request->getContent(), true);
         $targetId = is_array($payload) ? (int) ($payload['targetUserId'] ?? 0) : 0;
         $relation = is_array($payload) ? (string) ($payload['relation'] ?? '') : '';
@@ -388,10 +386,9 @@ class MeController extends AbstractController
     }
 
     #[Route('/api/me/children', methods: ['GET'])]
-    public function listChildren(): JsonResponse
+    public function listChildren(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->resolveCurrentUser($request);
         return new JsonResponse([
             'data' => array_map(
                 fn (User $c) => self::serializeChild($c),
@@ -413,8 +410,7 @@ class MeController extends AbstractController
     #[Route('/api/me/children', methods: ['POST'])]
     public function addChild(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->resolveCurrentUser($request);
 
         $payload = json_decode($request->getContent(), true);
         $raw = is_array($payload) ? trim((string) ($payload['numLicence'] ?? '')) : '';
@@ -468,8 +464,7 @@ class MeController extends AbstractController
     #[Route('/api/me/children/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function removeChild(int $id, Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->resolveCurrentUser($request);
 
         $child = null;
         foreach ($user->getChildren() as $c) {
@@ -524,6 +519,37 @@ class MeController extends AbstractController
             return true;
         }
         return $user->isParentExterne();
+    }
+
+    /**
+     * Résout le user courant depuis le claim `uid` du JWT — plus fiable
+     * que $this->getUser() quand plusieurs comptes partagent un email
+     * (le UserProvider entity.email renvoie le PREMIER par email, pas
+     * forcément celui identifié dans le JWT en cours).
+     *
+     * Fallback sur $this->getUser() si le token n'est pas parsable ou
+     * si le uid est absent — préserve la rétro-compatibilité avec les
+     * anciens JWT sans claim uid.
+     */
+    private function resolveCurrentUser(Request $request): User
+    {
+        /** @var User $fallback */
+        $fallback = $this->getUser();
+        $auth = (string) $request->headers->get('Authorization', '');
+        if (!str_starts_with($auth, 'Bearer ')) {
+            return $fallback;
+        }
+        try {
+            $payload = $this->jwt->parse(substr($auth, 7));
+        } catch (\Throwable) {
+            return $fallback;
+        }
+        $uid = $payload['uid'] ?? null;
+        if (!is_int($uid) || $uid <= 0) {
+            return $fallback;
+        }
+        $resolved = $this->users->find($uid);
+        return $resolved instanceof User ? $resolved : $fallback;
     }
 
     /**
