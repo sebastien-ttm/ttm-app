@@ -54,14 +54,6 @@ class ClubCharter
     private ?array $fields = null;
 
     /**
-     * @deprecated Champ inutilisé — le formulaire courant est désormais
-     * celui avec le publishedAt le plus récent. Conservé en base pour
-     * ne pas casser les données legacy ; retiré du CRUD admin.
-     */
-    #[ORM\Column]
-    private bool $isActive = false;
-
-    /**
      * Aperçu privé : si non null, ce formulaire est visible UNIQUEMENT
      * par cet utilisateur (l'admin qui teste). Le reste des adhérents
      * voit le plus récent en date de publication.
@@ -96,8 +88,6 @@ class ClubCharter
     public function setVersion(string $version): self { $this->version = $version; return $this; }
     public function getContent(): string { return $this->content; }
     public function setContent(string $content): self { $this->content = $content; return $this; }
-    public function isActive(): bool { return $this->isActive; }
-    public function setIsActive(bool $b): self { $this->isActive = $b; return $this; }
     public function getPreviewUser(): ?User { return $this->previewUser; }
     public function setPreviewUser(?User $user): self { $this->previewUser = $user; return $this; }
     public function getPublishedAt(): \DateTimeImmutable { return $this->publishedAt; }
