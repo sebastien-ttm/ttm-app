@@ -3,11 +3,13 @@
 namespace App\Controller\Admin;
 
 use App\Entity\ClubCharter;
+use App\Enum\AdherentKind;
 use App\Service\Charter\FormSchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -59,6 +61,14 @@ JSON;
             ->setHelp('Ex : « Formulaire d\'acceptation — Saison 2026-2027 »');
         yield TextField::new('version', 'Version / Saison')
             ->setHelp('Identifiant lisible, ex : « 2026-2027 » ou « 2026-2027-rev2 »');
+        yield ChoiceField::new('kind', 'Destinataires')
+            ->setChoices(AdherentKind::choices())
+            ->renderAsBadges()
+            ->setHelp(
+                'Nouveaux = premier adhérent (aucune adhésion antérieure). '
+                .'Renouvellements = adhérent connu qui revient. '
+                .'Tous = fallback pour les deux cas si aucun formulaire dédié.'
+            );
         yield TextEditorField::new('content', 'Contenu')
             ->setHelp('Texte intégral présenté à l\'adhérent. L\'éditeur supporte les images, listes, mise en forme.')
             ->onlyOnForms();

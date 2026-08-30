@@ -40,4 +40,17 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
             ->where('m.season = :s')->setParameter('s', $season)
             ->getQuery()->getSingleScalarResult();
     }
+
+    /**
+     * Nombre total d'adhésions (toutes saisons confondues) pour un user.
+     * >1 signifie que l'user a au moins une adhésion passée en plus de
+     * la saison courante — traité comme un « renouvellement ».
+     */
+    public function countForUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.user = :u')->setParameter('u', $user)
+            ->getQuery()->getSingleScalarResult();
+    }
 }

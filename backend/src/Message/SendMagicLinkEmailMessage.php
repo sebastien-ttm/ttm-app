@@ -10,6 +10,12 @@ final readonly class SendMagicLinkEmailMessage
         public bool $isWelcome = false,
         /** Deep-link cible à ouvrir après auth (ex: /page/entrainements). */
         public ?string $next = null,
+        /**
+         * true = renouvellement (adhérent connu qui revient dans une
+         * nouvelle saison). Utilisé pour choisir le bon template email
+         * de bienvenue (WelcomeEmailTemplate::kind).
+         */
+        public bool $isRenewal = false,
     ) {
     }
 }

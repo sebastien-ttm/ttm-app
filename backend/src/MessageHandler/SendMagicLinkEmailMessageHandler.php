@@ -3,6 +3,7 @@
 namespace App\MessageHandler;
 
 use App\Entity\User;
+use App\Enum\AdherentKind;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
 use App\Repository\WelcomeEmailTemplateRepository;
@@ -32,12 +33,13 @@ class SendMagicLinkEmailMessageHandler
         $webUrl = $this->magicLinks->buildWebUrl($message->clearToken, $message->next);
         $mobileUrl = $this->magicLinks->buildMobileUrl($message->clearToken, $message->next);
 
-        // Cas 1 — email de bienvenue (import CSV FFTri) : si l'admin a
-        // configuré un modèle personnalisé, on l'utilise à la place du
-        // template Twig standard. Placeholders remplacés en str_replace
-        // pour éviter tout risque d'injection Twig depuis le contenu admin.
+        // Cas 1 — email de bienvenue (import CSV FFTri) : sélection du
+        // template selon le kind (new = premier import, renewal = adhérent
+        // connu qui revient). Fallback sur le template `all` si aucun
+        // template dédié n'existe.
         if ($message->isWelcome) {
-            $template = $this->welcomeTemplates->findCurrent();
+            $kind = $message->isRenewal ? AdherentKind::Renewal : AdherentKind::New;
+            $template = $this->welcomeTemplates->findForKind($kind);
             if ($template !== null) {
                 $this->mailer->send($this->buildWelcomeEmail($user, $template->getSubject(), $template->getBodyHtml(), $webUrl));
                 return;

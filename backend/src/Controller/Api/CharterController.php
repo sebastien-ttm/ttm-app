@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\CharterAcceptance;
 use App\Entity\User;
+use App\Enum\AdherentKind;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\ClubCharterRepository;
 use App\Repository\TrainingSeasonRepository;
@@ -58,7 +59,13 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $charter = $this->charters->findCurrent($user);
+        // Détermine le kind selon l'historique d'adhésions :
+        // >1 adhésion = renouvellement, sinon nouveau. Le repo fait un
+        // fallback sur `all` s'il n'y a pas de formulaire dédié.
+        $kind = $this->memberships->countForUser($user) > 1
+            ? AdherentKind::Renewal
+            : AdherentKind::New;
+        $charter = $this->charters->findCurrent($user, $kind);
 
         if ($charter === null) {
             return new JsonResponse([
@@ -95,7 +102,10 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $charter = $this->charters->findCurrent($user);
+        $kind = $this->memberships->countForUser($user) > 1
+            ? AdherentKind::Renewal
+            : AdherentKind::New;
+        $charter = $this->charters->findCurrent($user, $kind);
 
         if ($charter === null) {
             return new JsonResponse(

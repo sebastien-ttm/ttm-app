@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\AdherentKind;
 use App\Repository\ClubCharterRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -62,6 +63,14 @@ class ClubCharter
     #[ORM\JoinColumn(name: 'preview_user_id', nullable: true, onDelete: 'SET NULL')]
     private ?User $previewUser = null;
 
+    /**
+     * Cible du formulaire : nouvel adhérent, renouvellement, ou les
+     * deux (default `all`). Permet d'avoir un contenu / des engagements
+     * spécifiques pour un premier adhésion vs un retour.
+     */
+    #[ORM\Column(length: 16, enumType: AdherentKind::class, options: ['default' => 'all'])]
+    private AdherentKind $kind = AdherentKind::All;
+
     #[ORM\Column]
     private \DateTimeImmutable $publishedAt;
 
@@ -93,6 +102,8 @@ class ClubCharter
     public function getPublishedAt(): \DateTimeImmutable { return $this->publishedAt; }
     public function setPublishedAt(\DateTimeImmutable $d): self { $this->publishedAt = $d; return $this; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function getKind(): AdherentKind { return $this->kind; }
+    public function setKind(AdherentKind $k): self { $this->kind = $k; return $this; }
 
     /** @return list<array<string, mixed>>|null */
     public function getFields(): ?array { return $this->fields; }

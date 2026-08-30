@@ -104,7 +104,7 @@ class CsvImportService
 
         $records = (new Statement())->process($csv);
         $line = 1;
-        /** @var list<User> $welcomeCandidates users à qui envoyer l'email de bienvenue */
+        /** @var array<int, array{user: User, isRenewal: bool}> $welcomeCandidates */
         $welcomeCandidates = [];
 
         foreach ($records as $record) {
@@ -228,7 +228,13 @@ class CsvImportService
                     $freshMembership = $this->upsertMembership($user, $season, $importedAt, $record);
                 }
                 if ($isNew || $freshMembership) {
-                    $welcomeCandidates[] = $user;
+                    // isRenewal = compte existant ET nouveau membership pour la saison
+                    // (donc adhérent connu qui revient). Un compte fraîchement créé
+                    // reste « new » même s'il a une membership à sa création.
+                    $welcomeCandidates[] = [
+                        'user' => $user,
+                        'isRenewal' => !$isNew,
+                    ];
                 }
             } catch (\Throwable $e) {
                 $result->addError($line, $e->getMessage(), $record);
@@ -294,13 +300,15 @@ class CsvImportService
         // Dedup + comptage des candidats bienvenue (dry-run compté, dispatch
         // effectif hors dry-run + case cochée). Fait AVANT rollback pour
         // que le résultat affiché soit fidèle en simulation.
+        // Si un user apparaît deux fois : le premier détermine son kind
+        // (dedup par uid).
         $uniqueCandidates = [];
         $seen = [];
-        foreach ($welcomeCandidates as $u) {
-            $uid = $u->getId();
+        foreach ($welcomeCandidates as $entry) {
+            $uid = $entry['user']->getId();
             if ($uid === null || isset($seen[$uid])) continue;
             $seen[$uid] = true;
-            $uniqueCandidates[] = $u;
+            $uniqueCandidates[] = $entry;
         }
 
         if ($dryRun) {
@@ -320,16 +328,18 @@ class CsvImportService
         $this->em->commit();
 
         // Email de bienvenue envoyé à chaque adhérent qui rejoint une (nouvelle)
-        // saison, y compris les renouvellements après une saison manquée.
-        // Le backfill (app:memberships:backfill) ne passe pas par ici — pas
-        // de spam pour des adhésions rétroactives.
+        // saison. Template distinct selon nouveau/renouvellement (isRenewal).
+        // Le backfill (app:memberships:backfill) ne passe pas par ici —
+        // pas de spam pour des adhésions rétroactives.
         if ($sendWelcomeEmails) {
-            foreach ($uniqueCandidates as $u) {
+            foreach ($uniqueCandidates as $entry) {
+                $u = $entry['user'];
                 $issued = $this->magicLinks->issue($u);
                 $this->bus->dispatch(new SendMagicLinkEmailMessage(
                     userId: $u->getId(),
                     clearToken: $issued['token'],
                     isWelcome: true,
+                    isRenewal: $entry['isRenewal'],
                 ));
                 $result->welcomeEmailsSent++;
             }

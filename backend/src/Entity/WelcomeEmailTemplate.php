@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\AdherentKind;
 use App\Repository\WelcomeEmailTemplateRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -38,6 +39,14 @@ class WelcomeEmailTemplate
     #[Assert\NotBlank]
     private string $bodyHtml = '';
 
+    /**
+     * Cible du template : nouvel adhérent, renouvellement, ou les deux
+     * (default `all`). Permet à l'admin de créer un email dédié pour
+     * les retours (ex : ton plus court, rappel des nouveautés de saison).
+     */
+    #[ORM\Column(length: 16, enumType: AdherentKind::class, options: ['default' => 'all'])]
+    private AdherentKind $kind = AdherentKind::All;
+
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
@@ -58,6 +67,11 @@ class WelcomeEmailTemplate
     public function getBodyHtml(): string { return $this->bodyHtml; }
     public function setBodyHtml(string $s): self { $this->bodyHtml = $s; return $this; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+    public function getKind(): AdherentKind { return $this->kind; }
+    public function setKind(AdherentKind $k): self { $this->kind = $k; return $this; }
 
-    public function __toString(): string { return 'Modèle email de bienvenue'; }
+    public function __toString(): string
+    {
+        return sprintf('Email bienvenue — %s', $this->kind->label());
+    }
 }

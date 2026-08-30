@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\WelcomeEmailTemplate;
+use App\Enum\AdherentKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -17,13 +18,27 @@ class WelcomeEmailTemplateRepository extends ServiceEntityRepository
     }
 
     /**
-     * Singleton : renvoie la première (et unique) ligne, ou null si aucune.
+     * Renvoie le template applicable pour un kind donné :
+     *  1) template dédié au kind exact (new ou renewal)
+     *  2) fallback sur le template `all` (par défaut, rétro-compat)
+     *  3) null si rien de défini
+     */
+    public function findForKind(AdherentKind $kind): ?WelcomeEmailTemplate
+    {
+        if ($kind !== AdherentKind::All) {
+            $exact = $this->findOneBy(['kind' => $kind]);
+            if ($exact !== null) {
+                return $exact;
+            }
+        }
+        return $this->findOneBy(['kind' => AdherentKind::All]);
+    }
+
+    /**
+     * @deprecated utilisez findForKind(). Conservé pour compat existante.
      */
     public function findCurrent(): ?WelcomeEmailTemplate
     {
-        return $this->createQueryBuilder('t')
-            ->orderBy('t.id', 'ASC')
-            ->setMaxResults(1)
-            ->getQuery()->getOneOrNullResult();
+        return $this->findForKind(AdherentKind::All);
     }
 }
