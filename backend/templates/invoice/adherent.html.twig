@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Facture adhésion {{ user.fullName }} — {{ season.name ?: season.id }}</title>
+    <title>Facture adhésion {{ user.fullName }} — {{ seasonLabel }}</title>
     <style>
         @page { margin: 24mm 20mm; }
         body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.4; }
@@ -19,8 +19,11 @@
         .total { text-align: right; font-size: 14pt; font-weight: 700; color: #0d2148; margin-top: 8pt; }
         .payment { margin-top: 20pt; padding: 8pt 12pt; background: #ecfdf5; border-left: 3pt solid #16a34a; font-size: 10pt; }
         .footer { position: fixed; bottom: -12mm; left: 0; right: 0; text-align: center; color: #6b7280; font-size: 8pt; padding-top: 6pt; border-top: 1pt solid #dfe3ec; }
-        .signature { margin-top: 26pt; text-align: right; font-size: 10pt; }
-        .signature img { max-width: 140pt; max-height: 60pt; display: block; margin: 6pt 0 6pt auto; }
+        .signature { margin-top: 32pt; text-align: right; font-size: 10pt; }
+        .signature .sig-label { margin-bottom: 2pt; font-style: italic; color: #4b5563; }
+        .signature .sig-name { font-weight: 700; margin-bottom: 8pt; }
+        .signature .sig-img { margin-top: 4pt; }
+        .signature .sig-img img { max-width: 140pt; max-height: 60pt; display: inline-block; }
         .legal { margin-top: 26pt; padding-top: 8pt; border-top: 1pt solid #dfe3ec; color: #6b7280; font-size: 9pt; white-space: pre-line; }
     </style>
 </head>
@@ -42,8 +45,8 @@
 
 <div class="meta">
     <strong>N° facture :</strong> {{ invoiceNumber }}<br>
-    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y') }}<br>
-    <strong>Saison :</strong> {{ season.name ?: '—' }}
+    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y à H:i') }}<br>
+    <strong>Saison :</strong> {{ seasonLabel }}
     {% if season.startsAt and season.endsAt %}
         ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }})
     {% endif %}
@@ -59,8 +62,8 @@
     <tbody>
         <tr>
             <td>
-                Adhésion au {{ settings.clubName }}<br>
-                <small>Profil : {{ profile|capitalize }} · Licence : {{ typeLicence }}</small>
+                Adhésion au {{ settings.clubName }} — Saison {{ seasonLabel }}<br>
+                <small>Licence : {{ typeLicence }}</small>
             </td>
             <td class="amount">{{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
         </tr>
@@ -76,11 +79,11 @@
 </div>
 
 <div class="signature">
-    {{ settings.presidentName }}<br>
+    <div class="sig-label">Le Président,</div>
+    <div class="sig-name">{{ settings.presidentName }}</div>
     {% if signatureDataUri %}
-        <img src="{{ signatureDataUri }}" alt="Signature">
+        <div class="sig-img"><img src="{{ signatureDataUri }}" alt="Signature"></div>
     {% endif %}
-    <em>Président</em>
 </div>
 
 {% if settings.legalFooter %}

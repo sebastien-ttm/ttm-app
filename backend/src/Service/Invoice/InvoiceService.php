@@ -13,6 +13,7 @@ use App\Repository\InvoiceSettingsRepository;
 use App\Repository\MembershipFeeRepository;
 use App\Repository\UserSeasonMembershipRepository;
 use App\Service\Csv\CsvImportService;
+use Doctrine\ORM\EntityManagerInterface;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Twig\Environment;
@@ -29,6 +30,7 @@ class InvoiceService
         private readonly MembershipFeeRepository $fees,
         private readonly InvoiceSettingsRepository $settings,
         private readonly UserSeasonMembershipRepository $memberships,
+        private readonly EntityManagerInterface $em,
         private readonly Environment $twig,
         private readonly string $signatureDir,
     ) {
@@ -121,17 +123,28 @@ class InvoiceService
 
         $paymentType = PaymentType::tryFrom($membership->getPaymentType()) ?? PaymentType::CB;
 
+        // Alloue un numéro d'ordre stable au premier rendu (aperçu ou envoi
+        // email). Réutilisé pour tous les rendus suivants de la même
+        // membership.
+        if ($membership->getInvoiceSequence() === null) {
+            $membership->setInvoiceSequence($this->memberships->nextInvoiceSequence($season));
+            $this->em->flush();
+        }
+        $seasonLabel = $this->seasonLabel($season);
+        $invoiceNumber = sprintf('TTM-%s-%02d', $seasonLabel, $membership->getInvoiceSequence());
+
         $html = $this->twig->render('invoice/adherent.html.twig', [
             'settings' => $settings,
             'signatureDataUri' => $signatureDataUri,
             'user' => $user,
             'membership' => $membership,
             'season' => $season,
+            'seasonLabel' => $seasonLabel,
             'fee' => $resolved['fee'],
             'profile' => $resolved['profile'],
             'typeLicence' => $resolved['typeLicence'],
             'paymentTypeLabel' => $paymentType->label(),
-            'invoiceNumber' => sprintf('%s-%d-%d', $season->getName() ?: (string) $season->getId(), $user->getId(), $season->getId()),
+            'invoiceNumber' => $invoiceNumber,
             'issuedAt' => new \DateTimeImmutable(),
         ]);
 
@@ -150,8 +163,27 @@ class InvoiceService
      */
     public function suggestedFilename(User $user, TrainingSeason $season): string
     {
-        $seasonLabel = $season->getName() ?: $season->getStartsAt()?->format('Y').'-'.$season->getEndsAt()?->format('Y');
-        $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $user->getFullName().'-'.$seasonLabel);
+        $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $user->getFullName().'-'.$this->seasonLabel($season));
         return 'facture-adhesion-'.trim((string) $slug, '-').'.pdf';
+    }
+
+    /**
+     * Libellé humain de la saison (« 2026-2027 »), avec fallback :
+     * - `season.name` s'il est renseigné (préféré)
+     * - Sinon `startsAt.Y - endsAt.Y`
+     * - Sinon l'id numérique (garantit toujours un identifiant).
+     */
+    private function seasonLabel(TrainingSeason $season): string
+    {
+        $name = $season->getName();
+        if ($name !== null && trim($name) !== '') {
+            return trim($name);
+        }
+        $starts = $season->getStartsAt();
+        $ends = $season->getEndsAt();
+        if ($starts !== null && $ends !== null) {
+            return $starts->format('Y').'-'.$ends->format('Y');
+        }
+        return (string) $season->getId();
     }
 }

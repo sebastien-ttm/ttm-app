@@ -62,6 +62,14 @@ class UserSeasonMembership
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $invoicedAt = null;
 
+    /**
+     * Numéro d'ordre stable de la facture pour cette adhésion, dans la
+     * saison. Alloué au premier rendu PDF, réutilisé ensuite (aperçu ou
+     * envoi). Format final composé côté service : « TTM-{saison}-{seq:02d} ».
+     */
+    #[ORM\Column(nullable: true)]
+    private ?int $invoiceSequence = null;
+
     public function __construct(User $user, TrainingSeason $season)
     {
         $this->user = $user;
@@ -86,4 +94,6 @@ class UserSeasonMembership
     public function setPaymentType(string $t): self { $this->paymentType = $t; return $this; }
     public function getInvoicedAt(): ?\DateTimeImmutable { return $this->invoicedAt; }
     public function markInvoiced(): self { $this->invoicedAt = new \DateTimeImmutable(); return $this; }
+    public function getInvoiceSequence(): ?int { return $this->invoiceSequence; }
+    public function setInvoiceSequence(?int $seq): self { $this->invoiceSequence = $seq; return $this; }
 }

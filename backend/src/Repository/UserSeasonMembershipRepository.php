@@ -53,4 +53,20 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
             ->where('m.user = :u')->setParameter('u', $user)
             ->getQuery()->getSingleScalarResult();
     }
+
+    /**
+     * Prochain numéro d'ordre libre pour les factures de la saison :
+     * MAX(invoice_sequence) + 1, ou 1 si aucun.
+     *
+     * Simple (pas de verrouillage) : suffisant pour un club où les
+     * factures sont générées ponctuellement par un seul admin.
+     */
+    public function nextInvoiceSequence(TrainingSeason $season): int
+    {
+        $max = $this->createQueryBuilder('m')
+            ->select('MAX(m.invoiceSequence)')
+            ->where('m.season = :s')->setParameter('s', $season)
+            ->getQuery()->getSingleScalarResult();
+        return ((int) $max) + 1;
+    }
 }
