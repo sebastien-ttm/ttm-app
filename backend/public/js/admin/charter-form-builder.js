@@ -395,8 +395,8 @@
           promotion: false,
           statusbar: false,
           resize: true,
-          plugins: 'lists link',
-          toolbar: 'undo redo | bold italic | bullist numlist | link | removeformat',
+          plugins: 'lists link emoticons',
+          toolbar: 'undo redo | bold italic | bullist numlist | link emoticons | removeformat',
           entity_encoding: 'raw',
           content_style:
             'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
