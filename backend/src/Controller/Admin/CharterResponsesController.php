@@ -57,7 +57,7 @@ class CharterResponsesController extends AbstractController
             fwrite($out, "\xEF\xBB\xBF");
 
             if ($charter === null || !$charter->hasForm()) {
-                fputcsv($out, ['Aucune charte avec formulaire active.'], ';');
+                fputcsv($out, ['Aucun formulaire d\'acceptation avec engagements.'], ';');
                 fclose($out);
                 return;
             }

@@ -18,15 +18,15 @@ class ClubCharterRepository extends ServiceEntityRepository
     }
 
     /**
-     * Renvoie la charte à appliquer pour un utilisateur donné, dans cet
-     * ordre de priorité :
-     *   1. Charte en aperçu ciblée sur ce user (preview_user_id = user)
-     *      — permet à l'admin de tester avant activation générale.
-     *   2. Charte activée pour tous (is_active = true).
-     *   3. null (aucune charte à faire signer).
+     * Renvoie le formulaire d'acceptation à appliquer pour un utilisateur
+     * donné :
+     *   1. Aperçu privé ciblé sur ce user (previewUser = user) — permet
+     *      à l'admin de tester avant de publier pour tout le monde.
+     *   2. Le plus récent en date de publication (publishedAt DESC).
+     *   3. null (aucun formulaire à faire signer).
      *
      * Si $user est null (ex : appel non authentifié), fallback direct
-     * sur la charte active générale.
+     * sur le plus récent.
      */
     public function findCurrent(?User $user = null): ?ClubCharter
     {
@@ -44,25 +44,9 @@ class ClubCharterRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('c')
-            ->where('c.isActive = true')
             ->orderBy('c.publishedAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
-    }
-
-    /**
-     * Sets all other charters' isActive to false.
-     */
-    public function deactivateAllExcept(?int $exceptId = null): void
-    {
-        $qb = $this->createQueryBuilder('c')
-            ->update()
-            ->set('c.isActive', ':false')
-            ->setParameter('false', false);
-        if ($exceptId !== null) {
-            $qb->where('c.id != :id')->setParameter('id', $exceptId);
-        }
-        $qb->getQuery()->execute();
     }
 }

@@ -1,17 +1,17 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block content_title %}Réponses au formulaire de la charte{% endblock %}
+{% block content_title %}Réponses aux engagements{% endblock %}
 
 {% block main %}
     {% if charter is null %}
         <div style="background:#FEE; color:#C62828; padding:14px; border-radius:6px;">
-            Aucune charte active n'est définie. Créez-en une depuis le menu « Formulaires d'acceptation ».
+            Aucun formulaire d'acceptation n'est défini. Créez-en un depuis le menu « Formulaires d'acceptation ».
         </div>
     {% elseif not charter.hasForm %}
         <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
-            La charte active <strong>{{ charter.title }}</strong> ({{ charter.version }}) n'a pas de formulaire :
-            les adhérents acceptent par simple clic. Ajoutez un schéma JSON dans
-            « Formulaires d'acceptation » pour collecter des réponses.
+            Le formulaire courant <strong>{{ charter.title }}</strong> ({{ charter.version }}) ne comporte pas d'engagements :
+            les adhérents acceptent par simple clic. Ajoutez des cases à cocher dans
+            « Formulaires d'acceptation » pour collecter des réponses détaillées.
         </div>
     {% else %}
         <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">

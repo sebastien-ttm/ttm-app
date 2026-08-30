@@ -68,8 +68,8 @@ export default function CharterReadScreen() {
         <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
         <EmptyState
           icon="📜"
-          title="Pas de charte publiée"
-          message="Aucune charte n'est active pour le moment. Revenez plus tard."
+          title="Pas de formulaire publié"
+          message="Aucun formulaire d'acceptation n'est disponible pour le moment. Revenez plus tard."
         />
       </SafeAreaView>
     );

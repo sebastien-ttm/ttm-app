@@ -105,12 +105,12 @@ export default function CharterAcceptanceScreen() {
     if (Platform.OS === 'web') {
       const ok =
         typeof window !== 'undefined' &&
-        window.confirm('Refuser la charte vous déconnecte de l\'application. Voulez-vous continuer ?');
+        window.confirm('Refuser ce formulaire vous déconnecte de l\'application. Voulez-vous continuer ?');
       if (ok) await doSignOut();
       return;
     }
     Alert.alert(
-      'Refuser la charte ?',
+      'Refuser le formulaire ?',
       'Vous serez déconnecté et ne pourrez plus utiliser l\'application tant que vous n\'aurez pas accepté.',
       [
         { text: 'Annuler', style: 'cancel' },
@@ -170,7 +170,7 @@ export default function CharterAcceptanceScreen() {
         {!hasForm && (
           <Text style={[styles.hint, hasReadAll && styles.hintDone]}>
             {hasReadAll
-              ? '✓ Vous avez lu la charte intégralement.'
+              ? '✓ Vous avez lu le formulaire intégralement.'
               : 'Faites défiler le texte jusqu\'en bas pour activer le bouton.'}
           </Text>
         )}
@@ -193,7 +193,7 @@ export default function CharterAcceptanceScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.acceptLabel}>
-                {hasForm ? 'Valider et accepter' : 'J\'accepte la charte'}
+                {hasForm ? 'Valider et accepter' : 'J\'accepte'}
               </Text>
             )}
           </Pressable>

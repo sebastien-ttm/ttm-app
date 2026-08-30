@@ -3,13 +3,11 @@
 namespace App\Controller\Admin;
 
 use App\Entity\ClubCharter;
-use App\Repository\ClubCharterRepository;
 use App\Service\Charter\FormSchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -37,7 +35,6 @@ class ClubCharterCrudController extends AbstractCrudController
 JSON;
 
     public function __construct(
-        private readonly ClubCharterRepository $charters,
         private readonly FormSchemaValidator $formValidator,
     ) {
     }
@@ -59,14 +56,14 @@ JSON;
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre')
-            ->setHelp('Ex : « Charte de l\'adhérent — Saison 2026 »');
+            ->setHelp('Ex : « Formulaire d\'acceptation — Saison 2026-2027 »');
         yield TextField::new('version', 'Version / Saison')
-            ->setHelp('Identifiant lisible, ex : « 2026 » ou « 2026-rev2 »');
+            ->setHelp('Identifiant lisible, ex : « 2026-2027 » ou « 2026-2027-rev2 »');
         yield TextEditorField::new('content', 'Contenu')
             ->setHelp('Texte intégral présenté à l\'adhérent. L\'éditeur supporte les images, listes, mise en forme.')
             ->onlyOnForms();
 
-        yield TextareaField::new('fieldsJson', 'Champs du formulaire')
+        yield TextareaField::new('fieldsJson', 'Engagements')
             ->onlyOnForms()
             ->setNumOfRows(20)
             ->setFormTypeOption('attr', [
@@ -80,31 +77,28 @@ JSON;
                 'placeholder' => self::FIELDS_TEMPLATE,
             ])
             ->setHelp(
-                'Utilisez le builder ci-dessous pour construire le formulaire visuellement,'
-                .' ou basculez en mode JSON avancé si besoin.'
-                .' Laisser vide pour une charte « simple bouton J\'accepte ».'
+                'Utilisez le builder ci-dessous pour construire la liste d\'engagements '
+                .'visuellement, ou basculez en mode JSON avancé si besoin. '
+                .'Laisser vide pour un formulaire « simple bouton J\'accepte ».'
             );
-
-        yield BooleanField::new('isActive', 'Active')
-            ->setHelp('Activer cette charte la rend obligatoire pour tous les utilisateurs et désactive automatiquement les autres.');
 
         yield AssociationField::new('previewUser', 'Aperçu privé')
             ->autocomplete()
             ->setRequired(false)
             ->setHelp(
-                'Optionnel. Si renseigné, la charte est visible uniquement par cet utilisateur '
-                .'(pratique pour tester le contenu et le formulaire avant d\'activer pour tout '
-                .'le monde). Ignoré dès que « Active » est coché.'
+                'Optionnel. Si renseigné, ce formulaire est visible uniquement '
+                .'par cet utilisateur — pratique pour valider le contenu et les '
+                .'engagements sans impacter les autres adhérents. Le formulaire '
+                .'le plus récemment publié est présenté à tous les autres.'
             );
 
-        yield DateTimeField::new('publishedAt', 'Publiée le')->onlyOnIndex();
+        yield DateTimeField::new('publishedAt', 'Publié le')->onlyOnIndex();
     }
 
     public function persistEntity(EntityManagerInterface $em, $entityInstance): void
     {
         $this->normalizeSchema($entityInstance);
         $this->validateSchema($entityInstance);
-        $this->ensureSingleActive($em, $entityInstance);
         parent::persistEntity($em, $entityInstance);
     }
 
@@ -112,12 +106,11 @@ JSON;
     {
         $this->normalizeSchema($entityInstance);
         $this->validateSchema($entityInstance);
-        $this->ensureSingleActive($em, $entityInstance);
         parent::updateEntity($em, $entityInstance);
     }
 
     /**
-     * Nettoie chaque champ pour se conformer au format « charte simplifiée » :
+     * Nettoie chaque champ pour se conformer au format simplifié :
      *  - type forcé à 'checkbox' (seul type supporté désormais)
      *  - required forcé à true (tous les engagements bloquants)
      *  - help/options supprimés
@@ -161,12 +154,4 @@ JSON;
         }
     }
 
-    private function ensureSingleActive(EntityManagerInterface $em, $entity): void
-    {
-        if (!$entity instanceof ClubCharter || !$entity->isActive()) {
-            return;
-        }
-        // Désactive toutes les autres chartes (sauf celle-ci si elle a un id)
-        $this->charters->deactivateAllExcept($entity->getId());
-    }
 }

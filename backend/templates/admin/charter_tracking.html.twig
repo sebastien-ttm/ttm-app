@@ -1,11 +1,11 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block content_title %}Suivi des acceptations de la charte{% endblock %}
+{% block content_title %}Suivi des acceptations{% endblock %}
 
 {% block main %}
     {% if charter is null %}
         <div style="background:#FEE; color:#C62828; padding:14px; border-radius:6px;">
-            Aucune charte active n'est définie. Créez-en une depuis le menu « Formulaires d'acceptation ».
+            Aucun formulaire d'acceptation n'est défini. Créez-en un depuis le menu « Formulaires d'acceptation ».
         </div>
     {% else %}
         <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
@@ -18,7 +18,7 @@
 
         {% if missing %}
             <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
-                <h3 style="margin-top:0; color:#C62828;">Pas encore acceptée par {{ missing|length }} adhérent(s)</h3>
+                <h3 style="margin-top:0; color:#C62828;">Pas encore accepté par {{ missing|length }} adhérent(s)</h3>
                 <table style="width:100%; border-collapse:collapse; font-size:14px;">
                     <thead>
                         <tr style="background:#f5f5f5;">

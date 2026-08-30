@@ -53,14 +53,18 @@ class ClubCharter
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $fields = null;
 
+    /**
+     * @deprecated Champ inutilisé — le formulaire courant est désormais
+     * celui avec le publishedAt le plus récent. Conservé en base pour
+     * ne pas casser les données legacy ; retiré du CRUD admin.
+     */
     #[ORM\Column]
     private bool $isActive = false;
 
     /**
-     * Aperçu privé : si non null, la charte est visible UNIQUEMENT par cet
-     * utilisateur (l'admin qui teste) — pas pour le reste des adhérents.
-     * Permet de valider un nouveau formulaire, contenu, wording, sans
-     * bloquer tout le monde. Ignoré dès que isActive=true.
+     * Aperçu privé : si non null, ce formulaire est visible UNIQUEMENT
+     * par cet utilisateur (l'admin qui teste). Le reste des adhérents
+     * voit le plus récent en date de publication.
      */
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name: 'preview_user_id', nullable: true, onDelete: 'SET NULL')]
