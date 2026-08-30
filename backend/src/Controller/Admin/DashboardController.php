@@ -131,6 +131,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')
             ->setPermission('ROLE_ENTRAINEUR');
+        yield AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')
+            ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)
