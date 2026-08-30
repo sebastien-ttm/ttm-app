@@ -37,24 +37,6 @@ class ClubCharter
     private string $content = '';
 
     /**
-     * Définition des champs du formulaire à remplir par l'adhérent.
-     * Tableau JSON, chaque élément :
-     *   {
-     *     "id":       "size",                         // identifiant unique du champ
-     *     "label":    "Taille T-shirt",               // libellé affiché
-     *     "type":     "text|textarea|number|date|checkbox|select|radio",
-     *     "required": true,                           // optionnel, défaut false
-     *     "help":     "Texte d'aide",                 // optionnel
-     *     "options":  ["S","M","L","XL"]              // requis pour select/radio
-     *   }
-     * Si vide ou null → comportement legacy (simple bouton "J'accepte").
-     *
-     * @var list<array<string, mixed>>|null
-     */
-    #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $fields = null;
-
-    /**
      * Aperçu privé : si non null, ce formulaire est visible UNIQUEMENT
      * par cet utilisateur (l'admin qui teste). Le reste des adhérents
      * voit le plus récent en date de publication.
@@ -104,57 +86,6 @@ class ClubCharter
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getKind(): AdherentKind { return $this->kind; }
     public function setKind(AdherentKind $k): self { $this->kind = $k; return $this; }
-
-    /** @return list<array<string, mixed>>|null */
-    public function getFields(): ?array { return $this->fields; }
-
-    /** @param list<array<string, mixed>>|null $fields */
-    public function setFields(?array $fields): self
-    {
-        $this->fields = ($fields === null || $fields === []) ? null : $fields;
-        return $this;
-    }
-
-    public function hasForm(): bool
-    {
-        return $this->fields !== null && count($this->fields) > 0;
-    }
-
-    /**
-     * Représentation texte (JSON pretty-printed) du schéma, utilisée
-     * comme champ éditable côté admin (TextareaField). Ne touche pas
-     * à la colonne tant que setFieldsJson() n'est pas appelé.
-     */
-    public function getFieldsJson(): string
-    {
-        if ($this->fields === null || $this->fields === []) {
-            return '';
-        }
-        return json_encode(
-            $this->fields,
-            \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES,
-        ) ?: '';
-    }
-
-    /**
-     * Désérialise et stocke. Lève une exception si le JSON est invalide.
-     * (La validation métier — types, ids, options — est faite par
-     * FormSchemaValidator côté contrôleur admin.)
-     */
-    public function setFieldsJson(?string $json): self
-    {
-        $json = trim((string) $json);
-        if ($json === '') {
-            $this->fields = null;
-            return $this;
-        }
-        $decoded = json_decode($json, true);
-        if (!is_array($decoded)) {
-            throw new \InvalidArgumentException('Le schéma doit être un tableau JSON valide.');
-        }
-        $this->fields = $decoded;
-        return $this;
-    }
 
     /**
      * @return Collection<int, CharterAcceptance>

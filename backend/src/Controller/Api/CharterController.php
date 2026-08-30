@@ -6,6 +6,7 @@ use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Enum\AdherentKind;
 use App\Repository\CharterAcceptanceRepository;
+use App\Repository\CharterEngagementSettingsRepository;
 use App\Repository\ClubCharterRepository;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
@@ -30,6 +31,7 @@ class CharterController extends AbstractController
         private readonly FormSchemaValidator $formValidator,
         private readonly TrainingSeasonRepository $seasons,
         private readonly UserSeasonMembershipRepository $memberships,
+        private readonly CharterEngagementSettingsRepository $engagements,
     ) {
     }
 
@@ -88,8 +90,16 @@ class CharterController extends AbstractController
         // plus bloqué par l'écran d'acceptation.
         $isCurrentAdherent = $this->isAdherentForCurrentSeason($user);
 
+        // Engagements : singleton partagé entre tous les kinds, filtrés
+        // par audience selon les profils de l'user (Parent/Jeune vs
+        // Sénior).
+        $applicableFields = $this->formValidator->filterForUser(
+            $this->engagements->currentFields(),
+            $user->getProfiles(),
+        );
+
         return new JsonResponse([
-            'charter' => $this->serializer->charter($charter),
+            'charter' => $this->serializer->charter($charter, $applicableFields),
             'acceptanceRequired' => $isPreview || (!$hasAccepted && $isCurrentAdherent),
         ]);
     }
@@ -120,7 +130,8 @@ class CharterController extends AbstractController
         }
 
         $answers = null;
-        if ($charter->hasForm()) {
+        $currentFields = $this->engagements->currentFields();
+        if (count($currentFields) > 0) {
             $payload = json_decode($request->getContent() ?: '{}', true);
             $rawAnswers = is_array($payload) ? ($payload['answers'] ?? null) : null;
 
@@ -128,7 +139,7 @@ class CharterController extends AbstractController
             // Un champ hors audience n'est ni requis, ni validé, ni stocké —
             // même si le client tente de l'envoyer.
             $applicableFields = $this->formValidator->filterForUser(
-                $charter->getFields(),
+                $currentFields,
                 $user->getProfiles(),
             );
 

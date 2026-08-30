@@ -3,8 +3,8 @@
 namespace App\Controller\Admin;
 
 use App\Entity\CharterAcceptance;
-use App\Entity\ClubCharter;
-use App\Repository\ClubCharterRepository;
+use App\Repository\CharterAcceptanceRepository;
+use App\Repository\CharterEngagementSettingsRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -15,32 +15,38 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class CharterResponsesController extends AbstractController
 {
     public function __construct(
-        private readonly ClubCharterRepository $charters,
+        private readonly CharterAcceptanceRepository $acceptances,
+        private readonly CharterEngagementSettingsRepository $engagements,
     ) {
     }
 
     #[Route('/admin/charter/responses', name: 'admin_charter_responses')]
     public function index(): Response
     {
-        $charter = $this->charters->findCurrent();
-
-        $fields = [];
+        // Les engagements sont désormais partagés entre tous les charters
+        // (singleton). On liste TOUTES les acceptations, peu importe quel
+        // ClubCharter a été signé — les réponses répondent au même schéma.
+        $fields = $this->engagements->currentFields();
         $rows = [];
-        if ($charter !== null && $charter->hasForm()) {
-            $fields = $charter->getFields() ?? [];
-            foreach ($charter->getAcceptances() as $acc) {
+        if (count($fields) > 0) {
+            $all = $this->acceptances->createQueryBuilder('a')
+                ->leftJoin('a.user', 'u')->addSelect('u')
+                ->leftJoin('a.charter', 'c')->addSelect('c')
+                ->orderBy('a.acceptedAt', 'DESC')
+                ->getQuery()->getResult();
+            /** @var CharterAcceptance $acc */
+            foreach ($all as $acc) {
                 $rows[] = [
                     'user' => $acc->getUser(),
                     'acceptedAt' => $acc->getAcceptedAt(),
+                    'charterTitle' => $acc->getCharter()->getTitle(),
                     'answers' => $acc->getAnswers() ?? [],
                 ];
             }
-            // tri : acceptations les plus récentes en premier
-            usort($rows, fn ($a, $b) => $b['acceptedAt'] <=> $a['acceptedAt']);
         }
 
         return $this->render('admin/charter_responses.html.twig', [
-            'charter' => $charter,
+            'hasEngagements' => count($fields) > 0,
             'fields' => $fields,
             'rows' => $rows,
         ]);
@@ -49,28 +55,31 @@ class CharterResponsesController extends AbstractController
     #[Route('/admin/charter/responses.csv', name: 'admin_charter_responses_csv')]
     public function exportCsv(): StreamedResponse
     {
-        $charter = $this->charters->findCurrent();
+        $fields = $this->engagements->currentFields();
 
-        $response = new StreamedResponse(function () use ($charter): void {
+        $response = new StreamedResponse(function () use ($fields): void {
             $out = fopen('php://output', 'w');
-            // BOM UTF-8 pour Excel
             fwrite($out, "\xEF\xBB\xBF");
 
-            if ($charter === null || !$charter->hasForm()) {
-                fputcsv($out, ['Aucun formulaire d\'acceptation avec engagements.'], ';');
+            if (count($fields) === 0) {
+                fputcsv($out, ['Aucun engagement défini dans le formulaire d\'acceptation.'], ';');
                 fclose($out);
                 return;
             }
 
-            $fields = $charter->getFields() ?? [];
-            $header = ['N° licence', 'Nom', 'Prénom', 'E-mail', 'Acceptée le'];
+            $header = ['N° licence', 'Nom', 'Prénom', 'E-mail', 'Formulaire signé', 'Acceptée le'];
             foreach ($fields as $f) {
                 $header[] = $f['label'] ?? $f['id'] ?? '?';
             }
             fputcsv($out, $header, ';');
 
+            $all = $this->acceptances->createQueryBuilder('a')
+                ->leftJoin('a.user', 'u')->addSelect('u')
+                ->leftJoin('a.charter', 'c')->addSelect('c')
+                ->orderBy('a.acceptedAt', 'DESC')
+                ->getQuery()->getResult();
             /** @var CharterAcceptance $acc */
-            foreach ($charter->getAcceptances() as $acc) {
+            foreach ($all as $acc) {
                 $u = $acc->getUser();
                 $answers = $acc->getAnswers() ?? [];
                 $line = [
@@ -78,6 +87,7 @@ class CharterResponsesController extends AbstractController
                     $u->getNom(),
                     $u->getPrenom(),
                     $u->getEmail(),
+                    $acc->getCharter()->getTitle(),
                     $acc->getAcceptedAt()->format('Y-m-d H:i'),
                 ];
                 foreach ($fields as $f) {
@@ -95,17 +105,10 @@ class CharterResponsesController extends AbstractController
             fclose($out);
         });
 
-        $version = $charter?->getVersion() ?? 'export';
-        $filename = sprintf('charte-%s-reponses-%s.csv', $this->slug($version), date('Ymd-Hi'));
+        $filename = sprintf('charte-reponses-%s.csv', date('Ymd-Hi'));
 
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
         $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'"');
         return $response;
-    }
-
-    private function slug(string $s): string
-    {
-        $s = preg_replace('/[^a-z0-9]+/i', '-', $s) ?? '';
-        return trim(strtolower($s), '-') ?: 'export';
     }
 }

@@ -208,7 +208,11 @@ class ApiSerializer
     /**
      * @return array<string, mixed>
      */
-    public function charter(ClubCharter $c): array
+    /**
+     * @param list<array<string, mixed>> $fields Engagements courants (singleton),
+     *                                           déjà filtrés par audience côté appelant.
+     */
+    public function charter(ClubCharter $c, array $fields = []): array
     {
         return [
             'id' => $c->getId(),
@@ -216,8 +220,8 @@ class ApiSerializer
             'version' => $c->getVersion(),
             'content' => $c->getContent(),
             'publishedAt' => $c->getPublishedAt()->format(\DATE_ATOM),
-            'hasForm' => $c->hasForm(),
-            'fields' => $c->getFields() ?? [],
+            'hasForm' => count($fields) > 0,
+            'fields' => $fields,
         ];
     }
 
