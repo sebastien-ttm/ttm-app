@@ -13,7 +13,7 @@ import { accountTypeColor, accountTypeLabel, canSeeGouter, profileColor, profile
 const AVATAR_SIZE = 96;
 
 export default function ProfileScreen() {
-  const { user, signOut, refreshMe, linkedProfiles } = useAuth();
+  const { user, signOut, refreshMe } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [togglingNotif, setTogglingNotif] = useState(false);
@@ -39,10 +39,10 @@ export default function ProfileScreen() {
     : user.role === 'editeur' ? 'Éditeur (backend)'
     : null;
   const profiles = sortProfiles(user.profiles ?? []);
-  // Section « Ma famille » : visible dès qu'il y a AU MOINS un autre
-  // compte lié à celui-ci (email partagé, ou déjà famille). Sans lien
-  // il n'y a rien à déclarer — inutile d'afficher la carte.
-  const showChildrenManager = linkedProfiles.filter((p) => p.id !== user.id).length > 0;
+  // Section « Ma famille » : toujours visible pour un compte connecté.
+  // On peut soit sélectionner un enfant dans ses comptes liés (email
+  // partagé), soit ajouter un enfant par numéro de licence.
+  const showChildrenManager = true;
 
   async function pickAvatar() {
     if (uploading) return;

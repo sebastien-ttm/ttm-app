@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +32,10 @@ export default function ProfileFamilyScreen() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Ajout par licence (kid dont l'email diffère du mien — invisible dans linkedProfiles)
+  const [licence, setLicence] = useState('');
+  const [addingByLicence, setAddingByLicence] = useState(false);
+  const [licenceError, setLicenceError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -63,6 +68,25 @@ export default function ProfileFamilyScreen() {
     }
   }
 
+  async function addByLicence() {
+    const raw = licence.trim();
+    if (raw === '' || addingByLicence) return;
+    setLicenceError(null);
+    setAddingByLicence(true);
+    try {
+      await auth.addChild(raw);
+      setLicence('');
+      // Recharge la vue famille pour intégrer le nouvel enfant (assignable →
+      // children si le compte figurait déjà dans linkedProfiles, sinon
+      // directement dans children).
+      await load();
+    } catch (e) {
+      setLicenceError(e instanceof ApiError ? e.message : 'Erreur ajout enfant');
+    } finally {
+      setAddingByLicence(false);
+    }
+  }
+
   if (loading) return <FullScreenLoading />;
   if (error && !data) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
@@ -74,9 +98,10 @@ export default function ProfileFamilyScreen() {
       <Stack.Screen options={{ title: 'Ma famille' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.intro}>
-          Déclarez qui sont vos <Text style={styles.bold}>enfants</Text> parmi vos comptes liés.
-          Vous serez automatiquement identifié comme leur parent. Un compte enfant voit ses parents
-          mais ne peut pas modifier ce lien : seul le parent le gère.
+          Déclarez qui sont vos <Text style={styles.bold}>enfants</Text> : soit depuis les comptes
+          qui partagent votre email, soit en saisissant leur numéro de licence. Vous serez
+          automatiquement identifié comme leur parent. Un compte enfant voit ses parents mais ne
+          peut pas modifier ce lien.
         </Text>
 
         {error && <Text style={styles.flash}>{error}</Text>}
@@ -107,26 +132,50 @@ export default function ProfileFamilyScreen() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {noRelations ? '➕ Déclarer un enfant' : '➕ Autres comptes liés'}
-          </Text>
-          {data.assignable.length === 0 ? (
-            <Text style={styles.empty}>
-              {noRelations
-                ? 'Aucun compte lié à déclarer pour l\'instant.'
-                : 'Tous vos comptes liés sont déjà déclarés.'}
-            </Text>
-          ) : (
-            data.assignable.map((p) => (
+        {data.assignable.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>➕ Depuis vos comptes liés</Text>
+            {data.assignable.map((p) => (
               <AssignRow
                 key={'a-' + p.id}
                 person={p}
                 busy={busyId === p.id}
                 onPick={() => setLink(p.id, 'child')}
               />
-            ))
-          )}
+            ))}
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔢 Ajouter un enfant par n° de licence</Text>
+          <Text style={styles.readOnlyHint}>
+            Si l'enfant utilise un email différent du vôtre, saisissez son numéro de licence pour le lier.
+          </Text>
+          <View style={styles.licenceRow}>
+            <TextInput
+              value={licence}
+              onChangeText={setLicence}
+              placeholder="Ex : AB123456"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!addingByLicence}
+              style={styles.licenceInput}
+            />
+            <Pressable
+              onPress={addByLicence}
+              disabled={addingByLicence || licence.trim() === ''}
+              style={({ pressed }) => [
+                styles.smallBtn,
+                styles.btnPrimary,
+                (addingByLicence || licence.trim() === '' || pressed) && { opacity: 0.6 },
+              ]}
+            >
+              {addingByLicence
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.smallBtnLabel}>Ajouter</Text>}
+            </Pressable>
+          </View>
+          {licenceError && <Text style={styles.licenceError}>{licenceError}</Text>}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -251,4 +300,17 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: COLORS.primary },
   btnDanger: { backgroundColor: COLORS.error },
   readOnlyHint: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 4 },
+  licenceRow: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' },
+  licenceInput: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  licenceError: { color: COLORS.error, fontSize: 12, marginTop: 6 },
 });

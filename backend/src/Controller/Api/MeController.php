@@ -406,22 +406,15 @@ class MeController extends AbstractController
      *
      * Body : { "numLicence": "AB12345..." }
      *
-     * Réservé aux comptes qui s'identifient comme parents (profile Parent
-     * OU sub_type='parent'). Permet à un parent qui s'est inscrit sans
-     * tous ses enfants — ou dont l'email diffère de celui de l'adhérent
-     * — de compléter la liaison après coup.
+     * Ouvert à tout adhérent connecté — utile quand l'email de l'enfant
+     * diffère du sien (les comptes ne sont donc pas dans linkedProfiles).
+     * Le déclarant se voit auto-ajouter le profil Parent.
      */
     #[Route('/api/me/children', methods: ['POST'])]
     public function addChild(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
-        if (!self::canManageChildren($user)) {
-            return new JsonResponse(
-                ['error' => 'Cette action est réservée aux comptes parents.'],
-                Response::HTTP_FORBIDDEN,
-            );
-        }
 
         $payload = json_decode($request->getContent(), true);
         $raw = is_array($payload) ? trim((string) ($payload['numLicence'] ?? '')) : '';
@@ -450,6 +443,12 @@ class MeController extends AbstractController
         }
 
         $user->addChild($child);
+        // Le déclarant devient officiellement Parent s'il ne l'est pas.
+        $profiles = $user->getProfiles();
+        if (!in_array(Profile::Parent->value, $profiles, true)) {
+            $profiles[] = Profile::Parent->value;
+            $user->setProfiles(array_values($profiles));
+        }
         $this->em->flush();
 
         $origin = $this->resolveOriginUser($request, $user);
@@ -471,12 +470,6 @@ class MeController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        if (!self::canManageChildren($user)) {
-            return new JsonResponse(
-                ['error' => 'Cette action est réservée aux comptes parents.'],
-                Response::HTTP_FORBIDDEN,
-            );
-        }
 
         $child = null;
         foreach ($user->getChildren() as $c) {
