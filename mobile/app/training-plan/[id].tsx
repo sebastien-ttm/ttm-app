@@ -43,8 +43,14 @@ export default function TrainingPlanDetailScreen() {
   }, [id, router]);
 
   useEffect(() => {
+    // Reset l'état à chaque changement d'id — sinon Expo Router réutilise
+    // l'instance du composant et l'ancien plan reste affiché brièvement
+    // (avec titre « Plan d'entraînement » par défaut) le temps du fetch.
+    setPlan(null);
+    setError(null);
+    setLoading(true);
     void load();
-  }, [load]);
+  }, [id, load]);
 
   async function openPdf() {
     if (!plan) return;
