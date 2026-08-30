@@ -98,6 +98,10 @@
     }
 
     render() {
+      // Détruit d'abord les éditeurs TinyMCE — sinon on garde des refs
+      // sur des nodes DOM qui vont être purgés juste après.
+      this.destroyDescEditors();
+
       // Purge sauf les enfants « fixes » qu'on ajoute après (le toggle)
       Array.from(this.container.children).forEach((c) => {
         if (!c.classList.contains('cfb-toggle')) c.remove();
@@ -132,6 +136,11 @@
       list.className = 'cfb-list';
       this.state.fields.forEach((f, i) => list.appendChild(this.renderField(f, i)));
       this.container.insertBefore(list, this.container.querySelector('.cfb-toggle'));
+
+      // Mount TinyMCE sur les descriptions — après que les nodes sont dans
+      // le DOM (init synchrone marche, mais le setTimeout laisse le
+      // layout se stabiliser et évite les races si le script CDN charge).
+      setTimeout(() => this.initDescEditors(), 0);
     }
 
     newField() {
@@ -198,16 +207,19 @@
         { placeholder: 'Ex : Je m\'engage à respecter les horaires' },
       ));
 
-      // La description est stockée en HTML léger (rendue via RichContent
-      // côté mobile). Un bouton facilite l'insertion de liens sans avoir
-      // à connaître la syntaxe <a href="…">.
-      body.appendChild(this.rowTextareaWithLinkHelper(
+      // La description est stockée en HTML (rendue via RichContent côté
+      // mobile). Éditeur TinyMCE (déjà chargé par le layout admin) :
+      // liens, listes, gras/italique — pas besoin d'écrire du HTML brut.
+      // idx est passé pour construire un id unique et permettre la
+      // destruction propre de l'éditeur avant re-render.
+      body.appendChild(this.rowRichEditor(
         'Description / explication (optionnelle)',
         field.description || '',
         (v) => {
           if (v && v.trim() !== '') field.description = v;
           else delete field.description;
         },
+        idx,
         { placeholder: 'Expliquez à quoi l\'adhérent s\'engage exactement, pourquoi c\'est important…' },
       ));
 
@@ -325,9 +337,107 @@
     }
 
     /**
-     * Textarea + bouton « 🔗 Ajouter un lien » : demande texte + URL, insère
-     * l'HTML `<a href="URL" target="_blank" rel="noopener">TEXT</a>` à la
-     * position du curseur (ou remplace la sélection courante).
+     * Éditeur riche (TinyMCE) pour un champ HTML — toolbar minimale
+     * adaptée à un champ description : gras/italique, listes, liens.
+     * Le contenu est stocké dans un <textarea> caché, synchronisé à
+     * chaque modification.
+     */
+    rowRichEditor(label, value, onChange, fieldIdx, opts = {}) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cfb-row';
+
+      const lab = document.createElement('label');
+      lab.className = 'cfb-input-label';
+      lab.textContent = label;
+      wrap.appendChild(lab);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'form-control cfb-input cfb-desc-editor';
+      ta.id = 'cfb-desc-' + fieldIdx;
+      ta.value = value;
+      ta.rows = 4;
+      if (opts.placeholder) ta.placeholder = opts.placeholder;
+      // Sync back : TinyMCE appelle editor.save() sur 'change/keyup/undo/redo'
+      // qui pousse la valeur dans la textarea, on écoute son event 'input'
+      // pour propager au model. Cover aussi le cas où TinyMCE ne se monte
+      // pas (CDN offline) : le user écrit dans la textarea nue.
+      ta.addEventListener('input', () => {
+        onChange(ta.value);
+        this.state.sync();
+      });
+      wrap.appendChild(ta);
+      return wrap;
+    }
+
+    /**
+     * Monte TinyMCE sur toutes les textareas .cfb-desc-editor présentes
+     * dans le DOM. Appelé après chaque render(). Destruction préalable
+     * gérée par destroyDescEditors().
+     */
+    initDescEditors() {
+      if (typeof window.tinymce === 'undefined') {
+        // TinyMCE pas encore chargé (script CDN async) — retry court
+        setTimeout(() => this.initDescEditors(), 100);
+        return;
+      }
+      const self = this;
+      this.container.querySelectorAll('textarea.cfb-desc-editor').forEach((ta) => {
+        if (ta.dataset.tmceInit) return;
+        ta.dataset.tmceInit = '1';
+        window.tinymce.init({
+          selector: '#' + ta.id,
+          license_key: 'gpl',
+          language: 'fr_FR',
+          language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@latest/langs7/fr_FR.js',
+          height: 180,
+          menubar: false,
+          branding: false,
+          promotion: false,
+          statusbar: false,
+          resize: true,
+          plugins: 'lists link',
+          toolbar: 'undo redo | bold italic | bullist numlist | link | removeformat',
+          entity_encoding: 'raw',
+          content_style:
+            'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
+            'font-size: 14px; line-height: 1.5; padding: 6px 10px; margin: 0; } ' +
+            'body > p:first-child { margin-top: 0; }',
+          setup: function (editor) {
+            editor.on('change keyup undo redo blur', function () {
+              editor.save();
+              // Trigger input event pour que le listener ci-dessus reprenne la main
+              ta.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            // Sécurise la sync juste avant tout submit du form parent
+            editor.on('init', function () {
+              const form = editor.targetElm.form;
+              if (form && !form.dataset.tmceDescHook) {
+                form.dataset.tmceDescHook = '1';
+                form.addEventListener('submit', function () {
+                  window.tinymce.editors.forEach((e) => e.save());
+                }, true);
+              }
+            });
+          },
+        });
+      });
+    }
+
+    /**
+     * Détruit les éditeurs TinyMCE avant purge du DOM par render() —
+     * sinon fuites mémoire + erreurs sur nodes détachés.
+     */
+    destroyDescEditors() {
+      if (typeof window.tinymce === 'undefined') return;
+      this.container.querySelectorAll('textarea.cfb-desc-editor').forEach((ta) => {
+        const inst = window.tinymce.get(ta.id);
+        if (inst) inst.remove();
+      });
+    }
+
+    /**
+     * Ancienne version — remplacée par rowRichEditor. Conservée par sécurité
+     * si d'autres champs venaient à s'en servir.
      */
     rowTextareaWithLinkHelper(label, value, onChange, opts = {}) {
       const wrap = document.createElement('div');
