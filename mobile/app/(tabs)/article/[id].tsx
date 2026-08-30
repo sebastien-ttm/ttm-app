@@ -67,8 +67,15 @@ export default function ArticleScreen() {
   }, [id, router]);
 
   useEffect(() => {
+    // Reset l'état à chaque changement d'id pour éviter le flash de
+    // l'article précédent pendant le fetch (composant réutilisé entre
+    // navigations /article/1 → /article/2).
+    setArticle(null);
+    setComments([]);
+    setError(null);
+    setLoading(true);
     void load();
-  }, [load]);
+  }, [id, load]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>

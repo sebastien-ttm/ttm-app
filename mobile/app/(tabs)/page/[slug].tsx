@@ -48,8 +48,14 @@ export default function PageScreen() {
   }, [slug, router]);
 
   useEffect(() => {
+    // Réinitialise l'état à chaque changement de slug pour éviter le
+    // flash du contenu précédent pendant le fetch (navigation entre
+    // deux pages statiques dans le même composant réutilisé).
+    setPage(null);
+    setError(null);
+    setLoading(true);
     void load();
-  }, [load]);
+  }, [slug, load]);
 
   const text = page ? htmlToText(page.content).trim() : '';
   const hasContent = text.length > 0;
