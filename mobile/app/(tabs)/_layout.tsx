@@ -67,7 +67,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Vie du Club',
+          title: 'Actualités',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'newspaper' : 'newspaper-outline'} color={color} size={22} />
           ),
@@ -87,7 +87,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="practical"
         options={{
-          title: 'Informations',
+          title: 'Club',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'compass' : 'compass-outline'} color={color} size={22} />
           ),

@@ -13,7 +13,7 @@ import { accountTypeColor, accountTypeLabel, canSeeGouter, profileColor, profile
 const AVATAR_SIZE = 96;
 
 export default function ProfileScreen() {
-  const { user, signOut, refreshMe } = useAuth();
+  const { user, signOut, refreshMe, charterEverAccepted } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [togglingNotif, setTogglingNotif] = useState(false);
@@ -204,6 +204,23 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Récap engagements : ne s'affiche que si l'user a réellement signé
+          au moins un formulaire de bienvenue. Sinon, aucune section à
+          relire — le formulaire à SIGNER est géré séparément par AuthGate
+          via l'écran charter-acceptance. */}
+      {charterEverAccepted && (
+        <Pressable
+          onPress={() => router.push('/charter' as never)}
+          style={({ pressed }) => [styles.engagementRow, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.engagementIcon}>📜</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.engagementTitle}>Engagements et prises de connaissance</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </Pressable>
+      )}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Notifications par email</Text>
         <View style={styles.switchRow}>
@@ -261,6 +278,19 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  engagementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  engagementIcon: { fontSize: 22 },
+  engagementTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   avatarPressable: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,

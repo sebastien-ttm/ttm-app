@@ -1,7 +1,5 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { articles as articlesApi } from '@/api/resources';
@@ -11,13 +9,12 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
-import { COLORS, RADIUS, SPACING } from '@/config';
+import { COLORS } from '@/config';
 
 const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
-  const router = useRouter();
-  const { user, charterEverAccepted } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -87,24 +84,6 @@ export default function FeedScreen() {
           <View>
             <BannerImage />
             <UpcomingEvents />
-            {/* Carte « à relire » : n'a de sens que si l'user a réellement
-                signé au moins un formulaire. Sinon (compte importé par
-                erreur ou pas encore accepté) on la masque — le formulaire
-                à signer, lui, est proposé via l'écran dédié
-                acceptanceRequired géré par AuthGate. */}
-            {charterEverAccepted && (
-              <Pressable
-                onPress={() => router.push('/charter' as never)}
-                style={({ pressed }) => [styles.charterLink, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.charterIcon}>📜</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.charterTitle}>Engagements — à relire à tout moment</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-              </Pressable>
-            )}
-            {items.length > 0 && <Text style={styles.sectionTitle}>📰 Actus</Text>}
           </View>
         }
         contentContainerStyle={styles.content}
@@ -137,29 +116,4 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   footer: { paddingVertical: 16, alignItems: 'center' },
   endLabel: { textAlign: 'center', color: COLORS.textMuted, paddingVertical: 20, fontSize: 13 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  charterLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  charterIcon: { fontSize: 24 },
-  charterTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  charterSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });
