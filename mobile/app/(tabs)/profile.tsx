@@ -219,8 +219,10 @@ export default function ProfileScreen() {
             <Switch
               value={user.notifyTrainingPlanEmail}
               onValueChange={toggleTrainingPlanEmail}
-              trackColor={{ false: '#d4d4d8', true: COLORS.primary }}
+              trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
+              ios_backgroundColor="#d4d4d8"
+              activeThumbColor="#fff"
             />
           )}
         </View>
