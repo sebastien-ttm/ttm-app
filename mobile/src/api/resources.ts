@@ -6,6 +6,7 @@ import type {
   CharterStatus,
   Comment,
   CommitteeResponse,
+  StaffResponse,
   EventItem,
   GouterPlanning,
   MenuItem,
@@ -142,4 +143,8 @@ export const charter = {
 
 export const committee = {
   get: () => api.get<CommitteeResponse>('/api/committee'),
+};
+
+export const staff = {
+  get: () => api.get<StaffResponse>('/api/staff'),
 };

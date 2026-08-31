@@ -86,8 +86,21 @@ export default function PracticalScreen() {
               <Ionicons name="people" size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.committeeTitle}>Comité Directeur & Entraîneurs</Text>
-              <Text style={styles.committeeSub}>Bureau, membres du CoDir, staff sportif</Text>
+              <Text style={styles.committeeTitle}>Comité Directeur</Text>
+              <Text style={styles.committeeSub}>Bureau et membres du CoDir</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/staff' as never)}
+            style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.committeeIcon}>
+              <Ionicons name="fitness" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.committeeTitle}>Entraîneurs & Encadrants</Text>
+              <Text style={styles.committeeSub}>Le staff sportif du club</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>

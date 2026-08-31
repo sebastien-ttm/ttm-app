@@ -288,7 +288,11 @@ export type CommitteeMember = {
 export type CommitteeResponse = {
   bureau: CommitteeMember[];
   codir: CommitteeMember[];
+};
+
+export type StaffResponse = {
   coaches: CommitteeMember[];
+  encadrants: CommitteeMember[];
 };
 
 export const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '👏'] as const;

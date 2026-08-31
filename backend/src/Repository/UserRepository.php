@@ -307,10 +307,28 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      */
     public function findCoaches(): array
     {
+        return $this->findByProfile(Profile::Entraineur);
+    }
+
+    /**
+     * Users actifs avec le profil Encadrant.
+     *
+     * @return list<User>
+     */
+    public function findEncadrants(): array
+    {
+        return $this->findByProfile(Profile::Encadrant);
+    }
+
+    /**
+     * @return list<User>
+     */
+    private function findByProfile(Profile $profile): array
+    {
         return $this->createQueryBuilder('u')
             ->where('u.isActive = 1')
             ->andWhere('u.profiles LIKE :p')
-            ->setParameter('p', '%"'.Profile::Entraineur->value.'"%')
+            ->setParameter('p', '%"'.$profile->value.'"%')
             ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
             ->getQuery()->getResult();
     }

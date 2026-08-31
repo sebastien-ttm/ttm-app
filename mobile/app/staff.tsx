@@ -5,19 +5,19 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
-import { committee as api } from '@/api/resources';
-import type { CommitteeMember, CommitteeResponse } from '@/api/types';
+import { staff as api } from '@/api/resources';
+import type { CommitteeMember, StaffResponse } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 
 /**
- * Trombinoscope Comité : Bureau + membres du CoDir + Entraîneurs.
- * Trois sections indépendantes — un entraîneur peut aussi être
- * trésorier, il apparaîtra dans les deux sections (voulu, chaque
- * section « raconte » un aspect différent du club).
+ * Trombinoscope Staff sportif : Entraîneurs + Encadrants. Structure
+ * identique à /committee (mêmes cartes, mêmes styles) mais deux
+ * sections uniquement. Un adhérent avec les deux profils apparait
+ * dans les deux (chaque section « raconte » un rôle distinct).
  */
-export default function CommitteeScreen() {
-  const [data, setData] = useState<CommitteeResponse | null>(null);
+export default function StaffScreen() {
+  const [data, setData] = useState<StaffResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function CommitteeScreen() {
     <View style={styles.root}>
       <Stack.Screen
         options={{
-          title: 'Comité Directeur',
+          title: 'Staff sportif',
           headerStyle: { backgroundColor: COLORS.brandNavy },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700', color: '#fff' },
@@ -60,28 +60,28 @@ export default function CommitteeScreen() {
           <FullScreenLoading />
         ) : error ? (
           <ErrorState message={error} onRetry={load} />
-        ) : data && (data.bureau.length + data.codir.length) === 0 ? (
+        ) : data && (data.coaches.length + data.encadrants.length) === 0 ? (
           <EmptyState
-            icon="👥"
-            title="Comité Directeur à venir"
-            message="Aucun rôle CoDir n'est actuellement renseigné."
+            icon="🧑‍🏫"
+            title="Staff à venir"
+            message="Aucun entraîneur ni encadrant n'est actuellement renseigné."
           />
         ) : (
           <ScrollView
             contentContainerStyle={styles.content}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
           >
-            {data && data.bureau.length > 0 && (
-              <Section title="🏛️ Bureau">
-                {data.bureau.map((m) => (
-                  <MemberCard key={m.id} member={m} showRole />
+            {data && data.coaches.length > 0 && (
+              <Section title="🧑‍🏫 Entraîneurs">
+                {data.coaches.map((m) => (
+                  <MemberCard key={`c-${m.id}`} member={m} />
                 ))}
               </Section>
             )}
-            {data && data.codir.length > 0 && (
-              <Section title="🗂️ Comité Directeur">
-                {data.codir.map((m) => (
-                  <MemberCard key={m.id} member={m} showRole />
+            {data && data.encadrants.length > 0 && (
+              <Section title="🤝 Encadrants">
+                {data.encadrants.map((m) => (
+                  <MemberCard key={`e-${m.id}`} member={m} />
                 ))}
               </Section>
             )}
@@ -101,7 +101,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function MemberCard({ member, showRole }: { member: CommitteeMember; showRole?: boolean }) {
+function MemberCard({ member }: { member: CommitteeMember }) {
   const initials = (member.prenom?.[0] ?? '?') + (member.nom?.[0] ?? '');
   return (
     <View style={styles.card}>
@@ -115,9 +115,6 @@ function MemberCard({ member, showRole }: { member: CommitteeMember; showRole?: 
       <Text style={styles.name} numberOfLines={2}>
         {member.fullName}
       </Text>
-      {showRole && member.boardRoleLabel ? (
-        <Text style={styles.role}>{member.boardRoleLabel}</Text>
-      ) : null}
       {member.clubFunction ? (
         <Text style={styles.func} numberOfLines={3}>
           {member.clubFunction}
@@ -171,13 +168,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.text,
-    textAlign: 'center',
-  },
-  role: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.brandNavy,
-    marginTop: 4,
     textAlign: 'center',
   },
   func: {

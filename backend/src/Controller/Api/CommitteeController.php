@@ -13,16 +13,17 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Trombinoscope Comité — page publique pour tous les adhérents.
- * Regroupe :
- *  - bureau  : Président + Trésorier + Secrétaire
- *  - codir   : Membres du CoDir (hors bureau)
- *  - coaches : Entraîneurs (profil Entraineur)
+ * Trombinoscopes publics (adhérents connectés) :
  *
- * L'union bureau ∪ codir ∪ coaches peut contenir des doublons (un
- * entraîneur peut aussi être trésorier) — c'est l'affichage côté
- * client qui décide de la présentation (chaque section a sa propre
- * liste ; le client peut dédupliquer s'il veut).
+ *  - /api/committee : { bureau, codir }
+ *    Gouvernance : Bureau (Président + Trésorier + Secrétaire) +
+ *    Membres du CoDir (hors bureau).
+ *
+ *  - /api/staff : { coaches, encadrants }
+ *    Vue « staff sportif » — Entraîneurs + Encadrants, populations
+ *    éventuellement recouvertes (un entraîneur peut aussi encadrer
+ *    un créneau) : chacun apparait dans la section où son profil le
+ *    range.
  */
 #[IsGranted('ROLE_USER')]
 class CommitteeController extends AbstractController
@@ -38,7 +39,6 @@ class CommitteeController extends AbstractController
     public function index(): JsonResponse
     {
         $committee = $this->users->findCommitteeMembers();
-        $coaches = $this->users->findCoaches();
 
         // Trie du CoDir par ordre canonique du rôle (Président en tête).
         usort($committee, static function (User $a, User $b): int {
@@ -58,15 +58,23 @@ class CommitteeController extends AbstractController
             }
         }
 
-        $coachesOut = array_map(
-            fn (User $u) => $this->serializer->committeeMember($u, $this->avatars->urlFor($u)),
-            $coaches,
-        );
-
         return new JsonResponse([
             'bureau' => $bureau,
             'codir' => $codir,
-            'coaches' => $coachesOut,
+        ]);
+    }
+
+    #[Route('/api/staff', methods: ['GET'])]
+    public function staff(): JsonResponse
+    {
+        $coaches = $this->users->findCoaches();
+        $encadrants = $this->users->findEncadrants();
+
+        $map = fn (User $u) => $this->serializer->committeeMember($u, $this->avatars->urlFor($u));
+
+        return new JsonResponse([
+            'coaches' => array_map($map, $coaches),
+            'encadrants' => array_map($map, $encadrants),
         ]);
     }
 }
