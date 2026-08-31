@@ -78,6 +78,19 @@ export default function PracticalScreen() {
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </Pressable>
           )}
+          <Pressable
+            onPress={() => router.push('/committee' as never)}
+            style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.committeeIcon}>
+              <Ionicons name="people" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.committeeTitle}>Comité Directeur & Entraîneurs</Text>
+              <Text style={styles.committeeSub}>Bureau, membres du CoDir, staff sportif</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
           {tree.length > 0 && <Text style={styles.sectionTitle}>📚 Informations</Text>}
         </View>
       }
@@ -166,6 +179,28 @@ const styles = StyleSheet.create({
   },
   poolTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   poolSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  committeeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.brandNavy,
+  },
+  committeeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: COLORS.brandNavy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  committeeTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  committeeSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',

@@ -284,4 +284,34 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->persist($user);
         $this->getEntityManager()->flush();
     }
+
+    /**
+     * Users actifs ayant un rôle CoDir (Bureau + Membres CoDir).
+     *
+     * @return list<User>
+     */
+    public function findCommitteeMembers(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.boardRole IS NOT NULL')
+            ->andWhere('u.isActive = 1')
+            ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()->getResult();
+    }
+
+    /**
+     * Users actifs avec le profil Entraîneur. On matche via LIKE sur le
+     * JSON stocké — même approche que le reste du repo pour les profils.
+     *
+     * @return list<User>
+     */
+    public function findCoaches(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.isActive = 1')
+            ->andWhere('u.profiles LIKE :p')
+            ->setParameter('p', '%"'.Profile::Entraineur->value.'"%')
+            ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()->getResult();
+    }
 }

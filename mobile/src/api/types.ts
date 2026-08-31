@@ -270,6 +270,27 @@ export type CharterStatus = {
 
 export type CharterAnswers = Record<string, string | number | boolean | null>;
 
+/** Rôle CoDir d'un adhérent (source enum backend BoardRole). */
+export type BoardRole = 'president' | 'tresorier' | 'secretaire' | 'membre_codir';
+
+/** Membre affiché sur la page trombinoscope Comité. */
+export type CommitteeMember = {
+  id: number;
+  fullName: string;
+  prenom: string | null;
+  nom: string | null;
+  avatarUrl: string | null;
+  boardRole: BoardRole | null;
+  boardRoleLabel: string | null;
+  clubFunction: string | null;
+};
+
+export type CommitteeResponse = {
+  bureau: CommitteeMember[];
+  codir: CommitteeMember[];
+  coaches: CommitteeMember[];
+};
+
 export const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '👏'] as const;
 export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
 

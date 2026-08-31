@@ -152,6 +152,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $avatarFilename = null;
 
+    /**
+     * Rôle CoDir (Président / Trésorier / Secrétaire / Membre CoDir) ou
+     * NULL pour les adhérents non élus. Utilisé par la page trombinoscope
+     * Comité Directeur pour composer Bureau + reste du CoDir.
+     */
+    #[ORM\Column(length: 32, nullable: true, enumType: \App\Enum\BoardRole::class)]
+    private ?\App\Enum\BoardRole $boardRole = null;
+
+    /**
+     * Fonction libre au sein du club (ex : « Référent triathlon jeunes »,
+     * « Coach natation »). Attendue non vide pour les Entraîneurs et les
+     * membres du CoDir, vide pour les autres adhérents.
+     */
+    #[ORM\Column(length: 120, nullable: true)]
+    private ?string $clubFunction = null;
+
     /** Date de la dernière connexion réussie (mobile JWT ou admin form). */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
@@ -657,6 +673,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getAvatarFilename(): ?string { return $this->avatarFilename; }
     public function setAvatarFilename(?string $f): self { $this->avatarFilename = $f; return $this; }
     public function hasAvatar(): bool { return $this->avatarFilename !== null; }
+
+    public function getBoardRole(): ?\App\Enum\BoardRole { return $this->boardRole; }
+    public function setBoardRole(?\App\Enum\BoardRole $role): self { $this->boardRole = $role; return $this; }
+    public function getClubFunction(): ?string { return $this->clubFunction; }
+    public function setClubFunction(?string $f): self
+    {
+        $trimmed = $f !== null ? trim($f) : null;
+        $this->clubFunction = ($trimmed === '' ? null : $trimmed);
+        return $this;
+    }
 
     public function getLastLoginAt(): ?\DateTimeImmutable { return $this->lastLoginAt; }
     public function getLoginCount(): int { return $this->loginCount; }

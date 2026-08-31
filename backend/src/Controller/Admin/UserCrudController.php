@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\TrainingSeason;
 use App\Entity\User;
+use App\Enum\BoardRole;
 use App\Enum\Profile;
 use App\Enum\UserType;
 use App\Repository\TrainingSeasonRepository;
@@ -135,6 +136,21 @@ class UserCrudController extends AbstractCrudController
                 .'Parent, Entraîneur, Encadrant sont cochés à la main. '
                 .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
             );
+
+        yield ChoiceField::new('boardRole', 'Rôle CoDir')
+            ->setChoices(BoardRole::choices())
+            ->setRequired(false)
+            ->renderAsBadges([
+                BoardRole::President->value => 'danger',
+                BoardRole::Tresorier->value => 'warning',
+                BoardRole::Secretaire->value => 'info',
+                BoardRole::MembreCoDir->value => 'secondary',
+            ])
+            ->setHelp('Renseigné uniquement pour les élus du CoDir. Les 3 rôles Président / Trésorier / Secrétaire composent le Bureau, affiché en tête de la page trombinoscope Comité.');
+
+        yield TextField::new('clubFunction', 'Fonction au club')
+            ->setRequired(false)
+            ->setHelp('Ex : « Référent triathlon jeunes », « Coach natation », « Gestion des inscriptions ». Attendue non vide pour les Entraîneurs et les membres du CoDir. Vide pour les autres adhérents.');
 
         yield ChoiceField::new('role', 'Rôle backend')
             ->setChoices([

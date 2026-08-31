@@ -37,6 +37,26 @@ class ApiSerializer
     }
 
     /**
+     * Trombinoscope Comité : subset user avec les infos publiques utiles
+     * (nom, avatar, rôle CoDir, fonction au club).
+     *
+     * @return array<string, mixed>
+     */
+    public function committeeMember(User $u, ?string $avatarUrl): array
+    {
+        return [
+            'id' => $u->getId(),
+            'fullName' => $u->getFullName(),
+            'prenom' => $u->getPrenom(),
+            'nom' => $u->getNom(),
+            'avatarUrl' => $avatarUrl,
+            'boardRole' => $u->getBoardRole()?->value,
+            'boardRoleLabel' => $u->getBoardRole()?->label(),
+            'clubFunction' => $u->getClubFunction(),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function article(Article $a, ?User $viewer = null): array
