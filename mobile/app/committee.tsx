@@ -148,9 +148,12 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   card: {
+    // ~2 cartes par ligne avec un gap ; flexGrow:0 empêche une carte
+    // seule sur la dernière ligne de s'étaler jusqu'au maxWidth
+    // (elle gardait sinon ~220px vs ~168 des cartes appairées).
     minWidth: CARD_MIN_WIDTH,
-    flexGrow: 1,
-    flexBasis: CARD_MIN_WIDTH,
+    flexGrow: 0,
+    flexBasis: '48%',
     maxWidth: 220,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
