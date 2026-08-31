@@ -29,6 +29,19 @@ class CharterAcceptanceRepository extends ServiceEntityRepository
     }
 
     /**
+     * Nombre total d'acceptations passées d'un user (toutes chartes
+     * confondues). Sert à qualifier un parent externe comme
+     * « renouvellement » quand il n'a pas d'adhésion propre à compter.
+     */
+    public function countForUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.user = :u')->setParameter('u', $user)
+            ->getQuery()->getSingleScalarResult();
+    }
+
+    /**
      * @return list<int>  user IDs who have NOT accepted the given charter
      */
     public function findMissingAcceptances(ClubCharter $charter): array

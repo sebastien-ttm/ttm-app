@@ -36,20 +36,55 @@ class CharterController extends AbstractController
     }
 
     /**
-     * L'user est-il adhérent pour la saison courante ? Base pour décider
-     * si le formulaire d'acceptation doit lui être présenté.
+     * L'user doit-il se voir proposer le formulaire d'acceptation pour
+     * la saison courante ? Vrai si :
+     *  - il est lui-même adhérent (UserSeasonMembership pour la saison), OU
+     *  - c'est un parent externe (pas d'adhésion propre) rattaché à au
+     *    moins un enfant actif ADHÉRENT pour la saison courante.
      *
      * Si aucune saison courante n'est définie (config incomplète) : on
      * retombe sur `true` — mieux vaut afficher le formulaire à tout le
      * monde que de bloquer la feature entière.
      */
-    private function isAdherentForCurrentSeason(User $user): bool
+    private function requiresCharterForCurrentSeason(User $user): bool
     {
         $currentSeason = $this->seasons->findCurrent();
         if ($currentSeason === null) {
             return true;
         }
-        return $this->memberships->findOneByUserAndSeason($user, $currentSeason) !== null;
+        if ($this->memberships->findOneByUserAndSeason($user, $currentSeason) !== null) {
+            return true;
+        }
+        // Parent externe : au moins un enfant actif avec adhésion en cours
+        // sur la saison courante. Suffit pour déclencher l'acceptation, dès
+        // qu'un lien parent-enfant existe (créé au CSV import ou par
+        // l'ajout enfant côté mobile).
+        foreach ($user->getChildren() as $child) {
+            if (!$child->isActive()) {
+                continue;
+            }
+            if ($this->memberships->findOneByUserAndSeason($child, $currentSeason) !== null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Nouveau ou renouvellement ? Pour un adhérent, basé sur son
+     * historique d'adhésions (>1 = renouvellement). Pour un parent
+     * externe (0 adhésion propre), on se rabat sur son historique
+     * d'acceptations de charte — présente = déjà venu = renouvellement.
+     */
+    private function determineKind(User $user): AdherentKind
+    {
+        if ($this->memberships->countForUser($user) > 1) {
+            return AdherentKind::Renewal;
+        }
+        if ($this->acceptances->countForUser($user) > 0) {
+            return AdherentKind::Renewal;
+        }
+        return AdherentKind::New;
     }
 
     /**
@@ -61,12 +96,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        // Détermine le kind selon l'historique d'adhésions :
-        // >1 adhésion = renouvellement, sinon nouveau. Le repo fait un
-        // fallback sur `all` s'il n'y a pas de formulaire dédié.
-        $kind = $this->memberships->countForUser($user) > 1
-            ? AdherentKind::Renewal
-            : AdherentKind::New;
+        $kind = $this->determineKind($user);
         $charter = $this->charters->findCurrent($user, $kind);
 
         if ($charter === null) {
@@ -84,11 +114,10 @@ class CharterController extends AbstractController
         $isPreview = $charter->getPreviewUser()?->getId() === $user->getId();
         $hasAccepted = $this->acceptances->hasAccepted($user, $charter);
 
-        // Filtre saison : n'imposer le formulaire qu'aux adhérents de la
-        // saison courante (via UserSeasonMembership). Un user détaché
-        // manuellement d'une saison (correction d'import, etc.) n'est
-        // plus bloqué par l'écran d'acceptation.
-        $isCurrentAdherent = $this->isAdherentForCurrentSeason($user);
+        // Filtre saison : n'imposer le formulaire qu'aux personnes
+        // concernées par la saison courante — adhérents directs ET
+        // parents externes d'un enfant adhérent.
+        $isCurrentAdherent = $this->requiresCharterForCurrentSeason($user);
 
         // Engagements : singleton partagé entre tous les kinds, filtrés
         // par audience selon les profils de l'user (Parent/Jeune vs
@@ -112,9 +141,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $kind = $this->memberships->countForUser($user) > 1
-            ? AdherentKind::Renewal
-            : AdherentKind::New;
+        $kind = $this->determineKind($user);
         $charter = $this->charters->findCurrent($user, $kind);
 
         if ($charter === null) {
