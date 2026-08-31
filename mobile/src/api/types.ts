@@ -237,6 +237,8 @@ export type CharterFieldAudience = 'all' | 'parent_jeune' | 'senior' | 'other';
 
 export type CharterField = {
   id: string;
+  /** Titre optionnel affiché en tête de l'engagement (acceptation + récap). */
+  title?: string;
   label: string;
   type: CharterFieldType;
   required?: boolean;

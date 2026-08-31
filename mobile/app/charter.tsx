@@ -49,7 +49,7 @@ export default function CharterReadScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
+        <Stack.Screen options={{ title: 'Engagements' }} />
         <FullScreenLoading />
       </SafeAreaView>
     );
@@ -57,7 +57,7 @@ export default function CharterReadScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
+        <Stack.Screen options={{ title: 'Engagements' }} />
         <ErrorState message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -65,10 +65,10 @@ export default function CharterReadScreen() {
   if (!charter) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
+        <Stack.Screen options={{ title: 'Engagements' }} />
         <EmptyState
           icon="📜"
-          title="Pas de formulaire publié"
+          title="Pas d'engagements publiés"
           message="Aucun formulaire d'acceptation n'est disponible pour le moment. Revenez plus tard."
         />
       </SafeAreaView>
@@ -82,25 +82,25 @@ export default function CharterReadScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Formulaires d\'acceptation' }} />
+      <Stack.Screen options={{ title: 'Engagements' }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{charter.title}</Text>
+        <Text style={styles.title}>Mes engagements</Text>
         <Text style={styles.meta}>
           Saison {charter.version} · publiée le {formatDate(charter.publishedAt)}
         </Text>
 
-        {charter.content ? (
+        {/* Le récap se limite désormais aux engagements — le corps
+            textuel de la charte n'est affiché qu'au moment de
+            l'acceptation initiale. */}
+        {commitmentFields.length > 0 ? (
           <View style={styles.section}>
-            <RichContent html={charter.content} style={styles.body} />
-          </View>
-        ) : null}
-
-        {commitmentFields.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Engagements</Text>
             {commitmentFields.map((f) => (
               <CommitmentCard key={f.id} field={f} />
             ))}
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.body}>Aucun engagement défini pour votre profil.</Text>
           </View>
         )}
       </ScrollView>
@@ -111,6 +111,7 @@ export default function CharterReadScreen() {
 function CommitmentCard({ field }: { field: CharterField }) {
   return (
     <View style={styles.commitCard}>
+      {field.title ? <Text style={styles.commitTitle}>{field.title}</Text> : null}
       {/* description peut contenir des liens (HTML) — rendu via RichContent */}
       {field.description ? <RichContent html={field.description} style={styles.commitDescription} /> : null}
       <View style={styles.commitAcceptRow}>
@@ -141,6 +142,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     gap: SPACING.sm,
   },
+  commitTitle: { fontSize: 15, fontWeight: '700', color: COLORS.brandNavy, marginBottom: 4 },
   commitDescription: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
   commitAcceptRow: {
     flexDirection: 'row',

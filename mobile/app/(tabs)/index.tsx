@@ -99,8 +99,7 @@ export default function FeedScreen() {
               >
                 <Text style={styles.charterIcon}>📜</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.charterTitle}>Formulaires d'acceptation</Text>
-                  <Text style={styles.charterSub}>Nos engagements — à relire à tout moment</Text>
+                  <Text style={styles.charterTitle}>Engagements — à relire à tout moment</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
               </Pressable>

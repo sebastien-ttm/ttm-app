@@ -78,6 +78,7 @@ function FieldRow({
     // rendu via RichContent qui gère <a>, <p>, <br>, etc.
     return (
       <View style={styles.commitCard}>
+        {field.title ? <Text style={styles.commitTitle}>{field.title}</Text> : null}
         <RichContent html={field.description} style={styles.commitDescription} />
         <Pressable
           onPress={() => onChange(!checked)}
@@ -307,6 +308,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     gap: SPACING.sm,
   },
+  commitTitle: { fontSize: 15, fontWeight: '700', color: COLORS.brandNavy, marginBottom: 2 },
   commitDescription: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
   commitAcceptRow: {
     flexDirection: 'row',

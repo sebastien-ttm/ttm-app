@@ -151,6 +151,7 @@
       while (existing.has('engagement_' + n)) n++;
       return {
         id: 'engagement_' + n,
+        title: '',
         label: 'J\'accepte…',
         type: 'checkbox',
         description: '',
@@ -199,6 +200,20 @@
       field.required = true;
       delete field.help;
       delete field.options;
+
+      body.appendChild(this.rowInput(
+        'Titre (optionnel)',
+        field.title || '',
+        (v) => {
+          const t = (v || '').trim();
+          if (t === '') delete field.title;
+          else field.title = t;
+        },
+        {
+          placeholder: 'Ex : Horaires · Matériel · Sécurité',
+          help: 'Affiché en tête de l\'engagement (formulaire d\'acceptation + récap).',
+        },
+      ));
 
       body.appendChild(this.rowInput(
         'Phrase d\'acceptation *',

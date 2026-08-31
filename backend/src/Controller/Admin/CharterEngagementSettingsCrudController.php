@@ -26,6 +26,7 @@ class CharterEngagementSettingsCrudController extends AbstractCrudController
 [
   {
     "id": "engagement_horaires",
+    "title": "Horaires",
     "label": "Je m'engage à respecter les horaires d'entraînement",
     "type": "checkbox",
     "required": true,
@@ -33,6 +34,7 @@ class CharterEngagementSettingsCrudController extends AbstractCrudController
   },
   {
     "id": "engagement_materiel",
+    "title": "Matériel",
     "label": "Je m'engage à respecter le matériel du club",
     "type": "checkbox",
     "required": true,
