@@ -59,6 +59,7 @@ function TrainingScreenInner() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setData(null); // évite l'affichage furtif des créneaux du profil précédent au switch
     (async () => {
       await load(toIsoDate(weekStart));
       if (!cancelled) setLoading(false);
@@ -66,7 +67,11 @@ function TrainingScreenInner() {
     return () => {
       cancelled = true;
     };
-  }, [weekStart, load]);
+    // user?.id dans les deps : quand l'user switche vers un compte lié, la
+    // liste d'entraînements dépend du profil (jeune vs sénior) — sans
+    // cette dep le state resterait sur les données du profil précédent
+    // jusqu'à un pull-to-refresh manuel.
+  }, [weekStart, load, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

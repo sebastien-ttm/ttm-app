@@ -38,12 +38,15 @@ export default function PracticalScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setTree([]);
     (async () => {
       await load();
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [load]);
+    // user?.id : l'arbre des pages statiques est filtré par audience côté API.
+  }, [load, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

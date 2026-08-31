@@ -6,6 +6,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { ApiError } from '@/api/client';
 import { articles as articlesApi } from '@/api/resources';
 import type { Article } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
@@ -16,6 +17,7 @@ const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [items, setItems] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,9 +46,12 @@ export default function FeedScreen() {
     }
   }, []);
 
-  // Chargement initial
+  // Chargement initial (+ rechargement au switch de compte lié — l'audience
+  // des articles dépend du profil).
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setItems([]);
     (async () => {
       await fetchPage(1, 'replace');
       if (!cancelled) setLoading(false);
@@ -54,7 +59,7 @@ export default function FeedScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fetchPage]);
+  }, [fetchPage, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
