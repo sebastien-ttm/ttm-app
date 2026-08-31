@@ -6,13 +6,53 @@
 {% set crud = 'App\\Controller\\Admin\\StaticPageCrudController' %}
 {% set newUrl = ea_url().setController(crud).setAction('new').generateUrl() %}
 
+{#
+    Macro récursive : rend un noeud page + sa liste de sous-pages, à
+    n'importe quelle profondeur. La liste des sous-pages
+    (.sortable-children) est TOUJOURS présente — vide si le noeud n'a
+    pas d'enfants — pour rester une cible valide de drop même sur les
+    pages « feuilles ».
+#}
+{% macro renderPage(page, childrenByParent, crud, depth) %}
+    {% set editUrl = ea_url().setController(crud).setAction('edit').setEntityId(page.id).generateUrl() %}
+    {% set deleteUrl = ea_url().setController(crud).setAction('delete').setEntityId(page.id).generateUrl() %}
+    {% set titleSize = depth == 0 ? 15 : (depth == 1 ? 14 : 13) %}
+    {% set rowPadding = depth == 0 ? '10px 12px' : '8px 10px' %}
+    {% set bg = depth == 0 ? '#fafbfc' : '#fff' %}
+    <li class="page-node" data-id="{{ page.id }}"
+        style="border:1px solid #e2e8f0; border-radius:6px; margin-bottom:{{ depth == 0 ? 10 : 6 }}px; background:{{ bg }};">
+        <div class="page-row" style="display:flex; align-items:center; gap:10px; padding:{{ rowPadding }};">
+            <span class="cfb-grip" style="color:#94a3b8; font-size:{{ depth == 0 ? 16 : 14 }}px; cursor:move; padding:0 4px;">⋮⋮</span>
+            {% if depth == 0 %}
+                <strong style="flex:1; color:#0f172a; font-size:{{ titleSize }}px;">{{ page.title }}</strong>
+            {% else %}
+                <span style="flex:1; color:#334155; font-size:{{ titleSize }}px;">{{ page.title }}</span>
+            {% endif %}
+            <code style="font-size:{{ depth == 0 ? 12 : 11 }}px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:3px;">/{{ page.slug }}</code>
+            {% if not page.isPublished %}
+                <span style="font-size:{{ depth == 0 ? 11 : 10 }}px; background:#fef3c7; color:#92400e; padding:2px {{ depth == 0 ? 6 : 5 }}px; border-radius:3px;">Brouillon</span>
+            {% endif %}
+            <a href="{{ editUrl }}" class="btn btn-sm btn-secondary" title="Éditer" style="padding:2px 8px;">✏️</a>
+            <form method="post" action="{{ deleteUrl }}" style="display:inline; margin:0;"
+                  onsubmit="return confirm('Supprimer la page « {{ page.title }} » ?{% if childrenByParent[page.id] is defined and childrenByParent[page.id]|length > 0 %} Ses sous-pages seront détachées.{% endif %}');">
+                <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" style="padding:2px 8px;">🗑</button>
+            </form>
+        </div>
+        <ul class="sortable-children" data-parent-id="{{ page.id }}"
+            style="list-style:none; padding:6px 10px 10px 30px; margin:0; min-height:20px; border-top:1px dashed #e2e8f0;">
+            {% for child in childrenByParent[page.id] ?? [] %}
+                {{ _self.renderPage(child, childrenByParent, crud, depth + 1) }}
+            {% endfor %}
+        </ul>
+    </li>
+{% endmacro %}
+
 {% block main %}
     <div style="margin-bottom:20px; padding:14px 16px; background:#eff6ff; border-left:4px solid #1d4ed8; border-radius:6px; font-size:14px; color:#1e3a8a;">
         💡 <strong>Glissez-déposez les pages</strong> pour les réordonner (poignée <code>⋮⋮</code>).
-        Vous pouvez aussi déplacer une sous-page vers un autre parent. Cliquez ensuite sur
-        <strong>Enregistrer l'ordre</strong>. Les boutons <strong>✏️ / 🗑</strong> sur chaque
-        ligne éditent ou suppriment la page — l'ordre n'est plus dans le formulaire, c'est
-        cette vue qui le gère.
+        Vous pouvez déplacer une sous-page vers un autre parent, à n'importe quelle profondeur.
+        Cliquez ensuite sur <strong>Enregistrer l'ordre</strong>. Les boutons <strong>✏️ / 🗑</strong>
+        sur chaque ligne éditent ou suppriment la page.
     </div>
 
     <div style="margin-bottom:14px; display:flex; gap:10px; align-items:center;">
@@ -26,45 +66,7 @@
     <div style="background:#fff; border-radius:8px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
         <ul class="sortable-roots" style="list-style:none; padding:0; margin:0;">
             {% for root in roots %}
-                {% set rootEdit = ea_url().setController(crud).setAction('edit').setEntityId(root.id).generateUrl() %}
-                {% set rootDelete = ea_url().setController(crud).setAction('delete').setEntityId(root.id).generateUrl() %}
-                <li class="page-node" data-id="{{ root.id }}" style="border:1px solid #e2e8f0; border-radius:6px; margin-bottom:10px; background:#fafbfc;">
-                    <div class="page-row" style="display:flex; align-items:center; gap:10px; padding:10px 12px;">
-                        <span class="cfb-grip" style="color:#94a3b8; font-size:16px; cursor:move; padding:0 4px;">⋮⋮</span>
-                        <strong style="flex:1; color:#0f172a;">{{ root.title }}</strong>
-                        <code style="font-size:12px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:3px;">/{{ root.slug }}</code>
-                        {% if not root.isPublished %}
-                            <span style="font-size:11px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:3px;">Brouillon</span>
-                        {% endif %}
-                        <a href="{{ rootEdit }}" class="btn btn-sm btn-secondary" title="Éditer" style="padding:2px 8px;">✏️</a>
-                        <form method="post" action="{{ rootDelete }}" style="display:inline; margin:0;"
-                              onsubmit="return confirm('Supprimer la page « {{ root.title }} » ? Ses sous-pages seront détachées.');">
-                            <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" style="padding:2px 8px;">🗑</button>
-                        </form>
-                    </div>
-                    <ul class="sortable-children" data-parent-id="{{ root.id }}"
-                        style="list-style:none; padding:6px 10px 10px 30px; margin:0; min-height:20px; border-top:1px dashed #e2e8f0;">
-                        {% for child in childrenByParent[root.id] ?? [] %}
-                            {% set childEdit = ea_url().setController(crud).setAction('edit').setEntityId(child.id).generateUrl() %}
-                            {% set childDelete = ea_url().setController(crud).setAction('delete').setEntityId(child.id).generateUrl() %}
-                            <li class="page-node" data-id="{{ child.id }}" style="border:1px solid #e2e8f0; border-radius:5px; margin-bottom:6px; background:#fff;">
-                                <div class="page-row" style="display:flex; align-items:center; gap:10px; padding:8px 10px;">
-                                    <span class="cfb-grip" style="color:#94a3b8; font-size:14px; cursor:move; padding:0 4px;">⋮⋮</span>
-                                    <span style="flex:1; color:#334155;">{{ child.title }}</span>
-                                    <code style="font-size:11px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:3px;">/{{ child.slug }}</code>
-                                    {% if not child.isPublished %}
-                                        <span style="font-size:10px; background:#fef3c7; color:#92400e; padding:2px 5px; border-radius:3px;">Brouillon</span>
-                                    {% endif %}
-                                    <a href="{{ childEdit }}" class="btn btn-sm btn-secondary" title="Éditer" style="padding:2px 8px;">✏️</a>
-                                    <form method="post" action="{{ childDelete }}" style="display:inline; margin:0;"
-                                          onsubmit="return confirm('Supprimer la page « {{ child.title }} » ?');">
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" style="padding:2px 8px;">🗑</button>
-                                    </form>
-                                </div>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </li>
+                {{ _self.renderPage(root, childrenByParent, crud, 0) }}
             {% else %}
                 <li style="color:#94a3b8; font-style:italic; padding:12px;">Aucune page. Cliquez sur « Nouvelle page » pour commencer.</li>
             {% endfor %}
@@ -119,7 +121,7 @@
                 return;
             }
 
-            // Racines : réordonnables entre elles (pas de déplacement vers un enfant)
+            // Racines : réordonnables entre elles (pas d'attraction/rejet vers un enfant).
             const rootsList = document.querySelector('.sortable-roots');
             if (rootsList) {
                 new Sortable(rootsList, {
@@ -130,7 +132,8 @@
                 });
             }
 
-            // Sous-pages : réordonnables ET déplaçables entre parents
+            // Sous-pages (à n'importe quelle profondeur) : réordonnables ET
+            // déplaçables entre n'importe quels parents (group partagé).
             document.querySelectorAll('.sortable-children').forEach(function (el) {
                 new Sortable(el, {
                     group: 'children',
@@ -150,7 +153,8 @@
                         position: idx,
                     });
                 });
-                // Enfants (nouveau parent = data-parent-id de l'UL courant)
+                // Enfants (parent = data-parent-id du <ul> courant) — récursif
+                // sur toutes les .sortable-children à toute profondeur.
                 document.querySelectorAll('.sortable-children').forEach(function (list) {
                     const parentId = parseInt(list.dataset.parentId, 10);
                     Array.from(list.children).forEach(function (node, idx) {
