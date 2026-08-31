@@ -78,6 +78,10 @@ type AuthState = {
   user: AuthenticatedUser | null;
   charterRequired: boolean;
   pendingCharter: Charter | null;
+  /** True si l'user a déjà signé un formulaire d'acceptation. Utilisé pour
+      masquer la carte « à relire à tout moment » aux comptes importés qui
+      n'ont jamais rien signé. */
+  charterEverAccepted: boolean;
   linkedProfiles: LinkedProfile[];
 };
 
@@ -104,6 +108,7 @@ const initialState: AuthState = {
   user: null,
   charterRequired: false,
   pendingCharter: null,
+  charterEverAccepted: false,
   linkedProfiles: [],
 };
 
@@ -111,15 +116,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(initialState);
   const router = useRouter();
 
-  const fetchCharterStatus = useCallback(async (): Promise<{ required: boolean; charter: Charter | null }> => {
+  const fetchCharterStatus = useCallback(async (): Promise<{ required: boolean; charter: Charter | null; everAccepted: boolean }> => {
     try {
       const resp = await charterApi.current();
       return {
         required: !!resp.acceptanceRequired && !!resp.charter,
         charter: resp.charter,
+        everAccepted: !!resp.hasEverAccepted,
       };
     } catch {
-      return { required: false, charter: null };
+      return { required: false, charter: null, everAccepted: false };
     }
   }, []);
 
@@ -136,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: resp.user,
         charterRequired: charterStatus.required,
         pendingCharter: charterStatus.charter,
+        charterEverAccepted: charterStatus.everAccepted,
         linkedProfiles: resp.linkedProfiles ?? [],
       });
       void registerForPushNotifications();
@@ -190,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: fresh,
           charterRequired: charterStatus.required,
           pendingCharter: charterStatus.charter,
+          charterEverAccepted: charterStatus.everAccepted,
           linkedProfiles: linked.data ?? [],
         });
         void registerForPushNotifications();
@@ -204,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: JSON.parse(userRaw) as AuthenticatedUser,
           charterRequired: false,
           pendingCharter: null,
+          charterEverAccepted: false,
           linkedProfiles: [],
         });
       }
@@ -246,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const acknowledgeCharter = useCallback(
     async (answers?: CharterAnswers) => {
       await charterApi.accept(answers);
-      setState((s) => ({ ...s, charterRequired: false, pendingCharter: null }));
+      setState((s) => ({ ...s, charterRequired: false, pendingCharter: null, charterEverAccepted: true }));
       router.replace('/(tabs)');
     },
     [router],

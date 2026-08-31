@@ -127,9 +127,16 @@ class CharterController extends AbstractController
             $user->getProfiles(),
         );
 
+        // hasEverAccepted : vrai si l'user a déjà signé UN formulaire
+        // d'acceptation (toutes chartes/saisons confondues). Utilisé par
+        // le mobile pour masquer la carte « à relire à tout moment » aux
+        // adhérents importés par erreur qui n'ont jamais rien signé.
+        $hasEverAccepted = $this->acceptances->countForUser($user) > 0;
+
         return new JsonResponse([
             'charter' => $this->serializer->charter($charter, $applicableFields),
             'acceptanceRequired' => $isPreview || (!$hasAccepted && $isCurrentAdherent),
+            'hasEverAccepted' => $hasEverAccepted,
         ]);
     }
 

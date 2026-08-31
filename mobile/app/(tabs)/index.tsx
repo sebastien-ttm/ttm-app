@@ -17,7 +17,7 @@ const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, charterEverAccepted } = useAuth();
   const [items, setItems] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -87,17 +87,24 @@ export default function FeedScreen() {
           <View>
             <BannerImage />
             <UpcomingEvents />
-            <Pressable
-              onPress={() => router.push('/charter' as never)}
-              style={({ pressed }) => [styles.charterLink, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.charterIcon}>📜</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.charterTitle}>Formulaires d'acceptation</Text>
-                <Text style={styles.charterSub}>Nos engagements — à relire à tout moment</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </Pressable>
+            {/* Carte « à relire » : n'a de sens que si l'user a réellement
+                signé au moins un formulaire. Sinon (compte importé par
+                erreur ou pas encore accepté) on la masque — le formulaire
+                à signer, lui, est proposé via l'écran dédié
+                acceptanceRequired géré par AuthGate. */}
+            {charterEverAccepted && (
+              <Pressable
+                onPress={() => router.push('/charter' as never)}
+                style={({ pressed }) => [styles.charterLink, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.charterIcon}>📜</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.charterTitle}>Formulaires d'acceptation</Text>
+                  <Text style={styles.charterSub}>Nos engagements — à relire à tout moment</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </Pressable>
+            )}
             {items.length > 0 && <Text style={styles.sectionTitle}>📰 Actus</Text>}
           </View>
         }

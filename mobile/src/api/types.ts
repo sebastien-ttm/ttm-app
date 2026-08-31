@@ -264,6 +264,8 @@ export type Charter = {
 export type CharterStatus = {
   charter: Charter | null;
   acceptanceRequired: boolean;
+  /** true si l'user a déjà signé un formulaire d'acceptation (toutes chartes confondues). */
+  hasEverAccepted: boolean;
 };
 
 export type CharterAnswers = Record<string, string | number | boolean | null>;
