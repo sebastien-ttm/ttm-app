@@ -204,7 +204,7 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
         {slot.description ? (
-          <Text style={styles.slotDescription} numberOfLines={3}>
+          <Text style={styles.slotDescription}>
             {slot.description}
           </Text>
         ) : null}
