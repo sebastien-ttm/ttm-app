@@ -35,6 +35,11 @@
             <a href="{{ editUrl }}" class="btn btn-sm btn-secondary" title="Éditer" style="padding:2px 8px;">✏️</a>
             <form method="post" action="{{ deleteUrl }}" style="display:inline; margin:0;"
                   onsubmit="return confirm('Supprimer la page « {{ page.title }} » ?{% if childrenByParent[page.id] is defined and childrenByParent[page.id]|length > 0 %} Ses sous-pages seront détachées.{% endif %}');">
+                {# EasyAdmin.deleteAction : token CSRF requis dans le POST sous
+                   le nom exact « token » et intention « ea-delete ». Sans lui,
+                   AbstractCrudController::delete() redirige silencieusement
+                   sans supprimer (cf. vendor/.../AbstractCrudController.php). #}
+                <input type="hidden" name="token" value="{{ csrf_token('ea-delete') }}">
                 <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" style="padding:2px 8px;">🗑</button>
             </form>
         </div>
