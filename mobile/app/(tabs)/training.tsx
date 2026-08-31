@@ -20,7 +20,7 @@ import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading'
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
-import { canSeeTraining } from '@/utils/profile';
+import { canSeePoolBadge, canSeeTraining } from '@/utils/profile';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
@@ -39,6 +39,7 @@ function TrainingScreenInner() {
   const router = useRouter();
   const { user } = useAuth();
   const isStaff = !!user && (user.profiles.includes('encadrant') || user.profiles.includes('entraineur'));
+  const showPool = canSeePoolBadge(user);
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,6 +109,28 @@ function TrainingScreenInner() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
         >
+          {/* Accès piscines — QR code présentable à la borne d'entrée.
+              Réservé aux comptes licenciés (canSeePoolBadge). Placé en
+              haut du contexte Entraînements, puisque c'est l'usage
+              naturel du QR. */}
+          {showPool && (
+            <View style={styles.section}>
+              <Pressable
+                onPress={() => router.push('/pool-badge' as never)}
+                style={({ pressed }) => [stylesPool.card, pressed && { opacity: 0.7 }]}
+              >
+                <View style={stylesPool.iconWrap}>
+                  <Ionicons name="qr-code" size={22} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesPool.title}>Accès piscines</Text>
+                  <Text style={stylesPool.sub}>Afficher le QR code à présenter à l'entrée</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            </View>
+          )}
+
           {/* Raccourci Mes Présences (encadrant / entraîneur uniquement) */}
           {isStaff && (
             <View style={styles.section}>
@@ -394,6 +417,29 @@ const stylesStaff = StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.brandNavy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+});
+
+const stylesPool = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primary,
   },

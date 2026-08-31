@@ -15,8 +15,8 @@ export default function TabsLayout() {
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.
   // - article : back historique (retombe sur l'accueil si vide)
-  // - page statique : retour explicite vers l'onglet Pratique
-  //   (les pages sont accédées depuis l'arbre de Pratique, back cohérent)
+  // - page statique : retour explicite vers l'onglet Informations
+  //   (les pages sont accédées depuis l'arbre d'Informations, back cohérent)
   const backButton = () => (
     <Pressable
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as never))}
@@ -87,7 +87,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="practical"
         options={{
-          title: 'Pratique',
+          title: 'Informations',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'compass' : 'compass-outline'} color={color} size={22} />
           ),

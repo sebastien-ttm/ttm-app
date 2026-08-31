@@ -9,12 +9,11 @@ import type { StaticPageNode } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { canSeePoolBadge } from '@/utils/profile';
 
 /**
- * Onglet « Pratique » : raccourci Accès Piscine (QR code) en haut + arbre
- * des pages statiques du club. Le QR n'apparaît que pour les comptes
- * licenciés (canSeePoolBadge — Phase D).
+ * Onglet « Informations » : trombinoscopes (Comité / Staff) + arbre des
+ * pages statiques du club. Le QR piscines a été déplacé vers l'onglet
+ * Entraînements (à côté du contexte d'usage).
  */
 export default function PracticalScreen() {
   const router = useRouter();
@@ -23,8 +22,6 @@ export default function PracticalScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const showPool = canSeePoolBadge(user);
 
   const load = useCallback(async () => {
     try {
@@ -63,21 +60,6 @@ export default function PracticalScreen() {
       renderItem={({ item }) => <PageNodeRow node={item} depth={0} />}
       ListHeaderComponent={
         <View>
-          {showPool && (
-            <Pressable
-              onPress={() => router.push('/pool-badge' as never)}
-              style={({ pressed }) => [styles.poolCard, pressed && { opacity: 0.7 }]}
-            >
-              <View style={styles.poolIcon}>
-                <Ionicons name="qr-code" size={26} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.poolTitle}>Accès piscines</Text>
-                <Text style={styles.poolSub}>Afficher le QR code à présenter à l'entrée</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-            </Pressable>
-          )}
           <Pressable
             onPress={() => router.push('/committee' as never)}
             style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
@@ -112,12 +94,6 @@ export default function PracticalScreen() {
       ListEmptyComponent={
         error ? (
           <ErrorState message={error} onRetry={load} />
-        ) : !showPool ? (
-          <EmptyState
-            icon="📚"
-            title="Aucune page"
-            message="Les pages utiles du club s'afficheront ici."
-          />
         ) : null
       }
       style={{ backgroundColor: COLORS.background }}
@@ -171,27 +147,6 @@ function PageNodeRow({ node, depth }: { node: StaticPageNode; depth: number }) {
 
 const styles = StyleSheet.create({
   content: { paddingVertical: 8 },
-  poolCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    margin: SPACING.md,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-  },
-  poolIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: COLORS.brandNavy,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  poolTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  poolSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   committeeCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,7 +155,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: 0,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.brandNavy,
   },
