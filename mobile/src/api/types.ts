@@ -229,7 +229,7 @@ export type CharterFieldType =
  * Public cible d'un engagement :
  *  - 'all' (défaut si absent) : visible par tout le monde
  *  - 'parent_jeune'           : uniquement pour les profils Parent ou Jeune
- *  - 'senior'                 : uniquement pour les profils Sénior (U25 inclus)
+ *  - 'senior'                 : uniquement pour les profils Sénior (Performance inclus)
  *
  * (Valeur `other` acceptée en entrée comme alias rétro-compat de `senior`.)
  */

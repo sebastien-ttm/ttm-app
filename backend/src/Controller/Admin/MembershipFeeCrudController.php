@@ -35,7 +35,7 @@ class MembershipFeeCrudController extends AbstractCrudController
         yield ChoiceField::new('profile', 'Profil')
             ->setChoices([
                 'Jeune' => Profile::Jeune->value,
-                'U25' => Profile::U25->value,
+                'Performance' => Profile::Performance->value,
                 'Sénior' => Profile::Senior->value,
             ])
             ->renderAsBadges();

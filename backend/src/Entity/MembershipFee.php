@@ -10,7 +10,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 /**
  * Grille tarifaire d'adhésion : (saison × profil × type de licence) → montant.
  * Unique pour ce triplet — l'admin y saisit tous les tarifs applicables
- * pour la saison en cours (Jeune Compétition, Sénior Loisir, U25…).
+ * pour la saison en cours (Jeune Compétition, Sénior Loisir, Performance…).
  */
 #[ORM\Entity(repositoryClass: MembershipFeeRepository::class)]
 #[ORM\Table(name: 'membership_fee')]
@@ -23,8 +23,8 @@ class MembershipFee
     public const TYPE_DIRIGEANT = 'Dirigeant';
     public const TYPES = [self::TYPE_COMPETITION, self::TYPE_LOISIR, self::TYPE_DIRIGEANT];
 
-    /** Profils tarifaires (Jeune / U25 / Sénior). */
-    public const APPLICABLE_PROFILES = [Profile::Jeune->value, Profile::U25->value, Profile::Senior->value];
+    /** Profils tarifaires (Jeune / Performance / Sénior). */
+    public const APPLICABLE_PROFILES = [Profile::Jeune->value, Profile::Performance->value, Profile::Senior->value];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

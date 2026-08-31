@@ -102,7 +102,7 @@ export const api = {
  * Profils utilisateurs — alignés sur backend/src/Enum/Profile.php.
  * Un user peut en cumuler plusieurs.
  */
-export type UserProfile = 'jeune' | 'senior' | 'u25' | 'parent' | 'entraineur' | 'encadrant';
+export type UserProfile = 'jeune' | 'senior' | 'performance' | 'parent' | 'entraineur' | 'encadrant';
 
 /** Provenance du compte. */
 export type UserAccountType = 'adherent' | 'externe';

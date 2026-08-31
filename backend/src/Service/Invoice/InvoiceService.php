@@ -44,13 +44,14 @@ class InvoiceService
      */
     public function resolveFee(User $user, TrainingSeason $season, ?UserSeasonMembership $membership = null): array
     {
-        // Profil tarifaire : U25 prime sur Sénior (compte U25 = sous-cat Sénior),
-        // Jeune > tout le reste. Si aucun, fallback Sénior.
+        // Profil tarifaire : Performance prime sur Sénior (Performance =
+        // sous-catégorie Sénior avec tarif dédié possible), Jeune > tout le
+        // reste. Si aucun, fallback Sénior.
         $userProfiles = $user->getProfiles();
         if (in_array(Profile::Jeune->value, $userProfiles, true)) {
             $profile = Profile::Jeune->value;
-        } elseif (in_array(Profile::U25->value, $userProfiles, true)) {
-            $profile = Profile::U25->value;
+        } elseif (in_array(Profile::Performance->value, $userProfiles, true)) {
+            $profile = Profile::Performance->value;
         } else {
             $profile = Profile::Senior->value;
         }

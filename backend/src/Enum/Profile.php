@@ -7,7 +7,10 @@ namespace App\Enum;
  *
  *  - Jeune / Senior  : auto-assignés à l'import CSV selon l'année des 19 ans
  *                      (cohabite avec UserCategory pour la rétrocompat).
- *  - U25             : sous-catégorie senior, sélectionnable à la main.
+ *  - Performance     : sous-catégorie senior, sélectionnable à la main —
+ *                      groupe compétition. Prime sur Sénior pour la
+ *                      tarification (tarif dédié possible) et est
+ *                      considéré comme Sénior pour l'audience des chartes.
  *  - Parent          : peut être posé sur un adhérent OU un compte parent
  *                      autonome (cf. phase 3).
  *  - Encadrant       : adhérent qui encadre des créneaux. Donne accès
@@ -22,7 +25,7 @@ enum Profile: string
 {
     case Jeune = 'jeune';
     case Senior = 'senior';
-    case U25 = 'u25';
+    case Performance = 'performance';
     case Parent = 'parent';
     case Entraineur = 'entraineur';
     case Encadrant = 'encadrant';
@@ -32,7 +35,7 @@ enum Profile: string
         return match ($this) {
             self::Jeune => 'Jeune',
             self::Senior => 'Sénior',
-            self::U25 => 'U25',
+            self::Performance => 'Performance',
             self::Parent => 'Parent',
             self::Entraineur => 'Entraîneur',
             self::Encadrant => 'Encadrant',
@@ -45,7 +48,7 @@ enum Profile: string
         return match ($this) {
             self::Jeune => '#16a34a',
             self::Senior => '#1d4ed8',
-            self::U25 => '#7c3aed',
+            self::Performance => '#7c3aed',
             self::Parent => '#ea580c',
             self::Entraineur => '#0d2148',
             self::Encadrant => '#dc2626',

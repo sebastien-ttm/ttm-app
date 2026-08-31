@@ -16,7 +16,7 @@ class FormSchemaValidator
      * Filtre les champs applicables à un adhérent selon leur audience :
      *  - 'all' (défaut si absent) → visible par tout le monde
      *  - 'parent_jeune'           → uniquement Parent ou Jeune
-     *  - 'senior' (ou 'other')    → uniquement les Sénior (U25 inclus)
+     *  - 'senior' (ou 'other')    → uniquement les Sénior (Performance inclus)
      *
      * @param list<array<string, mixed>>|null $schema
      * @param list<string>                    $profiles  slugs des profils user
@@ -28,7 +28,7 @@ class FormSchemaValidator
             return [];
         }
         $isParentOrJeune = in_array('parent', $profiles, true) || in_array('jeune', $profiles, true);
-        $isSenior = in_array('senior', $profiles, true) || in_array('u25', $profiles, true);
+        $isSenior = in_array('senior', $profiles, true) || in_array('performance', $profiles, true);
         return array_values(array_filter($schema, static function (array $f) use ($isParentOrJeune, $isSenior): bool {
             $aud = $f['audience'] ?? 'all';
             return match ($aud) {
