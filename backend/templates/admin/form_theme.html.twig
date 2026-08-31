@@ -65,7 +65,7 @@
                 plugins: 'autoresize lists link image table code emoticons',
                 toolbar:
                     'undo redo | blocks | bold italic underline | bullist numlist | ' +
-                    'link image table emoticons | alignleft aligncenter alignright alignjustify | code',
+                    'link image table emoticons ttmButton | alignleft aligncenter alignright alignjustify | code',
                 block_formats: 'Paragraphe=p; Titre 2=h2; Titre 3=h3; Citation=blockquote',
                 image_caption: true,
                 image_advtab: true,
@@ -81,17 +81,78 @@
                 /* Préserve toutes les balises img (avec leurs attributs)
                    en sortie ; sans ça, certaines configurations TinyMCE
                    peuvent stripper des attributs ou la balise elle-même. */
-                extended_valid_elements: 'img[src|alt|title|width|height|style|class|data-*]',
+                extended_valid_elements: 'img[src|alt|title|width|height|style|class|data-*],a[href|title|target|rel|class]',
                 content_style:
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
                     'font-size: 15px; line-height: 1.55; padding: 8px 16px; margin: 0; ' +
                     'caret-color: #D32F2F; } ' +
                     'body > p:first-child { margin-top: 0; } ' +
                     'img { max-width: 100%; height: auto; } ' +
+                    /* Rendu WYSIWYG des boutons — même look que côté mobile. */
+                    'a.ttm-btn { display: inline-block; padding: 10px 18px; border-radius: 8px; ' +
+                    'text-decoration: none !important; font-weight: 600; color: #fff !important; margin: 4px 2px; } ' +
+                    'a.ttm-btn.ttm-btn-primary { background: #0d2148; } ' +
+                    'a.ttm-btn.ttm-btn-secondary { background: #D32F2F; } ' +
+                    'a.ttm-btn.ttm-btn-outline { background: transparent; color: #0d2148 !important; ' +
+                    'border: 2px solid #0d2148; } ' +
                     /* Astuce : un paragraphe vide n\'a pas de largeur, donc le curseur est invisible.
                        On force une min-height pour qu\'il s\'affiche bien sur le placeholder. */
                     'p:empty::before { content: ""; display: inline-block; }',
                 setup: function (editor) {
+                    /* Bouton personnalisé « Bouton » : split-menu offrant 3
+                       variantes (Principal, Secondaire, Contour). Chaque
+                       variante ouvre une dialog qui insère un
+                       <a class="ttm-btn ttm-btn-<variante>" href="..."> pré-stylé
+                       par les règles CSS injectées côté content_style + mobile. */
+                    var openButtonDialog = function (variant) {
+                        var sel = editor.selection.getContent({ format: 'text' });
+                        editor.windowManager.open({
+                            title: 'Insérer un bouton',
+                            body: {
+                                type: 'panel',
+                                items: [
+                                    { type: 'input', name: 'label', label: 'Texte du bouton' },
+                                    { type: 'input', name: 'href', label: 'URL (https://... ou /page/…)' },
+                                    { type: 'checkbox', name: 'newTab', label: 'Ouvrir dans un nouvel onglet' },
+                                ],
+                            },
+                            initialData: { label: sel || '', href: '', newTab: true },
+                            buttons: [
+                                { type: 'cancel', text: 'Annuler' },
+                                { type: 'submit', text: 'Insérer', primary: true },
+                            ],
+                            onSubmit: function (api) {
+                                var d = api.getData();
+                                var label = (d.label || '').trim();
+                                var href = (d.href || '').trim();
+                                if (label === '' || href === '') { api.close(); return; }
+                                var esc = function (s) {
+                                    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                };
+                                var attrs = 'href="' + esc(href) + '" class="ttm-btn ttm-btn-' + variant + '"';
+                                if (d.newTab) { attrs += ' target="_blank" rel="noopener"'; }
+                                editor.insertContent('<a ' + attrs + '>' + esc(label) + '</a>&nbsp;');
+                                api.close();
+                            },
+                        });
+                    };
+
+                    editor.ui.registry.addMenuButton('ttmButton', {
+                        text: 'Bouton',
+                        tooltip: 'Insérer un bouton',
+                        fetch: function (cb) {
+                            cb([
+                                { type: 'menuitem', text: 'Bouton principal (bleu)',
+                                  onAction: function () { openButtonDialog('primary'); } },
+                                { type: 'menuitem', text: 'Bouton secondaire (rouge)',
+                                  onAction: function () { openButtonDialog('secondary'); } },
+                                { type: 'menuitem', text: 'Bouton contour',
+                                  onAction: function () { openButtonDialog('outline'); } },
+                            ]);
+                        },
+                    });
+
                     // Sync content back to the textarea on every change AND right
                     // before the form is submitted, in case TinyMCE's own submit
                     // hook is bypassed by client-side validation handlers.

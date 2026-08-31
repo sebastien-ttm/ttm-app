@@ -49,6 +49,18 @@ export function RichContent({ html, style }: Props) {
               .ttm-rich ul, .ttm-rich ol { padding-left: 22px; margin: 0 0 12px 0; }
               .ttm-rich a { color: #1d4ed8; text-decoration: underline; }
               .ttm-rich a:hover { color: #1e40af; }
+              /* Boutons insérés depuis TinyMCE (a.ttm-btn) — variantes primary/secondary/outline. */
+              .ttm-rich a.ttm-btn { display: inline-block; padding: 10px 18px; border-radius: 8px;
+                text-decoration: none; font-weight: 600; color: #fff; margin: 6px 4px 6px 0;
+                transition: background-color 0.15s ease, color 0.15s ease; }
+              .ttm-rich a.ttm-btn:hover { color: #fff; }
+              .ttm-rich a.ttm-btn.ttm-btn-primary { background: #0d2148; }
+              .ttm-rich a.ttm-btn.ttm-btn-primary:hover { background: #1e3a8a; }
+              .ttm-rich a.ttm-btn.ttm-btn-secondary { background: #D32F2F; }
+              .ttm-rich a.ttm-btn.ttm-btn-secondary:hover { background: #B71C1C; }
+              .ttm-rich a.ttm-btn.ttm-btn-outline { background: transparent; color: #0d2148;
+                border: 2px solid #0d2148; padding: 8px 16px; }
+              .ttm-rich a.ttm-btn.ttm-btn-outline:hover { background: #0d2148; color: #fff; }
             </style>`,
           }}
         />
