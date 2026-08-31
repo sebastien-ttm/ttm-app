@@ -69,7 +69,7 @@ export default function CharterReadScreen() {
         <EmptyState
           icon="📜"
           title="Pas d'engagements publiés"
-          message="Aucun formulaire d'acceptation n'est disponible pour le moment. Revenez plus tard."
+          message="Aucun message de bienvenue n'est disponible pour le moment. Revenez plus tard."
         />
       </SafeAreaView>
     );

@@ -26,12 +26,12 @@ class ClubCharterCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Formulaire d\'acceptation')
-            ->setEntityLabelInPlural('Formulaires d\'acceptation')
+            ->setEntityLabelInSingular('Message de bienvenue')
+            ->setEntityLabelInPlural('Messages de bienvenue')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['publishedAt' => 'DESC'])
             ->setHelp('index',
-                'Le formulaire actif est le plus récent publié — tous les '
+                'Le message actif est le plus récent publié — tous les '
                 .'adhérents (nouveaux comme renouvellements) voient le même. '
                 .'La liste conserve l\'historique par saison. Les '
                 .'<strong>engagements</strong> (cases à cocher) se configurent '
@@ -42,7 +42,7 @@ class ClubCharterCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre')
-            ->setHelp('Ex : « Formulaire d\'acceptation — Saison 2026-2027 »');
+            ->setHelp('Ex : « Message de bienvenue — Saison 2026-2027 »');
         yield TextField::new('version', 'Version / Saison')
             ->setHelp('Identifiant lisible, ex : « 2026-2027 » ou « 2026-2027-rev2 »');
         yield TextEditorField::new('content', 'Contenu')

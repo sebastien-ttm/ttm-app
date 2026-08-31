@@ -150,7 +150,7 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section('Acceptation');
-        yield AdminMenuItem::linkToCrud('Formulaires d\'acceptation', 'fa fa-file-signature', ClubCharter::class)
+        yield AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Engagements', 'fa fa-list-check', CharterEngagementSettings::class)
             ->setPermission('ROLE_ADMIN');

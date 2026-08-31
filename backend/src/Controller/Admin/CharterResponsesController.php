@@ -62,7 +62,7 @@ class CharterResponsesController extends AbstractController
             fwrite($out, "\xEF\xBB\xBF");
 
             if (count($fields) === 0) {
-                fputcsv($out, ['Aucun engagement défini dans le formulaire d\'acceptation.'], ';');
+                fputcsv($out, ['Aucun engagement défini dans le message de bienvenue.'], ';');
                 fclose($out);
                 return;
             }

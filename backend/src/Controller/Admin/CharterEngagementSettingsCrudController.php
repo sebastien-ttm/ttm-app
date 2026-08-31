@@ -62,7 +62,7 @@ JSON;
             ->setEntityLabelInSingular('Engagements')
             ->setEntityLabelInPlural('Engagements')
             ->setEntityPermission('ROLE_ADMIN')
-            ->setPageTitle('edit', '✅ Engagements du formulaire d\'acceptation')
+            ->setPageTitle('edit', '✅ Engagements du message de bienvenue')
             ->setHelp('edit',
                 'Ces engagements sont présentés à <strong>tous les adhérents</strong> '
                 .'(nouveaux comme renouvellements). La spécificité par profil '
