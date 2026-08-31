@@ -31,6 +31,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -137,9 +138,17 @@ class UserCrudController extends AbstractCrudController
                 .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
             );
 
+        // EnumType : convertit '' ↔ null proprement, et une valeur non
+        // vide en instance BoardRole. ChoiceField::setChoices avec des
+        // strings passait des '' au setter typé ?BoardRole → TypeError.
         yield ChoiceField::new('boardRole', 'Rôle CoDir')
-            ->setChoices(BoardRole::choices())
-            ->setRequired(false)
+            ->setFormType(EnumType::class)
+            ->setFormTypeOptions([
+                'class' => BoardRole::class,
+                'required' => false,
+                'placeholder' => '— Aucun —',
+                'choice_label' => fn (BoardRole $r) => $r->label(),
+            ])
             ->renderAsBadges([
                 BoardRole::President->value => 'danger',
                 BoardRole::Tresorier->value => 'warning',
