@@ -81,7 +81,7 @@
                 /* Préserve toutes les balises img (avec leurs attributs)
                    en sortie ; sans ça, certaines configurations TinyMCE
                    peuvent stripper des attributs ou la balise elle-même. */
-                extended_valid_elements: 'img[src|alt|title|width|height|style|class|data-*],a[href|title|target|rel|class]',
+                extended_valid_elements: 'img[src|alt|title|width|height|style|class|data-*],a[href|title|target|rel|class|style]',
                 content_style:
                     'body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; ' +
                     'font-size: 15px; line-height: 1.55; padding: 8px 16px; margin: 0; ' +
@@ -130,7 +130,18 @@
                                     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
                                         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                                 };
-                                var attrs = 'href="' + esc(href) + '" class="ttm-btn ttm-btn-' + variant + '"';
+                                /* Styles inline embarqués sur l'anchor pour que les
+                                   emails (Gmail/Outlook/…) rendent le bouton — les
+                                   classes CSS globales sont ignorées ou dépouillées
+                                   par la plupart des clients. La classe reste pour
+                                   les hover effects côté mobile web. */
+                                var BTN_STYLES = {
+                                    primary:   'display:inline-block; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:600; color:#ffffff; background:#0d2148; margin:6px 4px 6px 0;',
+                                    secondary: 'display:inline-block; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:600; color:#ffffff; background:#D32F2F; margin:6px 4px 6px 0;',
+                                    outline:   'display:inline-block; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:600; color:#0d2148; background:transparent; border:2px solid #0d2148; margin:6px 4px 6px 0;',
+                                };
+                                var style = BTN_STYLES[variant] || BTN_STYLES.primary;
+                                var attrs = 'href="' + esc(href) + '" class="ttm-btn ttm-btn-' + variant + '" style="' + style + '"';
                                 if (d.newTab) { attrs += ' target="_blank" rel="noopener"'; }
                                 editor.insertContent('<a ' + attrs + '>' + esc(label) + '</a>&nbsp;');
                                 api.close();

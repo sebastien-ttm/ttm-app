@@ -67,6 +67,37 @@ class SendMagicLinkEmailMessageHandler
         $this->mailer->send($email);
     }
 
+    /**
+     * Styles inline par variante de bouton — Gmail/Outlook/etc. n'appliquent
+     * pas les classes CSS globales. On backfill défensivement l'attribut
+     * style sur les <a class="ttm-btn …"> qui n'en auraient pas (compat
+     * templates créés avant que TinyMCE embarque le style inline).
+     */
+    private const BTN_STYLES = [
+        'primary' => 'display:inline-block; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:600; color:#ffffff; background:#0d2148; margin:6px 4px 6px 0;',
+        'secondary' => 'display:inline-block; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:600; color:#ffffff; background:#D32F2F; margin:6px 4px 6px 0;',
+        'outline' => 'display:inline-block; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:600; color:#0d2148; background:transparent; border:2px solid #0d2148; margin:6px 4px 6px 0;',
+    ];
+
+    private function inlineButtonStyles(string $html): string
+    {
+        // Cible <a …class="…ttm-btn ttm-btn-<variant>…"…> qui n'a pas déjà
+        // d'attribut style="…" pré-existant. Regex non-DOM (dompdf-free)
+        // suffisant pour la structure générée par notre éditeur.
+        return preg_replace_callback(
+            '/<a\b([^>]*\bclass="[^"]*ttm-btn\s+ttm-btn-(primary|secondary|outline)[^"]*"[^>]*)>/i',
+            function (array $m): string {
+                $attrs = $m[1];
+                if (preg_match('/\bstyle="/i', $attrs)) {
+                    return $m[0]; // style déjà présent — on ne double pas
+                }
+                $style = self::BTN_STYLES[$m[2]];
+                return '<a'.$attrs.' style="'.$style.'">';
+            },
+            $html,
+        ) ?? $html;
+    }
+
     private function buildWelcomeEmail(User $user, string $subject, string $bodyTemplate, string $magicLink): TemplatedEmail
     {
         $body = strtr($bodyTemplate, [
@@ -74,6 +105,7 @@ class SendMagicLinkEmailMessageHandler
             '{{ nom }}' => htmlspecialchars($user->getNom(), ENT_QUOTES, 'UTF-8'),
             '{{ magic_link }}' => htmlspecialchars($magicLink, ENT_QUOTES, 'UTF-8'),
         ]);
+        $body = $this->inlineButtonStyles($body);
         $subjectResolved = strtr($subject, [
             '{{ prenom }}' => $user->getPrenom(),
             '{{ nom }}' => $user->getNom(),
