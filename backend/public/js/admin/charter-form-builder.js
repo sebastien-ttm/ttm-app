@@ -25,7 +25,7 @@
   const AUDIENCES = [
     { value: 'all',          label: 'Tous les adhérents (défaut)' },
     { value: 'parent_jeune', label: 'Uniquement Parent ou Jeune' },
-    { value: 'senior',       label: 'Uniquement Sénior (Performance inclus)' },
+    { value: 'senior',       label: 'Uniquement Sénior' },
   ];
 
   const ID_PATTERN = /^[a-z][a-z0-9_]*$/;

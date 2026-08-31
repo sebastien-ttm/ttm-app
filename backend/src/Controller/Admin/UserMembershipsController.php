@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Enum\PaymentType;
 use App\Repository\UserRepository;
@@ -69,7 +70,34 @@ class UserMembershipsController extends AbstractController
             'user' => $user,
             'rows' => $withFee,
             'paymentChoices' => PaymentType::cases(),
+            'tariffChoices' => MembershipFee::APPLICABLE_PROFILES,
         ]);
+    }
+
+    #[Route('/admin/adherents/{id}/memberships/{mid}/tariff', name: 'admin_user_membership_tariff', methods: ['POST'], requirements: ['id' => '\d+', 'mid' => '\d+'])]
+    public function setTariff(int $id, int $mid, Request $request): RedirectResponse
+    {
+        $token = (string) $request->request->get('_token', '');
+        if (!$this->isCsrfTokenValid('membership_tariff', $token)) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
+        $membership = $this->memberships->find($mid);
+        if ($membership === null || $membership->getUser()->getId() !== $id) {
+            throw $this->createNotFoundException();
+        }
+        $raw = (string) $request->request->get('tariff_profile', '');
+        // Chaîne vide = « auto » (reset override).
+        if ($raw === '') {
+            $membership->setTariffProfile(null);
+        } elseif (in_array($raw, MembershipFee::APPLICABLE_PROFILES, true)) {
+            $membership->setTariffProfile($raw);
+        } else {
+            $this->addFlash('error', 'Profil tarifaire invalide.');
+            return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
+        }
+        $this->em->flush();
+        $this->addFlash('success', 'Profil tarifaire mis à jour.');
+        return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
     }
 
     #[Route('/admin/adherents/{id}/memberships/{mid}/payment', name: 'admin_user_membership_payment', methods: ['POST'], requirements: ['id' => '\d+', 'mid' => '\d+'])]

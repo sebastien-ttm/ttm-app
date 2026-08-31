@@ -6,7 +6,6 @@ import type { AuthenticatedUser, UserAccountType, UserProfile, UserSubType } fro
 const PROFILE_LABELS: Record<UserProfile, string> = {
   jeune: 'Jeune',
   senior: 'Sénior',
-  performance: 'Performance',
   parent: 'Parent',
   entraineur: 'Entraîneur',
   encadrant: 'Encadrant',
@@ -18,7 +17,6 @@ const PROFILE_LABELS: Record<UserProfile, string> = {
 const PROFILE_COLORS: Record<UserProfile, string> = {
   jeune: '#16a34a',
   senior: '#1d4ed8',
-  performance: '#7c3aed',
   parent: '#ea580c',
   entraineur: '#0d2148',
   encadrant: '#dc2626',
@@ -52,10 +50,9 @@ export function accountTypeColor(t: UserAccountType): string {
 
 /**
  * Tri des profils pour un affichage cohérent : catégorie principale en
- * premier (Jeune/Senior), puis modifieurs (Performance), puis fonctions
- * (Parent, Entraîneur, Encadrant).
+ * premier (Jeune/Senior), puis fonctions (Parent, Entraîneur, Encadrant).
  */
-const PROFILE_ORDER: UserProfile[] = ['jeune', 'senior', 'performance', 'parent', 'entraineur', 'encadrant'];
+const PROFILE_ORDER: UserProfile[] = ['jeune', 'senior', 'parent', 'entraineur', 'encadrant'];
 
 export function sortProfiles(profiles: UserProfile[]): UserProfile[] {
   return [...profiles].sort((a, b) => PROFILE_ORDER.indexOf(a) - PROFILE_ORDER.indexOf(b));

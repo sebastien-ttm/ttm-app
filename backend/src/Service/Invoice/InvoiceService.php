@@ -44,16 +44,20 @@ class InvoiceService
      */
     public function resolveFee(User $user, TrainingSeason $season, ?UserSeasonMembership $membership = null): array
     {
-        // Profil tarifaire : Performance prime sur Sénior (Performance =
-        // sous-catégorie Sénior avec tarif dédié possible), Jeune > tout le
-        // reste. Si aucun, fallback Sénior.
-        $userProfiles = $user->getProfiles();
-        if (in_array(Profile::Jeune->value, $userProfiles, true)) {
-            $profile = Profile::Jeune->value;
-        } elseif (in_array(Profile::Performance->value, $userProfiles, true)) {
-            $profile = Profile::Performance->value;
+        // Profil tarifaire :
+        //  1. Override manuel : si l'admin a fixé un tariffProfile sur la
+        //     membership (ex : « u25 »), on l'utilise tel quel — permet de
+        //     facturer un tarif spécial (U25, etc.) sans que ce soit un
+        //     profil utilisateur.
+        //  2. Sinon auto-derive : Jeune s'il l'est, sinon Sénior par défaut.
+        $override = $membership?->getTariffProfile();
+        if ($override !== null && in_array($override, MembershipFee::APPLICABLE_PROFILES, true)) {
+            $profile = $override;
         } else {
-            $profile = Profile::Senior->value;
+            $userProfiles = $user->getProfiles();
+            $profile = in_array(Profile::Jeune->value, $userProfiles, true)
+                ? Profile::Jeune->value
+                : Profile::Senior->value;
         }
 
         // Type licence : snapshot du membership (spécifique à la saison),

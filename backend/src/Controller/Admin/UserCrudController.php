@@ -126,14 +126,13 @@ class UserCrudController extends AbstractCrudController
             ->renderAsBadges([
                 Profile::Jeune->value => 'success',
                 Profile::Senior->value => 'info',
-                Profile::Performance->value => 'primary',
                 Profile::Parent->value => 'warning',
                 Profile::Entraineur->value => 'dark',
                 Profile::Encadrant->value => 'danger',
             ])
             ->setHelp(
                 'Jeune / Sénior sont assignés automatiquement à l\'import CSV selon l\'âge dans l\'année. '
-                .'Performance, Parent, Entraîneur, Encadrant sont cochés à la main. '
+                .'Parent, Entraîneur, Encadrant sont cochés à la main. '
                 .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
             );
 

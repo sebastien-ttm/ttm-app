@@ -3,7 +3,6 @@
 namespace App\Controller\Admin;
 
 use App\Entity\MembershipFee;
-use App\Enum\Profile;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -32,13 +31,18 @@ class MembershipFeeCrudController extends AbstractCrudController
             ->autocomplete()
             ->setRequired(true);
 
-        yield ChoiceField::new('profile', 'Profil')
+        yield ChoiceField::new('profile', 'Profil tarifaire')
             ->setChoices([
-                'Jeune' => Profile::Jeune->value,
-                'Performance' => Profile::Performance->value,
-                'Sénior' => Profile::Senior->value,
+                'Jeune' => MembershipFee::PROFILE_JEUNE,
+                'Sénior' => MembershipFee::PROFILE_SENIOR,
+                'U25' => MembershipFee::PROFILE_U25,
             ])
-            ->renderAsBadges();
+            ->renderAsBadges()
+            ->setHelp(
+                'Jeune / Sénior sont dérivés automatiquement de l\'âge à l\'import. '
+                .'U25 est un tarif optionnel : sélectionnable à la main dans la fiche '
+                .'d\'adhésion pour facturer un adhérent Sénior sur ce barème dédié.'
+            );
 
         yield ChoiceField::new('typeLicence', 'Type de licence')
             ->setChoices([

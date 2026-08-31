@@ -63,6 +63,15 @@ class UserSeasonMembership
     private ?\DateTimeImmutable $invoicedAt = null;
 
     /**
+     * Override tarifaire pour cette adhésion. NULL = auto (Jeune/Sénior
+     * dérivé des profils du user). Valeur non-null (ex : 'u25') = l'admin
+     * a explicitement choisi ce tarif à la génération de facture.
+     * Values valides : cf. MembershipFee::APPLICABLE_PROFILES.
+     */
+    #[ORM\Column(length: 24, nullable: true)]
+    private ?string $tariffProfile = null;
+
+    /**
      * Numéro d'ordre stable de la facture pour cette adhésion, dans la
      * saison. Alloué au premier rendu PDF, réutilisé ensuite (aperçu ou
      * envoi). Format final composé côté service : « TTM-{saison}-{seq:02d} ».
@@ -96,4 +105,6 @@ class UserSeasonMembership
     public function markInvoiced(): self { $this->invoicedAt = new \DateTimeImmutable(); return $this; }
     public function getInvoiceSequence(): ?int { return $this->invoiceSequence; }
     public function setInvoiceSequence(?int $seq): self { $this->invoiceSequence = $seq; return $this; }
+    public function getTariffProfile(): ?string { return $this->tariffProfile; }
+    public function setTariffProfile(?string $p): self { $this->tariffProfile = ($p === '' ? null : $p); return $this; }
 }

@@ -86,7 +86,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $categorieAge = null;
 
     /**
-     * Liste des profils de l'utilisateur (jeune/senior/performance/parent/encadrant).
+     * Liste des profils de l'utilisateur (jeune/senior/parent/encadrant).
      * Jeune et Senior sont auto-assignés à l'import CSV selon l'âge ;
      * les autres sont gérés à la main par l'admin (ou créés via inscription
      * parent côté mobile dans une phase ultérieure).
@@ -485,7 +485,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function isJeune(): bool { return $this->hasProfile(Profile::Jeune); }
     public function isSenior(): bool { return $this->hasProfile(Profile::Senior); }
-    public function isPerformance(): bool { return $this->hasProfile(Profile::Performance); }
     public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
     public function isEntraineur(): bool { return $this->hasProfile(Profile::Entraineur); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }

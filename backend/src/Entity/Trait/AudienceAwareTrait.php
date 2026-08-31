@@ -15,7 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
 trait AudienceAwareTrait
 {
     /**
-     * Liste de valeurs de Profile (jeune/senior/performance/parent/encadrant).
+     * Liste de valeurs de Profile (jeune/senior/parent/encadrant).
      * Vide = aucun ciblage (= tous).
      *
      * @var list<string>

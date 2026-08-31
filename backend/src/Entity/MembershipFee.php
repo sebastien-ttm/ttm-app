@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Enum\Profile;
 use App\Repository\MembershipFeeRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -10,7 +9,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 /**
  * Grille tarifaire d'adhésion : (saison × profil × type de licence) → montant.
  * Unique pour ce triplet — l'admin y saisit tous les tarifs applicables
- * pour la saison en cours (Jeune Compétition, Sénior Loisir, Performance…).
+ * pour la saison en cours (Jeune Compétition, Sénior Loisir, U25…).
+ *
+ * Les valeurs de `profile` sont de simples LABELS de tarif — elles ne
+ * correspondent PAS forcément à des cases de l'enum Profile. U25 en
+ * particulier n'est plus un profil utilisateur : c'est uniquement un
+ * tarif que l'admin peut sélectionner à la main dans la fiche adhésion.
  */
 #[ORM\Entity(repositoryClass: MembershipFeeRepository::class)]
 #[ORM\Table(name: 'membership_fee')]
@@ -23,8 +27,15 @@ class MembershipFee
     public const TYPE_DIRIGEANT = 'Dirigeant';
     public const TYPES = [self::TYPE_COMPETITION, self::TYPE_LOISIR, self::TYPE_DIRIGEANT];
 
-    /** Profils tarifaires (Jeune / Performance / Sénior). */
-    public const APPLICABLE_PROFILES = [Profile::Jeune->value, Profile::Performance->value, Profile::Senior->value];
+    /**
+     * Profils tarifaires (Jeune / Sénior / U25). Simples labels — Jeune
+     * et Sénior s'alignent avec Profile::Jeune/Senior pour l'auto-derive,
+     * U25 est indépendant (sélectionnable manuellement à la facture).
+     */
+    public const PROFILE_JEUNE = 'jeune';
+    public const PROFILE_SENIOR = 'senior';
+    public const PROFILE_U25 = 'u25';
+    public const APPLICABLE_PROFILES = [self::PROFILE_JEUNE, self::PROFILE_SENIOR, self::PROFILE_U25];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

@@ -185,7 +185,7 @@ class CsvImportService
                 $user->setLastCsvSyncAt($importedAt);
 
                 // Sync profiles : remplace Jeune/Senior par le bon, garde les
-                // profils manuels (Performance, Parent, Entraîneur, Encadrant) intacts.
+                // profils manuels (Parent, Entraîneur, Encadrant) intacts.
                 $existingProfiles = array_filter(
                     $user->getProfiles(),
                     fn (string $p) => !in_array($p, [Profile::Jeune->value, Profile::Senior->value], true),
