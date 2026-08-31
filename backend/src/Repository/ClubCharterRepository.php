@@ -4,7 +4,6 @@ namespace App\Repository;
 
 use App\Entity\ClubCharter;
 use App\Entity\User;
-use App\Enum\AdherentKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -26,10 +25,11 @@ class ClubCharterRepository extends ServiceEntityRepository
      *   2. Le plus récent en date de publication (publishedAt DESC).
      *   3. null (aucun formulaire à faire signer).
      *
-     * Si $user est null (ex : appel non authentifié), fallback direct
-     * sur le plus récent.
+     * Un seul formulaire actif à la fois — plus de distinction par
+     * type d'adhérent (nouveau vs renouvellement). La page CRUD permet
+     * quand même de conserver l'historique par saison.
      */
-    public function findCurrent(?User $user = null, ?AdherentKind $kind = null): ?ClubCharter
+    public function findCurrent(?User $user = null): ?ClubCharter
     {
         if ($user !== null) {
             $preview = $this->createQueryBuilder('c')
@@ -44,25 +44,7 @@ class ClubCharterRepository extends ServiceEntityRepository
             }
         }
 
-        // Priorité : formulaire dédié au kind exact (new/renewal), sinon
-        // fallback sur le formulaire `all`. Dans les deux cas on prend le
-        // plus récent en date de publication.
-        if ($kind !== null && $kind !== AdherentKind::All) {
-            $exact = $this->createQueryBuilder('c')
-                ->where('c.kind = :k')
-                ->setParameter('k', $kind)
-                ->orderBy('c.publishedAt', 'DESC')
-                ->setMaxResults(1)
-                ->getQuery()
-                ->getOneOrNullResult();
-            if ($exact !== null) {
-                return $exact;
-            }
-        }
-
         return $this->createQueryBuilder('c')
-            ->where('c.kind = :k')
-            ->setParameter('k', AdherentKind::All)
             ->orderBy('c.publishedAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()

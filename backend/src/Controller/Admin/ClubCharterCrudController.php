@@ -3,20 +3,18 @@
 namespace App\Controller\Admin;
 
 use App\Entity\ClubCharter;
-use App\Enum\AdherentKind;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 /**
- * CRUD des ClubCharter : contenu textuel + kind (Nouveaux /
- * Renouvellements / Tous). Les engagements (cases à cocher) ne sont
- * PAS ici — ils vivent dans le singleton CharterEngagementSettings
- * (menu « Engagements »), partagés entre tous les kinds.
+ * CRUD des ClubCharter : contenu textuel du formulaire d'acceptation,
+ * versionné par saison (le plus récent est actif pour tout le monde).
+ * Les engagements (cases à cocher) sont partagés dans le singleton
+ * CharterEngagementSettings (menu « Engagements »).
  */
 class ClubCharterCrudController extends AbstractCrudController
 {
@@ -33,11 +31,11 @@ class ClubCharterCrudController extends AbstractCrudController
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['publishedAt' => 'DESC'])
             ->setHelp('index',
-                'Le contenu textuel de chaque formulaire peut être personnalisé '
-                .'par type d\'adhérent (Nouveaux / Renouvellements / Tous). '
-                .'Les <strong>engagements</strong> (cases à cocher) sont communs '
-                .'à tous les formulaires et se configurent dans le menu '
-                .'« Engagements ».',
+                'Le formulaire actif est le plus récent publié — tous les '
+                .'adhérents (nouveaux comme renouvellements) voient le même. '
+                .'La liste conserve l\'historique par saison. Les '
+                .'<strong>engagements</strong> (cases à cocher) se configurent '
+                .'dans le menu « Engagements ».',
             );
     }
 
@@ -47,14 +45,6 @@ class ClubCharterCrudController extends AbstractCrudController
             ->setHelp('Ex : « Formulaire d\'acceptation — Saison 2026-2027 »');
         yield TextField::new('version', 'Version / Saison')
             ->setHelp('Identifiant lisible, ex : « 2026-2027 » ou « 2026-2027-rev2 »');
-        yield ChoiceField::new('kind', 'Destinataires')
-            ->setChoices(AdherentKind::choices())
-            ->renderAsBadges()
-            ->setHelp(
-                'Nouveaux = premier adhérent (aucune adhésion antérieure). '
-                .'Renouvellements = adhérent connu qui revient. '
-                .'Tous = fallback pour les deux cas si aucun formulaire dédié.'
-            );
         yield TextEditorField::new('content', 'Contenu')
             ->setHelp('Texte intégral présenté à l\'adhérent. L\'éditeur supporte les images, listes, mise en forme.')
             ->onlyOnForms();

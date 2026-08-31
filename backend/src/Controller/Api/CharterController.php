@@ -4,7 +4,6 @@ namespace App\Controller\Api;
 
 use App\Entity\CharterAcceptance;
 use App\Entity\User;
-use App\Enum\AdherentKind;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\CharterEngagementSettingsRepository;
 use App\Repository\ClubCharterRepository;
@@ -71,23 +70,6 @@ class CharterController extends AbstractController
     }
 
     /**
-     * Nouveau ou renouvellement ? Pour un adhérent, basé sur son
-     * historique d'adhésions (>1 = renouvellement). Pour un parent
-     * externe (0 adhésion propre), on se rabat sur son historique
-     * d'acceptations de charte — présente = déjà venu = renouvellement.
-     */
-    private function determineKind(User $user): AdherentKind
-    {
-        if ($this->memberships->countForUser($user) > 1) {
-            return AdherentKind::Renewal;
-        }
-        if ($this->acceptances->countForUser($user) > 0) {
-            return AdherentKind::Renewal;
-        }
-        return AdherentKind::New;
-    }
-
-    /**
      * Returns the currently-active charter and whether the current user
      * still needs to accept it.
      */
@@ -96,8 +78,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $kind = $this->determineKind($user);
-        $charter = $this->charters->findCurrent($user, $kind);
+        $charter = $this->charters->findCurrent($user);
 
         if ($charter === null) {
             return new JsonResponse([
@@ -148,8 +129,7 @@ class CharterController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $kind = $this->determineKind($user);
-        $charter = $this->charters->findCurrent($user, $kind);
+        $charter = $this->charters->findCurrent($user);
 
         if ($charter === null) {
             return new JsonResponse(
