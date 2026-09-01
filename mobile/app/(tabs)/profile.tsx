@@ -215,7 +215,7 @@ export default function ProfileScreen() {
         >
           <Text style={styles.engagementIcon}>📜</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.engagementTitle}>Engagements et prises de connaissance</Text>
+            <Text style={styles.engagementTitle}>Message de bienvenue, engagements et prises de connaissance</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </Pressable>
