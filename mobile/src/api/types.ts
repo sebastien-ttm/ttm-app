@@ -258,6 +258,8 @@ export type Charter = {
   title: string;
   version: string;
   content: string;
+  /** Message final HTML affiché juste avant le bouton « Valider mon accès ». */
+  finalMessage: string | null;
   publishedAt: string;
   hasForm: boolean;
   fields: CharterField[];

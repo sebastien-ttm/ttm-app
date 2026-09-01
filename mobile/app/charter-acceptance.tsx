@@ -1,9 +1,8 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -13,82 +12,91 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { CharterAnswers } from '@/api/types';
+import type { CharterAnswers, CharterField } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { CharterForm, filterCharterFields, validateCharterAnswers } from '@/components/CharterForm';
+import { filterCharterFields } from '@/components/CharterForm';
 import { RichContent } from '@/components/RichContent';
-import { APP_NAME, COLORS, SPACING } from '@/config';
+import { APP_NAME, COLORS, RADIUS, SPACING } from '@/config';
 
-const SCROLL_THRESHOLD_PX = 12;
-
+/**
+ * Tunnel d'onboarding : suite d'écrans qui s'enchaînent.
+ *
+ *  Étape 0                : message de bienvenue (charter.content)
+ *  Étapes 1..N            : un engagement par écran (case à cocher)
+ *  Étape N+1 (optionnelle): message final (charter.finalMessage)
+ *  Bouton final           : « Valider mon accès à l'application »
+ *
+ * Le bouton « Suivant » est désactivé sur un écran d'engagement tant
+ * que la case n'est pas cochée. Le refus / déconnexion reste accessible
+ * en permanence en pied de page.
+ */
 export default function CharterAcceptanceScreen() {
   const { user, pendingCharter, acknowledgeCharter, signOut } = useAuth();
-  // Filtre chaque engagement selon le profil de l'utilisateur (audience
-  // Parent/Jeune / Autre / Tous). Le backend applique le même filtre
-  // avant validation — cohérence garantie.
-  const fields = useMemo(
-    () => filterCharterFields(pendingCharter?.fields ?? [], user),
+
+  // Filtre chaque engagement selon le profil (audience Parent/Jeune / Autre).
+  // Le backend applique le même filtre à l'acceptance — cohérence garantie.
+  const fields: CharterField[] = useMemo(
+    () => filterCharterFields(pendingCharter?.fields ?? [], user)
+      .filter((f) => f.type === 'checkbox'),
     [pendingCharter, user],
   );
-  const hasForm = fields.length > 0;
 
-  const [hasReadAll, setHasReadAll] = useState(false);
+  const hasFinal = !!pendingCharter?.finalMessage;
+  const stepsCount = 1 + fields.length + (hasFinal ? 1 : 0);
+  // Index des étapes :
+  //   0        → welcome
+  //   1..N     → engagement i-1
+  //   N+1      → final (si présent)
+  const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<CharterAnswers>({});
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    const reachedBottom =
-      layoutMeasurement.height + contentOffset.y >= contentSize.height - SCROLL_THRESHOLD_PX;
-    if (reachedBottom && !hasReadAll) {
-      setHasReadAll(true);
-    }
-  }
+  const isWelcome = stepIndex === 0;
+  const engagementIdx = stepIndex - 1; // -1 si welcome, 0..N-1 si engagement
+  const isEngagement = engagementIdx >= 0 && engagementIdx < fields.length;
+  const isFinal = hasFinal && stepIndex === stepsCount - 1;
+  const isLastStep = stepIndex === stepsCount - 1;
 
-  function onContentSizeChange(_w: number, h: number) {
-    // Si tout le contenu tient à l'écran sans scroll, considère lu d'office.
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && h <= window.innerHeight) {
-      setHasReadAll(true);
-    }
-  }
-
-  // Quand il y a un formulaire, la "lecture complète" du contenu n'est plus
-  // un prérequis (le focus passe sur les champs). En revanche, TOUS les
-  // engagements obligatoires (cases à cocher requises) doivent être cochés
-  // pour activer le bouton — feedback immédiat plutôt qu'erreur au submit.
-  const allRequiredChecked = useMemo(() => {
-    return fields
-      .filter((f) => f.type === 'checkbox' && f.required)
-      .every((f) => {
-        const v = answers[f.id];
+  const currentEngagement: CharterField | null = isEngagement ? fields[engagementIdx] : null;
+  const currentEngagementChecked = currentEngagement
+    ? (() => {
+        const v = answers[currentEngagement.id];
         return v === true || v === 'true' || v === 1 || v === '1';
-      });
-  }, [fields, answers]);
-  const canSubmit = hasForm ? allRequiredChecked : hasReadAll;
+      })()
+    : true;
 
-  async function onAccept() {
-    if (!canSubmit || busy) return;
-
-    if (hasForm) {
-      const errs = validateCharterAnswers(fields, answers);
-      setFieldErrors(errs);
-      if (Object.keys(errs).length > 0) {
-        setError('Veuillez corriger les champs indiqués avant de valider.');
-        return;
-      }
+  function next() {
+    if (busy) return;
+    setError(null);
+    if (isEngagement && !currentEngagementChecked) return;
+    if (isLastStep) {
+      void submit();
+      return;
     }
+    setStepIndex((i) => i + 1);
+  }
 
+  function previous() {
+    if (busy || stepIndex === 0) return;
+    setError(null);
+    setStepIndex((i) => i - 1);
+  }
+
+  function toggleCurrentEngagement() {
+    if (!currentEngagement || busy) return;
+    setAnswers((prev) => ({ ...prev, [currentEngagement.id]: !currentEngagementChecked }));
+  }
+
+  async function submit() {
     setBusy(true);
     setError(null);
     try {
-      await acknowledgeCharter(hasForm ? answers : undefined);
+      await acknowledgeCharter(fields.length > 0 ? answers : undefined);
     } catch (e) {
-      // Affiche éventuellement les détails serveur (FormSchemaValidator)
       const apiBody = (e as { body?: { details?: string[] } } | undefined)?.body;
       const serverDetails = Array.isArray(apiBody?.details) ? apiBody.details.join(' ') : null;
-      setError(serverDetails ?? (e instanceof Error ? e.message : 'Erreur lors de l\'acceptation'));
+      setError(serverDetails ?? (e instanceof Error ? e.message : 'Erreur lors de la validation.'));
     } finally {
       setBusy(false);
     }
@@ -96,22 +104,17 @@ export default function CharterAcceptanceScreen() {
 
   async function onDecline() {
     const doSignOut = async () => {
-      try {
-        await signOut();
-      } catch {
-        /* ignore */
-      }
+      try { await signOut(); } catch { /* ignore */ }
     };
     if (Platform.OS === 'web') {
-      const ok =
-        typeof window !== 'undefined' &&
-        window.confirm('Refuser ce formulaire vous déconnecte de l\'application. Voulez-vous continuer ?');
+      const ok = typeof window !== 'undefined'
+        && window.confirm('Refuser vous déconnecte de l\'application. Voulez-vous continuer ?');
       if (ok) await doSignOut();
       return;
     }
     Alert.alert(
-      'Refuser le formulaire ?',
-      'Vous serez déconnecté et ne pourrez plus utiliser l\'application tant que vous n\'aurez pas accepté.',
+      'Refuser ?',
+      'Vous serez déconnecté et ne pourrez plus utiliser l\'application tant que vous n\'aurez pas validé.',
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Refuser et me déconnecter', style: 'destructive', onPress: doSignOut },
@@ -127,79 +130,123 @@ export default function CharterAcceptanceScreen() {
     );
   }
 
+  // Libellé du bouton d'action principal selon l'étape courante.
+  const nextLabel = isWelcome
+    ? 'Suite'
+    : isLastStep
+      ? 'Valider mon accès à l\'application'
+      : 'Suivant';
+  const canGoNext = isEngagement ? currentEngagementChecked : true;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.brand}>{APP_NAME}</Text>
         <Text style={styles.title}>{pendingCharter.title}</Text>
         <Text style={styles.version}>Saison {pendingCharter.version}</Text>
+        <ProgressBar current={stepIndex + 1} total={stepsCount} />
       </View>
 
       <ScrollView
+        key={stepIndex} /* scroll top on step change */
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        onScroll={onScroll}
-        onContentSizeChange={onContentSizeChange}
-        scrollEventThrottle={16}
       >
-        <RichContent html={pendingCharter.content} />
+        {isWelcome && (
+          <>
+            <StepBadge label="Bienvenue" />
+            <RichContent html={pendingCharter.content} />
+          </>
+        )}
 
-        {hasForm && (
-          <View style={styles.formBlock}>
-            <Text style={styles.formIntro}>
-              Merci de valider les champs ci-dessous avant de valider votre acceptation.
-            </Text>
-            <CharterForm
-              fields={fields}
-              value={answers}
-              onChange={(next) => {
-                setAnswers(next);
-                if (Object.keys(fieldErrors).length > 0) {
-                  setFieldErrors(validateCharterAnswers(fields, next));
-                }
-              }}
-              errors={fieldErrors}
-            />
-          </View>
+        {isEngagement && currentEngagement && (
+          <>
+            <StepBadge label={`Engagement ${engagementIdx + 1} sur ${fields.length}`} />
+            {currentEngagement.title ? (
+              <Text style={styles.engagementTitle}>{currentEngagement.title}</Text>
+            ) : null}
+            {currentEngagement.description ? (
+              <RichContent html={currentEngagement.description} />
+            ) : null}
+            <Pressable
+              onPress={toggleCurrentEngagement}
+              style={({ pressed }) => [
+                styles.checkboxCard,
+                currentEngagementChecked && styles.checkboxCardChecked,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <View style={[styles.checkbox, currentEngagementChecked && styles.checkboxTicked]}>
+                {currentEngagementChecked && <Text style={styles.checkboxMark}>✓</Text>}
+              </View>
+              <Text style={styles.checkboxLabel}>{currentEngagement.label}</Text>
+            </Pressable>
+          </>
+        )}
+
+        {isFinal && (
+          <>
+            <StepBadge label="Presque terminé" />
+            <RichContent html={pendingCharter.finalMessage ?? ''} />
+          </>
         )}
       </ScrollView>
 
       {error && <Text style={styles.errorBanner}>{error}</Text>}
 
       <View style={styles.footer}>
-        {!hasForm && (
-          <Text style={[styles.hint, hasReadAll && styles.hintDone]}>
-            {hasReadAll
-              ? '✓ Vous avez lu le formulaire intégralement.'
-              : 'Faites défiler le texte jusqu\'en bas pour activer le bouton.'}
-          </Text>
-        )}
-        {hasForm && !allRequiredChecked && (
-          <Text style={styles.hint}>
-            Cochez tous les engagements ci-dessus pour activer l'acceptation.
-          </Text>
-        )}
-
         <View style={styles.actions}>
-          <Pressable style={styles.declineBtn} onPress={onDecline} disabled={busy}>
-            <Text style={styles.declineLabel}>Refuser et me déconnecter</Text>
-          </Pressable>
+          {!isWelcome ? (
+            <Pressable
+              style={({ pressed }) => [styles.prevBtn, pressed && { opacity: 0.7 }]}
+              onPress={previous}
+              disabled={busy}
+            >
+              <Ionicons name="chevron-back" size={18} color={COLORS.textMuted} />
+              <Text style={styles.prevLabel}>Précédent</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.prevBtn, pressed && { opacity: 0.7 }]}
+              onPress={onDecline}
+              disabled={busy}
+            >
+              <Text style={styles.prevLabel}>Refuser</Text>
+            </Pressable>
+          )}
+
           <Pressable
-            style={[styles.acceptBtn, (!canSubmit || busy) && styles.acceptBtnDisabled]}
-            onPress={onAccept}
-            disabled={!canSubmit || busy}
+            style={[styles.nextBtn, (!canGoNext || busy) && styles.nextBtnDisabled]}
+            onPress={next}
+            disabled={!canGoNext || busy}
           >
             {busy ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.acceptLabel}>
-                {hasForm ? 'Valider et accepter' : 'J\'accepte'}
-              </Text>
+              <Text style={styles.nextLabel}>{nextLabel}</Text>
             )}
           </Pressable>
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function ProgressBar({ current, total }: { current: number; total: number }) {
+  const pct = Math.round((current / Math.max(1, total)) * 100);
+  return (
+    <View style={styles.progressWrap}>
+      <View style={[styles.progressFill, { width: `${pct}%` }]} />
+      <Text style={styles.progressLabel}>{current} / {total}</Text>
+    </View>
+  );
+}
+
+function StepBadge({ label }: { label: string }) {
+  return (
+    <View style={styles.stepBadge}>
+      <Text style={styles.stepBadgeLabel}>{label.toUpperCase()}</Text>
+    </View>
   );
 }
 
@@ -214,17 +261,69 @@ const styles = StyleSheet.create({
   brand: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
   title: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 4 },
   version: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2 },
+  progressWrap: {
+    marginTop: 14,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressFill: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    backgroundColor: COLORS.primary,
+  },
+  progressLabel: {
+    position: 'absolute',
+    right: -2, top: 10,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   scroll: { flex: 1, backgroundColor: COLORS.surface },
   scrollContent: { padding: 18, paddingBottom: 36 },
-  formBlock: {
-    marginTop: SPACING.xl,
-    paddingTop: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: SPACING.md,
+  stepBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING.md,
   },
-  formTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  formIntro: { fontSize: 13, color: COLORS.textMuted, marginBottom: SPACING.sm },
+  stepBadgeLabel: {
+    fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.5,
+  },
+  engagementTitle: {
+    fontSize: 22, fontWeight: '700', color: COLORS.brandNavy, marginBottom: SPACING.md,
+  },
+  checkboxCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.lg,
+  },
+  checkboxCardChecked: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+  },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 5,
+    borderWidth: 2, borderColor: COLORS.borderStrong,
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxTicked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  checkboxMark: { color: '#fff', fontWeight: '800', fontSize: 15, lineHeight: 15 },
+  checkboxLabel: {
+    flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.text, lineHeight: 22,
+  },
   errorBanner: {
     backgroundColor: '#FEE',
     color: COLORS.error,
@@ -238,27 +337,27 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
-  hint: { fontSize: 13, color: COLORS.textMuted, marginBottom: 10, textAlign: 'center' },
-  hintDone: { color: COLORS.success, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
-  declineBtn: {
-    flex: 1,
+  prevBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  declineLabel: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
-  acceptBtn: {
-    flex: 2,
+  prevLabel: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
+  nextBtn: {
+    flex: 1,
     backgroundColor: COLORS.primary,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  acceptBtnDisabled: { backgroundColor: '#ccc' },
-  acceptLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  nextBtnDisabled: { backgroundColor: '#ccc' },
+  nextLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

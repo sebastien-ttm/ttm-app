@@ -239,6 +239,7 @@ class ApiSerializer
             'title' => $c->getTitle(),
             'version' => $c->getVersion(),
             'content' => $c->getContent(),
+            'finalMessage' => $c->getFinalMessage(),
             'publishedAt' => $c->getPublishedAt()->format(\DATE_ATOM),
             'hasForm' => count($fields) > 0,
             'fields' => $fields,

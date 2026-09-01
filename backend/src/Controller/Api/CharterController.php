@@ -5,7 +5,6 @@ namespace App\Controller\Api;
 use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Repository\CharterAcceptanceRepository;
-use App\Repository\CharterEngagementSettingsRepository;
 use App\Repository\ClubCharterRepository;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
@@ -30,7 +29,6 @@ class CharterController extends AbstractController
         private readonly FormSchemaValidator $formValidator,
         private readonly TrainingSeasonRepository $seasons,
         private readonly UserSeasonMembershipRepository $memberships,
-        private readonly CharterEngagementSettingsRepository $engagements,
     ) {
     }
 
@@ -100,11 +98,11 @@ class CharterController extends AbstractController
         // parents externes d'un enfant adhérent.
         $isCurrentAdherent = $this->requiresCharterForCurrentSeason($user);
 
-        // Engagements : singleton partagé entre tous les kinds, filtrés
-        // par audience selon les profils de l'user (Parent/Jeune vs
-        // Sénior).
+        // Engagements du tunnel — désormais versionnés par saison sur
+        // le ClubCharter courant, filtrés par audience selon les profils
+        // (Parent/Jeune vs Sénior).
         $applicableFields = $this->formValidator->filterForUser(
-            $this->engagements->currentFields(),
+            $charter->getFields() ?? [],
             $user->getProfiles(),
         );
 
@@ -144,7 +142,7 @@ class CharterController extends AbstractController
         }
 
         $answers = null;
-        $currentFields = $this->engagements->currentFields();
+        $currentFields = $charter->getFields() ?? [];
         if (count($currentFields) > 0) {
             $payload = json_decode($request->getContent() ?: '{}', true);
             $rawAnswers = is_array($payload) ? ($payload['answers'] ?? null) : null;

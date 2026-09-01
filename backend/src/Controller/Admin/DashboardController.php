@@ -4,7 +4,6 @@ namespace App\Controller\Admin;
 
 use App\Entity\Article;
 use App\Entity\Banner;
-use App\Entity\CharterEngagementSettings;
 use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
@@ -151,8 +150,6 @@ class DashboardController extends AbstractDashboardController
 
         yield AdminMenuItem::section('Acceptation');
         yield AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Engagements', 'fa fa-list-check', CharterEngagementSettings::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-square-check', 'admin_charter_tracking')
             ->setPermission('ROLE_ADMIN');

@@ -4,7 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\CharterAcceptance;
 use App\Repository\CharterAcceptanceRepository;
-use App\Repository\CharterEngagementSettingsRepository;
+use App\Repository\ClubCharterRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -16,17 +16,19 @@ class CharterResponsesController extends AbstractController
 {
     public function __construct(
         private readonly CharterAcceptanceRepository $acceptances,
-        private readonly CharterEngagementSettingsRepository $engagements,
+        private readonly ClubCharterRepository $charters,
     ) {
     }
 
     #[Route('/admin/charter/responses', name: 'admin_charter_responses')]
     public function index(): Response
     {
-        // Les engagements sont désormais partagés entre tous les charters
-        // (singleton). On liste TOUTES les acceptations, peu importe quel
-        // ClubCharter a été signé — les réponses répondent au même schéma.
-        $fields = $this->engagements->currentFields();
+        // Les engagements du tunnel courant (message de bienvenue le plus
+        // récent). Les acceptations plus anciennes ont pu répondre à un
+        // schéma différent — on colonne sur le schéma courant (best effort).
+        $currentCharter = $this->charters->findCurrent();
+        $fields = $currentCharter?->getFields() ?? [];
+
         $rows = [];
         if (count($fields) > 0) {
             $all = $this->acceptances->createQueryBuilder('a')
@@ -55,14 +57,15 @@ class CharterResponsesController extends AbstractController
     #[Route('/admin/charter/responses.csv', name: 'admin_charter_responses_csv')]
     public function exportCsv(): StreamedResponse
     {
-        $fields = $this->engagements->currentFields();
+        $currentCharter = $this->charters->findCurrent();
+        $fields = $currentCharter?->getFields() ?? [];
 
         $response = new StreamedResponse(function () use ($fields): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
 
             if (count($fields) === 0) {
-                fputcsv($out, ['Aucun engagement défini dans le message de bienvenue.'], ';');
+                fputcsv($out, ['Aucun engagement défini dans le message de bienvenue courant.'], ';');
                 fclose($out);
                 return;
             }

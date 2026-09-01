@@ -36,6 +36,24 @@ class ClubCharter
     private string $content = '';
 
     /**
+     * Engagements du tunnel — 1 case à cocher par écran. Format :
+     *   [{ id, title?, label, type:'checkbox', required:true,
+     *      description?, audience? }]
+     * NULL ou vide → tunnel sans étape d'engagement.
+     *
+     * @var list<array<string, mixed>>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $fields = null;
+
+    /**
+     * Message final du tunnel, affiché juste avant le bouton
+     * « Valider mon accès à l'application ». HTML riche (éditeur admin).
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $finalMessage = null;
+
+    /**
      * Aperçu privé : si non null, ce formulaire est visible UNIQUEMENT
      * par cet utilisateur (l'admin qui teste). Le reste des adhérents
      * voit le plus récent en date de publication.
@@ -75,6 +93,53 @@ class ClubCharter
     public function getPublishedAt(): \DateTimeImmutable { return $this->publishedAt; }
     public function setPublishedAt(\DateTimeImmutable $d): self { $this->publishedAt = $d; return $this; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+
+    /** @return list<array<string, mixed>>|null */
+    public function getFields(): ?array { return $this->fields; }
+
+    /** @param list<array<string, mixed>>|null $fields */
+    public function setFields(?array $fields): self
+    {
+        $this->fields = ($fields === null || $fields === []) ? null : $fields;
+        return $this;
+    }
+
+    public function hasEngagements(): bool
+    {
+        return $this->fields !== null && count($this->fields) > 0;
+    }
+
+    /** Représentation JSON pretty-printed pour édition textarea. */
+    public function getFieldsJson(): string
+    {
+        if ($this->fields === null || $this->fields === []) {
+            return '';
+        }
+        return json_encode(
+            $this->fields,
+            \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES,
+        ) ?: '';
+    }
+
+    public function setFieldsJson(?string $json): self
+    {
+        $json = trim((string) $json);
+        if ($json === '') { $this->fields = null; return $this; }
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) {
+            throw new \InvalidArgumentException('Le schéma des engagements doit être un tableau JSON valide.');
+        }
+        $this->fields = $decoded;
+        return $this;
+    }
+
+    public function getFinalMessage(): ?string { return $this->finalMessage; }
+    public function setFinalMessage(?string $m): self
+    {
+        $t = $m !== null ? trim($m) : null;
+        $this->finalMessage = ($t === '' ? null : $t);
+        return $this;
+    }
 
     /**
      * @return Collection<int, CharterAcceptance>
