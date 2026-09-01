@@ -22,10 +22,15 @@ export function UpcomingEvents() {
 
   const load = useCallback(async () => {
     try {
+      // Fenêtre large (aujourd'hui → +12 mois) pour couvrir les
+      // événements planifiés loin à l'avance (compétitions estivales
+      // programmées en début de saison, etc.). MAX_PREVIEW cape
+      // l'affichage aux N plus proches — la fenêtre n'a pas besoin
+      // d'être serrée.
       const from = new Date();
       from.setHours(0, 0, 0, 0);
       const to = new Date(from);
-      to.setDate(to.getDate() + 60);
+      to.setMonth(to.getMonth() + 12);
 
       const resp = await eventsApi.list(from.toISOString(), to.toISOString());
       // Le backend renvoie déjà trié par startsAt ASC.
