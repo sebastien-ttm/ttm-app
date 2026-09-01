@@ -33,7 +33,8 @@ class CsvImportService
     private const COL_NOM_USAGE = 'Nom d\'usage';
     private const COL_PRENOM = 'Prénom';
     private const COL_DATE_NAISSANCE = 'Date de naissance';
-    private const COL_SEXE = 'Sexe';
+    private const COL_SEXE = 'Civilité/genre';
+    private const COL_ADRESSE = 'Adresse';
     private const COL_ADRESSE_PRINCIPALE = 'Adresse principale';
     private const COL_ADRESSE_DETAILS = 'Adresse Détails';
     private const COL_LIEU_DIT = 'Lieu-dit ou boîte postale';
@@ -47,12 +48,31 @@ class CsvImportService
     private const COL_TYPE_LICENCE = 'Type de licence';
     private const COL_CATEGORIE_AGE = 'Catégorie d\'âge';
 
+    /**
+     * Alias historiques pour chaque colonne canonique — permet d'accepter
+     * les anciens exports FFTri (« N° Licence », « Sexe »…) en plus des
+     * nouveaux (« Numéro de licence », « Civilité/genre »…). L'ordre
+     * représente la priorité de résolution : la première clé trouvée dans
+     * la ligne CSV gagne.
+     */
+    private const COL_ALIASES = [
+        self::COL_NUM_LICENCE => ['Numéro de licence', 'N° Licence', 'Numero de licence'],
+        self::COL_SEXE => ['Civilité/genre', 'Civilite/genre', 'Sexe'],
+        self::COL_TELEPHONE => ['Téléphone', 'Telephone'],
+        self::COL_MOBILE => ['Mobile'],
+    ];
+
+    /**
+     * Colonnes obligatoires : au moins un alias de chacune doit être
+     * présent dans l'en-tête, sinon on refuse l'import.
+     * `Statut` a disparu du nouveau format FFTri → tous les adhérents
+     * importés sont considérés actifs (Créé(e) = date d'inscription).
+     */
     private const REQUIRED_COLUMNS = [
         self::COL_NUM_LICENCE,
         self::COL_NOM,
         self::COL_PRENOM,
         self::COL_EMAIL,
-        self::COL_STATUT,
     ];
 
     public function __construct(
@@ -84,6 +104,12 @@ class CsvImportService
         // à mi-parcours, aucun user à moitié importé ne reste en base).
         $this->em->beginTransaction();
 
+        // Auto-détection du délimiteur : le CSV FFTri est parfois exporté
+        // en TSV (tab) ou séparé par point-virgule. On teste sur la
+        // première ligne et on garde le séparateur qui produit le plus
+        // de colonnes (heuristique : > 2). Fallback = valeur passée.
+        $delimiter = $this->detectDelimiter($filePath, $delimiter);
+
         $csv = Reader::createFromPath($filePath, 'r');
         $csv->setDelimiter($delimiter);
         $csv->setHeaderOffset(0);
@@ -92,7 +118,12 @@ class CsvImportService
         $headers = $csv->getHeader();
 
         foreach (self::REQUIRED_COLUMNS as $required) {
-            if (!in_array($required, $headers, true)) {
+            $candidates = self::COL_ALIASES[$required] ?? [$required];
+            $found = false;
+            foreach ($candidates as $c) {
+                if (in_array($c, $headers, true)) { $found = true; break; }
+            }
+            if (!$found) {
                 $result->addError(0, sprintf(
                     'Colonne "%s" manquante. Le fichier doit être un export Excel de l\'Espace Tri (FFTri).',
                     $required,
@@ -111,13 +142,13 @@ class CsvImportService
             $line++;
 
             try {
-                $numLicence = trim((string) ($record[self::COL_NUM_LICENCE] ?? ''));
+                $numLicence = trim($this->resolveCol($record, self::COL_NUM_LICENCE));
                 if ($numLicence === '') {
                     $result->addError($line, 'Numéro de licence vide', $record);
                     continue;
                 }
 
-                $email = $this->cleanEmail((string) ($record[self::COL_EMAIL] ?? ''));
+                $email = $this->cleanEmail($this->resolveCol($record, self::COL_EMAIL));
                 $emailValid = $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL);
                 // L'email du CSV n'est CRITIQUE qu'à la création d'un nouveau
                 // compte (sinon on ne saurait pas qui notifier). Pour un
@@ -125,14 +156,18 @@ class CsvImportService
                 // conditionné plus bas) — un email manquant dans le CSV
                 // n'est donc plus bloquant.
 
-                $statut = trim((string) ($record[self::COL_STATUT] ?? 'Validé'));
-                $isActive = $this->isStatutActive($statut);
+                // Statut : ancien format FFTri seulement. Nouveau format =
+                // pas de colonne Statut, tous les adhérents importés sont
+                // considérés actifs (leur présence dans le CSV = actif).
+                $statutRaw = trim($this->resolveCol($record, self::COL_STATUT));
+                $isActive = $statutRaw !== '' ? $this->isStatutActive($statutRaw) : true;
+                $statut = $statutRaw !== '' ? $statutRaw : 'Validé';
 
-                $typeLicenceRaw = (string) ($record[self::COL_TYPE_LICENCE] ?? '');
+                $typeLicenceRaw = $this->resolveCol($record, self::COL_TYPE_LICENCE);
                 // Profil principal calculé depuis la date de naissance
                 // (≤ 18 ans dans l'année courante = Jeune), fallback sur le
                 // type de licence FFTri si pas de date.
-                $dateNaissance = $this->parseDate((string) ($record[self::COL_DATE_NAISSANCE] ?? ''));
+                $dateNaissance = $this->parseDate($this->resolveCol($record, self::COL_DATE_NAISSANCE));
                 if ($dateNaissance !== null) {
                     $principalProfile = Profile::principalFromBirthDate($dateNaissance, $importedAt);
                 } else {
@@ -141,9 +176,11 @@ class CsvImportService
                         : Profile::Senior;
                 }
 
-                $tel = $this->cleanPhone((string) ($record[self::COL_MOBILE] ?? ''));
+                // Mobile prime sur Téléphone (ancien FFTri) ; nouveau CSV
+                // n'a plus que Téléphone.
+                $tel = $this->cleanPhone($this->resolveCol($record, self::COL_MOBILE));
                 if ($tel === '') {
-                    $tel = $this->cleanPhone((string) ($record[self::COL_TELEPHONE] ?? ''));
+                    $tel = $this->cleanPhone($this->resolveCol($record, self::COL_TELEPHONE));
                 }
 
                 $user = $this->users->findOneByNumLicence($numLicence);
@@ -167,10 +204,10 @@ class CsvImportService
                 // couvre les cas nom marital, pseudonyme, etc. La colonne peut
                 // être absente des CSV plus anciens — dans ce cas on retombe
                 // silencieusement sur "Nom".
-                $nomLegal = trim((string) ($record[self::COL_NOM] ?? ''));
-                $nomUsage = trim((string) ($record[self::COL_NOM_USAGE] ?? ''));
+                $nomLegal = trim($this->resolveCol($record, self::COL_NOM));
+                $nomUsage = trim($this->resolveCol($record, self::COL_NOM_USAGE));
                 $user->setNom($nomUsage !== '' ? $nomUsage : $nomLegal);
-                $user->setPrenom(trim((string) ($record[self::COL_PRENOM] ?? '')));
+                $user->setPrenom(trim($this->resolveCol($record, self::COL_PRENOM)));
                 // Email : posé UNIQUEMENT à la création. Sur un re-import,
                 // on conserve l'email actuellement en base — les admins le
                 // corrigent souvent en local (alias, domaine personnel, etc.)
@@ -195,10 +232,10 @@ class CsvImportService
 
                 // Nouveaux champs FFTri
                 $user->setDateNaissance($dateNaissance);
-                $user->setSexe($this->cleanSexe((string) ($record[self::COL_SEXE] ?? '')));
+                $user->setSexe($this->cleanSexe($this->resolveCol($record, self::COL_SEXE)));
                 $user->setAdresse($this->buildAdresse($record));
                 $user->setTypeLicence(self::normalizeTypeLicence($typeLicenceRaw));
-                $user->setCategorieAge(trim((string) ($record[self::COL_CATEGORIE_AGE] ?? '')) ?: null);
+                $user->setCategorieAge(trim($this->resolveCol($record, self::COL_CATEGORIE_AGE)) ?: null);
 
                 $errors = $this->validator->validate($user);
                 if (count($errors) > 0) {
@@ -371,12 +408,12 @@ class CsvImportService
         if ($existing !== null) {
             $membership->touchUpdatedAt();
         }
-        $membership->setStatutLicence(trim((string) ($record['Statut'] ?? '')) ?: null);
+        $membership->setStatutLicence(trim($this->resolveCol($record, self::COL_STATUT)) ?: null);
         // Snapshot NORMALISÉ (Compétition / Loisir / Dirigeant / null) —
         // sinon la valeur brute FFTri (« Loisir 2026-27 - Sénior », etc.)
         // ne matcherait aucune catégorie côté stats.
-        $membership->setTypeLicence(self::normalizeTypeLicence((string) ($record['Type de licence'] ?? '')));
-        $membership->setCategorieAge(trim((string) ($record['Catégorie d\'âge'] ?? '')) ?: null);
+        $membership->setTypeLicence(self::normalizeTypeLicence($this->resolveCol($record, self::COL_TYPE_LICENCE)));
+        $membership->setCategorieAge(trim($this->resolveCol($record, self::COL_CATEGORIE_AGE)) ?: null);
 
         if ($existing === null) {
             $this->em->persist($membership);
@@ -409,6 +446,55 @@ class CsvImportService
         return $cleaned;
     }
 
+    /**
+     * Lit une valeur en essayant tous les alias possibles de la colonne
+     * canonique. Retourne la première valeur trouvée (chaîne, éventuellement
+     * vide), ou '' si aucun alias n'est présent dans la ligne.
+     *
+     * @param array<string, mixed> $record
+     */
+    private function resolveCol(array $record, string $canonical): string
+    {
+        $candidates = self::COL_ALIASES[$canonical] ?? [$canonical];
+        foreach ($candidates as $c) {
+            if (array_key_exists($c, $record)) {
+                return (string) ($record[$c] ?? '');
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Détecte le délimiteur en peekant la première ligne du fichier.
+     * FFTri exporte tantôt en CSV (`,` ou `;`), tantôt en TSV (`\t`).
+     * On garde le séparateur qui produit le plus de colonnes (heuristique
+     * suffisante : les en-têtes contiennent 10+ colonnes). Fallback = valeur
+     * passée en paramètre (rétro-compat des appels explicites).
+     */
+    private function detectDelimiter(string $filePath, string $fallback): string
+    {
+        $handle = @fopen($filePath, 'r');
+        if ($handle === false) {
+            return $fallback;
+        }
+        $firstLine = fgets($handle, 8192);
+        fclose($handle);
+        if ($firstLine === false) {
+            return $fallback;
+        }
+        $best = $fallback;
+        $bestCount = 0;
+        foreach (["\t", ';', ','] as $candidate) {
+            $count = substr_count($firstLine, $candidate);
+            if ($count > $bestCount) {
+                $bestCount = $count;
+                $best = $candidate;
+            }
+        }
+        // Sécurité : si la ligne n'a aucun séparateur reconnu, garde le fallback.
+        return $bestCount >= 2 ? $best : $fallback;
+    }
+
     private function cleanSexe(string $s): ?string
     {
         $s = mb_strtolower(trim($s), 'UTF-8');
@@ -435,10 +521,31 @@ class CsvImportService
     }
 
     /**
-     * Concatène les composantes d'adresse en une seule chaîne lisible.
+     * Compose l'adresse pour stockage :
+     *  1. Nouveau format FFTri : colonne unique « Adresse » (ex :
+     *     « 15 IMPASSE LOUISA PAULIN, 31200 TOULOUSE, France »).
+     *     On split sur « , » pour retrouver un affichage multi-lignes.
+     *  2. Ancien format : concatène les 6 colonnes (Adresse principale,
+     *     Adresse Détails, Lieu-dit, CP, Ville, Pays).
      */
     private function buildAdresse(array $record): ?string
     {
+        // Nouveau format : colonne unique.
+        $single = trim((string) ($record[self::COL_ADRESSE] ?? ''));
+        if ($single !== '') {
+            // Split sur virgule-espace, filtre les segments vides,
+            // supprime le pays trailing s'il vaut « France » (bruit).
+            $parts = array_values(array_filter(
+                array_map('trim', explode(',', $single)),
+                fn ($s) => $s !== '',
+            ));
+            if (count($parts) > 0 && strcasecmp((string) end($parts), 'France') === 0) {
+                array_pop($parts);
+            }
+            return count($parts) > 0 ? implode("\n", $parts) : null;
+        }
+
+        // Ancien format : 6 colonnes séparées.
         $line1 = trim((string) ($record[self::COL_ADRESSE_PRINCIPALE] ?? ''));
         $line2 = trim((string) ($record[self::COL_ADRESSE_DETAILS] ?? ''));
         $line3 = trim((string) ($record[self::COL_LIEU_DIT] ?? ''));
