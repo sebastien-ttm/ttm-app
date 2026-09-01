@@ -7,14 +7,16 @@ use App\Entity\User;
 use App\Enum\Profile;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @extends ServiceEntityRepository<User>
  */
-class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class UserRepository extends ServiceEntityRepository implements PasswordUpgraderInterface, UserLoaderInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -35,6 +37,19 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * Point d'entrée du firewall Symfony (json_login + form_login admin) —
+     * délègue à findOneByEmail pour garantir que le user chargé est bien
+     * le compte PRIMAIRE de l'email (linkedToUser IS NULL), pas juste le
+     * premier match. Sans ça, après un swap manuel de primaire dans
+     * l'admin, l'ancien primaire (avec l'ancien mot de passe) restait
+     * chargé → 401 systématique.
+     */
+    public function loadUserByIdentifier(string $identifier): ?UserInterface
+    {
+        return $this->findOneByEmail($identifier);
     }
 
     /**
