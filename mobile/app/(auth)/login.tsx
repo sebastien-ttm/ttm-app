@@ -22,7 +22,7 @@ type Mode = 'magic-link' | 'password';
 export default function LoginScreen() {
   const { loginWithPassword } = useAuth();
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('magic-link');
+  const [mode, setMode] = useState<Mode>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,19 +65,19 @@ export default function LoginScreen() {
           <View style={styles.card}>
             <View style={styles.tabs}>
               <Pressable
-                style={[styles.tab, mode === 'magic-link' && styles.tabActive]}
-                onPress={() => setMode('magic-link')}
-              >
-                <Text style={[styles.tabLabel, mode === 'magic-link' && styles.tabLabelActive]}>
-                  Lien e-mail
-                </Text>
-              </Pressable>
-              <Pressable
                 style={[styles.tab, mode === 'password' && styles.tabActive]}
                 onPress={() => setMode('password')}
               >
                 <Text style={[styles.tabLabel, mode === 'password' && styles.tabLabelActive]}>
                   Mot de passe
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, mode === 'magic-link' && styles.tabActive]}
+                onPress={() => setMode('magic-link')}
+              >
+                <Text style={[styles.tabLabel, mode === 'magic-link' && styles.tabLabelActive]}>
+                  Lien e-mail
                 </Text>
               </Pressable>
             </View>
