@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -9,7 +10,7 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
-import { COLORS } from '@/config';
+import { COLORS, SPACING } from '@/config';
 
 const PAGE_SIZE = 20;
 
@@ -84,6 +85,10 @@ export default function FeedScreen() {
           <View>
             <BannerImage />
             <UpcomingEvents />
+            <View style={styles.sectionHeader}>
+              <Ionicons name="newspaper" size={18} color={COLORS.primary} />
+              <Text style={styles.sectionTitle}>Articles</Text>
+            </View>
           </View>
         }
         contentContainerStyle={styles.content}
@@ -116,4 +121,19 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   footer: { paddingVertical: 16, alignItems: 'center' },
   endLabel: { textAlign: 'center', color: COLORS.textMuted, paddingVertical: 20, fontSize: 13 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
 });
