@@ -115,6 +115,7 @@ function TrainingScreenInner() {
               naturel du QR. */}
           {showPool && (
             <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🏊 Accès Piscine</Text>
               <Pressable
                 onPress={() => router.push('/pool-badge' as never)}
                 style={({ pressed }) => [stylesPool.card, pressed && { opacity: 0.7 }]}
@@ -123,8 +124,8 @@ function TrainingScreenInner() {
                   <Ionicons name="qr-code" size={22} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesPool.title}>Accès piscines</Text>
-                  <Text style={stylesPool.sub}>Afficher le QR code à présenter à l'entrée</Text>
+                  <Text style={stylesPool.title}>QR Code</Text>
+                  <Text style={stylesPool.sub}>à présenter à l'entrée</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
