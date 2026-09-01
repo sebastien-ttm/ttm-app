@@ -21,6 +21,16 @@ class EventController extends AbstractController
     ) {
     }
 
+    #[Route('/api/events/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function show(int $id): JsonResponse
+    {
+        $event = $this->events->find($id);
+        if ($event === null) {
+            return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        return new JsonResponse($this->serializer->event($event));
+    }
+
     #[Route('/api/events', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {

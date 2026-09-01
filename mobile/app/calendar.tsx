@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -144,8 +144,12 @@ export default function CalendarScreen() {
 }
 
 function EventRow({ event }: { event: EventItem }) {
+  const router = useRouter();
   return (
-    <View style={styles.row}>
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.75 }]}
+      onPress={() => router.push({ pathname: '/event/[id]', params: { id: String(event.id) } } as never)}
+    >
       <View style={[styles.bar, { backgroundColor: event.color }]} />
       <View style={styles.body}>
         <View style={styles.header}>
@@ -156,9 +160,9 @@ function EventRow({ event }: { event: EventItem }) {
         </View>
         <Text style={styles.title}>{event.title}</Text>
         {event.location && <Text style={styles.location}>📍 {event.location}</Text>}
-        {event.description && <Text style={styles.description}>{event.description}</Text>}
+        {event.description && <Text style={styles.description} numberOfLines={2}>{event.description}</Text>}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

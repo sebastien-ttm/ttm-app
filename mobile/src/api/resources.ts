@@ -122,6 +122,7 @@ export const events = {
     if (to) qs.set('to', to);
     return api.get<{ data: EventItem[]; from: string; to: string }>(`/api/events?${qs.toString()}`);
   },
+  get: (id: number) => api.get<EventItem>(`/api/events/${id}`),
 };
 
 export const banner = {

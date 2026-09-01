@@ -47,9 +47,9 @@ export function UpcomingEvents() {
     );
   }
 
-  // Si pas d'événements à venir, on n'affiche RIEN (on ne polluera pas le feed
-  // avec un bloc « 0 événement »).
-  if (items.length === 0) return null;
+  // Rend TOUJOURS le card (même sans événements à venir) — le lien
+  // « Voir tout le calendrier » reste ainsi accessible depuis la home.
+  const hasEvents = items.length > 0;
 
   return (
     <View style={styles.card}>
@@ -58,9 +58,11 @@ export function UpcomingEvents() {
         <Text style={styles.title}>Prochainement</Text>
       </View>
 
-      {items.map((e) => (
-        <EventRow key={e.id} event={e} />
-      ))}
+      {hasEvents ? (
+        items.map((e) => <EventRow key={e.id} event={e} />)
+      ) : (
+        <Text style={styles.empty}>Aucun événement programmé pour l'instant.</Text>
+      )}
 
       <Pressable
         onPress={() => router.push('/calendar' as never)}
@@ -83,7 +85,7 @@ function EventRow({ event }: { event: EventItem }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
-      onPress={() => router.push('/calendar' as never)}
+      onPress={() => router.push({ pathname: '/event/[id]', params: { id: String(event.id) } } as never)}
     >
       {isMultiDay && end ? (
         <View style={styles.dateRange}>
@@ -175,4 +177,5 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
   },
   allLinkLabel: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
+  empty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', paddingVertical: 8 },
 });

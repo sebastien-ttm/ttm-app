@@ -61,6 +61,19 @@ export default function PracticalScreen() {
       ListHeaderComponent={
         <View>
           <Pressable
+            onPress={() => router.push('/calendar' as never)}
+            style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.committeeIcon}>
+              <Ionicons name="calendar" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.committeeTitle}>Calendrier</Text>
+              <Text style={styles.committeeSub}>Compétitions, stages, événements du club</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/committee' as never)}
             style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
           >
