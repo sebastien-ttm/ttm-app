@@ -13,6 +13,7 @@ use App\Repository\UserRepository;
 use App\Repository\UserSeasonMembershipRepository;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
+use League\Csv\CharsetConverter;
 use League\Csv\Reader;
 use League\Csv\Statement;
 use Psr\Log\LoggerInterface;
@@ -115,13 +116,30 @@ class CsvImportService
         $csv->setHeaderOffset(0);
         $csv->skipInputBOM();
 
+        // Détection encodage : les exports Excel FFTri sont souvent en
+        // Windows-1252 (accents 1 byte : é = 0xE9). Sans conversion, les
+        // en-têtes lus contiennent des séquences invalides UTF-8 et
+        // « Num\xE9ro » ne matche pas la constante PHP « Numéro » (UTF-8
+        // 2 bytes : é = 0xC3 0xA9). On teste la validité UTF-8 du fichier
+        // — si non valide → stream filter Windows-1252 → UTF-8.
+        if (!$this->isValidUtf8($filePath)) {
+            CharsetConverter::addTo($csv, 'Windows-1252', 'UTF-8');
+        }
+
         $headers = $csv->getHeader();
+        // Map normalized-header → original-header. Permet une comparaison
+        // tolérante (casse, accents, espaces multiples) tout en préservant
+        // les clés brutes du record pour resolveCol().
+        $normalizedHeaders = [];
+        foreach ($headers as $h) {
+            $normalizedHeaders[self::normalizeHeader($h)] = $h;
+        }
 
         foreach (self::REQUIRED_COLUMNS as $required) {
             $candidates = self::COL_ALIASES[$required] ?? [$required];
             $found = false;
             foreach ($candidates as $c) {
-                if (in_array($c, $headers, true)) { $found = true; break; }
+                if (isset($normalizedHeaders[self::normalizeHeader($c)])) { $found = true; break; }
             }
             if (!$found) {
                 $result->addError(0, sprintf(
@@ -448,20 +466,69 @@ class CsvImportService
 
     /**
      * Lit une valeur en essayant tous les alias possibles de la colonne
-     * canonique. Retourne la première valeur trouvée (chaîne, éventuellement
-     * vide), ou '' si aucun alias n'est présent dans la ligne.
+     * canonique. Comparaison tolérante (accents, casse, BOM, espaces
+     * multiples) pour absorber les petites variations d'exports FFTri.
      *
      * @param array<string, mixed> $record
      */
     private function resolveCol(array $record, string $canonical): string
     {
         $candidates = self::COL_ALIASES[$canonical] ?? [$canonical];
+        $normalizedCandidates = [];
         foreach ($candidates as $c) {
-            if (array_key_exists($c, $record)) {
-                return (string) ($record[$c] ?? '');
+            $normalizedCandidates[self::normalizeHeader($c)] = true;
+        }
+        foreach ($record as $key => $value) {
+            if (isset($normalizedCandidates[self::normalizeHeader((string) $key)])) {
+                return (string) ($value ?? '');
             }
         }
         return '';
+    }
+
+    /**
+     * Normalise un nom de colonne pour comparaison tolérante :
+     * trim + suppression du BOM UTF-8 + minuscule + suppression des
+     * accents. « Numéro de licence », « Numero de licence », «  N°Licence »
+     * (ancien nom) → clés respectivement 'numero de licence' / 'numero de
+     * licence' / 'n°licence' pour matching prévisible.
+     */
+    private static function normalizeHeader(string $h): string
+    {
+        // Retire BOM UTF-8 en tête si présent (fichiers Windows exportés
+        // par certains outils, non nettoyés par skipInputBOM sur les
+        // premières clés).
+        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h) ?? $h;
+        $h = trim($h);
+        // Compact les espaces multiples en 1
+        $h = (string) preg_replace('/\s+/u', ' ', $h);
+        $h = mb_strtolower($h, 'UTF-8');
+        // Translittère les accents (é → e, à → a, etc.). //TRANSLIT nécessite
+        // iconv linké avec libiconv complet ; en cas d'échec on garde la
+        // chaîne originale plutôt que de casser le matching.
+        $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $h);
+        return $translit !== false && $translit !== '' ? $translit : $h;
+    }
+
+    /**
+     * Test rapide : le fichier est-il en UTF-8 valide ?
+     * Lit les premiers 64 Ko (largement au-dessus de la première ligne
+     * dans tous les CSV FFTri) et vérifie que la séquence est légale.
+     * Retourne true par défaut si la lecture échoue (n'introduit pas
+     * de conversion incorrecte en cas d'incertitude).
+     */
+    private function isValidUtf8(string $filePath): bool
+    {
+        $handle = @fopen($filePath, 'r');
+        if ($handle === false) {
+            return true;
+        }
+        $chunk = fread($handle, 65536);
+        fclose($handle);
+        if ($chunk === false) {
+            return true;
+        }
+        return mb_check_encoding($chunk, 'UTF-8');
     }
 
     /**
@@ -531,7 +598,7 @@ class CsvImportService
     private function buildAdresse(array $record): ?string
     {
         // Nouveau format : colonne unique.
-        $single = trim((string) ($record[self::COL_ADRESSE] ?? ''));
+        $single = trim($this->resolveCol($record, self::COL_ADRESSE));
         if ($single !== '') {
             // Split sur virgule-espace, filtre les segments vides,
             // supprime le pays trailing s'il vaut « France » (bruit).
