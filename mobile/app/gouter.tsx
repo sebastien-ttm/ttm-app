@@ -3,6 +3,9 @@ import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -67,6 +70,12 @@ export default function GouterScreen() {
     try {
       await api.signup(date);
       await load();
+      // Propose l'ajout au calendrier personnel juste après l'inscription
+      // réussie. Approche cross-platform sans dépendance : sur web on
+      // télécharge un .ics (le navigateur / l'OS l'ouvre dans le calendrier
+      // par défaut) ; sur natif on ouvre le data-URL via Linking, iOS et
+      // Android l'associent au calendrier système.
+      askAddToCalendar(date);
     } catch (err) {
       setFlash(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -162,6 +171,94 @@ export default function GouterScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * Génère le contenu ICS (RFC 5545) d'un événement toute-la-journée
+ * pour le goûter du mercredi. Format canonique compact — supporté par
+ * tous les clients calendrier (Apple, Google, Outlook, etc.).
+ */
+function buildGouterIcs(date: string): string {
+  const ymd = date.replace(/-/g, ''); // '2026-11-12' → '20261112'
+  // DTEND en all-day = jour suivant (fin exclusive selon RFC 5545)
+  const dt = new Date(date + 'T00:00:00');
+  dt.setDate(dt.getDate() + 1);
+  const ymdEnd = [dt.getFullYear(),
+    String(dt.getMonth() + 1).padStart(2, '0'),
+    String(dt.getDate()).padStart(2, '0')].join('');
+  const now = new Date();
+  const stamp = [
+    now.getUTCFullYear(),
+    String(now.getUTCMonth() + 1).padStart(2, '0'),
+    String(now.getUTCDate()).padStart(2, '0'),
+    'T',
+    String(now.getUTCHours()).padStart(2, '0'),
+    String(now.getUTCMinutes()).padStart(2, '0'),
+    String(now.getUTCSeconds()).padStart(2, '0'),
+    'Z',
+  ].join('');
+  const uid = `ttm-gouter-${ymd}-${now.getTime()}@ttm`;
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//TTM//gouter//FR',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${ymd}`,
+    `DTEND;VALUE=DATE:${ymdEnd}`,
+    'SUMMARY:Goûter TTM',
+    'DESCRIPTION:Vous êtes inscrit pour amener le goûter des jeunes ce mercredi.',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+/**
+ * Propose (via un dialog natif) d'ajouter la date au calendrier
+ * personnel de l'utilisateur. Sur "oui", télécharge / ouvre l'ICS.
+ */
+function askAddToCalendar(date: string): void {
+  const doAdd = () => downloadIcs(date);
+  const message = 'Voulez-vous ajouter ce goûter à votre calendrier personnel ?';
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm(message)) {
+      doAdd();
+    }
+    return;
+  }
+  Alert.alert(
+    'Ajouter au calendrier ?',
+    message,
+    [
+      { text: 'Non merci', style: 'cancel' },
+      { text: 'Ajouter', onPress: doAdd },
+    ],
+  );
+}
+
+function downloadIcs(date: string): void {
+  const ics = buildGouterIcs(date);
+  const filename = `gouter-ttm-${date}.ics`;
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
+    // Blob + <a download> — le navigateur télécharge le fichier,
+    // l'OS l'ouvre dans le calendrier par défaut au double-clic.
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return;
+  }
+  // Natif : data-URL text/calendar ouvert par Linking — iOS et Android
+  // reconnaissent le mime type et proposent le calendrier système.
+  const dataUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  void Linking.openURL(dataUrl);
 }
 
 function SlotCard({
