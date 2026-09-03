@@ -103,14 +103,23 @@ function EventRow({ event }: { event: EventItem }) {
       )}
       <View style={{ flex: 1 }}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-        <Text style={styles.eventSub} numberOfLines={1}>
-          {isMultiDay && end
-            ? `${weekdayShort(start)} → ${weekdayShort(end)}`
-            : event.isAllDay
-              ? weekdayShort(start)
-              : `${weekdayShort(start)} ${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
-          {event.location ? ` · ${event.location}` : ''}
-        </Text>
+        {/* Le jour de la semaine est désormais intégré dans la DateBox.
+            Sur cette ligne : heure (en gras pour visibilité) OU « Toute
+            la journée » + lieu si présent. Multi-jour → uniquement le lieu. */}
+        {(() => {
+          const timeStr = !isMultiDay && !event.isAllDay
+            ? start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            : null;
+          const allDayLabel = !isMultiDay && event.isAllDay ? 'Toute la journée' : null;
+          if (!timeStr && !allDayLabel && !event.location) return null;
+          return (
+            <Text style={styles.eventSub} numberOfLines={1}>
+              {timeStr ? <Text style={styles.eventTime}>{timeStr}</Text> : null}
+              {allDayLabel ? allDayLabel : null}
+              {event.location ? ((timeStr || allDayLabel) ? ' · ' : '') + event.location : ''}
+            </Text>
+          );
+        })()}
       </View>
     </Pressable>
   );
@@ -119,6 +128,7 @@ function EventRow({ event }: { event: EventItem }) {
 function DateBox({ date, color }: { date: Date; color: string }) {
   return (
     <View style={[styles.dateBox, { backgroundColor: color }]}>
+      <Text style={styles.dateWeekday}>{weekdayShort(date).toUpperCase()}</Text>
       <Text style={styles.dateDay}>{date.getDate()}</Text>
       <Text style={styles.dateMonth}>{monthShort(date)}</Text>
     </View>
@@ -159,11 +169,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dateBox: {
-    width: 44,
-    height: 48,
+    width: 48,
+    height: 60,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
   },
   dateRange: {
     flexDirection: 'row',
@@ -171,10 +182,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dateArrow: { marginHorizontal: 1 },
-  dateDay: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
-  dateMonth: { color: '#fff', fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  dateWeekday: { color: 'rgba(255,255,255,0.9)', fontSize: 9, fontWeight: '700', letterSpacing: 0.5, lineHeight: 11 },
+  dateDay: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
+  dateMonth: { color: '#fff', fontSize: 10, fontWeight: '600', letterSpacing: 0.5, lineHeight: 12 },
   eventTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, textTransform: 'capitalize' },
+  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  eventTime: { fontSize: 13, fontWeight: '700', color: COLORS.text },
   allLink: {
     flexDirection: 'row',
     alignItems: 'center',
