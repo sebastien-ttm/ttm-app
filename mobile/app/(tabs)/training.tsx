@@ -132,10 +132,12 @@ function TrainingScreenInner() {
             </View>
           )}
 
-          {/* Raccourcis Staff (encadrant / entraîneur uniquement) */}
+          {/* Raccourci Mes Présences (encadrant / entraîneur uniquement) —
+              affiche aussi les entraîneurs / encadrants positionnés sur
+              chaque créneau. */}
           {isStaff && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ Staff</Text>
+              <Text style={styles.sectionTitle}>✅ Mes présences</Text>
               <Pressable
                 style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
                 onPress={() => router.push('/staff-presence' as never)}
@@ -144,24 +146,8 @@ function TrainingScreenInner() {
                   <Ionicons name="checkmark-circle" size={22} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesStaff.title}>Mes présences</Text>
-                  <Text style={stylesStaff.sub}>
+                  <Text style={stylesStaff.title}>
                     Réserver / Confirmer ma présence sur les créneaux que j'encadre
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push('/staff-overview' as never)}
-              >
-                <View style={stylesStaff.iconWrap}>
-                  <Ionicons name="people" size={22} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={stylesStaff.title}>Staff sur les créneaux</Text>
-                  <Text style={stylesStaff.sub}>
-                    Voir qui encadre / entraîne quel créneau cette semaine
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />

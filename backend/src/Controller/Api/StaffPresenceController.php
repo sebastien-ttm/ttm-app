@@ -86,8 +86,28 @@ class StaffPresenceController extends AbstractController
             }
         }
 
-        // Enrichit chaque slot avec myPresence (null si pas réservé)
-        $slotsWithPresence = array_map(function (array $slot) use ($presencesBySlot) {
+        // 3) TOUTES les présences staff de la semaine, réindexées par slot.id
+        //    → permet d'afficher qui est déjà positionné sur chaque créneau.
+        $allPresences = $this->presences->findStaffPresencesForWeekGroupedByUser($monday);
+        $assignedBySlot = [];
+        foreach ($allPresences as $userPresences) {
+            foreach ($userPresences as $p) {
+                $slot = $p->getSlot();
+                if ($slot === null) continue;
+                $assignedBySlot[$slot->getId()] ??= [];
+                $assignedBySlot[$slot->getId()][] = [
+                    'userId' => $p->getUser()->getId(),
+                    'fullName' => $p->getUser()->getFullName(),
+                    'role' => $p->getUser()->isEntraineur() ? 'entraineur' : 'encadrant',
+                    'status' => $p->getStatus(),
+                    'notes' => $p->getNotes(),
+                ];
+            }
+        }
+
+        // Enrichit chaque slot avec myPresence (null si pas réservé) + la
+        // liste complète des staff positionnés (vide si personne).
+        $slotsWithPresence = array_map(function (array $slot) use ($presencesBySlot, $assignedBySlot) {
             $sid = $slot['id'];
             $p = $sid !== null ? ($presencesBySlot[$sid] ?? null) : null;
             $slot['myPresence'] = $p !== null ? [
@@ -95,6 +115,7 @@ class StaffPresenceController extends AbstractController
                 'status' => $p->getStatus(),
                 'notes' => $p->getNotes(),
             ] : null;
+            $slot['assignedStaff'] = $sid !== null ? ($assignedBySlot[$sid] ?? []) : [];
             return $slot;
         }, $slotRows);
 
@@ -107,65 +128,6 @@ class StaffPresenceController extends AbstractController
             'customTasks' => $customTasks,
             'unavailable' => $unav !== null,
             'unavailableNotes' => $unav?->getNotes(),
-        ]);
-    }
-
-    /**
-     * Vue d'ensemble d'une semaine : liste tous les créneaux + le staff
-     * (entraîneurs et encadrants) positionné sur chacun. Accessible à
-     * tout le staff — permet aux encadrants de voir qui encadre / entraîne
-     * quel créneau avant de se positionner.
-     *
-     * Ne retourne pas les tâches custom (elles sont par-user, sans slot
-     * partagé — pas d'intérêt en vue d'ensemble).
-     */
-    #[Route('/api/staff-presence/overview', name: 'api_staff_presence_overview', methods: ['GET'])]
-    public function overview(Request $request): JsonResponse
-    {
-        /** @var User $user */
-        $user = $this->getUser();
-        $this->ensureStaff($user);
-
-        $weekParam = (string) $request->query->get('week', '');
-        try {
-            $weekDate = $weekParam !== '' ? new \DateTimeImmutable($weekParam) : new \DateTimeImmutable('today');
-        } catch (\Exception) {
-            return new JsonResponse(['error' => 'Paramètre week invalide.'], Response::HTTP_BAD_REQUEST);
-        }
-        $monday = WeeklyScheduleService::snapToMonday($weekDate);
-
-        // Slots de la semaine, sans filtre audience (staff voit tout).
-        $slotRows = $this->schedule->buildWeek($monday);
-
-        // Toutes les présences de la semaine, indexées par slot.id
-        // (les présences custom sans slot ne sont pas incluses ici).
-        $allPresences = $this->presences->findStaffPresencesForWeekGroupedByUser($monday);
-        $presencesBySlot = [];
-        foreach ($allPresences as $userPresences) {
-            foreach ($userPresences as $p) {
-                $slot = $p->getSlot();
-                if ($slot === null) continue;
-                $presencesBySlot[$slot->getId()] ??= [];
-                $presencesBySlot[$slot->getId()][] = $p;
-            }
-        }
-
-        $out = array_map(function (array $slot) use ($presencesBySlot): array {
-            $sid = $slot['id'];
-            $assigned = $sid !== null ? ($presencesBySlot[$sid] ?? []) : [];
-            $slot['assignedStaff'] = array_map(fn (StaffPresence $p) => [
-                'userId' => $p->getUser()->getId(),
-                'fullName' => $p->getUser()->getFullName(),
-                'role' => $p->getUser()->isEntraineur() ? 'entraineur' : 'encadrant',
-                'status' => $p->getStatus(),
-                'notes' => $p->getNotes(),
-            ], $assigned);
-            return $slot;
-        }, $slotRows);
-
-        return new JsonResponse([
-            'week' => $monday->format('Y-m-d'),
-            'slots' => $out,
         ]);
     }
 

@@ -284,6 +284,8 @@ function SlotCard({
   const slotStart = new Date(`${slot.date}T${slot.startTime}:00`);
   const isPast = Date.now() >= slotStart.getTime();
   const label = isPast ? "J'étais là" : 'Je serai là';
+  const coaches = (slot.assignedStaff ?? []).filter((s) => s.role === 'entraineur');
+  const encadrants = (slot.assignedStaff ?? []).filter((s) => s.role === 'encadrant');
 
   return (
     <View style={styles.slot}>
@@ -297,6 +299,11 @@ function SlotCard({
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
+
+        <View style={styles.staffRows}>
+          <StaffLine label="Entraîneur(s)" people={coaches} accent={COLORS.brandNavy} />
+          <StaffLine label="Encadrant(s)" people={encadrants} accent={COLORS.primary} />
+        </View>
 
         <View style={styles.actions}>
           {busy ? (
@@ -327,6 +334,29 @@ function SlotCard({
           )}
         </View>
       </View>
+    </View>
+  );
+}
+
+function StaffLine({
+  label,
+  people,
+  accent,
+}: {
+  label: string;
+  people: { fullName: string }[];
+  accent: string;
+}) {
+  return (
+    <View style={styles.staffLine}>
+      <Text style={[styles.staffLabel, { color: accent }]}>{label} :</Text>
+      {people.length === 0 ? (
+        <Text style={styles.staffEmpty}>—</Text>
+      ) : (
+        <Text style={styles.staffNames} numberOfLines={2}>
+          {people.map((p) => p.fullName).join(', ')}
+        </Text>
+      )}
     </View>
   );
 }
@@ -422,6 +452,17 @@ const styles = StyleSheet.create({
   slotMeta: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 2 },
   slotLocation: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   slotInfo: { fontSize: 12, color: COLORS.warning, marginTop: 4 },
+  staffRows: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    gap: 4,
+  },
+  staffLine: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
+  staffLabel: { fontSize: 12, fontWeight: '700', minWidth: 90 },
+  staffNames: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 18 },
+  staffEmpty: { flex: 1, fontSize: 13, color: COLORS.textSubtle, fontStyle: 'italic' },
   actions: { flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' },
   actionBtn: {
     paddingHorizontal: 12,

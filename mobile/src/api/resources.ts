@@ -15,7 +15,6 @@ import type {
   StaffPresence,
   StaffPresenceStatus,
   StaffPresenceWeek,
-  StaffScheduleOverview,
   StaticPage,
   StaticPageNode,
   StaticPageSummary,
@@ -54,10 +53,6 @@ export const staffPresence = {
   week: (week?: string) => {
     const qs = week ? `?week=${encodeURIComponent(week)}` : '';
     return api.get<StaffPresenceWeek>(`/api/me/staff-presence${qs}`);
-  },
-  overview: (week?: string) => {
-    const qs = week ? `?week=${encodeURIComponent(week)}` : '';
-    return api.get<StaffScheduleOverview>(`/api/staff-presence/overview${qs}`);
   },
   setForSlot: (params: {
     slotId?: number;

@@ -202,6 +202,8 @@ export type StaffPresenceSlot = TrainingSlot & {
     status: StaffPresenceStatus;
     notes: string | null;
   } | null;
+  /** Tous les staff déjà positionnés sur ce créneau (moi inclus). */
+  assignedStaff: AssignedStaff[];
 };
 
 export type StaffPresenceWeek = {
@@ -214,23 +216,13 @@ export type StaffPresenceWeek = {
   unavailableNotes: string | null;
 };
 
-/** Un staff positionné sur un créneau, tel que renvoyé par /overview. */
+/** Un staff positionné sur un créneau. */
 export type AssignedStaff = {
   userId: number;
   fullName: string;
   role: 'entraineur' | 'encadrant';
   status: StaffPresenceStatus;
   notes: string | null;
-};
-
-/** Créneau enrichi avec tous les staff positionnés (vue overview). */
-export type StaffOverviewSlot = TrainingSlot & {
-  assignedStaff: AssignedStaff[];
-};
-
-export type StaffScheduleOverview = {
-  week: string;
-  slots: StaffOverviewSlot[];
 };
 
 export type PoolBadge = {
