@@ -309,6 +309,18 @@ function SlotCard({
                     {s.isMine && ' (vous)'}
                   </Text>
                   {s.byAdmin && <Text style={styles.slotBadge}>ajouté</Text>}
+                  {/* Bouton WhatsApp : visible uniquement quand on est
+                      soi-même inscrit ET que ce n'est pas notre ligne
+                      (whatsappUrl fourni par le backend selon cette règle). */}
+                  {s.whatsappUrl && !isPast && (
+                    <Pressable
+                      onPress={() => void Linking.openURL(s.whatsappUrl!)}
+                      hitSlop={8}
+                      accessibilityLabel={`Contacter ${s.fullName} sur WhatsApp`}
+                    >
+                      <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+                    </Pressable>
+                  )}
                   {s.isMine && !isPast && (
                     <Pressable onPress={() => onCancel(s.id)} disabled={busy} hitSlop={8}>
                       <Ionicons name="close-circle" size={20} color={COLORS.error} />

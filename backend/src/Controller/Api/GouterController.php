@@ -92,20 +92,33 @@ class GouterController extends AbstractController
             $key = $w->format('Y-m-d');
             $signups = $byDate[$key] ?? [];
             $cancel = $cancellationMap[$key] ?? null;
+            // Le viewer est-il inscrit sur ce créneau ? Si oui, on expose
+            // le numéro / WhatsApp des CO-inscrits pour permettre la mise
+            // en relation (partage du binôme goûter). Sinon, aucun numéro.
+            $viewerIsIn = false;
+            foreach ($signups as $s) {
+                if ($s->getUser()->getId() === $viewer->getId()) { $viewerIsIn = true; break; }
+            }
             $slots[] = [
                 'date' => $key,
                 'capacity' => GouterSignup::CAPACITY_PER_SLOT,
                 'isCancelled' => $cancel !== null,
                 'cancellationReason' => $cancel?->getReason(),
-                'signups' => array_map(fn (GouterSignup $s) => [
-                    'id' => $s->getId(),
-                    'userId' => $s->getUser()->getId(),
-                    'fullName' => $s->getUser()->getFullName(),
-                    'isMine' => $s->getUser()->getId() === $viewer->getId(),
-                    'notes' => $s->getNotes(),
-                    'createdAt' => $s->getCreatedAt()->format(\DATE_ATOM),
-                    'byAdmin' => $s->getCreatedBy() !== null && $s->getCreatedBy()->getId() !== $s->getUser()->getId(),
-                ], $signups),
+                'signups' => array_map(function (GouterSignup $s) use ($viewer, $viewerIsIn): array {
+                    $isMine = $s->getUser()->getId() === $viewer->getId();
+                    $phone = $s->getUser()->getTelephone();
+                    $canShare = $viewerIsIn && !$isMine && $phone !== null && $phone !== '';
+                    return [
+                        'id' => $s->getId(),
+                        'userId' => $s->getUser()->getId(),
+                        'fullName' => $s->getUser()->getFullName(),
+                        'isMine' => $isMine,
+                        'notes' => $s->getNotes(),
+                        'createdAt' => $s->getCreatedAt()->format(\DATE_ATOM),
+                        'byAdmin' => $s->getCreatedBy() !== null && $s->getCreatedBy()->getId() !== $s->getUser()->getId(),
+                        'whatsappUrl' => $canShare ? self::whatsappUrlFor($phone) : null,
+                    ];
+                }, $signups),
             ];
         }
 
@@ -209,5 +222,30 @@ class GouterController extends AbstractController
             $cursor = $cursor->modify('+7 days');
         }
         return $result;
+    }
+
+    /**
+     * Formate un numéro français pour l'URL wa.me : retire les espaces
+     * et caractères non chiffrés, remplace le préfixe 0 par 33, et strip
+     * un + éventuel. Ex : « 06 12 34 56 78 » → « 33612345678 ».
+     * Retourne null si le résultat n'a pas au moins 8 chiffres (numéro
+     * probablement invalide).
+     */
+    private static function whatsappUrlFor(string $rawPhone): ?string
+    {
+        $digits = preg_replace('/[^\d+]/', '', $rawPhone) ?? '';
+        // Numéro international déjà préfixé
+        if (str_starts_with($digits, '+')) {
+            $digits = substr($digits, 1);
+        } elseif (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        } elseif (str_starts_with($digits, '0')) {
+            // Format FR local (06XX...) → 336XX... (indicatif France).
+            $digits = '33'.substr($digits, 1);
+        }
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        return 'https://wa.me/'.$digits;
     }
 }

@@ -74,6 +74,12 @@ export type GouterSignupSummary = {
   notes: string | null;
   createdAt: string;
   byAdmin: boolean;
+  /**
+   * URL WhatsApp du CO-inscrit (https://wa.me/…) — exposée UNIQUEMENT
+   * quand le viewer est lui-même inscrit sur ce créneau ET que la ligne
+   * n'est pas la sienne. null sinon (privacy).
+   */
+  whatsappUrl: string | null;
 };
 
 export type GouterSlot = {
