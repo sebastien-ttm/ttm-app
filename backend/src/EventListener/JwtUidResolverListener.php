@@ -4,13 +4,11 @@ namespace App\EventListener;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
-use Lexik\Bundle\JWTAuthenticationBundle\Security\Authenticator\Token\JWTPostAuthenticationToken;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
 
 /**
  * Corrige `$this->getUser()` sur les endpoints /api quand plusieurs
@@ -84,20 +82,14 @@ class JwtUidResolverListener
             return;
         }
 
-        $firewall = method_exists($token, 'getFirewallName')
-            ? ($token->getFirewallName() ?: 'api')
-            : 'api';
-
-        // Préserve la classe concrète du token si c'est un JWTPostAuthenticationToken
-        // (Lexik). Ce sous-type porte le JWT brut via getCredentials() —
-        // certains listeners aval (refresh middleware, filtres custom) le
-        // consultent et refusent la requête si absent. Un remplacement par
-        // PostAuthenticationToken générique casserait donc l'auth.
-        if ($token instanceof JWTPostAuthenticationToken) {
-            $newToken = new JWTPostAuthenticationToken($resolved, $firewall, $resolved->getRoles(), $raw);
-        } else {
-            $newToken = new PostAuthenticationToken($resolved, $firewall, $resolved->getRoles());
+        // Modifie l'utilisateur du token existant plutôt que le remplacer.
+        // Préserve la classe concrète (JWTPostAuthenticationToken pour Lexik)
+        // ET tout autre attribut interne : sub-type, attributs, credentials
+        // (le JWT brut nécessaire à certains listeners aval). Une simple
+        // reconstruction du token perdait ces éléments et cassait l'auth
+        // en aval → 401.
+        if (method_exists($token, 'setUser')) {
+            $token->setUser($resolved);
         }
-        $this->tokenStorage->setToken($newToken);
     }
 }
