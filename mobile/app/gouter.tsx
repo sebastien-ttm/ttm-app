@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -70,12 +69,8 @@ export default function GouterScreen() {
     try {
       await api.signup(date);
       await load();
-      // Propose l'ajout au calendrier personnel juste après l'inscription
-      // réussie. Approche cross-platform sans dépendance : sur web on
-      // télécharge un .ics (le navigateur / l'OS l'ouvre dans le calendrier
-      // par défaut) ; sur natif on ouvre le data-URL via Linking, iOS et
-      // Android l'associent au calendrier système.
-      askAddToCalendar(date);
+      // Pas de prompt automatique — l'user ajoute au calendrier via le
+      // bouton persistant sur la carte s'il le souhaite.
     } catch (err) {
       setFlash(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -178,6 +173,35 @@ export default function GouterScreen() {
  * pour le goûter du mercredi. Format canonique compact — supporté par
  * tous les clients calendrier (Apple, Google, Outlook, etc.).
  */
+function addToCalendar(date: string): void {
+  // Web : Google Calendar URL — universel, ouvre l'agenda en ligne
+  // avec l'événement pré-rempli. Un simple clic « Enregistrer »
+  // suffit ; les utilisateurs qui synchronisent Google Calendar
+  // avec un autre agenda (iCloud, Outlook) le voient aussi.
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const ymd = date.replace(/-/g, '');
+    const nextDay = new Date(date + 'T00:00:00');
+    nextDay.setDate(nextDay.getDate() + 1);
+    const ymdEnd = [
+      nextDay.getFullYear(),
+      String(nextDay.getMonth() + 1).padStart(2, '0'),
+      String(nextDay.getDate()).padStart(2, '0'),
+    ].join('');
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: 'Gouter TTM',
+      dates: `${ymd}/${ymdEnd}`,
+      details: 'Vous etes inscrit pour amener le gouter des jeunes.',
+    });
+    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
+    return;
+  }
+  // Natif : data-URL text/calendar via Linking — iOS et Android
+  // reconnaissent le mime type et ouvrent leur calendrier système.
+  const ics = buildGouterIcs(date);
+  void Linking.openURL('data:text/calendar;charset=utf-8,' + encodeURIComponent(ics));
+}
+
 function buildGouterIcs(date: string): string {
   const ymd = date.replace(/-/g, ''); // '2026-11-12' → '20261112'
   // DTEND en all-day = jour suivant (fin exclusive selon RFC 5545)
@@ -215,51 +239,6 @@ function buildGouterIcs(date: string): string {
   ].join('\r\n');
 }
 
-/**
- * Propose (via un dialog natif) d'ajouter la date au calendrier
- * personnel de l'utilisateur. Sur "oui", télécharge / ouvre l'ICS.
- */
-function askAddToCalendar(date: string): void {
-  const doAdd = () => downloadIcs(date);
-  const message = 'Voulez-vous ajouter ce goûter à votre calendrier personnel ?';
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(message)) {
-      doAdd();
-    }
-    return;
-  }
-  Alert.alert(
-    'Ajouter au calendrier ?',
-    message,
-    [
-      { text: 'Non merci', style: 'cancel' },
-      { text: 'Ajouter', onPress: doAdd },
-    ],
-  );
-}
-
-function downloadIcs(date: string): void {
-  const ics = buildGouterIcs(date);
-  const filename = `gouter-ttm-${date}.ics`;
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
-    // Blob + <a download> — le navigateur télécharge le fichier,
-    // l'OS l'ouvre dans le calendrier par défaut au double-clic.
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return;
-  }
-  // Natif : data-URL text/calendar ouvert par Linking — iOS et Android
-  // reconnaissent le mime type et proposent le calendrier système.
-  const dataUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
-  void Linking.openURL(dataUrl);
-}
 
 function SlotCard({
   slot,
@@ -353,6 +332,19 @@ function SlotCard({
               <Text style={styles.signupBtnLabel}>Je m'inscris</Text>
             </>
           )}
+        </Pressable>
+      )}
+
+      {/* Bouton persistant « Ajouter à mon calendrier » — visible dès
+          qu'on est inscrit (past inclus intentionnellement retiré :
+          pas d'ajout d'un événement passé). */}
+      {iAmIn && !isPast && !isCancelled && (
+        <Pressable
+          onPress={() => addToCalendar(slot.date)}
+          style={({ pressed }) => [styles.calBtn, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons name="calendar-outline" size={18} color={COLORS.brandNavy} />
+          <Text style={styles.calBtnLabel}>Ajouter à mon calendrier</Text>
         </Pressable>
       )}
     </View>
@@ -461,4 +453,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   signupBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  calBtn: {
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.brandNavy,
+    backgroundColor: 'transparent',
+  },
+  calBtnLabel: { color: COLORS.brandNavy, fontWeight: '700', fontSize: 13 },
 });
