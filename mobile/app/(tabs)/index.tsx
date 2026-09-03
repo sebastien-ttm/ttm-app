@@ -125,7 +125,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginHorizontal: SPACING.md,
+    // marginHorizontal = SPACING.md * 2 pour aligner l'icône « Articles »
+    // avec l'icône « Prochainement » — celle-ci est décalée à la fois
+    // par le margin du card wrapper (SPACING.md) ET par le padding
+    // interne (SPACING.md). Sans ça, les deux icônes ne se trouvent
+    // pas sur le même axe vertical (visible sur la colonne de gauche).
+    marginHorizontal: SPACING.md * 2,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
     minHeight: 18,
