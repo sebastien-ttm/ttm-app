@@ -601,6 +601,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             self::ROLE_EDITEUR => 'ROLE_EDITEUR',
             default => 'ROLE_USER',
         };
+        // Tout membre du Comité Directeur reçoit automatiquement le
+        // droit ROLE_EDITEUR pour accéder au backend (sections
+        // Communication + Configuration). Si le user a un rôle plus
+        // élevé (Entraîneur / Admin), la hiérarchie Symfony s'en occupe.
+        if ($this->boardRole !== null) {
+            $roles[] = 'ROLE_EDITEUR';
+        }
         return array_values(array_unique($roles));
     }
 
@@ -640,7 +647,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** True si le user a un accès quelconque au backend. */
     public function hasBackendAccess(): bool
     {
-        return in_array($this->role, [self::ROLE_EDITEUR, self::ROLE_ENTRAINEUR, self::ROLE_ADMIN], true);
+        if (in_array($this->role, [self::ROLE_EDITEUR, self::ROLE_ENTRAINEUR, self::ROLE_ADMIN], true)) {
+            return true;
+        }
+        // Un membre du CoDir a implicitement ROLE_EDITEUR — cf. getRoles().
+        return $this->boardRole !== null;
     }
 
     public function getPassword(): ?string
