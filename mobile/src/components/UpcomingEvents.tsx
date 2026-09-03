@@ -146,8 +146,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     gap: 4,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm },
-  title: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm, minHeight: 18 },
+  // lineHeight = icon size pour un alignement vertical déterministe entre
+  // le glyphe (Ionicons) et le texte (les glyphes des différentes icônes
+  // n'ont pas tous le même centrage vertical dans la font — sans hauteur
+  // de ligne explicite le décalage devient visible).
+  title: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 18 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

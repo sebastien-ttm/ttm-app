@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
+    minHeight: 18,
   },
   sectionTitle: {
     fontSize: 13,
@@ -135,5 +136,9 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    // lineHeight = taille de l'icône : force le texte à occuper la
+    // même hauteur que le glyphe, sinon le centrage (alignItems:center)
+    // varie selon la métrique du glyphe Ionicons choisi.
+    lineHeight: 18,
   },
 });
