@@ -46,18 +46,18 @@ export function UpcomingEvents() {
 
   if (loading) {
     return (
-      <View style={styles.card}>
+      <View style={styles.loadingBlock}>
         <ActivityIndicator color={COLORS.primary} />
       </View>
     );
   }
 
-  // Rend TOUJOURS le card (même sans événements à venir) — le lien
+  // Rend TOUJOURS le bloc (même sans événements à venir) — le lien
   // « Voir tout le calendrier » reste ainsi accessible depuis la home.
   const hasEvents = items.length > 0;
 
   return (
-    <View style={styles.card}>
+    <View>
       <View style={styles.header}>
         <Ionicons name="calendar" size={18} color={COLORS.primary} />
         <Text style={styles.title}>Prochainement</Text>
@@ -149,24 +149,35 @@ function weekdayShort(d: Date): string {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    margin: SPACING.md,
-    padding: SPACING.md,
-    gap: 4,
+  loadingBlock: {
+    marginHorizontal: SPACING.md,
+    marginVertical: SPACING.md,
+    alignItems: 'center',
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm, minHeight: 18 },
-  // lineHeight = icon size pour un alignement vertical déterministe entre
-  // le glyphe (Ionicons) et le texte (les glyphes des différentes icônes
-  // n'ont pas tous le même centrage vertical dans la font — sans hauteur
-  // de ligne explicite le décalage devient visible).
+  // Header aligné avec les section titles standards (mêmes marges que
+  // « Articles ») — l'ancien wrapper card est supprimé pour éviter le
+  // décalage visuel entre les 2 sections.
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    minHeight: 18,
+  },
   title: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 18 },
+  // Chaque row devient sa propre carte visuelle (bg + radius + margin)
+  // depuis la suppression du wrapper englobant.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    padding: SPACING.md,
     gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   dateBox: {
     width: 48,
@@ -193,11 +204,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   allLinkLabel: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
-  empty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', paddingVertical: 8 },
+  empty: {
+    fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic',
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
+  },
 });
