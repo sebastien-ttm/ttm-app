@@ -13,15 +13,14 @@ security:
         ROLE_ADMIN: ROLE_ENTRAINEUR
 
     providers:
-        # Pas de `property` : Symfony délègue le chargement à
-        # UserRepository::loadUserByIdentifier — celui-ci filtre sur le
-        # PRIMAIRE (linkedToUser IS NULL). Sans ça, quand deux comptes
-        # partagent un email, le firewall chargeait le premier trouvé
-        # (souvent l'ancien primaire après un swap manuel dans l'admin),
-        # donc le hash vérifié n'était pas celui du bon user → 401.
+        # Provider custom qui implémente PayloadAwareUserProviderInterface :
+        # Lexik lui transmet le payload JWT complet et notre provider load
+        # par le claim `uid` (garantit le compte exact identifié par le
+        # JWT — parent ou dépendant partageant l'email). Le fallback par
+        # email (loadUserByIdentifier) sert au form_login admin classique
+        # + au refresh sans payload, et retourne le PRIMAIRE de l'email.
         app_user_provider:
-            entity:
-                class: App\Entity\User
+            id: App\Security\JwtUidAwareUserProvider
 
     firewalls:
         dev:
