@@ -18,9 +18,10 @@ import { useAuth } from '@/auth/AuthContext';
 import { APP_NAME, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 
 /**
- * Création d'un compte adhérent NON licencié au club (« ami du club »).
- * Même flow que register-parent mais avec la date de naissance en +
- * (utilisée pour dériver le profil principal Jeune/Sénior).
+ * Création d'un compte adhérent EXTERNE : adhérent du club dont la
+ * licence FFTri est prise dans un autre club (type=Adherent,
+ * subType=AutreClub). Même flow que register-parent, avec date de
+ * naissance et numéro de licence en plus.
  */
 export default function RegisterMemberScreen() {
   const router = useRouter();

@@ -261,14 +261,16 @@ class AuthController extends AbstractController
     }
 
     /**
-     * Inscription d'un adhérent NON licencié au club (« ami du club »).
-     * Même flow que register-parent, mais on demande la date de
-     * naissance à la place des licences des enfants (permet de calculer
-     * le profil principal Jeune/Sénior automatiquement, comme à l'import
-     * CSV FFTri).
+     * Inscription d'un adhérent EXTERNE : adhérent du club dont la
+     * licence FFTri est prise dans un autre club (type=Adherent,
+     * subType=AutreClub). Même flow que register-parent, mais on
+     * demande la date de naissance (pour dériver le profil principal
+     * Jeune/Sénior, comme à l'import CSV FFTri) et le numéro de licence
+     * (celui de l'autre club).
      *
      * POST body attendu :
-     *   { "email", "prenom", "nom", "password", "dateNaissance": "YYYY-MM-DD" }
+     *   { "email", "prenom", "nom", "password", "dateNaissance": "YYYY-MM-DD",
+     *     "numLicence": string }
      */
     #[Route('/api/auth/register-member', methods: ['POST'])]
     public function registerMember(
