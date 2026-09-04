@@ -82,14 +82,22 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      */
     public function findLinkedProfiles(User $user): array
     {
-        $primary = $user->getPrimaryUser();
-
-        // 1) Profils via e-mail partagé
-        $emailLinked = $this->createQueryBuilder('u')
-            ->where('u = :primary OR u.linkedToUser = :primary')
-            ->setParameter('primary', $primary)
-            ->getQuery()
-            ->getResult();
+        // 1) Profils via e-mail partagé — on compare directement sur
+        //    user.email (au lieu de user = primary OR linkedToUser = primary).
+        //    Résout deux cas où l'ancienne requête ratait des profils :
+        //    - deux comptes marqués primaires par erreur (linkedToUser null
+        //      pour les deux) : l'ancien filter n'en voyait qu'un.
+        //    - primaire déplacé manuellement dans l'admin sans rebranchement
+        //      des anciens dépendants.
+        $email = mb_strtolower(trim((string) $user->getEmail()), 'UTF-8');
+        $emailLinked = [];
+        if ($email !== '') {
+            $emailLinked = $this->createQueryBuilder('u')
+                ->where('LOWER(u.email) = :email')
+                ->setParameter('email', $email)
+                ->getQuery()
+                ->getResult();
+        }
 
         // 2) Relation famille (parent → enfants et enfant → parents)
         $byId = [];
