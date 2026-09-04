@@ -18,12 +18,53 @@ type FetchOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>;
   /** if true, do not attach Authorization header */
   public?: boolean;
+  /** interne : évite la boucle infinie si le retry post-refresh 401 aussi */
+  _retried?: boolean;
 };
 
 let onUnauthorizedHandler: (() => void) | null = null;
 
 export function setOnUnauthorized(handler: (() => void) | null): void {
   onUnauthorizedHandler = handler;
+}
+
+/**
+ * Promesse en vol partagée : si N requêtes 401ent en simultané, on ne
+ * déclenche QU'UN seul refresh, toutes attendent le même résultat.
+ */
+let refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * Renouvelle l'access token en utilisant le refresh_token stocké.
+ * Retourne le nouveau access token, ou null si le refresh échoue
+ * (refresh_token absent, expiré ou révoqué → signOut requis en aval).
+ */
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight !== null) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const rt = await storage.getItem(STORAGE_KEYS.refreshToken);
+      if (!rt) return null;
+      const resp = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json().catch(() => null) as { token?: string; refresh_token?: string } | null;
+      if (!data?.token) return null;
+      await storage.setItem(STORAGE_KEYS.accessToken, data.token);
+      if (data.refresh_token) {
+        await storage.setItem(STORAGE_KEYS.refreshToken, data.refresh_token);
+      }
+      return data.token;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 async function request<T>(method: string, path: string, opts: FetchOptions = {}): Promise<T> {
@@ -78,6 +119,16 @@ async function request<T>(method: string, path: string, opts: FetchOptions = {})
 
   if (!response.ok) {
     if (response.status === 401 && !opts.public) {
+      // 1re tentative : renouvelle silencieusement l'access token via
+      // le refresh (30 j côté serveur) puis rejoue la requête. Sans ça
+      // l'appli déconnectait dès l'expiration du JWT (1 h).
+      if (!opts._retried) {
+        const newAccess = await refreshAccessToken();
+        if (newAccess !== null) {
+          return request<T>(method, path, { ...opts, _retried: true });
+        }
+      }
+      // Refresh impossible (expiré, révoqué, absent) → signOut.
       onUnauthorizedHandler?.();
     }
     const message =
