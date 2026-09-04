@@ -209,8 +209,14 @@ function TrainingScreenInner() {
 }
 
 function SlotRow({ slot }: { slot: TrainingSlot }) {
+  // Créneau considéré passé quand sa FIN (start + durée) est dépassée.
+  // Le start seul serait trop restrictif : pendant les 60-90 min de la
+  // session, l'adhérent la voit encore "en cours" (pas grisée).
+  const slotEndMs = new Date(`${slot.date}T${slot.startTime}:00`).getTime()
+    + slot.durationMinutes * 60_000;
+  const isPast = Number.isFinite(slotEndMs) && slotEndMs < Date.now();
   return (
-    <View style={styles.slot}>
+    <View style={[styles.slot, isPast && styles.slotPast]}>
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>
           {slot.startTime}
@@ -227,6 +233,7 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
+          {isPast && <Tag color={COLORS.textMuted} bg={COLORS.background} label="Passé" />}
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
         {slot.description ? (
@@ -332,6 +339,7 @@ const styles = StyleSheet.create({
   },
   slotCancelled: { opacity: 0.7 },
   cancelledText: { textDecorationLine: 'line-through' },
+  slotPast: { opacity: 0.55 },
   slotTimeCol: {
     minWidth: 60,
     alignItems: 'flex-start',
