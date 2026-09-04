@@ -92,9 +92,9 @@ export default function RegisterMemberScreen() {
               <Text style={styles.backBtnLabel}>← Retour</Text>
             </Pressable>
             <Text style={styles.brand}>{APP_NAME}</Text>
-            <Text style={styles.title}>Créer un compte adhérent</Text>
+            <Text style={styles.title}>Créer un compte adhérent externe</Text>
             <Text style={styles.subtitle}>
-              Pour les adhérents du club non licenciés FFTri (ex : membres bureau, bénévoles, sympathisants).
+              Pour les adhérents du club licenciés dans un autre club FFTri.
             </Text>
           </View>
 

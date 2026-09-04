@@ -172,12 +172,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.parentLinkBox}>
-            <Text style={styles.parentLinkLabel}>Adhérent non licencié au club ?</Text>
+            <Text style={styles.parentLinkLabel}>Adhérent licencié dans un autre club FFTri ?</Text>
             <Pressable
               onPress={() => router.push('/(auth)/register-member')}
               style={({ pressed }) => [styles.parentLinkBtn, pressed && { opacity: 0.7 }]}
             >
-              <Text style={styles.parentLinkBtnLabel}>Créer un compte adhérent →</Text>
+              <Text style={styles.parentLinkBtnLabel}>Créer un compte adhérent externe →</Text>
             </Pressable>
           </View>
         </ScrollView>
