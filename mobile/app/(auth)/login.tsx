@@ -170,6 +170,16 @@ export default function LoginScreen() {
               <Text style={styles.parentLinkBtnLabel}>Créer un compte parent →</Text>
             </Pressable>
           </View>
+
+          <View style={styles.parentLinkBox}>
+            <Text style={styles.parentLinkLabel}>Adhérent non licencié au club ?</Text>
+            <Pressable
+              onPress={() => router.push('/(auth)/register-member')}
+              style={({ pressed }) => [styles.parentLinkBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.parentLinkBtnLabel}>Créer un compte adhérent →</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

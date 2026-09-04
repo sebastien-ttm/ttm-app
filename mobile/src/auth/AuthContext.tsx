@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, RegisterParentPayload, auth, setOnUnauthorized } from '@/api/client';
+import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, RegisterMemberPayload, RegisterParentPayload, auth, setOnUnauthorized } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
@@ -89,6 +89,7 @@ type AuthContextValue = AuthState & {
   loginWithPassword: (email: string, password: string) => Promise<void>;
   consumeMagicLink: (token: string) => Promise<void>;
   registerParent: (payload: RegisterParentPayload) => Promise<void>;
+  registerMember: (payload: RegisterMemberPayload) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
   acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
@@ -246,6 +247,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
+  const registerMember = useCallback(
+    async (payload: RegisterMemberPayload) => {
+      const resp = await auth.registerMember(payload);
+      await persist(resp);
+    },
+    [persist],
+  );
+
   const refreshMe = useCallback(async () => {
     const fresh = await auth.me();
     await storage.setItem(STORAGE_KEYS.user, JSON.stringify(fresh));
@@ -281,13 +290,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginWithPassword,
       consumeMagicLink,
       registerParent,
+      registerMember,
       signOut,
       refreshMe,
       acknowledgeCharter,
       switchProfile,
       replaceLinkedProfiles,
     }),
-    [state, loginWithPassword, consumeMagicLink, registerParent, signOut, refreshMe, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
+    [state, loginWithPassword, consumeMagicLink, registerParent, registerMember, signOut, refreshMe, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -259,4 +259,102 @@ class AuthController extends AbstractController
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($parent, $this->users),
         ], Response::HTTP_CREATED);
     }
+
+    /**
+     * Inscription d'un adhérent NON licencié au club (« ami du club »).
+     * Même flow que register-parent, mais on demande la date de
+     * naissance à la place des licences des enfants (permet de calculer
+     * le profil principal Jeune/Sénior automatiquement, comme à l'import
+     * CSV FFTri).
+     *
+     * POST body attendu :
+     *   { "email", "prenom", "nom", "password", "dateNaissance": "YYYY-MM-DD" }
+     */
+    #[Route('/api/auth/register-member', methods: ['POST'])]
+    public function registerMember(
+        Request $request,
+        RateLimiterFactory $magicLinkRequestIpLimiter,
+    ): JsonResponse {
+        $ipLimiter = $magicLinkRequestIpLimiter->create($request->getClientIp() ?? 'unknown');
+        if (!$ipLimiter->consume()->isAccepted()) {
+            return new JsonResponse(['error' => 'Trop de demandes. Réessayez plus tard.'], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload JSON invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $email = mb_strtolower(trim((string) ($payload['email'] ?? '')), 'UTF-8');
+        $prenom = trim((string) ($payload['prenom'] ?? ''));
+        $nom = trim((string) ($payload['nom'] ?? ''));
+        $password = (string) ($payload['password'] ?? '');
+        $dateNaissanceRaw = trim((string) ($payload['dateNaissance'] ?? ''));
+
+        $errors = [];
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Email invalide.';
+        }
+        if ($prenom === '' || mb_strlen($prenom) > 120) {
+            $errors[] = 'Prénom requis (max 120 caractères).';
+        }
+        if ($nom === '' || mb_strlen($nom) > 120) {
+            $errors[] = 'Nom requis (max 120 caractères).';
+        }
+        if (mb_strlen($password) < 8) {
+            $errors[] = 'Mot de passe trop court (8 caractères minimum).';
+        }
+        $dateNaissance = null;
+        if ($dateNaissanceRaw !== '') {
+            $dateNaissance = \DateTimeImmutable::createFromFormat('!Y-m-d', $dateNaissanceRaw)
+                ?: \DateTimeImmutable::createFromFormat('!d/m/Y', $dateNaissanceRaw)
+                ?: null;
+        }
+        if ($dateNaissance === null) {
+            $errors[] = 'Date de naissance requise au format AAAA-MM-JJ ou JJ/MM/AAAA.';
+        } elseif ($dateNaissance > new \DateTimeImmutable('today')) {
+            $errors[] = 'Date de naissance dans le futur — vérifiez la saisie.';
+        }
+        if ($errors !== []) {
+            return new JsonResponse(['error' => 'Formulaire invalide.', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($this->users->findOneByEmail($email) !== null) {
+            return new JsonResponse(
+                ['error' => 'Cet e-mail est déjà associé à un compte.'],
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        $principalProfile = Profile::principalFromBirthDate($dateNaissance);
+
+        $member = new User();
+        $member->setEmail($email);
+        $member->setPrenom($prenom);
+        $member->setNom($nom);
+        $member->setDateNaissance($dateNaissance);
+        $member->setNumLicence(null);
+        $member->setIsActive(true);
+        $member->setType(UserType::Externe);
+        $member->setSubType(User::SUBTYPE_AMI);
+        $member->setRole('user');
+        $member->setProfiles([$principalProfile->value]);
+        $member->setPassword($this->hasher->hashPassword($member, $password));
+
+        $this->em->persist($member);
+        $this->em->flush();
+
+        $accessToken = $this->jwt->create($member);
+        $refresh = $this->refreshTokenGenerator->createForUserWithTtl($member, 2592000);
+        $this->refreshTokenManager->save($refresh);
+
+        $this->loginRecorder->record($member, LoginEvent::CHANNEL_MOBILE);
+
+        return new JsonResponse([
+            'token' => $accessToken,
+            'refresh_token' => $refresh->getRefreshToken(),
+            'user' => AuthSuccessListener::serializeUser($member, $this->avatars->urlFor($member)),
+            'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($member, $this->users),
+        ], Response::HTTP_CREATED);
+    }
 }

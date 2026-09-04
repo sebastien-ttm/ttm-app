@@ -229,6 +229,15 @@ export type RegisterParentPayload = {
   childrenLicences: string[];
 };
 
+export type RegisterMemberPayload = {
+  email: string;
+  prenom: string;
+  nom: string;
+  password: string;
+  /** YYYY-MM-DD */
+  dateNaissance: string;
+};
+
 export const auth = {
   loginWithPassword: (email: string, password: string) =>
     api.post<LoginResponse>('/api/auth/login', { email, password }, { public: true }),
@@ -240,6 +249,8 @@ export const auth = {
     api.post<{ token: string; refresh_token?: string }>('/api/auth/refresh', { refresh_token: refreshToken }, { public: true }),
   registerParent: (payload: RegisterParentPayload) =>
     api.post<LoginResponse>('/api/auth/register-parent', payload, { public: true }),
+  registerMember: (payload: RegisterMemberPayload) =>
+    api.post<LoginResponse>('/api/auth/register-member', payload, { public: true }),
   me: () => api.get<AuthenticatedUser>('/api/me'),
   setPassword: (newPassword: string) =>
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
