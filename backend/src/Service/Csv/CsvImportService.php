@@ -656,9 +656,18 @@ class CsvImportService
     }
 
     /**
-     * Pour chaque e-mail partagé par plusieurs users actifs, le plus âgé est
-     * désigné comme primaire (linkedToUser=null), les autres pointent vers lui.
-     * Idempotent : peut être rejoué sans casser les liens existants.
+     * Pour chaque e-mail partagé par plusieurs users actifs, s'assure
+     * qu'EXACTEMENT UN est primaire (linkedToUser=null), les autres
+     * pointent vers lui.
+     *
+     * Comportement conservateur : si un primaire est déjà correctement
+     * défini dans le groupe (1 seul avec linkedToUser=null), l'import
+     * NE TOUCHE PAS à la configuration — respecte les swaps manuels
+     * effectués par l'admin via la fiche adhérent.
+     *
+     * Ne recalcule (plus âgé = primaire) que quand l'état est incohérent :
+     * 0 primaire (tous dépendants d'un ex-primaire disparu) ou plusieurs
+     * primaires (import précédent buggé, création manuelle non liée…).
      */
     private function linkSharedEmailProfiles(): void
     {
@@ -677,8 +686,29 @@ class CsvImportService
                 continue;
             }
 
-            // Trier : le plus âgé (date naissance la + ancienne) en tête.
-            // Les users sans date de naissance vont en queue.
+            // Compte les primaires + repère lequel.
+            $primaries = array_values(array_filter(
+                $usersInGroup,
+                fn (User $u) => $u->getLinkedToUser() === null,
+            ));
+
+            if (count($primaries) === 1) {
+                // État cohérent : un seul primaire déjà en place. On
+                // s'assure juste que TOUS les autres pointent bien vers
+                // lui (rattache les orphelins ou mal-rattachés) sans
+                // toucher au primaire.
+                $primary = $primaries[0];
+                foreach ($usersInGroup as $u) {
+                    if ($u->getId() === $primary->getId()) continue;
+                    if ($u->getLinkedToUser()?->getId() !== $primary->getId()) {
+                        $u->setLinkedToUser($primary);
+                    }
+                }
+                continue;
+            }
+
+            // Incohérence (0 ou > 1 primaires) → recalcule : plus âgé
+            // en tête. Les users sans date de naissance vont en queue.
             usort($usersInGroup, function (User $a, User $b) {
                 $da = $a->getDateNaissance();
                 $db = $b->getDateNaissance();
@@ -698,7 +728,6 @@ class CsvImportService
             $primary->setLinkedToUser(null);
 
             foreach ($usersInGroup as $dependent) {
-                // Évite l'auto-référence
                 if ($dependent->getId() !== $primary->getId()) {
                     $dependent->setLinkedToUser($primary);
                 }
