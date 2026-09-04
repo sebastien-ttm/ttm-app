@@ -236,6 +236,7 @@ export type RegisterMemberPayload = {
   password: string;
   /** YYYY-MM-DD */
   dateNaissance: string;
+  numLicence: string;
 };
 
 export const auth = {

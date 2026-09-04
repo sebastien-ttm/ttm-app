@@ -290,6 +290,7 @@ class AuthController extends AbstractController
         $nom = trim((string) ($payload['nom'] ?? ''));
         $password = (string) ($payload['password'] ?? '');
         $dateNaissanceRaw = trim((string) ($payload['dateNaissance'] ?? ''));
+        $numLicenceRaw = trim((string) ($payload['numLicence'] ?? ''));
 
         $errors = [];
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -315,8 +316,26 @@ class AuthController extends AbstractController
         } elseif ($dateNaissance > new \DateTimeImmutable('today')) {
             $errors[] = 'Date de naissance dans le futur — vérifiez la saisie.';
         }
+        $numLicence = null;
+        if ($numLicenceRaw === '') {
+            $errors[] = 'Numéro de licence requis.';
+        } else {
+            $numLicence = User::normalizeLicence($numLicenceRaw);
+            if ($numLicence === null) {
+                $errors[] = 'Numéro de licence invalide.';
+            }
+        }
         if ($errors !== []) {
             return new JsonResponse(['error' => 'Formulaire invalide.', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Unicité du n° de licence (index déjà en base sur num_licence — on
+        // renvoie une erreur claire plutôt qu'une SQLException).
+        if ($this->users->findOneByNumLicence($numLicence) !== null) {
+            return new JsonResponse(
+                ['error' => 'Ce numéro de licence est déjà associé à un compte.'],
+                Response::HTTP_CONFLICT,
+            );
         }
 
         if ($this->users->findOneByEmail($email) !== null) {
@@ -333,9 +352,9 @@ class AuthController extends AbstractController
         $member->setPrenom($prenom);
         $member->setNom($nom);
         $member->setDateNaissance($dateNaissance);
-        $member->setNumLicence(null);
+        $member->setNumLicence($numLicence);
         $member->setIsActive(true);
-        // Adhérent du club mais licencié dans un autre club (typiquement
+        // Adhérent du club licencié dans un autre club (typiquement
         // membres du bureau, bénévoles, sympathisants qui prennent leur
         // licence FFTri ailleurs). L'admin peut basculer sur SUBTYPE_CLUB
         // ultérieurement s'ils prennent leur licence à TTM.

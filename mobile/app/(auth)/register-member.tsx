@@ -32,6 +32,7 @@ export default function RegisterMemberScreen() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [dateNaissance, setDateNaissance] = useState('');
+  const [numLicence, setNumLicence] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[]>([]);
@@ -56,6 +57,10 @@ export default function RegisterMemberScreen() {
       setError('Date de naissance requise au format AAAA-MM-JJ.');
       return;
     }
+    if (!numLicence.trim()) {
+      setError('Numéro de licence requis.');
+      return;
+    }
 
     setBusy(true);
     try {
@@ -65,6 +70,7 @@ export default function RegisterMemberScreen() {
         nom: nom.trim(),
         password,
         dateNaissance: dateNaissance.trim(),
+        numLicence: numLicence.trim(),
       });
     } catch (e) {
       const apiBody = (e as { body?: { error?: string; details?: string[] } } | undefined)?.body;
@@ -150,6 +156,18 @@ export default function RegisterMemberScreen() {
                 editable={!busy}
               />
             )}
+
+            <Text style={styles.label}>Numéro de licence (autre club)</Text>
+            <TextInput
+              value={numLicence}
+              onChangeText={setNumLicence}
+              placeholder="Ex : A12345C0180418MS1FRA"
+              placeholderTextColor={COLORS.textSubtle}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.input}
+              editable={!busy}
+            />
 
             <Text style={styles.label}>Adresse e-mail</Text>
             <TextInput
