@@ -335,8 +335,12 @@ class AuthController extends AbstractController
         $member->setDateNaissance($dateNaissance);
         $member->setNumLicence(null);
         $member->setIsActive(true);
-        $member->setType(UserType::Externe);
-        $member->setSubType(User::SUBTYPE_AMI);
+        // Adhérent du club mais licencié dans un autre club (typiquement
+        // membres du bureau, bénévoles, sympathisants qui prennent leur
+        // licence FFTri ailleurs). L'admin peut basculer sur SUBTYPE_CLUB
+        // ultérieurement s'ils prennent leur licence à TTM.
+        $member->setType(UserType::Adherent);
+        $member->setSubType(User::SUBTYPE_AUTRE_CLUB);
         $member->setRole('user');
         $member->setProfiles([$principalProfile->value]);
         $member->setPassword($this->hasher->hashPassword($member, $password));
