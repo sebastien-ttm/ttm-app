@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,20 +27,44 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Refs = fallback pour lire le DOM directement si le state React est
+  // vide (cas iOS Safari : le password manager écrit dans le node <input>
+  // sans déclencher onChangeText — le state reste '' alors que la valeur
+  // est visible à l'écran, submit envoyait des credentials vides → 401).
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+
+  /** Lit la valeur d'un TextInput soit via le state React, soit en fallback
+   *  via le DOM (contourne un autofill Safari silencieux qui ne fire pas
+   *  onChangeText). */
+  function readInput(stateValue: string, ref: React.RefObject<TextInput | null>): string {
+    if (stateValue !== '') return stateValue;
+    if (Platform.OS !== 'web') return stateValue;
+    const node = ref.current as unknown as { value?: string } | null;
+    return node?.value ?? stateValue;
+  }
 
   async function submit() {
     setError(null);
-    if (!email.trim()) {
+    const effectiveEmail = readInput(email, emailRef).trim();
+    const effectivePassword = readInput(password, passwordRef);
+    // Re-sync le state React si l'autofill DOM avait fait perdre la valeur —
+    // évite que l'utilisateur voie le champ « rempli » mais un message
+    // d'erreur « Saisissez votre email » incompréhensible.
+    if (effectiveEmail !== email) setEmail(effectiveEmail);
+    if (effectivePassword !== password) setPassword(effectivePassword);
+
+    if (!effectiveEmail) {
       setError('Saisissez votre adresse e-mail.');
       return;
     }
     setBusy(true);
     try {
       if (mode === 'password') {
-        if (!password) throw new ApiError('Saisissez votre mot de passe.', 0, null);
-        await loginWithPassword(email, password);
+        if (!effectivePassword) throw new ApiError('Saisissez votre mot de passe.', 0, null);
+        await loginWithPassword(effectiveEmail, effectivePassword);
       } else {
-        router.push({ pathname: '/(auth)/magic-link-request', params: { email: email.trim() } });
+        router.push({ pathname: '/(auth)/magic-link-request', params: { email: effectiveEmail } });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inattendue');
@@ -84,6 +108,7 @@ export default function LoginScreen() {
 
             <Text style={styles.label}>Adresse e-mail</Text>
             <TextInput
+              ref={emailRef}
               value={email}
               onChangeText={setEmail}
               placeholder="vous@example.fr"
@@ -100,11 +125,13 @@ export default function LoginScreen() {
               <>
                 <Text style={styles.label}>Mot de passe</Text>
                 <TextInput
+                  ref={passwordRef}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="••••••••"
                   placeholderTextColor={COLORS.textSubtle}
                   secureTextEntry
+                  autoComplete="current-password"
                   style={styles.input}
                   editable={!busy}
                 />
