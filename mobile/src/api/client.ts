@@ -1,4 +1,4 @@
-import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageScope, Trainer, UserMessage } from '@/api/types';
+import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageCategory, MessageScope, Trainer, UserMessage } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 
@@ -333,6 +333,8 @@ export const auth = {
     recipientId?: number | null;
     subject?: string;
     body: string;
+    /** Défaut 'general' côté serveur si omis. */
+    category?: MessageCategory;
   }) => api.post<UserMessage>('/api/me/messages', payload),
 
   archiveSentMessage: (id: number) =>

@@ -400,10 +400,24 @@ export type Trainer = {
  */
 export type MessageScope = 'club' | 'trainer' | 'all_trainers';
 
+/**
+ * Catégorie/intention d'un message :
+ *  - general      : composer libre (défaut, comportement historique)
+ *  - bug          : signalement de bug appli (bouton dédié)
+ *  - improvement  : idée d'amélioration appli (bouton dédié)
+ *  - help_offer   : proposition d'aide au club (bouton dédié)
+ */
+export type MessageCategory = 'general' | 'bug' | 'improvement' | 'help_offer';
+
 /** Message envoyé depuis l'app (côté expéditeur). */
 export type UserMessage = {
   id: number;
   scope: MessageScope;
+  category: MessageCategory;
+  /** Libellé prêt-à-afficher (« Bug appli », « Idée d'amélioration »…). */
+  categoryLabel: string;
+  /** Emoji illustratif (🐞, 💡, 🤝, 💬). */
+  categoryIcon: string;
   /** Renseigné uniquement pour scope='trainer'. */
   recipientId: number | null;
   /** Libellé prêt-à-afficher : « Le club », « Tous les entraîneurs » ou « Prénom Nom ». */
@@ -432,6 +446,9 @@ export type InboxMessage = {
   scope: MessageScope;
   /** Ex : « Pour vous seul », « Pour tous les entraîneurs », « Pour le club (admins) ». */
   scopeLabel: string;
+  category: MessageCategory;
+  categoryLabel: string;
+  categoryIcon: string;
   senderId: number;
   senderLabel: string;
   subject: string | null;

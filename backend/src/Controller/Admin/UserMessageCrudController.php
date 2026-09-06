@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Enum\MessageCategory;
 use App\Enum\MessageScope;
 use App\Message\NotifyUserMessageReplyMessage;
 use App\Repository\UserMessageRepository;
@@ -115,6 +116,15 @@ class UserMessageCrudController extends AbstractCrudController
 
         yield AssociationField::new('sender', 'Expéditeur')
             ->setCrudController(UserCrudController::class)
+            ->hideOnForm();
+
+        yield ChoiceField::new('category', 'Catégorie')
+            ->setChoices([
+                'Message' => MessageCategory::General,
+                'Bug appli' => MessageCategory::Bug,
+                'Idée d\'amélioration' => MessageCategory::Improvement,
+                'Proposition d\'aide' => MessageCategory::HelpOffer,
+            ])
             ->hideOnForm();
 
         yield ChoiceField::new('scope', 'Portée')

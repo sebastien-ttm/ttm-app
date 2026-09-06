@@ -132,6 +132,13 @@ export default function InboxDetailScreen() {
             </View>
           </View>
 
+          {msg.category !== 'general' && (
+            <View style={styles.categoryChip}>
+              <Text style={styles.categoryChipLabel}>
+                {msg.categoryIcon} {msg.categoryLabel}
+              </Text>
+            </View>
+          )}
           {msg.subject && <Text style={styles.subject}>{msg.subject}</Text>}
           <Text style={styles.body}>{msg.body}</Text>
 
@@ -242,6 +249,17 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.md },
   senderName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   date: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  categoryChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  categoryChipLabel: { fontSize: 12, fontWeight: '700', color: '#92400e' },
   subject: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.sm },
   body: {
     fontSize: 15, color: COLORS.text, lineHeight: 22,

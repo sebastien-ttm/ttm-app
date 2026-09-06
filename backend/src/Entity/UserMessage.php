@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\MessageCategory;
 use App\Enum\MessageScope;
 use App\Repository\UserMessageRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -46,6 +47,14 @@ class UserMessage
     /** Portée du message — voir enum MessageScope. */
     #[ORM\Column(length: 20, enumType: MessageScope::class, options: ['default' => 'club'])]
     private MessageScope $scope = MessageScope::Club;
+
+    /**
+     * Catégorie/intention du message. General = composer libre (défaut,
+     * comportement historique). Bug/Improvement/HelpOffer = posté depuis
+     * un bouton dédié côté mobile pour aider les admins à trier.
+     */
+    #[ORM\Column(length: 20, enumType: MessageCategory::class, options: ['default' => 'general'])]
+    private MessageCategory $category = MessageCategory::General;
 
     #[ORM\Column(length: 200, nullable: true)]
     #[Assert\Length(max: 200)]
@@ -108,6 +117,9 @@ class UserMessage
 
     public function getScope(): MessageScope { return $this->scope; }
     public function setScope(MessageScope $s): self { $this->scope = $s; return $this; }
+
+    public function getCategory(): MessageCategory { return $this->category; }
+    public function setCategory(MessageCategory $c): self { $this->category = $c; return $this; }
 
     public function getSubject(): ?string { return $this->subject; }
     public function setSubject(?string $s): self { $this->subject = $s !== null ? trim($s) ?: null : null; return $this; }

@@ -159,6 +159,23 @@ export default function ContactScreen() {
             <Text style={styles.newButtonLabel}>Nouveau message</Text>
           </Pressable>
 
+          <View style={styles.quickRow}>
+            <Pressable
+              style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/contact/quick?kind=feedback' as never)}
+            >
+              <Text style={styles.quickBtnIcon}>🐞</Text>
+              <Text style={styles.quickBtnLabel}>Bug / Idée d'amélioration</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/contact/quick?kind=help' as never)}
+            >
+              <Text style={styles.quickBtnIcon}>🤝</Text>
+              <Text style={styles.quickBtnLabel}>Je propose mon aide au club</Text>
+            </Pressable>
+          </View>
+
           <SectionTabs
             section={section}
             hasInbox={hasInbox}
@@ -255,7 +272,11 @@ function SentCard({ m, archived, onArchive, onUnarchive }: {
         </View>
         <Text style={styles.date}>{formatDateShort(sent)}</Text>
       </View>
-      {m.subject && <Text style={styles.subject}>{m.subject}</Text>}
+      {m.subject && (
+        <Text style={styles.subject}>
+          {m.category !== 'general' ? m.categoryIcon + ' ' : ''}{m.subject}
+        </Text>
+      )}
       <Text style={styles.body}>{m.body}</Text>
 
       {m.hasReply && m.reply && (
@@ -301,7 +322,11 @@ function InboxCard({ m, archived, onOpen, onArchive, onUnarchive }: {
         </View>
         <Text style={styles.date}>{formatDateShort(sent)}</Text>
       </View>
-      {m.subject && <Text style={styles.subject}>{m.subject}</Text>}
+      {m.subject && (
+        <Text style={styles.subject}>
+          {m.category !== 'general' ? m.categoryIcon + ' ' : ''}{m.subject}
+        </Text>
+      )}
       <Text style={styles.body} numberOfLines={3}>{m.body}</Text>
 
       {m.hasReply && m.reply && (
@@ -392,6 +417,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   newButtonLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  quickRow: { flexDirection: 'row', gap: 8 },
+  quickBtn: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  quickBtnIcon: { fontSize: 20 },
+  quickBtnLabel: {
+    fontSize: 11, fontWeight: '600', color: COLORS.text,
+    textAlign: 'center', lineHeight: 14,
+  },
   tabs: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,

@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Enum\MessageCategory;
 use App\Enum\MessageScope;
 use App\Enum\Profile;
 use App\Message\NotifyNewUserMessageMessage;
@@ -106,6 +107,16 @@ class MessageController extends AbstractController
             return new JsonResponse(['error' => 'scope invalide (club|trainer|all_trainers).'], Response::HTTP_BAD_REQUEST);
         }
 
+        $rawCategory = $payload['category'] ?? null;
+        $category = MessageCategory::General;
+        if (is_string($rawCategory) && $rawCategory !== '') {
+            $parsed = MessageCategory::tryFrom($rawCategory);
+            if ($parsed === null) {
+                return new JsonResponse(['error' => 'category invalide.'], Response::HTTP_BAD_REQUEST);
+            }
+            $category = $parsed;
+        }
+
         $recipient = null;
         if ($scope === MessageScope::Trainer) {
             if ($recipientId <= 0) {
@@ -124,6 +135,7 @@ class MessageController extends AbstractController
         $msg->setSender($user);
         $msg->setRecipient($recipient);
         $msg->setScope($scope);
+        $msg->setCategory($category);
         $msg->setSubject($subject !== '' ? $subject : null);
         $msg->setBody($body);
 
@@ -317,6 +329,9 @@ class MessageController extends AbstractController
         return [
             'id' => $m->getId(),
             'scope' => $m->getScope()->value,
+            'category' => $m->getCategory()->value,
+            'categoryLabel' => $m->getCategory()->label(),
+            'categoryIcon' => $m->getCategory()->icon(),
             'recipientId' => $m->getRecipient()?->getId(),
             'recipientLabel' => $m->getRecipientLabel(),
             'subject' => $m->getSubject(),
@@ -349,6 +364,9 @@ class MessageController extends AbstractController
             'id' => $m->getId(),
             'scope' => $scope->value,
             'scopeLabel' => $scopeLabel,
+            'category' => $m->getCategory()->value,
+            'categoryLabel' => $m->getCategory()->label(),
+            'categoryIcon' => $m->getCategory()->icon(),
             'senderId' => $m->getSender()->getId(),
             'senderLabel' => $m->getSender()->getFullName(),
             'subject' => $m->getSubject(),
