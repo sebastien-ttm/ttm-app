@@ -123,6 +123,12 @@ export const events = {
     return api.get<{ data: EventItem[]; from: string; to: string }>(`/api/events?${qs.toString()}`);
   },
   get: (id: number) => api.get<EventItem>(`/api/events/${id}`),
+  /** status=null retire le vote (l'user redevient indéterminé). */
+  setAttendance: (id: number, status: 'yes' | 'no' | 'maybe' | null) =>
+    api.post<{ ok: boolean; myVote: string | null; voteCounts: { yes: number; no: number; maybe: number } }>(
+      `/api/events/${id}/attendance`,
+      { status },
+    ),
 };
 
 export const banner = {

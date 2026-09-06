@@ -49,6 +49,15 @@ class Event
     #[ORM\Column(name: 'is_all_day', options: ['default' => false])]
     private bool $isAllDay = false;
 
+    /**
+     * Soumis au vote de présence : les adhérents peuvent indiquer
+     * « j'y serai », « je n'y serai pas », « je ne sais pas encore ».
+     * Défaut FALSE — activation manuelle par l'admin à la création /
+     * édition de l'événement (sinon les 3 boutons ne s'affichent pas).
+     */
+    #[ORM\Column(name: 'vote_enabled', options: ['default' => false])]
+    private bool $voteEnabled = false;
+
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
     public function setTitle(string $title): self { $this->title = $title; return $this; }
@@ -65,6 +74,8 @@ class Event
 
     public function isAllDay(): bool { return $this->isAllDay; }
     public function setIsAllDay(bool $v): self { $this->isAllDay = $v; return $this; }
+    public function isVoteEnabled(): bool { return $this->voteEnabled; }
+    public function setVoteEnabled(bool $v): self { $this->voteEnabled = $v; return $this; }
 
     /** Couleur dérivée du type — plus de surcharge possible (palette club). */
     public function getColor(): string

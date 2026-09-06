@@ -86,8 +86,28 @@ function EventRow({ event }: { event: EventItem }) {
   const end = event.endsAt ? new Date(event.endsAt) : null;
   const color = event.color || COLORS.primary;
   const isMultiDay = end !== null && !sameDay(start, end);
+  const [myVote, setMyVote] = useState<'yes' | 'no' | 'maybe' | null>(event.myVote);
+  const [voting, setVoting] = useState(false);
+
+  async function castVote(next: 'yes' | 'no' | 'maybe') {
+    if (voting) return;
+    // Re-tap sur le vote actif = retire (undo). Sinon on remplace.
+    const target: 'yes' | 'no' | 'maybe' | null = myVote === next ? null : next;
+    setVoting(true);
+    // Optimistic
+    const previous = myVote;
+    setMyVote(target);
+    try {
+      await eventsApi.setAttendance(event.id, target);
+    } catch {
+      setMyVote(previous); // rollback
+    } finally {
+      setVoting(false);
+    }
+  }
 
   return (
+    <View style={styles.rowContainer}>
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: String(event.id) } } as never)}
@@ -135,6 +155,47 @@ function EventRow({ event }: { event: EventItem }) {
       >
         <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
       </Pressable>
+    </Pressable>
+
+    {/* Boutons de vote de présence (soumis au vote uniquement). Rendus
+        hors du Pressable parent pour ne pas déclencher la navigation
+        vers le détail au tap. */}
+    {event.voteEnabled && (
+      <View style={styles.voteBar}>
+        <VoteBtn label="J'y serai" icon="checkmark" active={myVote === 'yes'} disabled={voting}
+          onPress={() => castVote('yes')} accent={COLORS.success} />
+        <VoteBtn label="Peut-être" icon="help" active={myVote === 'maybe'} disabled={voting}
+          onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} />
+        <VoteBtn label="Pas là" icon="close" active={myVote === 'no'} disabled={voting}
+          onPress={() => castVote('no')} accent={COLORS.error} />
+      </View>
+    )}
+    </View>
+  );
+}
+
+function VoteBtn({
+  label, icon, active, disabled, onPress, accent,
+}: {
+  label: string;
+  icon: 'checkmark' | 'help' | 'close';
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  accent: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.voteBtn,
+        active && { backgroundColor: accent, borderColor: accent },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <Ionicons name={icon} size={14} color={active ? '#fff' : accent} />
+      <Text style={[styles.voteBtnLabel, { color: active ? '#fff' : accent }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -266,17 +327,13 @@ const styles = StyleSheet.create({
     minHeight: 18,
   },
   title: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 18 },
-  // Chaque row devient sa propre carte visuelle (bg + radius + margin)
-  // depuis la suppression du wrapper englobant.
+  // La row est un enfant du rowContainer qui porte désormais bg/radius/
+  // margin. Ici on ne garde que le layout intra-ligne.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: SPACING.md,
     gap: 12,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
   },
   dateBox: {
     width: 48,
@@ -313,6 +370,36 @@ const styles = StyleSheet.create({
     padding: 6,
     alignSelf: 'center',
   },
+  // Wrapper qui englobe la row + les boutons de vote pour que ces derniers
+  // se retrouvent hors du Pressable (donc pas cliqués par accident).
+  rowContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    overflow: 'hidden',
+  },
+  voteBar: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
+    paddingTop: 4,
+  },
+  voteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: 'transparent',
+  },
+  voteBtnLabel: { fontSize: 11, fontWeight: '700' },
   empty: {
     fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic',
     paddingVertical: SPACING.sm,

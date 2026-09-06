@@ -208,7 +208,10 @@ class ApiSerializer
     /**
      * @return array<string, mixed>
      */
-    public function event(Event $e): array
+    /**
+     * @param array{yes:int,no:int,maybe:int}|null $voteCounts
+     */
+    public function event(Event $e, ?string $myVote = null, ?array $voteCounts = null): array
     {
         return [
             'id' => $e->getId(),
@@ -222,6 +225,9 @@ class ApiSerializer
             'isAllDay' => $e->isAllDay(),
             'audience' => $e->getAudience(),
             'contentAudience' => $e->getContentAudience(),
+            'voteEnabled' => $e->isVoteEnabled(),
+            'myVote' => $myVote, // 'yes' | 'no' | 'maybe' | null
+            'voteCounts' => $voteCounts, // {yes,no,maybe} ou null si non soumis au vote
         ];
     }
 

@@ -117,6 +117,8 @@ export type MenuItem = {
   position: number;
 };
 
+export type AttendanceStatus = 'yes' | 'no' | 'maybe';
+
 export type EventItem = {
   id: number;
   title: string;
@@ -128,6 +130,12 @@ export type EventItem = {
   color: string;
   /** True = événement « toute la journée » : ne pas afficher l'heure. */
   isAllDay: boolean;
+  /** True = admin a activé le vote de présence sur cet événement. */
+  voteEnabled: boolean;
+  /** Le vote actuel du viewer, ou null s'il n'a pas voté. */
+  myVote: AttendanceStatus | null;
+  /** Compteurs agrégés (null si voteEnabled=false). */
+  voteCounts: { yes: number; no: number; maybe: number } | null;
 };
 
 export type Banner = {
