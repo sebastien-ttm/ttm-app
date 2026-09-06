@@ -162,6 +162,52 @@ export type CarpoolBoard = {
   myOffer: CarpoolOffer | null;
 };
 
+/** Type de réponse d'une question de sondage. */
+export type SurveyQuestionType = 'short_text' | 'long_text' | 'single_choice' | 'multi_choice';
+
+/** Une question dans un sondage. */
+export type SurveyQuestion = {
+  id: string;
+  label: string;
+  type: SurveyQuestionType;
+  required?: boolean;
+  help?: string;
+  /** Requis pour single_choice / multi_choice. */
+  options?: string[];
+};
+
+/** Résumé (liste onglet Contact). */
+export type SurveySummary = {
+  id: number;
+  title: string;
+  description: string | null;
+  publishedAt: string | null;
+  closesAt: string | null;
+  sectionCount: number;
+  /** True si le viewer a déjà répondu (au moins une fois). */
+  answered: boolean;
+};
+
+/** Détail complet + éventuelle réponse existante du viewer. */
+export type Survey = {
+  id: number;
+  title: string;
+  description: string | null;
+  publishedAt: string | null;
+  closesAt: string | null;
+  isClosed: boolean;
+  sections: SurveyQuestion[];
+  myResponse: {
+    /** Indexé par question id. Valeurs : string | string[] selon le type. */
+    answers: Record<string, string | string[]>;
+    submittedAt: string;
+    updatedAt: string | null;
+  } | null;
+};
+
+/** Valeurs formulaire côté client — même forme que myResponse.answers. */
+export type SurveyAnswers = Record<string, string | string[]>;
+
 /**
  * Message ponctuel poussé par les admins en cours de saison
  * (indépendant du tunnel charte). Requiert un acquittement explicite

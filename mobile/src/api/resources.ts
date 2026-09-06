@@ -3,6 +3,9 @@ import type {
   AdminNotice,
   Article,
   Banner,
+  Survey,
+  SurveyAnswers,
+  SurveySummary,
   CharterAnswers,
   CharterStatus,
   Comment,
@@ -148,6 +151,15 @@ export const carpool = {
 
 export const banner = {
   active: () => api.get<{ data: Banner | null }>('/api/banner/active', { public: true }),
+};
+
+export const surveys = {
+  /** Sondages ouverts pour l'audience du viewer. */
+  list: () => api.get<{ data: SurveySummary[] }>('/api/me/surveys'),
+  get: (id: number) => api.get<Survey>(`/api/me/surveys/${id}`),
+  /** Soumission ou mise à jour (upsert). */
+  submit: (id: number, answers: SurveyAnswers) =>
+    api.post<Survey>(`/api/me/surveys/${id}/response`, { answers }),
 };
 
 export const notices = {

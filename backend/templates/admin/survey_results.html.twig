@@ -1,0 +1,81 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Résultats · {{ survey.title }}{% endblock %}
+
+{% block main %}
+    <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div>
+                <h3 style="margin:0;">{{ survey.title }}</h3>
+                <p style="margin:6px 0 0 0; color:#666;">
+                    <strong style="color:#1d4ed8;">{{ responseCount }}</strong> réponse(s) reçue(s)
+                    · <strong>{{ sections|length }}</strong> section(s)
+                    {% if survey.closesAt %}
+                        · Ferme le {{ survey.closesAt|date('d/m/Y H:i') }}
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{{ path('admin_survey_results_csv', {id: survey.id}) }}"
+               class="btn btn-primary"
+               style="background:#1d4ed8; border-color:#1d4ed8;">
+                <i class="fa fa-file-csv"></i> Exporter en CSV
+            </a>
+        </div>
+    </div>
+
+    {% if sections|length == 0 %}
+        <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
+            Ce sondage ne contient pas de section. Ajoutez-en dans son édition.
+        </div>
+    {% elseif responseCount == 0 %}
+        <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); color:#666;">
+            Aucune réponse pour l'instant.
+        </div>
+    {% else %}
+        {% for s in sections %}
+            <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;">
+                    <h4 style="margin:0;">{{ s.label }}</h4>
+                    <span style="color:#888; font-size:12px;">{{ s.typeLabel }} · {{ s.count }} réponse(s)</span>
+                </div>
+                {% if s.help %}
+                    <p style="margin:4px 0 12px 0; color:#666; font-size:13px;">{{ s.help }}</p>
+                {% else %}
+                    <div style="margin-bottom:12px;"></div>
+                {% endif %}
+
+                {% if s.type == 'short_text' or s.type == 'long_text' %}
+                    {% if s.texts|length == 0 %}
+                        <p style="color:#999; font-style:italic; margin:0;">Aucune réponse textuelle.</p>
+                    {% else %}
+                        <ul style="list-style:none; padding:0; margin:0;">
+                            {% for t in s.texts %}
+                                <li style="padding:10px; border-left:3px solid #1d4ed8; background:#f8f9fc; margin-bottom:6px; border-radius:4px;">
+                                    <div style="white-space:pre-wrap; color:#222;">{{ t.value }}</div>
+                                    <div style="color:#888; font-size:11px; margin-top:6px;">
+                                        — {{ t.user }} · {{ t.updatedAt|date('d/m/Y H:i') }}
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% else %}
+                    {# choix unique ou multiple : histogramme #}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        {% for t in s.tallies %}
+                            <div>
+                                <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:2px;">
+                                    <span>{{ t.option }}</span>
+                                    <span style="color:#666;">{{ t.count }} ({{ t.percent }}%)</span>
+                                </div>
+                                <div style="background:#eee; height:12px; border-radius:6px; overflow:hidden;">
+                                    <div style="background:#1d4ed8; height:100%; width:{{ t.percent }}%;"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endblock %}

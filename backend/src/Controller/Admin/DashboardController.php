@@ -11,6 +11,7 @@ use App\Entity\Event;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
+use App\Entity\Survey;
 use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
@@ -155,6 +156,8 @@ class DashboardController extends AbstractDashboardController
         yield AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Messages ponctuels', 'fa fa-bullhorn', AdminNotice::class)
+            ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-square-check', 'admin_charter_tracking')
             ->setPermission('ROLE_ADMIN');

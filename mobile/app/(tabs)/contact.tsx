@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 
 import { ApiError, auth } from '@/api/client';
-import type { InboxMessage, MessageScope, UserMessage } from '@/api/types';
+import { surveys as surveysApi } from '@/api/resources';
+import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -48,6 +49,7 @@ export default function ContactScreen() {
   const [inbox, setInbox] = useState<InboxMessage[]>([]);
   const [archivedSent, setArchivedSent] = useState<UserMessage[]>([]);
   const [archivedInbox, setArchivedInbox] = useState<InboxMessage[]>([]);
+  const [openSurveys, setOpenSurveys] = useState<SurveySummary[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,6 +62,7 @@ export default function ContactScreen() {
       const jobs: Promise<unknown>[] = [
         auth.listMessages(false).then((r) => setSent(r.data)),
         auth.listMessages(true).then((r) => setArchivedSent(r.data)),
+        surveysApi.list().then((r) => setOpenSurveys(r.data)).catch(() => setOpenSurveys([])),
       ];
       if (hasInbox) {
         jobs.push(auth.listInbox(false).then((r) => setInbox(r.data)));
@@ -175,6 +178,32 @@ export default function ContactScreen() {
               <Text style={styles.quickBtnLabel}>Je propose mon aide au club</Text>
             </Pressable>
           </View>
+
+          {openSurveys.length > 0 && (
+            <View style={styles.surveysSection}>
+              <Text style={styles.surveysSectionTitle}>📊 Sondages en cours</Text>
+              {openSurveys.map((s) => (
+                <Pressable
+                  key={s.id}
+                  onPress={() => router.push(('/survey/' + s.id) as never)}
+                  style={({ pressed }) => [styles.surveyCard, pressed && { opacity: 0.75 }, s.answered && styles.surveyCardDone]}
+                >
+                  <View style={styles.surveyIconWrap}>
+                    <Text style={{ fontSize: 20 }}>{s.answered ? '✅' : '📝'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.surveyCardTitle}>{s.title}</Text>
+                    <Text style={styles.surveyCardMeta}>
+                      {s.sectionCount} question{s.sectionCount > 1 ? 's' : ''}
+                      {s.answered ? ' · Répondu — modifiez si besoin' : ' · Donnez votre avis'}
+                      {s.closesAt ? ' · Ferme le ' + new Date(s.closesAt).toLocaleDateString('fr-FR') : ''}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           <SectionTabs
             section={section}
@@ -434,6 +463,29 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '600', color: COLORS.text,
     textAlign: 'center', lineHeight: 14,
   },
+  surveysSection: { gap: 6 },
+  surveysSectionTitle: {
+    fontSize: 13, fontWeight: '700', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2, marginLeft: 4,
+  },
+  surveyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    borderLeftWidth: 4,
+    borderLeftColor: '#7c3aed',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+  },
+  surveyCardDone: { borderLeftColor: '#16a34a', opacity: 0.85 },
+  surveyIconWrap: {
+    width: 36, height: 36, borderRadius: 8,
+    backgroundColor: '#ede9fe',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  surveyCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  surveyCardMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
   tabs: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
