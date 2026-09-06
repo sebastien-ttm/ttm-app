@@ -154,14 +154,9 @@ export default function ContactScreen() {
       contentContainerStyle={styles.list}
       ListHeaderComponent={
         <View style={{ gap: SPACING.md }}>
-          <Pressable
-            style={styles.newButton}
-            onPress={() => router.push('/contact/new' as never)}
-          >
-            <Ionicons name="create-outline" size={20} color="#fff" />
-            <Text style={styles.newButtonLabel}>Nouveau message</Text>
-          </Pressable>
-
+          {/* Boutons rapides (hors section messages) : signalements et
+              proposition d'aide. Placés en tête pour être toujours
+              accessibles en 1 tap, quel que soit l'onglet consulté. */}
           <View style={styles.quickRow}>
             <Pressable
               style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
@@ -205,16 +200,31 @@ export default function ContactScreen() {
             </View>
           )}
 
-          <SectionTabs
-            section={section}
-            hasInbox={hasInbox}
-            counts={{
-              sent: sent.length,
-              inbox: inbox.length,
-              archived: archivedSent.length + archivedInbox.length,
-            }}
-            onChange={setSection}
-          />
+          {/* Section messages : cartouche visuellement distincte
+              regroupant nouveau message + onglets Envoyés/Reçus/Archivés
+              + la liste elle-même (rendue par la FlatList en dessous). */}
+          <View style={styles.messagesSection}>
+            <Text style={styles.messagesSectionTitle}>✉️ Mes messages</Text>
+
+            <Pressable
+              style={styles.newButton}
+              onPress={() => router.push('/contact/new' as never)}
+            >
+              <Ionicons name="create-outline" size={20} color="#fff" />
+              <Text style={styles.newButtonLabel}>Nouveau message</Text>
+            </Pressable>
+
+            <SectionTabs
+              section={section}
+              hasInbox={hasInbox}
+              counts={{
+                sent: sent.length,
+                inbox: inbox.length,
+                archived: archivedSent.length + archivedInbox.length,
+              }}
+              onChange={setSection}
+            />
+          </View>
         </View>
       }
       ListEmptyComponent={
@@ -446,6 +456,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   newButtonLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  messagesSection: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  messagesSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
   quickRow: { flexDirection: 'row', gap: 8 },
   quickBtn: {
     flex: 1,
