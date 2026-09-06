@@ -42,12 +42,19 @@ class UserMessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Messages envoyés par un utilisateur. Par défaut on masque les
-     * archivés — passer $includeArchived=true pour la vue « archivés ».
+     * Messages envoyés par un utilisateur.
+     *
+     *  - $archivedOnly = false (défaut) → messages courants (senderArchivedAt IS NULL)
+     *  - $archivedOnly = true           → messages archivés uniquement (IS NOT NULL)
+     *
+     * NB : les deux vues sont MUTUELLEMENT EXCLUSIVES. L'ancienne
+     * signature `$includeArchived` renvoyait tout dans le cas true,
+     * ce qui faisait apparaître les messages courants dans l'onglet
+     * « Archivés » (et bloquait le rafraîchissement post-désarchivage).
      *
      * @return list<UserMessage>
      */
-    public function findSentBy(User $sender, bool $includeArchived = false): array
+    public function findSentBy(User $sender, bool $archivedOnly = false): array
     {
         $qb = $this->createQueryBuilder('m')
             ->leftJoin('m.recipient', 'r')->addSelect('r')
@@ -56,7 +63,9 @@ class UserMessageRepository extends ServiceEntityRepository
             ->setParameter('u', $sender)
             ->orderBy('m.sentAt', 'DESC');
 
-        if (!$includeArchived) {
+        if ($archivedOnly) {
+            $qb->andWhere('m.senderArchivedAt IS NOT NULL');
+        } else {
             $qb->andWhere('m.senderArchivedAt IS NULL');
         }
 
