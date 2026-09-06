@@ -96,6 +96,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)
             ->setPermission('ROLE_EDITEUR');
+        yield AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')
+            ->setPermission('ROLE_ENTRAINEUR');
         yield AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)
             ->setPermission('ROLE_EDITEUR');
         yield AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)

@@ -6,6 +6,8 @@ use App\Entity\Event;
 use App\Enum\ContentAudience;
 use App\Enum\EventType;
 use App\Enum\Profile;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
@@ -28,6 +30,20 @@ class EventCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Calendrier')
             ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['startsAt' => 'ASC']);
+    }
+
+    public function configureActions(Actions $actions): Actions
+    {
+        // Bouton « Voir les votes » disponible sur les événements
+        // soumis au vote uniquement (sinon aucun sens).
+        $viewVotes = Action::new('viewVotes', 'Voir les votes', 'fa fa-list-check')
+            ->linkToRoute('admin_event_attendance_detail', fn (Event $e) => ['id' => $e->getId()])
+            ->displayIf(fn (Event $e) => $e->getId() !== null && $e->isVoteEnabled());
+
+        return parent::configureActions($actions)
+            ->add(Crud::PAGE_INDEX, $viewVotes)
+            ->add(Crud::PAGE_DETAIL, $viewVotes)
+            ->add(Crud::PAGE_EDIT, $viewVotes);
     }
 
     public function configureFields(string $pageName): iterable

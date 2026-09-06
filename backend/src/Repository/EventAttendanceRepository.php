@@ -25,6 +25,23 @@ class EventAttendanceRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tous les votes d'un événement, triés par statut puis par nom
+     * d'adhérent — pour le récap admin (3 colonnes yes/maybe/no).
+     *
+     * @return list<EventAttendance>
+     */
+    public function findByEventWithUser(Event $event): array
+    {
+        return $this->createQueryBuilder('a')
+            ->leftJoin('a.user', 'u')->addSelect('u')
+            ->where('a.event = :e')->setParameter('e', $event)
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Compteurs par statut pour un événement donné.
      *
      * @return array{yes:int, no:int, maybe:int}

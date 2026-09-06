@@ -47,4 +47,23 @@ class EventRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getResult();
     }
+
+    /**
+     * Événements soumis au vote (voteEnabled=true) pour le récap admin.
+     * On limite aux événements qui ne sont pas trop anciens (fin >= from)
+     * pour ne pas afficher tout l'historique. Sans limite haute — les
+     * événements futurs très lointains restent visibles.
+     *
+     * @return list<Event>
+     */
+    public function findVotable(\DateTimeImmutable $from): array
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.voteEnabled = true')
+            ->andWhere('COALESCE(e.endsAt, e.startsAt) >= :from')
+            ->setParameter('from', $from)
+            ->orderBy('e.startsAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
