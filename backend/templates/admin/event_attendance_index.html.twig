@@ -50,7 +50,7 @@
                             <td style="padding:10px; text-align:center; font-weight:700; color:#C62828;">{{ row.no }}</td>
                             <td style="padding:10px; text-align:center;">{{ row.total }}</td>
                             <td style="padding:10px; text-align:right; white-space:nowrap;">
-                                <a href="{{ path('admin_event_attendance_detail', {id: e.id}) }}"
+                                <a href="{{ row.detailUrl }}"
                                    class="btn btn-sm btn-primary"
                                    style="background:#1d4ed8; border-color:#1d4ed8;">
                                     Détail

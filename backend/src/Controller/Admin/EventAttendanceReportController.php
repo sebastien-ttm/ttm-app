@@ -7,6 +7,7 @@ use App\Entity\EventAttendance;
 use App\Enum\AttendanceStatus;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -27,7 +28,22 @@ class EventAttendanceReportController extends AbstractController
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventAttendanceRepository $attendances,
+        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
+    }
+
+    /**
+     * Génère une URL vers une de nos routes admin custom en préservant
+     * le contexte EasyAdmin (dashboard, menu, i18n…). Sans ça,
+     * @EasyAdmin/page/content.html.twig plante avec « attribute "i18n"
+     * on a null variable » puisque `ea()` retourne null.
+     */
+    private function adminRoute(string $routeName, array $params = []): string
+    {
+        return $this->adminUrlGenerator
+            ->unsetAll()
+            ->setRoute($routeName, $params)
+            ->generateUrl();
     }
 
     #[Route('/admin/event-attendance', name: 'admin_event_attendance_index')]
@@ -51,6 +67,7 @@ class EventAttendanceReportController extends AbstractController
                 'no' => $c['no'],
                 'maybe' => $c['maybe'],
                 'total' => $c['yes'] + $c['no'] + $c['maybe'],
+                'detailUrl' => $this->adminRoute('admin_event_attendance_detail', ['id' => $e->getId()]),
             ];
         }
 
@@ -68,7 +85,7 @@ class EventAttendanceReportController extends AbstractController
         }
         if (!$event->isVoteEnabled()) {
             $this->addFlash('warning', 'Cet événement n\'est pas soumis au vote.');
-            return $this->redirectToRoute('admin_event_attendance_index');
+            return $this->redirect($this->adminRoute('admin_event_attendance_index'));
         }
 
         $all = $this->attendances->findByEventWithUser($event);
@@ -83,6 +100,8 @@ class EventAttendanceReportController extends AbstractController
             'maybe' => $lists['maybe'],
             'no' => $lists['no'],
             'total' => count($all),
+            'indexUrl' => $this->adminRoute('admin_event_attendance_index'),
+            'csvUrl' => $this->adminRoute('admin_event_attendance_detail_csv', ['id' => $event->getId()]),
         ]);
     }
 

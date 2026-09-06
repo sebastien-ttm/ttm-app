@@ -7,6 +7,7 @@ use App\Entity\SurveyResponse;
 use App\Enum\SurveyQuestionType;
 use App\Repository\SurveyRepository;
 use App\Repository\SurveyResponseRepository;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -25,7 +26,17 @@ class SurveyResultsController extends AbstractController
     public function __construct(
         private readonly SurveyRepository $surveys,
         private readonly SurveyResponseRepository $responses,
+        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
+    }
+
+    /** Voir doc dans EventAttendanceReportController::adminRoute(). */
+    private function adminRoute(string $routeName, array $params = []): string
+    {
+        return $this->adminUrlGenerator
+            ->unsetAll()
+            ->setRoute($routeName, $params)
+            ->generateUrl();
     }
 
     #[Route('/admin/survey/{id}/results', name: 'admin_survey_results', requirements: ['id' => '\d+'])]
@@ -42,6 +53,7 @@ class SurveyResultsController extends AbstractController
             'survey' => $survey,
             'responseCount' => count($responses),
             'sections' => $aggregate,
+            'csvUrl' => $this->adminRoute('admin_survey_results_csv', ['id' => $survey->getId()]),
         ]);
     }
 

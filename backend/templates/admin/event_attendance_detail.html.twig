@@ -21,12 +21,12 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                <a href="{{ path('admin_event_attendance_detail_csv', {id: event.id}) }}"
+                <a href="{{ csvUrl }}"
                    class="btn btn-primary"
                    style="background:#1d4ed8; border-color:#1d4ed8;">
                     <i class="fa fa-file-csv"></i> Exporter en CSV
                 </a>
-                <a href="{{ path('admin_event_attendance_index') }}"
+                <a href="{{ indexUrl }}"
                    class="btn btn-secondary">
                     ← Retour à la liste
                 </a>
