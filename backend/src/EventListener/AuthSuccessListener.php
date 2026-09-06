@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
 use App\Service\LoginRecorder;
+use App\Service\Membership\MembershipStatusResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -22,6 +23,7 @@ class AuthSuccessListener
         private readonly EntityManagerInterface $em,
         private readonly AvatarService $avatars,
         private readonly LoginRecorder $loginRecorder,
+        private readonly MembershipStatusResolver $membershipStatus,
         private readonly int $refreshTtl = 2592000,
     ) {
     }
@@ -40,7 +42,7 @@ class AuthSuccessListener
         $this->refreshTokenManager->save($refreshToken);
 
         $data['refresh_token'] = $refreshToken->getRefreshToken();
-        $data['user'] = self::serializeUser($user, $this->avatars->urlFor($user));
+        $data['user'] = self::serializeUser($user, $this->avatars->urlFor($user), $this->membershipStatus->resolve($user));
         $data['linkedProfiles'] = self::serializeLinkedProfiles($user, $this->users);
         $event->setData($data);
 
@@ -50,9 +52,10 @@ class AuthSuccessListener
     }
 
     /**
+     * @param array{label:string,season:string,needsRenewal:bool,isExternal:bool}|null $membershipStatus
      * @return array<string, mixed>
      */
-    public static function serializeUser(User $user, ?string $avatarUrl = null): array
+    public static function serializeUser(User $user, ?string $avatarUrl = null, ?array $membershipStatus = null): array
     {
         return [
             'id' => $user->getId(),
@@ -74,6 +77,11 @@ class AuthSuccessListener
             'hasPassword' => $user->getPassword() !== null,
             'avatarUrl' => $avatarUrl,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
+            // Statut d'adhésion calculé : label prêt-à-afficher (« Adhérent
+            // 2025-2026 » / « Adhérent externe 2025-2026 » / « Adhérent
+            // 2024-2025 » quand needsRenewal). null pour les comptes
+            // externes (parent, ami) — le client tombe alors sur subTypeLabel.
+            'membershipStatus' => $membershipStatus,
         ];
     }
 

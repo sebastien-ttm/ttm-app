@@ -10,6 +10,7 @@ use App\EventListener\AuthSuccessListener;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\Membership\MembershipStatusResolver;
 use App\Service\LoginRecorder;
 use App\Service\MagicLinkService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,7 @@ class AuthController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly AvatarService $avatars,
         private readonly LoginRecorder $loginRecorder,
+        private readonly MembershipStatusResolver $membershipStatus,
     ) {
     }
 
@@ -143,7 +145,7 @@ class AuthController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($user, $this->avatars->urlFor($user)),
+            'user' => AuthSuccessListener::serializeUser($user, $this->avatars->urlFor($user), $this->membershipStatus->resolve($user)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($user, $this->users),
         ]);
     }
@@ -255,7 +257,7 @@ class AuthController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($parent, $this->avatars->urlFor($parent)),
+            'user' => AuthSuccessListener::serializeUser($parent, $this->avatars->urlFor($parent), $this->membershipStatus->resolve($parent)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($parent, $this->users),
         ], Response::HTTP_CREATED);
     }
@@ -378,7 +380,7 @@ class AuthController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($member, $this->avatars->urlFor($member)),
+            'user' => AuthSuccessListener::serializeUser($member, $this->avatars->urlFor($member), $this->membershipStatus->resolve($member)),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($member, $this->users),
         ], Response::HTTP_CREATED);
     }

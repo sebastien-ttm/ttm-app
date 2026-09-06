@@ -163,8 +163,12 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.card}>
-        <Row label="N° de licence" value={user.licenceLabel} />
-        <Row label="Statut" value={subTypeLabel(user.subType)} />
+        <Row label="N° de licence FFTri" value={user.licenceLabel} />
+        <Row
+          label="Statut"
+          value={user.membershipStatus?.label ?? subTypeLabel(user.subType)}
+          badge={user.membershipStatus?.needsRenewal ? 'À renouveler' : undefined}
+        />
         {user.categorieFFTri && <Row label="Catégorie FFTri" value={user.categorieFFTri} />}
 
         <Pressable
@@ -261,11 +265,19 @@ function Badge({ color, label }: { color: string; label: string }) {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, badge }: { label: string; value: string; badge?: string }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+        <Text style={styles.rowValue}>{value}</Text>
+        {badge && (
+          <View style={styles.renewalBadge}>
+            <Ionicons name="warning" size={12} color="#991b1b" />
+            <Text style={styles.renewalBadgeLabel}>{badge}</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -344,7 +356,20 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   rowLabel: { fontSize: 14, color: COLORS.textMuted },
-  rowValue: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  rowValue: { fontSize: 14, fontWeight: '600', color: COLORS.text, textAlign: 'right' },
+  renewalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  renewalBadgeLabel: { color: '#991b1b', fontSize: 11, fontWeight: '700' },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

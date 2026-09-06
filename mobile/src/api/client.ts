@@ -198,6 +198,23 @@ export type AuthenticatedUser = {
   avatarUrl: string | null;
   /** Préférence opt-in : recevoir un email à chaque nouveau plan d'entraînement. */
   notifyTrainingPlanEmail: boolean;
+  /**
+   * Statut d'adhésion calculé côté serveur (label prêt-à-afficher + drapeau
+   * de renouvellement). Null pour les comptes externes (parent, ami) qui
+   * n'ont pas de saison d'adhésion — l'UI retombe alors sur subTypeLabel.
+   */
+  membershipStatus: MembershipStatus | null;
+};
+
+export type MembershipStatus = {
+  /** « Adhérent 2025-2026 », « Adhérent externe 2025-2026 », « Adhérent 2024-2025 ». */
+  label: string;
+  /** Ex : « 2025-2026 ». */
+  season: string;
+  /** True quand l'adhésion à la saison courante manque (période de grâce). */
+  needsRenewal: boolean;
+  /** True si l'user est adhérent externe (licencié dans un autre club). */
+  isExternal: boolean;
 };
 
 /** Profil lié (parent ou enfant partageant le même e-mail). */

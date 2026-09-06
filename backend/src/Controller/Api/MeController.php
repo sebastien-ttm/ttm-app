@@ -11,6 +11,7 @@ use App\EventListener\JWTCreatedListener;
 use App\Repository\DeviceTokenRepository;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\Membership\MembershipStatusResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -36,6 +37,7 @@ class MeController extends AbstractController
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
         private readonly AvatarService $avatars,
+        private readonly MembershipStatusResolver $membershipStatus,
     ) {
     }
 
@@ -44,7 +46,11 @@ class MeController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        return new JsonResponse(AuthSuccessListener::serializeUser($user, $this->avatars->urlFor($user)));
+        return new JsonResponse(AuthSuccessListener::serializeUser(
+            $user,
+            $this->avatars->urlFor($user),
+            $this->membershipStatus->resolve($user),
+        ));
     }
 
     /**
@@ -131,7 +137,11 @@ class MeController extends AbstractController
         return new JsonResponse([
             'token' => $accessToken,
             'refresh_token' => $refresh->getRefreshToken(),
-            'user' => AuthSuccessListener::serializeUser($target, $this->avatars->urlFor($target)),
+            'user' => AuthSuccessListener::serializeUser(
+                $target,
+                $this->avatars->urlFor($target),
+                $this->membershipStatus->resolve($target),
+            ),
             'linkedProfiles' => AuthSuccessListener::serializeLinkedProfiles($target, $this->users, $origin),
         ]);
     }

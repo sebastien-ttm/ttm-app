@@ -23,6 +23,25 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
         return $this->findOneBy(['user' => $user, 'season' => $season]);
     }
 
+    /**
+     * Dernière saison à laquelle l'user a été adhérent (par date de début
+     * de saison DESC, avec fallback sur importedAt DESC quand deux
+     * saisons n'ont pas de startsAt). Utilisé pour l'affichage
+     * « Adhérent {saison précédente} — à renouveler » pendant la
+     * période de grâce.
+     */
+    public function findLatestForUser(User $user): ?UserSeasonMembership
+    {
+        return $this->createQueryBuilder('m')
+            ->leftJoin('m.season', 's')->addSelect('s')
+            ->where('m.user = :u')->setParameter('u', $user)
+            ->orderBy('s.startsAt', 'DESC')
+            ->addOrderBy('m.importedAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** @return list<UserSeasonMembership> */
     public function findBySeason(TrainingSeason $season): array
     {
