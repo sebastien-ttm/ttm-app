@@ -1,5 +1,6 @@
 import { api } from './client';
 import type {
+  AdminNotice,
   Article,
   Banner,
   CharterAnswers,
@@ -147,6 +148,16 @@ export const carpool = {
 
 export const banner = {
   active: () => api.get<{ data: Banner | null }>('/api/banner/active', { public: true }),
+};
+
+export const notices = {
+  /** Notices publiées non-expirées non-acquittées par le viewer, filtrées par audience. */
+  pending: () => api.get<{ data: AdminNotice[] }>('/api/me/notices/pending'),
+  acknowledge: (id: number) =>
+    api.post<{ ok: boolean; acknowledgedAt: string | null; alreadyAcknowledged?: boolean }>(
+      `/api/me/notices/${id}/acknowledge`,
+      {},
+    ),
 };
 
 export const poolBadge = {

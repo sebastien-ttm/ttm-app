@@ -162,6 +162,24 @@ export type CarpoolBoard = {
   myOffer: CarpoolOffer | null;
 };
 
+/**
+ * Message ponctuel poussé par les admins en cours de saison
+ * (indépendant du tunnel charte). Requiert un acquittement explicite
+ * (« J'ai compris ») — s'affiche en modale plein écran à l'ouverture
+ * de l'appli, et à chaque retour de background après > 10 min
+ * d'inactivité, tant qu'il n'est pas acquitté.
+ */
+export type AdminNotice = {
+  id: number;
+  title: string;
+  /** HTML riche (rendu via RichContent). */
+  content: string;
+  /** Ex : « J'ai compris », « J'accepte »… — personnalisable par notice. */
+  acknowledgeLabel: string;
+  publishedAt: string | null;
+  expiresAt: string | null;
+};
+
 export type Banner = {
   id: number;
   imageUrl: string | null;

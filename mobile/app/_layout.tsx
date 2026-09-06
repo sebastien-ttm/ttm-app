@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from '@/auth/AuthContext';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
+import { NoticeGate } from '@/components/NoticeGate';
 import { COLORS } from '@/config';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -83,6 +84,9 @@ export default function RootLayout() {
         <AuthGate>
           <StatusBar style="auto" />
           <ImpersonationBanner />
+          {/* Notices ponctuelles (indépendant du charter — s'active
+              seulement une fois authentifié ET charter validé). */}
+          <NoticeGate />
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: COLORS.brandNavy },
@@ -93,6 +97,7 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="charter-acceptance" options={{ headerShown: false, gestureEnabled: false }} />
+            <Stack.Screen name="notice/[id]" options={{ headerShown: false, gestureEnabled: false, presentation: 'modal' }} />
           </Stack>
         </AuthGate>
       </AuthProvider>
