@@ -49,7 +49,7 @@ export default function CharterReadScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Engagements' }} />
+        <Stack.Screen options={{ title: charterTitle(charter) }} />
         <FullScreenLoading />
       </SafeAreaView>
     );
@@ -57,7 +57,7 @@ export default function CharterReadScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Engagements' }} />
+        <Stack.Screen options={{ title: charterTitle(charter) }} />
         <ErrorState message={error} onRetry={load} />
       </SafeAreaView>
     );
@@ -65,7 +65,7 @@ export default function CharterReadScreen() {
   if (!charter) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Engagements' }} />
+        <Stack.Screen options={{ title: charterTitle(charter) }} />
         <EmptyState
           icon="📜"
           title="Pas d'engagements publiés"
@@ -82,9 +82,9 @@ export default function CharterReadScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Engagements' }} />
+      <Stack.Screen options={{ title: charterTitle(charter) }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Mes engagements</Text>
+        <Text style={styles.title}>{charterTitle(charter)}</Text>
         <Text style={styles.meta}>
           Saison {charter.version} · publiée le {formatDate(charter.publishedAt)}
         </Text>
@@ -106,6 +106,15 @@ export default function CharterReadScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * Titre unifié « Mon adhésion {saison} » — utilisé à la fois par le
+ * Stack.Screen (nav bar) et le heading en haut de la page. Tombe sur
+ * « Mon adhésion » seul quand la charte n'est pas encore chargée.
+ */
+function charterTitle(charter: Charter | null): string {
+  return charter?.version ? 'Mon adhésion ' + charter.version : 'Mon adhésion';
 }
 
 function CommitmentCard({ field }: { field: CharterField }) {

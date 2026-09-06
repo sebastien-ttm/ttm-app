@@ -2,10 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ApiError, auth as authApi } from '@/api/client';
+import { charter as charterApi } from '@/api/resources';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
 import { accountTypeColor, accountTypeLabel, canSeeGouter, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
@@ -17,6 +18,24 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [togglingNotif, setTogglingNotif] = useState(false);
+  const [charterVersion, setCharterVersion] = useState<string | null>(null);
+
+  // Charge la version (saison) de la charte publiée pour titrer le lien
+  // « Mon adhésion {saison} ». On ne le fait qu'une fois si l'user a
+  // déjà signé — sinon, aucun lien à afficher.
+  useEffect(() => {
+    if (!charterEverAccepted) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await charterApi.current();
+        if (!cancelled) setCharterVersion(resp.charter?.version ?? null);
+      } catch {
+        // Non bloquant : le lien s'affichera sans la saison.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [charterEverAccepted]);
 
   if (!user) return null;
 
@@ -215,7 +234,9 @@ export default function ProfileScreen() {
         >
           <Text style={styles.engagementIcon}>📜</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.engagementTitle}>Message de bienvenue, engagements et prises de connaissance</Text>
+            <Text style={styles.engagementTitle}>
+              Mon adhésion{charterVersion ? ' ' + charterVersion : ''}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </Pressable>
