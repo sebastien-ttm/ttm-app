@@ -58,6 +58,14 @@ class Event
     #[ORM\Column(name: 'vote_enabled', options: ['default' => false])]
     private bool $voteEnabled = false;
 
+    /**
+     * Covoiturage activé : les adhérents peuvent proposer des places
+     * (conducteur) ou demander à en réserver (passager). Défaut FALSE
+     * — activation manuelle à la création / édition.
+     */
+    #[ORM\Column(name: 'carpooling_enabled', options: ['default' => false])]
+    private bool $carpoolingEnabled = false;
+
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
     public function setTitle(string $title): self { $this->title = $title; return $this; }
@@ -76,6 +84,8 @@ class Event
     public function setIsAllDay(bool $v): self { $this->isAllDay = $v; return $this; }
     public function isVoteEnabled(): bool { return $this->voteEnabled; }
     public function setVoteEnabled(bool $v): self { $this->voteEnabled = $v; return $this; }
+    public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
+    public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }
 
     /** Couleur dérivée du type — plus de surcharge possible (palette club). */
     public function getColor(): string

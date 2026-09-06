@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -32,6 +32,7 @@ function formatTime(d: Date): string {
 }
 
 export default function EventDetailScreen() {
+  const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -129,6 +130,18 @@ export default function EventDetailScreen() {
           )}
         </View>
 
+        {event.carpoolingEnabled && (
+          <Pressable
+            onPress={() => router.push({ pathname: '/event/[id]/carpool', params: { id: String(event.id) } })}
+            style={({ pressed }) => [styles.carpoolBtn, pressed && { opacity: 0.75 }]}
+            accessibilityLabel="Ouvrir la page covoiturage"
+          >
+            <Ionicons name="car" size={20} color="#fff" />
+            <Text style={styles.carpoolBtnLabel}>Covoiturage</Text>
+            <Ionicons name="chevron-forward" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
+          </Pressable>
+        )}
+
         {event.description ? (
           <View style={styles.descCard}>
             <Text style={styles.descTitle}>Descriptif</Text>
@@ -180,4 +193,15 @@ const styles = StyleSheet.create({
   },
   descText: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
   descEmpty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center' },
+  carpoolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.brandNavy,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  carpoolBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

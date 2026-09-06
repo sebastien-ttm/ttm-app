@@ -44,6 +44,8 @@ class EventCrudController extends AbstractCrudController
             ->setHelp('Cocher si l\'événement n\'a pas d\'heure précise — l\'heure ne sera pas affichée dans l\'app mobile.');
         yield BooleanField::new('voteEnabled', 'Soumis au vote de présence')
             ->setHelp('Cocher pour proposer aux adhérents les 3 boutons « J\'y serai / Je n\'y serai pas / Je ne sais pas encore » (visible dans la section « Prochainement » et sur la page de détail).');
+        yield BooleanField::new('carpoolingEnabled', 'Covoiturage activé')
+            ->setHelp('Cocher pour ouvrir une page de covoiturage sur l\'événement : les adhérents peuvent proposer des places (voiture + vélos) ou demander à en réserver. Mise en relation via WhatsApp.');
         yield DateTimeField::new('startsAt', 'Début')
             ->setHelp('Si « Toute la journée » est coché, seule la date compte.');
         yield DateTimeField::new('endsAt', 'Fin')

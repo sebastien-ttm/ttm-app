@@ -136,6 +136,30 @@ export type EventItem = {
   myVote: AttendanceStatus | null;
   /** Compteurs agrégés (null si voteEnabled=false). */
   voteCounts: { yes: number; no: number; maybe: number } | null;
+  /** True = covoiturage activé sur cet événement (page dédiée /event/{id}/carpool). */
+  carpoolingEnabled: boolean;
+};
+
+export type CarpoolRole = 'driver' | 'passenger';
+
+export type CarpoolOffer = {
+  id: number;
+  userId: number;
+  fullName: string;
+  role: CarpoolRole;
+  seatsAvailable: number | null;
+  bikeSlots: number | null;
+  isFull: boolean | null;
+  /** null si l'user n'a pas de téléphone renseigné. */
+  whatsappUrl: string | null;
+  updatedAt: string;
+};
+
+export type CarpoolBoard = {
+  drivers: CarpoolOffer[];
+  passengers: CarpoolOffer[];
+  /** La proposition du viewer (null s'il ne s'est pas encore positionné). */
+  myOffer: CarpoolOffer | null;
 };
 
 export type Banner = {
