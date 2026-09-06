@@ -20,16 +20,16 @@ import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading'
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
-import { canSeePoolBadge, canSeeTraining } from '@/utils/profile';
+import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingTab } from '@/utils/profile';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingScreen() {
   const { user } = useAuth();
-  // Garde-fou : si l'utilisateur n'est pas censé voir l'onglet
-  // (parent non-licencié / dirigeant), un deep link direct retombe sur le feed.
-  // Le check est en amont pour préserver la règle des hooks dans TrainingScreenInner.
-  if (!canSeeTraining(user)) {
+  // Garde-fou : élargi aux parents/jeunes non-licenciés — ils peuvent
+  // n'avoir que la section Goûter à afficher. Un deep link d'un profil
+  // sans aucun accès (ni entraînement, ni goûter) retombe sur le feed.
+  if (!canSeeTrainingTab(user)) {
     return <Redirect href="/(tabs)" />;
   }
   return <TrainingScreenInner />;
@@ -40,6 +40,10 @@ function TrainingScreenInner() {
   const { user } = useAuth();
   const isStaff = !!user && (user.profiles.includes('encadrant') || user.profiles.includes('entraineur'));
   const showPool = canSeePoolBadge(user);
+  const showGouter = canSeeGouter(user);
+  // Vue « entraînement » = plans + créneaux + piscine + staff. Un parent
+  // non-licencié qui n'a QUE le goûter à voir n'a pas ce bloc-là.
+  const showTrainingSections = canSeeTraining(user);
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,11 +100,13 @@ function TrainingScreenInner() {
 
   return (
     <View style={styles.root}>
-      <WeekNavigator weekStart={weekStart} onChange={setWeekStart} disablePast />
+      {showTrainingSections && (
+        <WeekNavigator weekStart={weekStart} onChange={setWeekStart} disablePast />
+      )}
 
-      {loading ? (
+      {loading && showTrainingSections ? (
         <FullScreenLoading />
-      ) : error ? (
+      ) : error && showTrainingSections ? (
         <ErrorState message={error} onRetry={() => load(toIsoDate(weekStart))} />
       ) : (
         <ScrollView
@@ -109,6 +115,32 @@ function TrainingScreenInner() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
         >
+          {/* Goûter du mercredi : positionnement à l'apport du goûter par
+              les parents/jeunes. Placé en tête pour être immédiatement
+              accessible aux parents non-licenciés qui n'ont QUE ça à
+              voir dans cet onglet (auparavant dans le tab Profil). */}
+          {showGouter && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🍪 Goûter du mercredi</Text>
+              <Pressable
+                onPress={() => router.push('/gouter' as never)}
+                style={({ pressed }) => [stylesGouter.card, pressed && { opacity: 0.7 }]}
+              >
+                <View style={stylesGouter.iconWrap}>
+                  <Text style={{ fontSize: 22 }}>🍪</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesGouter.title}>Positionnez-vous</Text>
+                  <Text style={stylesGouter.sub}>
+                    Amenez le goûter pour l'entraînement des jeunes du mercredi
+                    (2 places par mercredi).
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            </View>
+          )}
+
           {/* Accès piscines — QR code présentable à la borne d'entrée.
               Réservé aux comptes licenciés (canSeePoolBadge). Placé en
               haut du contexte Entraînements, puisque c'est l'usage
@@ -155,52 +187,57 @@ function TrainingScreenInner() {
             </View>
           )}
 
-          {/* Plans (PDF) de la semaine + accès à l'historique */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📄 Plans d'entraînement</Text>
-            {(data?.plans ?? []).length > 0 ? (
-              data!.plans.map((p) => (
-                <PlanRow key={p.id} plan={p} onOpen={() => router.push({ pathname: '/training-plan/[id]', params: { id: String(p.id), title: p.displayTitle } } as never)} />
-              ))
-            ) : (
-              <Text style={styles.planEmpty}>Pas de plan publié pour cette semaine.</Text>
-            )}
-            <Pressable
-              onPress={() => router.push('/training-plans-history' as never)}
-              style={({ pressed }) => [stylesHistory.link, pressed && { opacity: 0.7 }]}
-            >
-              <Ionicons name="time-outline" size={16} color={COLORS.secondaryDark} />
-              <Text style={stylesHistory.linkLabel}>Voir l'historique des plans</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
-            </Pressable>
-          </View>
+          {/* Plans + créneaux : uniquement pour les licenciés. Un parent
+              externe non-licencié n'a rien à voir ici — il n'utilise
+              l'onglet Entraînements que pour la section Goûter. */}
+          {showTrainingSections && (
+            <>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>📄 Plans d'entraînement</Text>
+                {(data?.plans ?? []).length > 0 ? (
+                  data!.plans.map((p) => (
+                    <PlanRow key={p.id} plan={p} onOpen={() => router.push({ pathname: '/training-plan/[id]', params: { id: String(p.id), title: p.displayTitle } } as never)} />
+                  ))
+                ) : (
+                  <Text style={styles.planEmpty}>Pas de plan publié pour cette semaine.</Text>
+                )}
+                <Pressable
+                  onPress={() => router.push('/training-plans-history' as never)}
+                  style={({ pressed }) => [stylesHistory.link, pressed && { opacity: 0.7 }]}
+                >
+                  <Ionicons name="time-outline" size={16} color={COLORS.secondaryDark} />
+                  <Text style={stylesHistory.linkLabel}>Voir l'historique des plans</Text>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
+                </Pressable>
+              </View>
 
-          {/* Créneaux jour par jour */}
-          {(data?.slots ?? []).length === 0 ? (
-            <EmptyState
-              icon="📅"
-              title="Aucun créneau cette semaine"
-              message="Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
-            />
-          ) : (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
-              {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                const slots = slotsByDay.get(day) ?? [];
-                if (slots.length === 0) return null;
-                const dayDate = addDays(weekStart, day - 1);
-                return (
-                  <View key={day} style={styles.dayBlock}>
-                    <Text style={styles.dayHeader}>
-                      {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
-                    </Text>
-                    {slots.map((s, idx) => (
-                      <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
-                    ))}
-                  </View>
-                );
-              })}
-            </View>
+              {(data?.slots ?? []).length === 0 ? (
+                <EmptyState
+                  icon="📅"
+                  title="Aucun créneau cette semaine"
+                  message="Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
+                />
+              ) : (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
+                  {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                    const slots = slotsByDay.get(day) ?? [];
+                    if (slots.length === 0) return null;
+                    const dayDate = addDays(weekStart, day - 1);
+                    return (
+                      <View key={day} style={styles.dayBlock}>
+                        <Text style={styles.dayHeader}>
+                          {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                        </Text>
+                        {slots.map((s, idx) => (
+                          <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
+                        ))}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -464,4 +501,27 @@ const stylesPool = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+});
+
+const stylesGouter = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ea580c',
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#fed7aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 16 },
 });

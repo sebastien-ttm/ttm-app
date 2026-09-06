@@ -5,12 +5,12 @@ import { Platform, Pressable } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
-import { canSeeTraining } from '@/utils/profile';
+import { canSeeTrainingTab } from '@/utils/profile';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const router = useRouter();
-  const showTraining = canSeeTraining(user);
+  const showTraining = canSeeTrainingTab(user);
 
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.
@@ -77,7 +77,8 @@ export default function TabsLayout() {
         name="training"
         options={{
           title: 'Entraînements',
-          // Parent externe non-licencié + Dirigeant : pas d'entraînement à voir.
+          // Onglet visible aux licenciés (plans/créneaux) ET aux parents/jeunes
+          // non licenciés qui doivent accéder au planning « Goûter du mercredi ».
           href: showTraining ? undefined : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'fitness' : 'fitness-outline'} color={color} size={22} />

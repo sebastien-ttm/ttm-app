@@ -105,3 +105,15 @@ export function canSeeGouter(user: AuthenticatedUser | null | undefined): boolea
   if (!user) return false;
   return user.profiles.includes('parent') || user.profiles.includes('jeune');
 }
+
+/**
+ * L'onglet Entraînements doit-il apparaître dans la nav ?
+ *
+ * Élargi par rapport à `canSeeTraining` pour inclure les parents non
+ * licenciés : la page héberge désormais la section « Goûter du mercredi »
+ * (parents/jeunes) — un parent externe qui n'a pas de créneaux à voir
+ * a quand même besoin d'ouvrir la page pour se positionner sur un goûter.
+ */
+export function canSeeTrainingTab(user: AuthenticatedUser | null | undefined): boolean {
+  return canSeeTraining(user) || canSeeGouter(user);
+}
