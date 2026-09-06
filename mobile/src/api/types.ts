@@ -392,12 +392,21 @@ export type Trainer = {
   fullName: string;
 };
 
-/** Message envoyé depuis l'app vers le club ou un entraîneur. */
+/**
+ * Portée d'un message :
+ *  - club          : adressé au club → visible admins
+ *  - trainer       : adressé à UN entraîneur nommé (recipientId renseigné)
+ *  - all_trainers  : adressé à TOUS les entraîneurs actifs
+ */
+export type MessageScope = 'club' | 'trainer' | 'all_trainers';
+
+/** Message envoyé depuis l'app (côté expéditeur). */
 export type UserMessage = {
   id: number;
-  /** null si adressé « au club » (= aux admins). */
+  scope: MessageScope;
+  /** Renseigné uniquement pour scope='trainer'. */
   recipientId: number | null;
-  /** « Le club » ou nom de l'entraîneur. */
+  /** Libellé prêt-à-afficher : « Le club », « Tous les entraîneurs » ou « Prénom Nom ». */
   recipientLabel: string;
   subject: string | null;
   body: string;
@@ -408,4 +417,33 @@ export type UserMessage = {
   /** Nom de l'admin/entraîneur qui a répondu. */
   repliedByLabel: string | null;
   hasReply: boolean;
+  /** Horodatage d'archivage côté expéditeur (null = non archivé). */
+  senderArchivedAt: string | null;
+};
+
+/**
+ * Message reçu (boîte de réception d'un entraîneur ou d'un admin).
+ * L'état d'archivage `myArchivedAt` est PROPRE au viewer — chaque
+ * destinataire d'un message scope=all_trainers/club archive
+ * indépendamment des collègues.
+ */
+export type InboxMessage = {
+  id: number;
+  scope: MessageScope;
+  /** Ex : « Pour vous seul », « Pour tous les entraîneurs », « Pour le club (admins) ». */
+  scopeLabel: string;
+  senderId: number;
+  senderLabel: string;
+  subject: string | null;
+  body: string;
+  sentAt: string;
+  reply: string | null;
+  repliedAt: string | null;
+  repliedById: number | null;
+  repliedByLabel: string | null;
+  hasReply: boolean;
+  /** false si un collègue a déjà répondu (verrou une-seule-réponse). */
+  canReply: boolean;
+  /** Horodatage d'archivage individuel du viewer (null = non archivé). */
+  myArchivedAt: string | null;
 };

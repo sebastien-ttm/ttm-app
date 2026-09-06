@@ -15,10 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
-import type { Trainer } from '@/api/types';
+import type { MessageScope, Trainer } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
+/** Sentinelles pour identifier les 2 destinataires « virtuels » (non-user). */
 const RECIPIENT_CLUB = -1;
+const RECIPIENT_ALL_TRAINERS = -2;
 
 /**
  * Composer : envoyer un nouveau message au club ou à un entraîneur.
@@ -60,8 +62,19 @@ export default function ProfileMessagesNewScreen() {
     }
     setBusy(true);
     try {
+      let scope: MessageScope;
+      let recipientPayload: number | null = null;
+      if (recipientId === RECIPIENT_CLUB) {
+        scope = 'club';
+      } else if (recipientId === RECIPIENT_ALL_TRAINERS) {
+        scope = 'all_trainers';
+      } else {
+        scope = 'trainer';
+        recipientPayload = recipientId;
+      }
       await auth.sendMessage({
-        recipientId: recipientId === RECIPIENT_CLUB ? null : recipientId,
+        scope,
+        recipientId: recipientPayload,
         subject: subject.trim() || undefined,
         body: trimmedBody,
       });
@@ -90,6 +103,12 @@ export default function ProfileMessagesNewScreen() {
                 label="Le club (administration)"
                 selected={recipientId === RECIPIENT_CLUB}
                 onPress={() => setRecipientId(RECIPIENT_CLUB)}
+              />
+              <RecipientChoice
+                label="Tous les entraîneurs"
+                sublabel="Diffuse à l'ensemble des entraîneurs actifs"
+                selected={recipientId === RECIPIENT_ALL_TRAINERS}
+                onPress={() => setRecipientId(RECIPIENT_ALL_TRAINERS)}
               />
               {trainers.map((t) => (
                 <RecipientChoice
@@ -154,7 +173,12 @@ export default function ProfileMessagesNewScreen() {
   );
 }
 
-function RecipientChoice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function RecipientChoice({ label, sublabel, selected, onPress }: {
+  label: string;
+  sublabel?: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -169,9 +193,12 @@ function RecipientChoice({ label, selected, onPress }: { label: string; selected
         size={20}
         color={selected ? COLORS.primary : COLORS.textMuted}
       />
-      <Text style={[styles.recipientLabel, selected && { fontWeight: '700', color: COLORS.text }]}>
-        {label}
-      </Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.recipientLabel, selected && { fontWeight: '700', color: COLORS.text }]}>
+          {label}
+        </Text>
+        {sublabel && <Text style={styles.recipientSublabel}>{sublabel}</Text>}
+      </View>
     </Pressable>
   );
 }
@@ -198,6 +225,7 @@ const styles = StyleSheet.create({
   },
   recipientRowSelected: { backgroundColor: COLORS.primarySoft },
   recipientLabel: { fontSize: 14, color: COLORS.text },
+  recipientSublabel: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   input: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,

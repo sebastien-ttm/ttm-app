@@ -1,4 +1,4 @@
-import type { FamilyRelation, FamilyResponse, LinkedChild, LinkedChildrenResponse, Trainer, UserMessage } from '@/api/types';
+import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageScope, Trainer, UserMessage } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 
@@ -303,9 +303,35 @@ export const auth = {
   setFamilyLink: (targetUserId: number, relation: FamilyRelation) =>
     api.post<FamilyResponse>('/api/me/family-link', { targetUserId, relation }),
 
-  // ---- Messages vers le club ou un entraîneur ----
+  // ---- Messages vers le club / un entraîneur / tous les entraîneurs ----
   listTrainers: () => api.get<{ data: Trainer[] }>('/api/me/trainers'),
-  listMessages: () => api.get<{ data: UserMessage[] }>('/api/me/messages'),
-  sendMessage: (payload: { recipientId: number | null; subject?: string; body: string }) =>
-    api.post<UserMessage>('/api/me/messages', payload),
+
+  /** Mes messages envoyés. archived=true → renvoie mes archivés à la place. */
+  listMessages: (archived = false) =>
+    api.get<{ data: UserMessage[] }>(`/api/me/messages${archived ? '?archived=1' : ''}`),
+
+  sendMessage: (payload: {
+    scope: MessageScope;
+    /** Requis uniquement pour scope='trainer'. */
+    recipientId?: number | null;
+    subject?: string;
+    body: string;
+  }) => api.post<UserMessage>('/api/me/messages', payload),
+
+  archiveSentMessage: (id: number) =>
+    api.post<{ ok: boolean; senderArchivedAt: string | null }>(`/api/me/messages/${id}/archive`, {}),
+  unarchiveSentMessage: (id: number) =>
+    api.post<{ ok: boolean; senderArchivedAt: string | null }>(`/api/me/messages/${id}/unarchive`, {}),
+
+  /** Boîte de réception (entraîneurs + admins). archived=true → mes archivés. */
+  listInbox: (archived = false) =>
+    api.get<{ data: InboxMessage[] }>(`/api/me/inbox${archived ? '?archived=1' : ''}`),
+
+  replyInbox: (id: number, reply: string) =>
+    api.post<{ ok: boolean; message: InboxMessage }>(`/api/me/inbox/${id}/reply`, { reply }),
+
+  archiveInbox: (id: number) =>
+    api.post<{ ok: boolean; archivedAt: string | null }>(`/api/me/inbox/${id}/archive`, {}),
+  unarchiveInbox: (id: number) =>
+    api.post<{ ok: boolean; archivedAt: string | null }>(`/api/me/inbox/${id}/unarchive`, {}),
 };

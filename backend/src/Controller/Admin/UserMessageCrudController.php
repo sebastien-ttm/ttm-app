@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Enum\MessageScope;
 use App\Message\NotifyUserMessageReplyMessage;
 use App\Repository\UserMessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -115,9 +117,17 @@ class UserMessageCrudController extends AbstractCrudController
             ->setCrudController(UserCrudController::class)
             ->hideOnForm();
 
+        yield ChoiceField::new('scope', 'Portée')
+            ->setChoices([
+                'Le club' => MessageScope::Club,
+                'Entraîneur nommé' => MessageScope::Trainer,
+                'Tous les entraîneurs' => MessageScope::AllTrainers,
+            ])
+            ->hideOnForm();
+
         yield TextField::new('recipientLabel', 'Destinataire')
             ->hideOnForm()
-            ->setHelp('« Le club » = destiné à tous les admins. Sinon nom de l\'entraîneur ciblé.');
+            ->setHelp('« Le club » = admins ; « Tous les entraîneurs » = broadcast ; sinon entraîneur nommé.');
 
         yield TextField::new('subject', 'Objet')
             ->setRequired(false)

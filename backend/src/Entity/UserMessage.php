@@ -2,15 +2,22 @@
 
 namespace App\Entity;
 
+use App\Enum\MessageScope;
 use App\Repository\UserMessageRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * Message envoyé par un utilisateur mobile vers « le club » (recipient=null,
- * visible uniquement par les admins) ou vers un entraîneur précis (recipient
- * non-null). Le destinataire peut répondre UNE SEULE FOIS depuis le backend ;
- * la réponse + l'auteur sont affichés à l'expéditeur dans l'app mobile.
+ * Message envoyé par un utilisateur mobile vers l'une des 3 cibles :
+ *  - scope=Club        : « le club » (visible admins) — recipient=null
+ *  - scope=Trainer     : un entraîneur précis         — recipient=User
+ *  - scope=AllTrainers : tous les entraîneurs actifs  — recipient=null
+ *
+ * Le destinataire peut répondre UNE SEULE FOIS ; la réponse + l'auteur
+ * sont affichés à l'expéditeur ET aux autres destinataires (pour les
+ * scopes multi-destinataires). L'archivage se fait côté expéditeur
+ * (senderArchivedAt) et côté destinataire (via UserMessageRecipientState,
+ * indépendant par personne).
  */
 #[ORM\Entity(repositoryClass: UserMessageRepository::class)]
 #[ORM\Table(name: 'user_message')]
@@ -29,12 +36,16 @@ class UserMessage
     private User $sender;
 
     /**
-     * Destinataire. Null = adressé « au club » (visible aux admins uniquement).
-     * Non null = adressé à un entraîneur précis.
+     * Destinataire nommé. Null pour scope=Club et scope=AllTrainers.
+     * Non null obligatoirement pour scope=Trainer.
      */
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $recipient = null;
+
+    /** Portée du message — voir enum MessageScope. */
+    #[ORM\Column(length: 20, enumType: MessageScope::class, options: ['default' => 'club'])]
+    private MessageScope $scope = MessageScope::Club;
 
     #[ORM\Column(length: 200, nullable: true)]
     #[Assert\Length(max: 200)]
@@ -74,6 +85,14 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $senderRepliedNotifiedAt = null;
 
+    /**
+     * Archivage côté expéditeur : le message reste visible dans « Archivés »
+     * mais disparaît de la liste courante des envoyés. Indépendant de
+     * l'archivage côté destinataires (UserMessageRecipientState).
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $senderArchivedAt = null;
+
     public function __construct()
     {
         $this->sentAt = new \DateTimeImmutable();
@@ -86,6 +105,9 @@ class UserMessage
 
     public function getRecipient(): ?User { return $this->recipient; }
     public function setRecipient(?User $u): self { $this->recipient = $u; return $this; }
+
+    public function getScope(): MessageScope { return $this->scope; }
+    public function setScope(MessageScope $s): self { $this->scope = $s; return $this; }
 
     public function getSubject(): ?string { return $this->subject; }
     public function setSubject(?string $s): self { $this->subject = $s !== null ? trim($s) ?: null : null; return $this; }
@@ -140,18 +162,28 @@ class UserMessage
     public function getSenderRepliedNotifiedAt(): ?\DateTimeImmutable { return $this->senderRepliedNotifiedAt; }
     public function setSenderRepliedNotifiedAt(?\DateTimeImmutable $d): self { $this->senderRepliedNotifiedAt = $d; return $this; }
 
+    public function getSenderArchivedAt(): ?\DateTimeImmutable { return $this->senderArchivedAt; }
+    public function setSenderArchivedAt(?\DateTimeImmutable $d): self { $this->senderArchivedAt = $d; return $this; }
+    public function isSenderArchived(): bool { return $this->senderArchivedAt !== null; }
+
     /**
-     * Cible humainement lisible pour les vues (« Le club » ou nom de l'entraîneur).
+     * Cible humainement lisible :
+     *  - « Le club »              (scope=Club)
+     *  - « Tous les entraîneurs » (scope=AllTrainers)
+     *  - « Prénom Nom »           (scope=Trainer, recipient renseigné)
      */
     public function getRecipientLabel(): string
     {
-        return $this->recipient?->getFullName() ?? 'Le club';
+        return match ($this->scope) {
+            MessageScope::Club => 'Le club',
+            MessageScope::AllTrainers => 'Tous les entraîneurs',
+            MessageScope::Trainer => $this->recipient?->getFullName() ?? 'Entraîneur inconnu',
+        };
     }
 
     public function __toString(): string
     {
-        $who = $this->recipient?->getFullName() ?? 'club';
         $when = $this->sentAt->format('d/m/Y H:i');
-        return sprintf('De %s → %s · %s', $this->sender->getFullName(), $who, $when);
+        return sprintf('De %s → %s · %s', $this->sender->getFullName(), $this->getRecipientLabel(), $when);
     }
 }

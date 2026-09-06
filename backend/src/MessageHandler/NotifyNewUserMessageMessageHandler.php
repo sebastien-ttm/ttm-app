@@ -4,6 +4,7 @@ namespace App\MessageHandler;
 
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Enum\MessageScope;
 use App\Message\NotifyNewUserMessageMessage;
 use App\Repository\UserMessageRepository;
 use App\Repository\UserRepository;
@@ -92,21 +93,32 @@ class NotifyNewUserMessageMessageHandler
     }
 
     /**
-     * Résout la liste des destinataires :
-     *  - recipient null (« le club ») → tous les admins actifs (role='admin')
-     *  - recipient non null → cet utilisateur uniquement, s'il a un email
+     * Résout la liste des destinataires selon le scope :
+     *  - scope=Trainer     : le destinataire nommé (s'il a un email actif)
+     *  - scope=AllTrainers : tous les entraîneurs actifs
+     *  - scope=Club        : tous les admins actifs
      *
      * @return list<User>
      */
     private function resolveRecipients(UserMessage $msg): array
     {
-        $recipient = $msg->getRecipient();
-        if ($recipient !== null) {
-            if (!$recipient->isActive() || $recipient->getEmail() === null) {
-                return [];
-            }
-            return [$recipient];
+        switch ($msg->getScope()) {
+            case MessageScope::Trainer:
+                $recipient = $msg->getRecipient();
+                if ($recipient === null || !$recipient->isActive() || $recipient->getEmail() === null) {
+                    return [];
+                }
+                return [$recipient];
+            case MessageScope::AllTrainers:
+                // Tous les entraîneurs actifs — findCoaches filtre déjà
+                // isActive=1, on complète par un email non null pour le mail.
+                return array_values(array_filter(
+                    $this->users->findCoaches(),
+                    fn (User $u) => $u->getEmail() !== null,
+                ));
+            case MessageScope::Club:
+                return $this->users->findActiveByRole(User::ROLE_ADMIN);
         }
-        return $this->users->findActiveByRole(User::ROLE_ADMIN);
+        return [];
     }
 }
