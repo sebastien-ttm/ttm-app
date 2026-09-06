@@ -33,6 +33,30 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
  */
 class SurveyCrudController extends AbstractCrudController
 {
+    /** Modèle affiché comme placeholder dans la textarea si vide. */
+    private const SECTIONS_TEMPLATE = <<<'JSON'
+[
+  {
+    "id": "note_encadrement",
+    "label": "Comment évalues-tu l'encadrement ?",
+    "type": "single_choice",
+    "required": true,
+    "options": ["Très bien", "Bien", "Correct", "À améliorer"]
+  },
+  {
+    "id": "themes_stage",
+    "label": "Thèmes qui t'intéresseraient pour un futur stage",
+    "type": "multi_choice",
+    "options": ["Natation", "Vélo", "Course", "Transitions", "Diététique"]
+  },
+  {
+    "id": "commentaire_libre",
+    "label": "Un mot pour la fin ?",
+    "type": "long_text"
+  }
+]
+JSON;
+
     public function __construct(
         private readonly SurveySchemaValidator $validator,
         private readonly SurveyResponseRepository $responses,
@@ -76,38 +100,24 @@ class SurveyCrudController extends AbstractCrudController
             ->setHelp('Optionnel — affichée en tête du sondage côté mobile.')
             ->onlyOnForms();
 
-        yield TextareaField::new('sectionsJson', 'Schéma des sections (JSON)')
-            ->setNumOfRows(18)
+        yield TextareaField::new('sectionsJson', 'Questions')
+            ->setNumOfRows(20)
             ->setRequired(false)
             ->setFormTypeOption('mapped', true)
             ->onlyOnForms()
+            ->setFormTypeOption('attr', [
+                'data-survey-builder' => 'true',
+                'style' => 'font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; white-space: pre;',
+                'spellcheck' => 'false',
+                'placeholder' => self::SECTIONS_TEMPLATE,
+            ])
             ->setHelp(
-                '<strong>Format :</strong> tableau JSON de questions. '
-                .'Chaque question a <code>id</code> (lettres min./chiffres/_), <code>label</code>, '
-                .'<code>type</code> (short_text | long_text | single_choice | multi_choice), '
-                .'<code>required</code> (bool), <code>help</code> (optionnel). '
-                .'<code>options</code> (tableau de chaînes) requis pour single_choice et multi_choice.<br><br>'
-                .'<strong>Exemple :</strong><br>'
-                .'<pre style="font-size:11px;">[
-  {
-    "id": "note_encadrement",
-    "label": "Comment évalues-tu l\'encadrement ?",
-    "type": "single_choice",
-    "required": true,
-    "options": ["Très bien", "Bien", "Correct", "À améliorer"]
-  },
-  {
-    "id": "themes_stage",
-    "label": "Thèmes qui t\'intéresseraient pour un futur stage",
-    "type": "multi_choice",
-    "options": ["Natation", "Vélo", "Course", "Transitions", "Diététique"]
-  },
-  {
-    "id": "commentaire_libre",
-    "label": "Un mot pour la fin ?",
-    "type": "long_text"
-  }
-]</pre>'
+                'Chaque ligne = une question du sondage. Utilisez le builder '
+                .'ci-dessous (« Ajouter une question ») ou basculez en JSON brut '
+                .'via « ⚙ Éditer le JSON brut ». '
+                .'Types disponibles : <strong>Texte court</strong>, '
+                .'<strong>Texte long</strong>, <strong>Choix unique</strong>, '
+                .'<strong>Choix multiple</strong> (ces 2 derniers demandent des options).'
             );
 
         yield IntegerField::new('sectionCount', 'Nb questions')

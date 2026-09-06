@@ -59,6 +59,10 @@ class DashboardController extends AbstractDashboardController
             // Apache (ExpiresByType application/javascript "access plus 1 year"
             // dans .htaccess) à chaque modification.
             ->addJsFile('js/admin/charter-form-builder.js?v='.$this->assetVersion('public/js/admin/charter-form-builder.js'))
+            // Éditeur visuel du schéma JSON des sondages — s'attache aux
+            // textareas [data-survey-builder]. Réutilise le CSS du builder
+            // charte (classes .cfb-* partagées).
+            ->addJsFile('js/admin/survey-form-builder.js?v='.$this->assetVersion('public/js/admin/survey-form-builder.js'))
             ->addCssFile('css/admin/charter-form-builder.css?v='.$this->assetVersion('public/css/admin/charter-form-builder.css'));
     }
 
