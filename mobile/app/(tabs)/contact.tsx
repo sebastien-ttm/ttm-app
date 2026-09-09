@@ -19,6 +19,7 @@ import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/a
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
 type SectionKey = 'sent' | 'inbox' | 'archived';
 
@@ -81,6 +82,7 @@ export default function ContactScreen() {
   }, [hasInbox]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useRefreshOnResume(() => { void load(); });
 
   async function archiveSent(m: UserMessage) {
     try {

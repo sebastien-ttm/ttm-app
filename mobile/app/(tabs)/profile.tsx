@@ -9,6 +9,7 @@ import { ApiError, auth as authApi } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
 
 const AVATAR_SIZE = 96;
@@ -36,6 +37,11 @@ export default function ProfileScreen() {
     })();
     return () => { cancelled = true; };
   }, [charterEverAccepted]);
+
+  // Rafraîchit les infos user (rôle, profils, membershipStatus…) au
+  // retour de background. Le CharterGate s'occupe déjà de la charte,
+  // et charterVersion se recharge naturellement via l'useEffect ci-dessus.
+  useRefreshOnResume(() => { void refreshMe(); });
 
   if (!user) return null;
 

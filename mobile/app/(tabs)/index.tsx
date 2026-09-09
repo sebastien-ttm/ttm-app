@@ -11,6 +11,7 @@ import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
 import { COLORS, SPACING } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
 const PAGE_SIZE = 20;
 
@@ -64,6 +65,10 @@ export default function FeedScreen() {
     await fetchPage(1, 'replace');
     setRefreshing(false);
   }, [fetchPage]);
+
+  // Refetch la 1re page au retour de background après > 60s d'inactivité —
+  // évite d'afficher un feed figé après plusieurs heures/jours en veille.
+  useRefreshOnResume(() => { void fetchPage(1, 'replace'); });
 
   const onEndReached = useCallback(async () => {
     if (loadingMore || fetchingRef.current) return;

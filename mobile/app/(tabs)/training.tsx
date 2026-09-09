@@ -20,6 +20,7 @@ import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading'
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingTab } from '@/utils/profile';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
@@ -83,6 +84,8 @@ function TrainingScreenInner() {
     await load(toIsoDate(weekStart));
     setRefreshing(false);
   }, [weekStart, load]);
+
+  useRefreshOnResume(() => { void load(toIsoDate(weekStart)); });
 
   // Groupement par jour de la semaine. Les créneaux annulés ne sont
   // pas affichés côté adhérent — ils n'ont plus lieu d'être visibles.

@@ -9,6 +9,7 @@ import type { StaticPageNode } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
 /**
  * Onglet « Informations » : trombinoscopes (Comité / Staff) + arbre des
@@ -50,6 +51,8 @@ export default function PracticalScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  useRefreshOnResume(() => { void load(); });
 
   if (loading) return <FullScreenLoading />;
 
