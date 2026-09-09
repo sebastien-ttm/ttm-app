@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from '@/auth/AuthContext';
+import { CharterGate } from '@/components/CharterGate';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { NoticeGate } from '@/components/NoticeGate';
 import { COLORS } from '@/config';
@@ -84,6 +85,12 @@ export default function RootLayout() {
         <AuthGate>
           <StatusBar style="auto" />
           <ImpersonationBanner />
+          {/* Refetch charterRequired au retour de background après > 10 min
+              d'inactivité — indispensable avec le refresh-token 30j pour
+              proposer le nouveau tunnel après un renouvellement CSV
+              sans exiger de cold-start. Placé AVANT NoticeGate : le
+              tunnel charte est bloquant, les notices arrivent ensuite. */}
+          <CharterGate />
           {/* Notices ponctuelles (indépendant du charter — s'active
               seulement une fois authentifié ET charter validé). */}
           <NoticeGate />

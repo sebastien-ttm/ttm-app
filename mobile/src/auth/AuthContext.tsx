@@ -92,6 +92,15 @@ type AuthContextValue = AuthState & {
   registerMember: (payload: RegisterMemberPayload) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<void>;
+  /**
+   * Refetch le statut d'acceptation depuis /api/charter/current et
+   * met à jour charterRequired/pendingCharter/charterEverAccepted.
+   * À appeler quand un événement externe peut avoir modifié le statut
+   * (retour de background après inactivité, renouvellement CSV côté
+   * serveur) — l'AuthGate re-route automatiquement vers l'écran
+   * d'acceptation si nécessaire.
+   */
+  refreshCharterStatus: () => Promise<void>;
   acknowledgeCharter: (answers?: CharterAnswers) => Promise<void>;
   switchProfile: (userId: number) => Promise<void>;
   /**
@@ -261,6 +270,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, user: fresh }));
   }, []);
 
+  const refreshCharterStatus = useCallback(async () => {
+    const s = await fetchCharterStatus();
+    setState((prev) => ({
+      ...prev,
+      charterRequired: s.required,
+      pendingCharter: s.charter,
+      charterEverAccepted: s.everAccepted,
+    }));
+  }, [fetchCharterStatus]);
+
   const acknowledgeCharter = useCallback(
     async (answers?: CharterAnswers) => {
       await charterApi.accept(answers);
@@ -293,11 +312,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       registerMember,
       signOut,
       refreshMe,
+      refreshCharterStatus,
       acknowledgeCharter,
       switchProfile,
       replaceLinkedProfiles,
     }),
-    [state, loginWithPassword, consumeMagicLink, registerParent, registerMember, signOut, refreshMe, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
+    [state, loginWithPassword, consumeMagicLink, registerParent, registerMember, signOut, refreshMe, refreshCharterStatus, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
