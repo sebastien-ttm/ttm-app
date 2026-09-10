@@ -24,7 +24,7 @@ import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading'
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
-import { addDays, addWeeks, dayLabel, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
+import { addDays, addWeeks, dayLabel, formatDurationHm, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 
 const SPORT_FILTERS: { key: SportKey | 'all'; label: string }[] = [
   { key: 'all', label: 'Tous' },
@@ -257,7 +257,7 @@ export default function StaffPresenceScreen() {
               <View key={t.id} style={styles.customCard}>
                 <Text style={styles.customTitle}>{t.title}</Text>
                 <Text style={styles.customMeta}>
-                  {t.date} · {t.startTime} · {t.durationMinutes} min
+                  {t.date} · {t.startTime} · {formatDurationHm(t.durationMinutes)}
                 </Text>
               </View>
             ))}
@@ -291,7 +291,7 @@ function SlotCard({
     <View style={styles.slot}>
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>{slot.startTime}</Text>
-        <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
+        <Text style={styles.slotDuration}>{formatDurationHm(slot.durationMinutes)}</Text>
       </View>
       <View style={styles.slotBody}>
         <Text style={styles.slotTitle}>{slot.title}</Text>

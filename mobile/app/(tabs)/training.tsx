@@ -20,7 +20,7 @@ import { WeekNavigator } from '@/components/WeekNavigator';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingTab } from '@/utils/profile';
-import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
+import { addDays, dayLabel, formatDurationHm, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingScreen() {
@@ -85,12 +85,20 @@ function TrainingScreenInner() {
 
   useRefreshOnResume(() => { void load(toIsoDate(weekStart)); });
 
-  // Groupement par jour de la semaine. Les créneaux annulés ne sont
-  // pas affichés côté adhérent — ils n'ont plus lieu d'être visibles.
+  // Groupement par jour de la semaine.
+  //  - Annulés : masqués côté adhérent.
+  //  - Passés (fin dépassée) : masqués aussi — l'adhérent voit
+  //    naturellement le prochain créneau non-fini en tête puisque
+  //    la boucle 1..7 respecte l'ordre chronologique.
   const slotsByDay = useMemo(() => {
+    const now = Date.now();
     const map = new Map<number, TrainingSlot[]>();
     (data?.slots ?? [])
       .filter((s) => !s.isCancelled)
+      .filter((s) => {
+        const endMs = new Date(`${s.date}T${s.startTime}:00`).getTime() + s.durationMinutes * 60_000;
+        return !Number.isFinite(endMs) || endMs >= now;
+      })
       .forEach((s) => {
         const arr = map.get(s.dayOfWeek) ?? [];
         arr.push(s);
@@ -212,11 +220,13 @@ function TrainingScreenInner() {
                 </Pressable>
               </View>
 
-              {(data?.slots ?? []).length === 0 ? (
+              {Array.from(slotsByDay.values()).reduce((acc, arr) => acc + arr.length, 0) === 0 ? (
                 <EmptyState
                   icon="📅"
-                  title="Aucun créneau cette semaine"
-                  message="Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
+                  title="Aucun créneau à venir cette semaine"
+                  message={(data?.slots ?? []).length === 0
+                    ? "Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
+                    : "Tous les créneaux de cette semaine sont déjà terminés."}
                 />
               ) : (
                 <View style={styles.section}>
@@ -248,22 +258,16 @@ function TrainingScreenInner() {
 
 function SlotRow({ slot }: { slot: TrainingSlot }) {
   const router = useRouter();
-  // Créneau considéré passé quand sa FIN (start + durée) est dépassée.
-  // Le start seul serait trop restrictif : pendant les 60-90 min de la
-  // session, l'adhérent la voit encore "en cours" (pas grisée).
-  const slotEndMs = new Date(`${slot.date}T${slot.startTime}:00`).getTime()
-    + slot.durationMinutes * 60_000;
-  const isPast = Number.isFinite(slotEndMs) && slotEndMs < Date.now();
   const hasExtra = !!slot.description || slot.attachments.length > 0;
 
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
-      style={({ pressed }) => [styles.slot, isPast && styles.slotPast, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.slot, pressed && styles.pressed]}
     >
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>{slot.startTime}</Text>
-        <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
+        <Text style={styles.slotDuration}>{formatDurationHm(slot.durationMinutes)}</Text>
       </View>
       <View style={styles.slotBody}>
         <Text style={styles.slotTitle} numberOfLines={1}>{slot.title}</Text>
@@ -271,7 +275,6 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
-          {isPast && <Tag color={COLORS.textMuted} bg={COLORS.background} label="Passé" />}
           {hasExtra && (
             <View style={styles.extraHint}>
               {slot.description ? <Text style={styles.extraHintIcon}>📝</Text> : null}

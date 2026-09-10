@@ -9,7 +9,7 @@ import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
-import { dayLabel, fromIsoDate } from '@/utils/week';
+import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
  * Détail d'un créneau d'entraînement — description longue, pièces
@@ -75,7 +75,7 @@ export default function TrainingSlotDetailScreen() {
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={18} color={COLORS.textMuted} />
             <Text style={styles.metaValue}>
-              {slot.startTime} – {endTime} <Text style={styles.metaSub}>({slot.durationMinutes} min)</Text>
+              {slot.startTime} – {endTime} <Text style={styles.metaSub}>({formatDurationHm(slot.durationMinutes)})</Text>
             </Text>
           </View>
           <View style={styles.metaRow}>

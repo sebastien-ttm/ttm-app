@@ -59,6 +59,19 @@ export function formatWeekRange(monday: Date): string {
 }
 
 /** "25 mai" — pour les en-têtes de jour. */
+/**
+ * Formate une durée en minutes vers "1h30", "1h", "45 min", "2h".
+ * Utilisé pour l'affichage des créneaux d'entraînement.
+ */
+export function formatDurationHm(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return '0 min';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
 export function shortDayLabel(date: Date): string {
   return `${date.getDate()} ${MONTHS_FR[date.getMonth()]}`;
 }
