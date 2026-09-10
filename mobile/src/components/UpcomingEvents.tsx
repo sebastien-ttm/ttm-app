@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -7,6 +7,7 @@ import { events as eventsApi } from '@/api/resources';
 import type { EventItem } from '@/api/types';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
 const MAX_PREVIEW = 3;
 
@@ -44,6 +45,11 @@ export function UpcomingEvents() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  // Rafraîchit au retour sur l'onglet (l'admin a pu activer voteEnabled
+  // ou modifier un événement pendant que la home était figée) et au
+  // retour de background après > 60 s d'inactivité.
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useRefreshOnResume(() => { void load(); });
 
   if (loading) {
     return (
