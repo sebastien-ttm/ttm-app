@@ -6,8 +6,6 @@ use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\ClubCharterRepository;
-use App\Repository\TrainingSeasonRepository;
-use App\Repository\UserSeasonMembershipRepository;
 use App\Service\Charter\FormSchemaValidator;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,43 +25,50 @@ class CharterController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ApiSerializer $serializer,
         private readonly FormSchemaValidator $formValidator,
-        private readonly TrainingSeasonRepository $seasons,
-        private readonly UserSeasonMembershipRepository $memberships,
     ) {
     }
 
     /**
-     * L'user doit-il se voir proposer le formulaire d'acceptation pour
-     * la saison courante ? Vrai si :
-     *  - il est lui-même adhérent (UserSeasonMembership pour la saison), OU
-     *  - c'est un parent externe (pas d'adhésion propre) rattaché à au
-     *    moins un enfant actif ADHÉRENT pour la saison courante.
+     * L'user doit-il se voir proposer le formulaire d'acceptation ?
      *
-     * Si aucune saison courante n'est définie (config incomplète) : on
-     * retombe sur `true` — mieux vaut afficher le formulaire à tout le
-     * monde que de bloquer la feature entière.
+     * Règles (assouplies pour couvrir le cas d'un parent fraîchement
+     * inscrit alors que la saison courante n'a pas encore reçu d'import
+     * CSV — la précédente version exigeait une UserSeasonMembership
+     * exacte sur la saison courante, ce qui échouait pour un parent qui
+     * vient juste de rattacher son enfant, tant que l'admin n'avait pas
+     * importé la nouvelle saison) :
+     *
+     *  - Adhérent actif (type=Adherent, isActive=true) → OUI, quel
+     *    que soit son historique de UserSeasonMembership.
+     *  - Parent externe (type=Externe, subType=parent) rattaché à au
+     *    moins un enfant actif adhérent → OUI.
+     *  - Compte externe non-parent (ami du club, etc.) → NON.
+     *
+     * L'unicité par ClubCharter (via CharterAcceptance) garantit qu'une
+     * charte n'est signée qu'une fois, donc un adhérent qui a déjà
+     * accepté ne verra pas le tunnel deux fois — pas de risque de
+     * boucle avec cette version plus permissive.
      */
     private function requiresCharterForCurrentSeason(User $user): bool
     {
-        $currentSeason = $this->seasons->findCurrent();
-        if ($currentSeason === null) {
+        if (!$user->isActive()) {
+            return false;
+        }
+
+        // Adhérent actif → toujours concerné.
+        if ($user->isAdherent()) {
             return true;
         }
-        if ($this->memberships->findOneByUserAndSeason($user, $currentSeason) !== null) {
-            return true;
-        }
-        // Parent externe : au moins un enfant actif avec adhésion en cours
-        // sur la saison courante. Suffit pour déclencher l'acceptation, dès
-        // qu'un lien parent-enfant existe (créé au CSV import ou par
-        // l'ajout enfant côté mobile).
-        foreach ($user->getChildren() as $child) {
-            if (!$child->isActive()) {
-                continue;
-            }
-            if ($this->memberships->findOneByUserAndSeason($child, $currentSeason) !== null) {
-                return true;
+
+        // Parent externe rattaché à ≥1 enfant actif adhérent.
+        if ($user->isParentExterne()) {
+            foreach ($user->getChildren() as $child) {
+                if ($child->isActive() && $child->isAdherent()) {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
