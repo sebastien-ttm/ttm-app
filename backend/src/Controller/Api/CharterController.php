@@ -6,6 +6,8 @@ use App\Entity\CharterAcceptance;
 use App\Entity\User;
 use App\Repository\CharterAcceptanceRepository;
 use App\Repository\ClubCharterRepository;
+use App\Repository\TrainingSeasonRepository;
+use App\Repository\UserSeasonMembershipRepository;
 use App\Service\Charter\FormSchemaValidator;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,45 +27,53 @@ class CharterController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ApiSerializer $serializer,
         private readonly FormSchemaValidator $formValidator,
+        private readonly TrainingSeasonRepository $seasons,
+        private readonly UserSeasonMembershipRepository $memberships,
     ) {
     }
 
     /**
-     * L'user doit-il se voir proposer le formulaire d'acceptation ?
+     * L'user doit-il se voir proposer le formulaire d'acceptation pour
+     * la saison courante ? Vrai si :
+     *  - il est lui-même adhérent avec UserSeasonMembership pour la
+     *    saison courante, OU
+     *  - c'est un parent externe rattaché à au moins un enfant actif
+     *    adhérent AVEC une UserSeasonMembership pour la saison courante.
      *
-     * Règles (assouplies pour couvrir le cas d'un parent fraîchement
-     * inscrit alors que la saison courante n'a pas encore reçu d'import
-     * CSV — la précédente version exigeait une UserSeasonMembership
-     * exacte sur la saison courante, ce qui échouait pour un parent qui
-     * vient juste de rattacher son enfant, tant que l'admin n'avait pas
-     * importé la nouvelle saison) :
+     * Pourquoi cette contrainte stricte sur la saison courante ?
+     * Un adhérent qui n'a pas encore renouvelé sa licence pour la
+     * saison N+1 reste `isActive=true` pendant la période de grâce,
+     * mais ne doit PAS se voir proposer la charte N+1 tant que son
+     * renouvellement n'est pas enregistré (import CSV). Idem pour un
+     * parent externe : tant qu'aucun de ses enfants n'a de membership
+     * pour la saison courante, il ne signe pas.
      *
-     *  - Adhérent actif (type=Adherent, isActive=true) → OUI, quel
-     *    que soit son historique de UserSeasonMembership.
-     *  - Parent externe (type=Externe, subType=parent) rattaché à au
-     *    moins un enfant actif adhérent → OUI.
-     *  - Compte externe non-parent (ami du club, etc.) → NON.
-     *
-     * L'unicité par ClubCharter (via CharterAcceptance) garantit qu'une
-     * charte n'est signée qu'une fois, donc un adhérent qui a déjà
-     * accepté ne verra pas le tunnel deux fois — pas de risque de
-     * boucle avec cette version plus permissive.
+     * Cas particulier : si aucune saison n'est configurée (setup
+     * incomplet), on retombe sur `false` pour éviter de spammer.
      */
     private function requiresCharterForCurrentSeason(User $user): bool
     {
         if (!$user->isActive()) {
             return false;
         }
-
-        // Adhérent actif → toujours concerné.
-        if ($user->isAdherent()) {
-            return true;
+        $currentSeason = $this->seasons->findCurrent();
+        if ($currentSeason === null) {
+            return false;
         }
 
-        // Parent externe rattaché à ≥1 enfant actif adhérent.
+        // Adhérent : uniquement s'il a une membership pour la saison en cours.
+        if ($user->isAdherent()) {
+            return $this->memberships->findOneByUserAndSeason($user, $currentSeason) !== null;
+        }
+
+        // Parent externe : au moins un enfant actif adhérent avec
+        // membership pour la saison en cours (pas seulement isActive,
+        // qui peut être hérité de la saison précédente pendant la
+        // période de grâce).
         if ($user->isParentExterne()) {
             foreach ($user->getChildren() as $child) {
-                if ($child->isActive() && $child->isAdherent()) {
+                if (!$child->isActive() || !$child->isAdherent()) continue;
+                if ($this->memberships->findOneByUserAndSeason($child, $currentSeason) !== null) {
                     return true;
                 }
             }
