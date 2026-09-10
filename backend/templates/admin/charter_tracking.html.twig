@@ -50,6 +50,7 @@
                             <th style="padding:8px; text-align:left;">N° licence</th>
                             <th style="padding:8px; text-align:left;">Acceptée le</th>
                             <th style="padding:8px; text-align:left;">IP</th>
+                            <th style="padding:8px; text-align:right;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,6 +60,16 @@
                                 <td style="padding:8px;">{{ row.user.numLicence }}</td>
                                 <td style="padding:8px;">{{ row.acceptedAt|date('d/m/Y H:i') }}</td>
                                 <td style="padding:8px; color:#888; font-family:monospace; font-size:12px;">{{ row.ipAddress ?? '—' }}</td>
+                                <td style="padding:8px; text-align:right;">
+                                    <form method="post" action="{{ row.revokeUrl }}"
+                                          onsubmit="return confirm('Retirer l\'acceptation de {{ row.user.fullName|e('js') }} ? Le tunnel lui sera à nouveau proposé s\'il y a lieu.');"
+                                          style="display:inline;">
+                                        <button type="submit"
+                                                style="background:#fff; border:1px solid #C62828; color:#C62828; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">
+                                            Retirer
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
