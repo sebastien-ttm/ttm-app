@@ -28,7 +28,7 @@
             </div>
         {% endif %}
 
-        <form method="post" enctype="multipart/form-data" style="margin-top:24px;">
+        <form method="post" action="{{ formAction }}" enctype="multipart/form-data" style="margin-top:24px;">
             <div style="margin-bottom:16px;">
                 <label style="display:block; font-weight:600; margin-bottom:6px;">Saison d'adhésion <span style="color:#dc2626;">*</span></label>
                 <select name="season_id" required style="min-width:280px; padding:6px;">

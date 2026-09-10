@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Repository\TrainingSeasonRepository;
 use App\Service\Csv\CsvImportService;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,12 +18,26 @@ class CsvImportController extends AbstractController
     public function __construct(
         private readonly CsvImportService $importer,
         private readonly TrainingSeasonRepository $seasons,
+        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
 
     #[Route('/admin/csv-import', name: 'admin_csv_import')]
     public function index(Request $request): Response
     {
+        // Le template étend @EasyAdmin/page/content.html.twig qui appelle
+        // `ea()` — celui-ci retourne null quand la requête n'a pas les
+        // query params du dashboard. Sur un GET direct (bookmark, F5 après
+        // redirect) ou un POST « brut », on redirige vers l'URL enrichie
+        // par AdminUrlGenerator, qui embarque les params attendus.
+        $adminUrl = $this->adminUrlGenerator
+            ->unsetAll()
+            ->setRoute('admin_csv_import')
+            ->generateUrl();
+        if ($request->query->get('dashboardControllerFqcn') === null && $request->isMethod('GET')) {
+            return $this->redirect($adminUrl);
+        }
+
         $result = null;
         $error = null;
 
@@ -68,6 +83,10 @@ class CsvImportController extends AbstractController
             'error' => $error,
             'seasons' => $seasons,
             'currentSeasonId' => $currentSeason?->getId(),
+            // URL avec les params EA — utilisée par le <form action="…">
+            // pour que le POST ré-atterrisse sur une requête avec contexte
+            // dashboard, quel que soit le chemin d'arrivée initial.
+            'formAction' => $adminUrl,
         ]);
     }
 }
