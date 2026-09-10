@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
@@ -13,13 +12,12 @@ import {
 
 import { ApiError } from '@/api/client';
 import { trainingSchedule as scheduleApi } from '@/api/resources';
-import type { TrainingPlan, TrainingSlot, TrainingSlotAttachment, WeeklySchedule } from '@/api/types';
+import type { TrainingPlan, TrainingSlot, WeeklySchedule } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
-import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingTab } from '@/utils/profile';
 import { addDays, dayLabel, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
@@ -249,63 +247,41 @@ function TrainingScreenInner() {
 }
 
 function SlotRow({ slot }: { slot: TrainingSlot }) {
+  const router = useRouter();
   // Créneau considéré passé quand sa FIN (start + durée) est dépassée.
   // Le start seul serait trop restrictif : pendant les 60-90 min de la
   // session, l'adhérent la voit encore "en cours" (pas grisée).
   const slotEndMs = new Date(`${slot.date}T${slot.startTime}:00`).getTime()
     + slot.durationMinutes * 60_000;
   const isPast = Number.isFinite(slotEndMs) && slotEndMs < Date.now();
+  const hasExtra = !!slot.description || slot.attachments.length > 0;
+
   return (
-    <View style={[styles.slot, isPast && styles.slotPast]}>
+    <Pressable
+      onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
+      style={({ pressed }) => [styles.slot, isPast && styles.slotPast, pressed && styles.pressed]}
+    >
       <View style={styles.slotTimeCol}>
-        <Text style={styles.slotTime}>
-          {slot.startTime}
-        </Text>
+        <Text style={styles.slotTime}>{slot.startTime}</Text>
         <Text style={styles.slotDuration}>{slot.durationMinutes} min</Text>
       </View>
       <View style={styles.slotBody}>
-        <View style={styles.slotTitleRow}>
-          <Text style={styles.slotTitle} numberOfLines={2}>
-            {slot.title}
-          </Text>
-        </View>
+        <Text style={styles.slotTitle} numberOfLines={1}>{slot.title}</Text>
         <View style={styles.slotMeta}>
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
           {isPast && <Tag color={COLORS.textMuted} bg={COLORS.background} label="Passé" />}
+          {hasExtra && (
+            <View style={styles.extraHint}>
+              {slot.description ? <Text style={styles.extraHintIcon}>📝</Text> : null}
+              {slot.attachments.length > 0 ? <Text style={styles.extraHintIcon}>📎</Text> : null}
+            </View>
+          )}
         </View>
-        <Text style={styles.slotLocation}>📍 {slot.location}</Text>
-        {slot.description ? (
-          <Text style={styles.slotDescription}>
-            {slot.description}
-          </Text>
-        ) : null}
-        {slot.attachments.length > 0 && (
-          <View style={styles.attachments}>
-            {slot.attachments.map((att) => (
-              <AttachmentLink key={att.id} attachment={att} />
-            ))}
-          </View>
-        )}
+        <Text style={styles.slotLocation} numberOfLines={1}>📍 {slot.location}</Text>
       </View>
-    </View>
-  );
-}
-
-function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
-  async function open() {
-    const token = await storage.getItem(STORAGE_KEYS.accessToken);
-    const url =
-      `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file` +
-      (token ? `?bearer=${encodeURIComponent(token)}` : '');
-    await WebBrowser.openBrowserAsync(url);
-  }
-  return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && styles.pressed]}>
-      <Text style={styles.attachmentIcon}>📎</Text>
-      <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
-      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} style={{ alignSelf: 'center' }} />
     </Pressable>
   );
 }
@@ -388,28 +364,11 @@ const styles = StyleSheet.create({
   slotTime: { fontSize: 18, fontWeight: '700', color: COLORS.text },
   slotDuration: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   slotBody: { flex: 1, gap: 4 },
-  slotTitleRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  slotTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, flex: 1 },
+  slotTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   slotMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 2 },
   slotLocation: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
-  slotDescription: { fontSize: 13, color: COLORS.text, marginTop: 4, lineHeight: 18 },
-  attachments: {
-    flexDirection: 'column',
-    gap: 4,
-    marginTop: 8,
-  },
-  attachmentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.secondarySoft,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  attachmentIcon: { fontSize: 14 },
-  attachmentName: { flex: 1, fontSize: 13, color: COLORS.secondaryDark, fontWeight: '500' },
-  attachmentSize: { fontSize: 11, color: COLORS.textMuted },
+  extraHint: { flexDirection: 'row', gap: 4, marginLeft: 4 },
+  extraHintIcon: { fontSize: 12, opacity: 0.7 },
   tag: {
     borderWidth: 1,
     borderRadius: RADIUS.full,
