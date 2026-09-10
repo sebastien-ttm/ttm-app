@@ -20,7 +20,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  *  - `size="sm"` (défaut) : compact, adapté aux cards de la home.
  *  - `size="lg"`           : plus grand, adapté à une page détail.
  */
-export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 'sm' | 'lg' }) {
+export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 'xs' | 'sm' | 'lg' }) {
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
   const [voting, setVoting] = useState(false);
 
@@ -39,13 +39,15 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
     }
   }
 
-  const s = size === 'lg' ? largeStyles : smallStyles;
+  const s = size === 'lg' ? largeStyles : size === 'xs' ? xsStyles : smallStyles;
+  const iconOnly = size === 'xs';
 
   return (
     <View style={s.bar}>
       {event.externalRegistrationUrl ? (
         <VoteBtn
           label="Je m'inscris"
+          shortLabel="Inscription"
           icon="open-outline"
           active={myVote === 'yes'}
           disabled={voting}
@@ -55,34 +57,38 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
           }}
           accent={COLORS.success}
           styles={s}
+          iconOnly={iconOnly}
         />
       ) : (
-        <VoteBtn label="J'y serai" icon="checkmark" active={myVote === 'yes'} disabled={voting}
-          onPress={() => castVote('yes')} accent={COLORS.success} styles={s} />
+        <VoteBtn label="J'y serai" shortLabel="Oui" icon="checkmark" active={myVote === 'yes'} disabled={voting}
+          onPress={() => castVote('yes')} accent={COLORS.success} styles={s} iconOnly={iconOnly} />
       )}
-      <VoteBtn label="Peut-être" icon="help" active={myVote === 'maybe'} disabled={voting}
-        onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} styles={s} />
-      <VoteBtn label="Pas là" icon="close" active={myVote === 'no'} disabled={voting}
-        onPress={() => castVote('no')} accent={COLORS.error} styles={s} />
+      <VoteBtn label="Peut-être" shortLabel="?" icon="help" active={myVote === 'maybe'} disabled={voting}
+        onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} styles={s} iconOnly={iconOnly} />
+      <VoteBtn label="Pas là" shortLabel="Non" icon="close" active={myVote === 'no'} disabled={voting}
+        onPress={() => castVote('no')} accent={COLORS.error} styles={s} iconOnly={iconOnly} />
     </View>
   );
 }
 
 function VoteBtn({
-  label, icon, active, disabled, onPress, accent, styles: s,
+  label, shortLabel, icon, active, disabled, onPress, accent, styles: s, iconOnly,
 }: {
   label: string;
+  shortLabel: string;
   icon: 'checkmark' | 'help' | 'close' | 'open-outline';
   active: boolean;
   disabled: boolean;
   onPress: () => void;
   accent: string;
   styles: { btn: object; label: object };
+  iconOnly?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityLabel={label}
       style={({ pressed }) => [
         s.btn,
         active && { backgroundColor: accent, borderColor: accent },
@@ -90,10 +96,34 @@ function VoteBtn({
       ]}
     >
       <Ionicons name={icon} size={active ? 16 : 14} color={active ? '#fff' : accent} />
-      <Text style={[s.label, { color: active ? '#fff' : accent }]}>{label}</Text>
+      {!iconOnly && (
+        <Text style={[s.label, { color: active ? '#fff' : accent }]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
+
+// xs = icon only, compact — pour tenir sur la même ligne que le titre
+// (« Prochainement » sur la home). Boutons carrés ~28×28.
+const xsStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  btn: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: '#fff',
+  },
+  label: { fontSize: 0 }, // unused (iconOnly)
+});
 
 const smallStyles = StyleSheet.create({
   bar: {

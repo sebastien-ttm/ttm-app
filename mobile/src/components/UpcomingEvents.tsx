@@ -123,6 +123,15 @@ function EventRow({ event }: { event: EventItem }) {
           );
         })()}
       </View>
+      {/* Boutons de vote compacts (icônes seules) alignés sur la même
+          ligne que le titre — n'augmentent pas la hauteur totale de la
+          row au-delà de la DateBox. */}
+      {event.voteEnabled && (
+        <View style={styles.voteInline}>
+          <EventVoteBar event={event} size="xs" />
+        </View>
+      )}
+
       {/* Bouton discret « ajouter au calendrier » — icône seule, à droite.
           stopPropagation via un handler dédié pour ne pas déclencher la
           navigation vers le détail de l'événement en même temps. */}
@@ -138,8 +147,6 @@ function EventRow({ event }: { event: EventItem }) {
         <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
       </Pressable>
     </Pressable>
-
-    {event.voteEnabled && <EventVoteBar event={event} size="sm" />}
     </View>
   );
 }
@@ -276,16 +283,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
-    gap: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 10,
   },
   dateBox: {
-    width: 48,
-    height: 60,
+    width: 44,
+    height: 52,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 3,
+  },
+  voteInline: {
+    alignSelf: 'center',
+    marginLeft: 4,
   },
   dateRange: {
     flexDirection: 'row',
@@ -294,10 +306,10 @@ const styles = StyleSheet.create({
   },
   dateArrow: { marginHorizontal: 1 },
   dateWeekday: { color: 'rgba(255,255,255,0.9)', fontSize: 9, fontWeight: '700', letterSpacing: 0.5, lineHeight: 11 },
-  dateDay: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
+  dateDay: { color: '#fff', fontSize: 17, fontWeight: '700', lineHeight: 20 },
   dateMonth: { color: '#fff', fontSize: 10, fontWeight: '600', letterSpacing: 0.5, lineHeight: 12 },
   eventTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
   eventTime: { fontSize: 13, fontWeight: '700', color: COLORS.text },
   allLink: {
     flexDirection: 'row',
@@ -320,7 +332,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
+    marginBottom: 6,
     overflow: 'hidden',
   },
   empty: {
