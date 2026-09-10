@@ -229,6 +229,7 @@ class ApiSerializer
             'myVote' => $myVote, // 'yes' | 'no' | 'maybe' | null
             'voteCounts' => $voteCounts, // {yes,no,maybe} ou null si non soumis au vote
             'carpoolingEnabled' => $e->isCarpoolingEnabled(),
+            'externalRegistrationUrl' => $e->getExternalRegistrationUrl(),
         ];
     }
 

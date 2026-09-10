@@ -66,6 +66,16 @@ class Event
     #[ORM\Column(name: 'carpooling_enabled', options: ['default' => false])]
     private bool $carpoolingEnabled = false;
 
+    /**
+     * URL d'inscription externe (compétition avec plateforme tierce
+     * type Njuko, klikego, HelloAsso…). Quand renseignée ET que
+     * voteEnabled=true, le bouton « J'y serai » côté mobile est
+     * remplacé par « Je m'inscris » qui vote « yes » ET ouvre l'URL.
+     * NULL = pas d'inscription externe (fonctionnement de vote standard).
+     */
+    #[ORM\Column(name: 'external_registration_url', length: 500, nullable: true)]
+    private ?string $externalRegistrationUrl = null;
+
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
     public function setTitle(string $title): self { $this->title = $title; return $this; }
@@ -86,6 +96,14 @@ class Event
     public function setVoteEnabled(bool $v): self { $this->voteEnabled = $v; return $this; }
     public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
     public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }
+
+    public function getExternalRegistrationUrl(): ?string { return $this->externalRegistrationUrl; }
+    public function setExternalRegistrationUrl(?string $u): self
+    {
+        $t = $u !== null ? trim($u) : null;
+        $this->externalRegistrationUrl = ($t === '' ? null : $t);
+        return $this;
+    }
 
     /** Couleur dérivée du type — plus de surcharge possible (palette club). */
     public function getColor(): string

@@ -159,11 +159,27 @@ function EventRow({ event }: { event: EventItem }) {
 
     {/* Boutons de vote de présence (soumis au vote uniquement). Rendus
         hors du Pressable parent pour ne pas déclencher la navigation
-        vers le détail au tap. */}
+        vers le détail au tap.
+        Si externalRegistrationUrl est renseignée, « J'y serai » devient
+        « Je m'inscris » qui vote yes ET ouvre l'URL externe. */}
     {event.voteEnabled && (
       <View style={styles.voteBar}>
-        <VoteBtn label="J'y serai" icon="checkmark" active={myVote === 'yes'} disabled={voting}
-          onPress={() => castVote('yes')} accent={COLORS.success} />
+        {event.externalRegistrationUrl ? (
+          <VoteBtn
+            label="Je m'inscris"
+            icon="open-outline"
+            active={myVote === 'yes'}
+            disabled={voting}
+            onPress={() => {
+              void castVote('yes');
+              void Linking.openURL(event.externalRegistrationUrl!);
+            }}
+            accent={COLORS.success}
+          />
+        ) : (
+          <VoteBtn label="J'y serai" icon="checkmark" active={myVote === 'yes'} disabled={voting}
+            onPress={() => castVote('yes')} accent={COLORS.success} />
+        )}
         <VoteBtn label="Peut-être" icon="help" active={myVote === 'maybe'} disabled={voting}
           onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} />
         <VoteBtn label="Pas là" icon="close" active={myVote === 'no'} disabled={voting}
@@ -178,7 +194,7 @@ function VoteBtn({
   label, icon, active, disabled, onPress, accent,
 }: {
   label: string;
-  icon: 'checkmark' | 'help' | 'close';
+  icon: 'checkmark' | 'help' | 'close' | 'open-outline';
   active: boolean;
   disabled: boolean;
   onPress: () => void;

@@ -138,6 +138,13 @@ export type EventItem = {
   voteCounts: { yes: number; no: number; maybe: number } | null;
   /** True = covoiturage activé sur cet événement (page dédiée /event/{id}/carpool). */
   carpoolingEnabled: boolean;
+  /**
+   * URL d'inscription externe (site tiers type Njuko / klikego).
+   * Quand renseignée ET que voteEnabled=true, le bouton « J'y serai »
+   * devient « Je m'inscris » côté mobile — il vote « yes » ET ouvre
+   * l'URL dans le navigateur externe. Null = fonctionnement standard.
+   */
+  externalRegistrationUrl: string | null;
 };
 
 export type CarpoolRole = 'driver' | 'passenger';
