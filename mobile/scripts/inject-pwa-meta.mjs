@@ -13,12 +13,28 @@
  * Ou via npm script : `npm run build:web` (chaîné après expo export).
  */
 
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST_DIR = join(process.cwd(), 'dist');
 const INDEX = join(DIST_DIR, 'index.html');
 const HTACCESS = join(DIST_DIR, '.htaccess');
+const VERSION_JSON = join(DIST_DIR, 'version.json');
+
+/**
+ * Version du build : SHA git court + timestamp. Utilisé par le
+ * WebUpdateGate côté client pour détecter qu'un nouveau bundle a été
+ * déployé et proposer un reload à l'user sans attendre qu'il ferme
+ * son onglet. Le SHA seul suffirait, mais le timestamp aide au debug.
+ */
+function computeVersion() {
+  let sha = 'dev';
+  try {
+    sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch { /* pas dans un repo git → fallback 'dev' */ }
+  return { sha, builtAt: new Date().toISOString() };
+}
 
 const SENTINEL = 'data-pwa-injected="ttm"';
 
@@ -26,6 +42,11 @@ const HEAD_INJECTION = `
     <!-- ${SENTINEL} : injecté par scripts/inject-pwa-meta.mjs -->
     <meta name="description" content="Application du club Triathlon Toulouse Métropole." />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+
+    <!-- Version embarquée dans le bundle courant. Le WebUpdateGate
+         compare cette valeur au /version.json récent pour détecter
+         un déploiement sans passer par un rebuild. -->
+    <meta name="app-version" content="__APP_VERSION__" />
 
     <!-- === PWA (Android Chrome) === -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -55,6 +76,10 @@ function info(msg) {
 if (!existsSync(INDEX)) {
   fail(`dist/index.html introuvable. Lance d'abord 'npx expo export --platform web'.`);
 }
+
+const version = computeVersion();
+writeFileSync(VERSION_JSON, JSON.stringify(version, null, 2) + '\n', 'utf8');
+info(`dist/version.json généré (${version.sha}).`);
 
 // Setup O2Switch : mobile + backend Symfony partagent le même dossier
 // (public_html/ttm-app/backend/public/ = document root du sous-domaine
@@ -91,7 +116,8 @@ html = html.replace(
 if (!html.includes('</head>')) {
   fail('Pas de </head> trouvé dans dist/index.html.');
 }
-html = html.replace('</head>', `${HEAD_INJECTION}\n  </head>`);
+const injection = HEAD_INJECTION.replace('__APP_VERSION__', version.sha);
+html = html.replace('</head>', `${injection}\n  </head>`);
 
 writeFileSync(INDEX, html, 'utf8');
 info(`Meta-tags PWA injectés dans ${INDEX}`);

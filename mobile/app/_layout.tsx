@@ -8,6 +8,7 @@ import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from
 import { CharterGate } from '@/components/CharterGate';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { NoticeGate } from '@/components/NoticeGate';
+import { WebUpdateGate } from '@/components/WebUpdateGate';
 import { COLORS } from '@/config';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,9 @@ export default function RootLayout() {
           {/* Notices ponctuelles (indépendant du charter — s'active
               seulement une fois authentifié ET charter validé). */}
           <NoticeGate />
+          {/* Détecte un nouveau bundle JS déployé et propose un reload
+              à l'user (web uniquement — natif figé dans le binaire). */}
+          <WebUpdateGate />
           <Stack
             screenOptions={{
               headerStyle: { backgroundColor: COLORS.brandNavy },
