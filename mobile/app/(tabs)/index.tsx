@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -69,6 +70,15 @@ export default function FeedScreen() {
   // Refetch la 1re page au retour de background après > 60s d'inactivité —
   // évite d'afficher un feed figé après plusieurs heures/jours en veille.
   useRefreshOnResume(() => { void fetchPage(1, 'replace'); });
+
+  // Refetch la 1re page à chaque fois que l'onglet regagne le focus —
+  // couvre le cas « je viens de réagir sur un article, je reviens à la
+  // liste, je veux voir le nouveau compteur d'emoji » (ArticleCard est
+  // un composant présentationnel qui reflète juste la prop `article`).
+  // Silencieux : pas de spinner, on mute le fetch en arrière-plan.
+  useFocusEffect(useCallback(() => {
+    void fetchPage(1, 'replace');
+  }, [fetchPage]));
 
   const onEndReached = useCallback(async () => {
     if (loadingMore || fetchingRef.current) return;
