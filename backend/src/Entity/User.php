@@ -219,13 +219,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /**
      * Longueur "stable" du numéro de licence FFTri.
-     * Au-delà de 7 caractères, le suffixe peut varier (saison, sous-club…),
-     * on ne conserve donc que le préfixe pour les comparaisons.
+     * Le 7e caractère est le TYPE de licence (Compétition/Loisir/
+     * Dirigeant/…) et peut évoluer d'une saison à l'autre pour un
+     * même adhérent — on ne garde donc que les 6 premiers caractères
+     * pour identifier durablement une personne.
      */
-    public const LICENCE_PREFIX_LENGTH = 7;
+    public const LICENCE_PREFIX_LENGTH = 6;
 
     /**
-     * Normalise un n° de licence : trim, uppercase, tronqué aux 7 premiers caractères.
+     * Normalise un n° de licence : trim, uppercase, tronqué aux 6 premiers caractères.
      * Renvoie null si vide. Utiliser systématiquement avant lookup / setNumLicence.
      */
     public static function normalizeLicence(?string $raw): ?string
@@ -246,8 +248,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Tronque automatiquement aux 7 premiers caractères. La validation
-     * d'unicité côté DB s'applique donc sur le préfixe stable.
+     * Tronque automatiquement aux 6 premiers caractères (voir
+     * LICENCE_PREFIX_LENGTH). La validation d'unicité côté DB
+     * s'applique donc sur le préfixe stable.
      */
     public function setNumLicence(?string $numLicence): self
     {

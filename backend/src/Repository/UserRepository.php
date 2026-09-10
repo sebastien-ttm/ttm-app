@@ -139,7 +139,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
-     * Cherche un adhérent actif par n° de licence (normalisé : 7 premiers
+     * Cherche un adhérent actif par n° de licence (normalisé : 6 premiers
      * caractères, uppercase, espaces triés). Utilisé par l'inscription
      * parent mobile pour valider le lien de filiation.
      */
