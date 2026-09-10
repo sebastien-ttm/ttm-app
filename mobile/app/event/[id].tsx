@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { events as api } from '@/api/resources';
 import type { EventItem } from '@/api/types';
+import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -129,6 +130,10 @@ export default function EventDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* Vote de présence — même comportement que sur la home
+            (« Je m'inscris » si externalRegistrationUrl est renseignée). */}
+        {event.voteEnabled && <EventVoteBar event={event} size="lg" />}
 
         {event.carpoolingEnabled && (
           <Pressable

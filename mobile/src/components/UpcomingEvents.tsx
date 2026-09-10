@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View
 
 import { events as eventsApi } from '@/api/resources';
 import type { EventItem } from '@/api/types';
+import { EventVoteBar } from '@/components/EventVoteBar';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 const MAX_PREVIEW = 3;
@@ -86,25 +87,6 @@ function EventRow({ event }: { event: EventItem }) {
   const end = event.endsAt ? new Date(event.endsAt) : null;
   const color = event.color || COLORS.primary;
   const isMultiDay = end !== null && !sameDay(start, end);
-  const [myVote, setMyVote] = useState<'yes' | 'no' | 'maybe' | null>(event.myVote);
-  const [voting, setVoting] = useState(false);
-
-  async function castVote(next: 'yes' | 'no' | 'maybe') {
-    if (voting) return;
-    // Re-tap sur le vote actif = retire (undo). Sinon on remplace.
-    const target: 'yes' | 'no' | 'maybe' | null = myVote === next ? null : next;
-    setVoting(true);
-    // Optimistic
-    const previous = myVote;
-    setMyVote(target);
-    try {
-      await eventsApi.setAttendance(event.id, target);
-    } catch {
-      setMyVote(previous); // rollback
-    } finally {
-      setVoting(false);
-    }
-  }
 
   return (
     <View style={styles.rowContainer}>
@@ -157,62 +139,8 @@ function EventRow({ event }: { event: EventItem }) {
       </Pressable>
     </Pressable>
 
-    {/* Boutons de vote de présence (soumis au vote uniquement). Rendus
-        hors du Pressable parent pour ne pas déclencher la navigation
-        vers le détail au tap.
-        Si externalRegistrationUrl est renseignée, « J'y serai » devient
-        « Je m'inscris » qui vote yes ET ouvre l'URL externe. */}
-    {event.voteEnabled && (
-      <View style={styles.voteBar}>
-        {event.externalRegistrationUrl ? (
-          <VoteBtn
-            label="Je m'inscris"
-            icon="open-outline"
-            active={myVote === 'yes'}
-            disabled={voting}
-            onPress={() => {
-              void castVote('yes');
-              void Linking.openURL(event.externalRegistrationUrl!);
-            }}
-            accent={COLORS.success}
-          />
-        ) : (
-          <VoteBtn label="J'y serai" icon="checkmark" active={myVote === 'yes'} disabled={voting}
-            onPress={() => castVote('yes')} accent={COLORS.success} />
-        )}
-        <VoteBtn label="Peut-être" icon="help" active={myVote === 'maybe'} disabled={voting}
-          onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} />
-        <VoteBtn label="Pas là" icon="close" active={myVote === 'no'} disabled={voting}
-          onPress={() => castVote('no')} accent={COLORS.error} />
-      </View>
-    )}
+    {event.voteEnabled && <EventVoteBar event={event} size="sm" />}
     </View>
-  );
-}
-
-function VoteBtn({
-  label, icon, active, disabled, onPress, accent,
-}: {
-  label: string;
-  icon: 'checkmark' | 'help' | 'close' | 'open-outline';
-  active: boolean;
-  disabled: boolean;
-  onPress: () => void;
-  accent: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.voteBtn,
-        active && { backgroundColor: accent, borderColor: accent },
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      <Ionicons name={icon} size={14} color={active ? '#fff' : accent} />
-      <Text style={[styles.voteBtnLabel, { color: active ? '#fff' : accent }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -395,27 +323,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     overflow: 'hidden',
   },
-  voteBar: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    paddingTop: 4,
-  },
-  voteBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: 'transparent',
-  },
-  voteBtnLabel: { fontSize: 11, fontWeight: '700' },
   empty: {
     fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic',
     paddingVertical: SPACING.sm,
