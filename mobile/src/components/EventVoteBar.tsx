@@ -24,9 +24,20 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
   const [voting, setVoting] = useState(false);
 
-  async function castVote(next: AttendanceStatus) {
+  /**
+   * @param allowUnvote  true (défaut) = re-tap sur le vote actif l'efface
+   *                     (comportement standard). false = ne toggle jamais,
+   *                     un reclick reste sur ce statut (utilisé pour
+   *                     « Je m'inscris » : l'user doit pouvoir re-ouvrir
+   *                     l'URL externe sans perdre son vote « oui »).
+   */
+  async function castVote(next: AttendanceStatus, allowUnvote = true) {
     if (voting) return;
-    const target: AttendanceStatus | null = myVote === next ? null : next;
+    const target: AttendanceStatus | null =
+      allowUnvote && myVote === next ? null : next;
+    // Optimisation : si aucun changement à envoyer (déjà à cette valeur
+    // avec allowUnvote=false), on ne fait pas de round-trip inutile.
+    if (target === myVote) return;
     setVoting(true);
     const previous = myVote;
     setMyVote(target);
@@ -52,7 +63,11 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
           active={myVote === 'yes'}
           disabled={voting}
           onPress={() => {
-            void castVote('yes');
+            // Pas de toggle : un reclick maintient l'engagement « oui »
+            // et ré-ouvre l'URL pour finaliser l'inscription. Les autres
+            // boutons (Peut-être / Pas là) restent exclusifs et
+            // désactivent bien le vert.
+            void castVote('yes', /* allowUnvote */ false);
             void Linking.openURL(event.externalRegistrationUrl!);
           }}
           accent={COLORS.success}
