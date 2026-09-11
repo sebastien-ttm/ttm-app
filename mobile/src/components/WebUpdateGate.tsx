@@ -20,6 +20,13 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  * l'APK/IPA, on utilise EAS Update pour ça).
  */
 const INACTIVITY_MS = 60 * 1000;
+/**
+ * Poll périodique pendant qu'une session reste au premier plan (sans
+ * jamais passer en background). 5 min = compromis entre réactivité
+ * (l'user voit le banner dans les 5 min qui suivent un push prod) et
+ * pression réseau (12 requêtes /version.json par heure et par onglet).
+ */
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 export function WebUpdateGate() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -88,8 +95,22 @@ export function WebUpdateGate() {
       document.addEventListener('visibilitychange', onVisibility);
     }
 
+    // Poll périodique pour les sessions qui restent au premier plan
+    // (l'user reste actif toute la journée sur l'appli).
+    // 1er check dans 30 s (couvre le cas où l'user vient d'arriver
+    // pile après un déploiement), puis toutes les 5 min.
+    const firstTimer = setTimeout(() => { void check(); }, 30 * 1000);
+    const pollTimer = setInterval(() => {
+      // Skip si onglet en background (le retour via visibilitychange
+      // s'en charge, pas la peine de spammer).
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void check();
+    }, POLL_INTERVAL_MS);
+
     return () => {
       sub.remove();
+      clearTimeout(firstTimer);
+      clearInterval(pollTimer);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
       }
