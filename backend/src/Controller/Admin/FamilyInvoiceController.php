@@ -40,12 +40,14 @@ class FamilyInvoiceController extends AbstractController
     #[Route('/admin/invoice/family', name: 'admin_invoice_family_pick')]
     public function pick(Request $request): Response
     {
-        // Le template étend @EasyAdmin/page/content.html.twig — sans
-        // les params dashboard le layout crash (ea() = null). Redirect
-        // vers l'URL enrichie par AdminUrlGenerator au premier accès.
+        // Sans les query params du dashboard, @EasyAdmin/page/content.html.twig
+        // plante (ea() = null). On redirige vers l'URL enrichie —
+        // setDashboard explicite garantit que dashboardControllerFqcn
+        // est bien ajouté (sinon AdminUrlGenerator omet ce paramètre).
         if ($request->query->get('dashboardControllerFqcn') === null) {
             return $this->redirect($this->adminUrlGenerator
                 ->unsetAll()
+                ->setDashboard(DashboardController::class)
                 ->setRoute('admin_invoice_family_pick', $request->query->all())
                 ->generateUrl());
         }
@@ -97,6 +99,7 @@ class FamilyInvoiceController extends AbstractController
         if ($request->isMethod('GET') && $request->query->get('dashboardControllerFqcn') === null) {
             return $this->redirect($this->adminUrlGenerator
                 ->unsetAll()
+                ->setDashboard(DashboardController::class)
                 ->setRoute('admin_invoice_family_build', ['userId' => $userId])
                 ->generateUrl());
         }
