@@ -285,7 +285,8 @@ function SlotCard({
   // pour qu'un créneau à 18h ne soit pas encore « passé » à 17h le jour J.
   const slotStart = new Date(`${slot.date}T${slot.startTime}:00`);
   const isPast = Date.now() >= slotStart.getTime();
-  const label = isPast ? "J'étais là" : 'Je serai là';
+  const presentLabel = isPast ? "J'étais là" : 'Je serai là';
+  const absentLabel = isPast ? "Je n'étais pas là" : 'Je ne serai pas là';
   const coaches = (slot.assignedStaff ?? []).filter((s) => s.role === 'entraineur');
   const encadrants = (slot.assignedStaff ?? []).filter((s) => s.role === 'encadrant');
 
@@ -299,11 +300,6 @@ function SlotCard({
         <Text style={styles.slotTitle}>{slot.title}</Text>
         <View style={styles.slotMeta}>
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
-          {isUnavailable && (
-            <View style={styles.unavailableTag}>
-              <Text style={styles.unavailableTagLabel}>Je ne serai pas là</Text>
-            </View>
-          )}
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
 
@@ -324,18 +320,18 @@ function SlotCard({
                 style={[styles.actionBtn, isPlanned && styles.actionBtnPlanned]}
               >
                 <Text style={[styles.actionLabel, isPlanned && styles.actionLabelActive]}>
-                  {isPlanned ? `✓ ${label}` : label}
+                  {isPlanned ? `✓ ${presentLabel}` : presentLabel}
                 </Text>
               </Pressable>
 
-              {/* « Je ne serai pas là » — rouge si actif. */}
+              {/* « Je ne serai pas là » / « Je n'étais pas là » — rouge si actif. */}
               <Pressable
                 onPress={() => !isUnavailable && onSetStatus('unavailable')}
                 disabled={isUnavailable}
                 style={[styles.actionBtn, isUnavailable && styles.actionBtnUnavailable]}
               >
                 <Text style={[styles.actionLabel, isUnavailable && styles.actionLabelActive]}>
-                  {isUnavailable ? '✗ Absent noté' : 'Je ne serai pas là'}
+                  {isUnavailable ? `✗ ${absentLabel}` : absentLabel}
                 </Text>
               </Pressable>
 
@@ -490,13 +486,6 @@ const styles = StyleSheet.create({
   actionBtnPlanned: { backgroundColor: COLORS.secondarySoft, borderColor: COLORS.secondary },
   actionBtnUnavailable: { backgroundColor: '#fee2e2', borderColor: COLORS.error },
   slotUnavailable: { opacity: 0.75, backgroundColor: '#fef2f2' },
-  unavailableTag: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  unavailableTagLabel: { color: '#991b1b', fontSize: 11, fontWeight: '700' },
   actionBtnAttended: { backgroundColor: '#dcfce7', borderColor: COLORS.success },
   actionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   actionLabelActive: { color: COLORS.text },

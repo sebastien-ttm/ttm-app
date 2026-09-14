@@ -298,6 +298,17 @@ class StaffPresenceController extends AbstractController
             return new JsonResponse(['error' => 'slotId ou templateId requis.'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Se positionner « Je serai là » sur un créneau annule
+        // implicitement la déclaration « non dispo cette semaine » : la
+        // case Non Dispo se déselectionne au prochain refresh.
+        if ($status === StaffPresence::STATUS_SCHEDULED) {
+            $monday = $presence->getWeekStartsAt();
+            $existingUnav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+            if ($existingUnav !== null) {
+                $this->em->remove($existingUnav);
+            }
+        }
+
         $this->em->flush();
         return new JsonResponse($this->serializePresence($presence), Response::HTTP_OK);
     }
