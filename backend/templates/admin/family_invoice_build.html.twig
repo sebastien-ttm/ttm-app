@@ -63,12 +63,24 @@
             </tbody>
         </table>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; gap:8px; flex-wrap:wrap;">
             <a href="{{ backUrl }}" class="btn btn-secondary">← Changer d'adhérent</a>
-            <button type="submit" class="btn btn-primary"
-                    style="background:#1d4ed8; border-color:#1d4ed8;">
-                📄 Générer la facture famille (PDF)
-            </button>
+            <div style="display:flex; gap:8px;">
+                <button type="submit" name="action" value="pdf"
+                        class="btn btn-primary"
+                        style="background:#1d4ed8; border-color:#1d4ed8;">
+                    📄 Générer le PDF
+                </button>
+                <button type="submit" name="action" value="email"
+                        class="btn btn-primary"
+                        style="background:#16a34a; border-color:#16a34a;"
+                        {% if not primary.email %}disabled title="L'adhérent principal n'a pas d'e-mail"{% endif %}>
+                    ✉️ Envoyer par email
+                    {% if primary.email %}
+                        <small style="font-weight:normal; opacity:0.85;">à {{ primary.email }}</small>
+                    {% endif %}
+                </button>
+            </div>
         </div>
     </form>
 {% endblock %}

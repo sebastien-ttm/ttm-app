@@ -5,9 +5,11 @@ namespace App\Controller\Admin;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Service\Invoice\InvoiceService;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -29,6 +31,7 @@ class FamilyInvoiceController extends AbstractController
         private readonly UserRepository $users,
         private readonly TrainingSeasonRepository $seasons,
         private readonly InvoiceService $invoiceService,
+        private readonly MailerInterface $mailer,
     ) {
     }
 
@@ -98,6 +101,7 @@ class FamilyInvoiceController extends AbstractController
         if ($request->isMethod('POST')) {
             $selectedIds = $request->request->all('include');   // array<int, string>
             $amountsEur = $request->request->all('amount_eur'); // array<userId, string>
+            $action = (string) $request->request->get('action', 'pdf'); // 'pdf' | 'email'
             $lines = [];
             foreach ($candidates as $u) {
                 $uid = (string) $u->getId();
@@ -117,10 +121,34 @@ class FamilyInvoiceController extends AbstractController
                     return new Response('<pre style="padding:20px;font-family:monospace;color:#991b1b;">'
                         .htmlspecialchars($e->getMessage()).'</pre>', 500);
                 }
-                return new Response($pdf, 200, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'inline; filename="'.$this->invoiceService->suggestedFamilyFilename($primary, $season).'"',
-                ]);
+                $filename = $this->invoiceService->suggestedFamilyFilename($primary, $season);
+
+                if ($action === 'email') {
+                    if (!$primary->getEmail()) {
+                        $this->addFlash('error', 'Impossible d\'envoyer : l\'adhérent principal n\'a pas d\'e-mail.');
+                    } else {
+                        $mail = (new TemplatedEmail())
+                            ->to($primary->getEmail())
+                            ->subject(sprintf('Votre facture d\'adhésion famille — Saison %s', (string) $season))
+                            ->htmlTemplate('email/invoice.html.twig')
+                            ->textTemplate('email/invoice.txt.twig')
+                            ->context([
+                                'user' => $primary,
+                                'season' => $season,
+                            ])
+                            ->attach($pdf, $filename, 'application/pdf');
+                        $this->mailer->send($mail);
+                        $this->addFlash('success', sprintf(
+                            'Facture famille envoyée à %s.', $primary->getEmail(),
+                        ));
+                        return $this->redirectToRoute('admin_invoice_family_pick');
+                    }
+                } else {
+                    return new Response($pdf, 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                    ]);
+                }
             }
         }
 
