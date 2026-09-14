@@ -23,11 +23,11 @@
         </form>
     </div>
 
-    {% if q and matches|length == 0 %}
+    {% if q and rows|length == 0 %}
         <div style="background:#FEE; color:#C62828; padding:14px; border-radius:6px;">
             Aucun adhérent trouvé pour « {{ q }} ».
         </div>
-    {% elseif matches|length > 0 %}
+    {% elseif rows|length > 0 %}
         <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <table style="width:100%; border-collapse:collapse; font-size:14px;">
                 <thead>
@@ -39,13 +39,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for u in matches %}
+                    {% for row in rows %}
                         <tr style="border-bottom:1px solid #eee;">
-                            <td style="padding:8px;">{{ u.fullName }}</td>
-                            <td style="padding:8px; font-family:monospace;">{{ u.numLicence ?? '—' }}</td>
-                            <td style="padding:8px; color:#555;">{{ u.email ?? '—' }}</td>
+                            <td style="padding:8px;">{{ row.user.fullName }}</td>
+                            <td style="padding:8px; font-family:monospace;">{{ row.user.numLicence ?? '—' }}</td>
+                            <td style="padding:8px; color:#555;">{{ row.user.email ?? '—' }}</td>
                             <td style="padding:8px; text-align:right;">
-                                <a href="{{ buildUrl(u.id) }}"
+                                <a href="{{ row.buildUrl }}"
                                    class="btn btn-sm btn-primary"
                                    style="background:#1d4ed8; border-color:#1d4ed8;">
                                     Choisir →

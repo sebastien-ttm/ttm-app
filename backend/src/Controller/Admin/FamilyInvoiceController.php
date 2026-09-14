@@ -41,7 +41,7 @@ class FamilyInvoiceController extends AbstractController
     public function pick(Request $request): Response
     {
         $q = trim((string) $request->query->get('q', ''));
-        $matches = [];
+        $rows = [];
         if ($q !== '' && mb_strlen($q) >= 2) {
             // Filtre : adhérent (type=Adherent) OU parent externe
             // (type=Externe + subType=parent). Les autres comptes externes
@@ -54,14 +54,22 @@ class FamilyInvoiceController extends AbstractController
                 ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
                 ->setMaxResults(20)
                 ->getQuery()->getResult();
+            // Pré-calcule l'URL de build par match — Twig ne peut pas
+            // appeler un callable passé en variable, on doit inliner
+            // l'URL directement dans la structure remise au template.
+            foreach ($matches as $u) {
+                $rows[] = [
+                    'user' => $u,
+                    'buildUrl' => $this->adminUrlGenerator
+                        ->unsetAll()
+                        ->setRoute('admin_invoice_family_build', ['userId' => $u->getId()])
+                        ->generateUrl(),
+                ];
+            }
         }
         return $this->render('admin/family_invoice_pick.html.twig', [
             'q' => $q,
-            'matches' => $matches,
-            'buildUrl' => fn (int $userId) => $this->adminUrlGenerator
-                ->unsetAll()
-                ->setRoute('admin_invoice_family_build', ['userId' => $userId])
-                ->generateUrl(),
+            'rows' => $rows,
             'formAction' => $this->adminUrlGenerator
                 ->unsetAll()->setRoute('admin_invoice_family_pick')->generateUrl(),
         ]);
