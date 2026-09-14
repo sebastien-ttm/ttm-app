@@ -43,10 +43,12 @@
             font-family: "DejaVu Sans", Arial, sans-serif;
         }
 
-        .signature { margin-top: 32pt; text-align: right; font-size: 10pt; }
+        .signature { margin-top: 24pt; width: 100%; }
+        .signature td { vertical-align: middle; font-size: 10pt; padding: 0; }
+        .signature .sig-left { width: 50%; text-align: left; }
+        .signature .sig-right { width: 50%; text-align: right; }
         .signature .sig-label { margin-bottom: 2pt; font-style: italic; color: #4b5563; }
-        .signature .sig-name { font-weight: 700; margin-bottom: 8pt; }
-        .signature .sig-img { margin-top: 4pt; }
+        .signature .sig-name { font-weight: 700; }
         .signature .sig-img img { max-width: 140pt; max-height: 60pt; display: inline-block; }
 
         .footer {
@@ -87,7 +89,7 @@
 <table class="items">
     <thead>
         <tr>
-            <th>Personne</th>
+            <th>{{ lines|length > 1 ? 'Prestations' : 'Prestation' }}</th>
             <th style="text-align:right;">Montant TTC</th>
         </tr>
     </thead>
@@ -95,8 +97,7 @@
         {% for line in lines %}
             <tr>
                 <td>
-                    <strong>{{ line.user.fullName }}</strong><br>
-                    <small>Adhésion {{ settings.clubName }} — Saison {{ seasonLabel }}{% if line.typeLicence %} · Licence : {{ line.typeLicence }}{% endif %}</small>
+                    {{ line.user.fullName }} — Adhésion{% if line.typeLicence %} {{ line.typeLicence }}{% endif %} — Saison {{ seasonLabel }}
                 </td>
                 <td class="amount">{{ (line.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
             </tr>
@@ -110,13 +111,19 @@
 
 <div class="stamp">Facture acquittée</div>
 
-<div class="signature">
-    <div class="sig-label">Le Président,</div>
-    <div class="sig-name">{{ settings.presidentName }}</div>
-    {% if signatureDataUri %}
-        <div class="sig-img"><img src="{{ signatureDataUri }}" alt="Signature"></div>
-    {% endif %}
-</div>
+<table class="signature">
+    <tr>
+        <td class="sig-left">
+            <div class="sig-label">Le Président,</div>
+            <div class="sig-name">{{ settings.presidentName }}</div>
+        </td>
+        <td class="sig-right">
+            {% if signatureDataUri %}
+                <div class="sig-img"><img src="{{ signatureDataUri }}" alt="Signature"></div>
+            {% endif %}
+        </td>
+    </tr>
+</table>
 
 <div class="footer">
     <div class="club-name">Triathlon Toulouse Métropole</div>
