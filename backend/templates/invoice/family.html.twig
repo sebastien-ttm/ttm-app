@@ -27,6 +27,22 @@
         table.items td.amount { text-align: right; white-space: nowrap; }
         table.items tr.total-row td { border-top: 2pt solid #0d2148; border-bottom: none; padding-top: 12pt; font-weight: 700; font-size: 12pt; color: #0d2148; }
 
+        .stamp {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-18deg);
+            border: 4pt double #c62828;
+            color: #c62828;
+            padding: 8pt 22pt;
+            font-size: 24pt;
+            font-weight: 700;
+            letter-spacing: 2pt;
+            opacity: 0.55;
+            text-transform: uppercase;
+            font-family: "DejaVu Sans", Arial, sans-serif;
+        }
+
         .signature { margin-top: 32pt; text-align: right; font-size: 10pt; }
         .signature .sig-label { margin-bottom: 2pt; font-style: italic; color: #4b5563; }
         .signature .sig-name { font-weight: 700; margin-bottom: 8pt; }
@@ -86,11 +102,13 @@
             </tr>
         {% endfor %}
         <tr class="total-row">
-            <td>Total réglé</td>
+            <td>Total</td>
             <td class="amount">{{ (totalCents / 100)|number_format(2, ',', ' ') }} €</td>
         </tr>
     </tbody>
 </table>
+
+<div class="stamp">Facture acquittée</div>
 
 <div class="signature">
     <div class="sig-label">Le Président,</div>

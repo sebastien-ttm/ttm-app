@@ -27,6 +27,25 @@
         table.items td.amount { text-align: right; white-space: nowrap; }
 
         .total { text-align: right; font-size: 14pt; font-weight: 700; color: #0d2148; margin-top: 8pt; }
+
+        /* Tampon « FACTURE ACQUITTÉE » — imitation cachet rouge posé
+           en oblique par-dessus la facture, semi-transparent pour ne
+           pas cacher les lignes. */
+        .stamp {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-18deg);
+            border: 4pt double #c62828;
+            color: #c62828;
+            padding: 8pt 22pt;
+            font-size: 24pt;
+            font-weight: 700;
+            letter-spacing: 2pt;
+            opacity: 0.55;
+            text-transform: uppercase;
+            font-family: "DejaVu Sans", Arial, sans-serif;
+        }
         .payment { margin-top: 20pt; padding: 8pt 12pt; background: #ecfdf5; border-left: 3pt solid #16a34a; font-size: 10pt; }
 
         .signature { margin-top: 32pt; text-align: right; font-size: 10pt; }
@@ -89,8 +108,10 @@
 </table>
 
 <div class="total">
-    Total réglé : {{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €
+    Total : {{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €
 </div>
+
+<div class="stamp">Facture acquittée</div>
 
 <div class="payment">
     <strong>Mode de paiement :</strong> {{ paymentTypeLabel }}
