@@ -40,6 +40,16 @@ class FamilyInvoiceController extends AbstractController
     #[Route('/admin/invoice/family', name: 'admin_invoice_family_pick')]
     public function pick(Request $request): Response
     {
+        // Le template étend @EasyAdmin/page/content.html.twig — sans
+        // les params dashboard le layout crash (ea() = null). Redirect
+        // vers l'URL enrichie par AdminUrlGenerator au premier accès.
+        if ($request->query->get('dashboardControllerFqcn') === null) {
+            return $this->redirect($this->adminUrlGenerator
+                ->unsetAll()
+                ->setRoute('admin_invoice_family_pick', $request->query->all())
+                ->generateUrl());
+        }
+
         $q = trim((string) $request->query->get('q', ''));
         $rows = [];
         if ($q !== '' && mb_strlen($q) >= 2) {
@@ -54,24 +64,20 @@ class FamilyInvoiceController extends AbstractController
                 ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
                 ->setMaxResults(20)
                 ->getQuery()->getResult();
-            // Pré-calcule l'URL de build par match — Twig ne peut pas
-            // appeler un callable passé en variable, on doit inliner
-            // l'URL directement dans la structure remise au template.
+            // URLs Symfony natives — le controller build() se ré-enrichit
+            // du contexte EA au premier accès (redirect vers l'URL avec
+            // params dashboard), même pattern que CsvImportController.
             foreach ($matches as $u) {
                 $rows[] = [
                     'user' => $u,
-                    'buildUrl' => $this->adminUrlGenerator
-                        ->unsetAll()
-                        ->setRoute('admin_invoice_family_build', ['userId' => $u->getId()])
-                        ->generateUrl(),
+                    'buildUrl' => $this->generateUrl('admin_invoice_family_build', ['userId' => $u->getId()]),
                 ];
             }
         }
         return $this->render('admin/family_invoice_pick.html.twig', [
             'q' => $q,
             'rows' => $rows,
-            'formAction' => $this->adminUrlGenerator
-                ->unsetAll()->setRoute('admin_invoice_family_pick')->generateUrl(),
+            'formAction' => $this->generateUrl('admin_invoice_family_pick'),
         ]);
     }
 
@@ -84,6 +90,17 @@ class FamilyInvoiceController extends AbstractController
     #[Route('/admin/invoice/family/{userId}', name: 'admin_invoice_family_build', requirements: ['userId' => '\d+'])]
     public function build(int $userId, Request $request): Response
     {
+        // Idem que pick() : redirect vers l'URL EA enrichie sur GET
+        // « brut » (bookmark, lien Symfony native). Ne s'applique qu'aux
+        // GET — sur POST le contexte n'est pas requis (le formulaire
+        // renvoie du PDF, pas de template EA à rendre).
+        if ($request->isMethod('GET') && $request->query->get('dashboardControllerFqcn') === null) {
+            return $this->redirect($this->adminUrlGenerator
+                ->unsetAll()
+                ->setRoute('admin_invoice_family_build', ['userId' => $userId])
+                ->generateUrl());
+        }
+
         $primary = $this->users->find($userId);
         if ($primary === null) {
             throw $this->createNotFoundException();
@@ -143,10 +160,11 @@ class FamilyInvoiceController extends AbstractController
             'season' => $season,
             'candidates' => $candidates,
             'suggestions' => $suggestions,
-            'formAction' => $this->adminUrlGenerator
-                ->unsetAll()->setRoute('admin_invoice_family_build', ['userId' => $primary->getId()])->generateUrl(),
-            'backUrl' => $this->adminUrlGenerator
-                ->unsetAll()->setRoute('admin_invoice_family_pick')->generateUrl(),
+            // POST vers l'URL courante (préserve les params EA déjà en URL)
+            'formAction' => $request->getRequestUri(),
+            // Retour vers pick en Symfony native — le controller pick()
+            // re-injecte le contexte EA via son propre early-redirect.
+            'backUrl' => $this->generateUrl('admin_invoice_family_pick'),
         ]);
     }
 }
