@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Entity\UserSeasonMembership;
 use App\Enum\PaymentType;
 use App\Enum\Profile;
+use App\Repository\BannerRepository;
 use App\Repository\InvoiceSettingsRepository;
 use App\Repository\MembershipFeeRepository;
 use App\Repository\UserSeasonMembershipRepository;
@@ -30,6 +31,7 @@ class InvoiceService
         private readonly MembershipFeeRepository $fees,
         private readonly InvoiceSettingsRepository $settings,
         private readonly UserSeasonMembershipRepository $memberships,
+        private readonly BannerRepository $banners,
         private readonly EntityManagerInterface $em,
         private readonly Environment $twig,
         private readonly string $signatureDir,
@@ -277,16 +279,20 @@ class InvoiceService
      * Charge une image bannière en data URI pour l'entête de la facture.
      * dompdf est offline (isRemoteEnabled=false), on doit donc lui
      * fournir les images en base64 inline. Ordre de recherche :
-     *   1. uploads/banners/banner-saison-{sha1(YY)}.jpg (bannière custom)
-     *   2. img/banner-default.jpg (fallback)
+     *   1. Bannière ACTIVE configurée dans EasyAdmin (uploads/banners/{imagePath})
+     *   2. Fallback img/banner-default.jpg
      * Retourne null si aucun fichier disponible → le template masque
      * simplement la balise <img>.
      */
     private function bannerDataUri(): ?string
     {
-        $candidates = [
-            $this->publicDir.'/img/banner-default.jpg',
-        ];
+        $candidates = [];
+        $active = $this->banners->findCurrentActive();
+        if ($active !== null && $active->getImagePath() !== null) {
+            $candidates[] = $this->publicDir.'/uploads/banners/'.$active->getImagePath();
+        }
+        $candidates[] = $this->publicDir.'/img/banner-default.jpg';
+
         foreach ($candidates as $path) {
             if (is_file($path)) {
                 $mime = mime_content_type($path) ?: 'image/jpeg';
