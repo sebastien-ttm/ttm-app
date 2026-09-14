@@ -175,6 +175,105 @@ class InvoiceService
     }
 
     /**
+     * Facture famille : une seule facture au nom de l'adhérent principal,
+     * avec plusieurs lignes (une par personne) et un montant par ligne
+     * modifiable côté admin (permet d'appliquer une réduction famille).
+     *
+     * @param User            $primary   Adhérent au nom de qui la facture est émise.
+     * @param list<array{
+     *     user: User,
+     *     amountCents: int,
+     *     label?: string
+     * }>                    $lines     Lignes à facturer.
+     * @param TrainingSeason  $season    Saison concernée.
+     */
+    public function renderFamilyPdf(User $primary, array $lines, TrainingSeason $season): string
+    {
+        if (!class_exists(Dompdf::class)) {
+            throw new \RuntimeException(
+                'La librairie dompdf/dompdf n\'est pas installée. Lancez : composer require dompdf/dompdf'
+            );
+        }
+        if ($lines === []) {
+            throw new \RuntimeException('Aucune ligne à facturer : sélectionnez au moins une personne.');
+        }
+
+        $settings = $this->settings->findCurrent();
+        if ($settings === null) {
+            throw new \RuntimeException('Paramètres facturation absents — configurez-les dans « Facturation → Paramètres ».');
+        }
+
+        $signatureDataUri = null;
+        if ($settings->getSignatureFilename() !== null) {
+            $path = rtrim($this->signatureDir, '/\\').\DIRECTORY_SEPARATOR.$settings->getSignatureFilename();
+            if (is_file($path)) {
+                $mime = mime_content_type($path) ?: 'image/png';
+                $signatureDataUri = 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($path));
+            }
+        }
+
+        $seasonLabel = $this->seasonLabel($season);
+        $totalCents = 0;
+        $serializedLines = [];
+        foreach ($lines as $l) {
+            $u = $l['user'];
+            $amount = max(0, (int) $l['amountCents']);
+            $totalCents += $amount;
+            // Résout le typeLicence pour info (affiché sous la personne).
+            $resolved = $this->resolveFee($u, $season);
+            $serializedLines[] = [
+                'user' => $u,
+                'amountCents' => $amount,
+                'label' => $l['label'] ?? null,
+                'typeLicence' => $resolved['typeLicence'],
+            ];
+        }
+
+        // Numéro dérivé d'un timestamp — la facture famille n'est pas
+        // persistée dans invoice_sequence (celui-ci reste par adhérent).
+        $invoiceNumber = sprintf('TTM-%s-FAM-%d', $seasonLabel, time());
+
+        $html = $this->twig->render('invoice/family.html.twig', [
+            'settings' => $settings,
+            'signatureDataUri' => $signatureDataUri,
+            'bannerDataUri' => $this->bannerDataUri(),
+            'primary' => $primary,
+            'lines' => $serializedLines,
+            'totalCents' => $totalCents,
+            'season' => $season,
+            'seasonLabel' => $seasonLabel,
+            'invoiceNumber' => $invoiceNumber,
+            'issuedAt' => new \DateTimeImmutable(),
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        return (string) $dompdf->output();
+    }
+
+    public function suggestedFamilyFilename(User $primary, TrainingSeason $season): string
+    {
+        $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $primary->getFullName().'-'.$this->seasonLabel($season));
+        return 'facture-famille-'.trim((string) $slug, '-').'.pdf';
+    }
+
+    /**
+     * Tarif suggéré pour un user donné (montant en centimes ou null si
+     * aucun tarif défini). Utilisé par le formulaire admin de facture
+     * famille pour pré-remplir les montants avant édition.
+     */
+    public function suggestedAmountCents(User $user, TrainingSeason $season): ?int
+    {
+        $resolved = $this->resolveFee($user, $season);
+        return $resolved['fee']?->getAmountCents();
+    }
+
+    /**
      * Charge une image bannière en data URI pour l'entête de la facture.
      * dompdf est offline (isRemoteEnabled=false), on doit donc lui
      * fournir les images en base64 inline. Ordre de recherche :

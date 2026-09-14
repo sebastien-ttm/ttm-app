@@ -1,0 +1,69 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Facture famille — {{ primary.fullName }}{% endblock %}
+
+{% block main %}
+    <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+        <p style="margin:0;">
+            <strong>Facture émise au nom de :</strong> {{ primary.fullName }}
+            {% if primary.email %} · <em>{{ primary.email }}</em>{% endif %}<br>
+            <strong>Saison :</strong> {{ season.name ?? season }}
+        </p>
+        <p style="margin:8px 0 0 0; color:#666; font-size:13px;">
+            Cochez les personnes à facturer et ajustez le montant si besoin
+            (réduction famille, licence différente, etc.). Les montants sont
+            pré-remplis d'après la grille tarifaire.
+        </p>
+    </div>
+
+    <form method="post" action="{{ formAction }}"
+          style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead>
+                <tr style="background:#f5f5f5;">
+                    <th style="padding:8px; text-align:left; width:40px;">✓</th>
+                    <th style="padding:8px; text-align:left;">Personne</th>
+                    <th style="padding:8px; text-align:left;">Licence</th>
+                    <th style="padding:8px; text-align:right; white-space:nowrap;">Montant (€)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in candidates %}
+                    {% set suggested = suggestions[u.id] ?? '' %}
+                    {% set hasSuggested = suggested is not empty %}
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:8px;">
+                            <input type="checkbox" name="include[{{ u.id }}]" value="1"
+                                   {% if hasSuggested %}checked{% endif %}
+                                   id="inc-{{ u.id }}">
+                        </td>
+                        <td style="padding:8px;">
+                            <label for="inc-{{ u.id }}" style="cursor:pointer;">
+                                <strong>{{ u.fullName }}</strong>
+                                {% if u.id == primary.id %}
+                                    <span style="color:#1d4ed8; font-size:12px;">(adhérent principal)</span>
+                                {% endif %}
+                            </label>
+                        </td>
+                        <td style="padding:8px; font-family:monospace; color:#555;">{{ u.numLicence ?? '—' }}</td>
+                        <td style="padding:8px; text-align:right;">
+                            <input type="text" name="amount_eur[{{ u.id }}]"
+                                   value="{{ suggested }}"
+                                   inputmode="decimal"
+                                   placeholder="0,00"
+                                   style="width:110px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; text-align:right; font-family:monospace;">
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+            <a href="{{ backUrl }}" class="btn btn-secondary">← Changer d'adhérent</a>
+            <button type="submit" class="btn btn-primary"
+                    style="background:#1d4ed8; border-color:#1d4ed8;">
+                📄 Générer la facture famille (PDF)
+            </button>
+        </div>
+    </form>
+{% endblock %}

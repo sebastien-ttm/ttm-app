@@ -155,6 +155,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');
         yield AdminMenuItem::linkToCrud('Paramètres facture', 'fa fa-file-invoice', InvoiceSettings::class)
             ->setPermission('ROLE_ADMIN');
+        yield AdminMenuItem::linkToRoute('Facture famille', 'fa fa-users', 'admin_invoice_family_pick')
+            ->setPermission('ROLE_ADMIN');
 
         yield AdminMenuItem::section('Acceptation');
         yield AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)

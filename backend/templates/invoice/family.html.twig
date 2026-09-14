@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture adhésion famille {{ primary.fullName }} — {{ seasonLabel }}</title>
+    <style>
+        @page { margin: 18mm 20mm 32mm 20mm; }
+        body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.4; }
+        h1 { font-size: 18pt; margin: 0 0 6pt 0; color: #0d2148; text-align: center; }
+
+        .banner { text-align: center; margin: 0 -20mm 12pt -20mm; }
+        .banner img { display: block; width: 100%; max-height: 90pt; object-fit: cover; }
+
+        .header-right {
+            text-align: right;
+            margin-bottom: 24pt;
+            font-size: 10pt;
+        }
+        .header-right .who { font-weight: 700; font-size: 12pt; color: #0d2148; }
+
+        .meta { margin-top: 18pt; padding: 8pt 12pt; background: #f4f6fa; border-left: 3pt solid #0d2148; font-size: 10pt; }
+        .meta strong { color: #0d2148; }
+
+        table.items { width: 100%; border-collapse: collapse; margin: 24pt 0 10pt 0; font-size: 11pt; }
+        table.items th { background: #0d2148; color: #fff; padding: 8pt 10pt; text-align: left; font-weight: 700; }
+        table.items td { padding: 10pt; border-bottom: 1pt solid #dfe3ec; vertical-align: top; }
+        table.items td.amount { text-align: right; white-space: nowrap; }
+        table.items tr.total-row td { border-top: 2pt solid #0d2148; border-bottom: none; padding-top: 12pt; font-weight: 700; font-size: 12pt; color: #0d2148; }
+
+        .signature { margin-top: 32pt; text-align: right; font-size: 10pt; }
+        .signature .sig-label { margin-bottom: 2pt; font-style: italic; color: #4b5563; }
+        .signature .sig-name { font-weight: 700; margin-bottom: 8pt; }
+        .signature .sig-img { margin-top: 4pt; }
+        .signature .sig-img img { max-width: 140pt; max-height: 60pt; display: inline-block; }
+
+        .footer {
+            position: fixed;
+            bottom: -20mm;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #4b5563;
+            font-size: 9pt;
+            padding-top: 6pt;
+            border-top: 1pt solid #dfe3ec;
+        }
+        .footer .club-name { font-weight: 700; color: #0d2148; }
+        .footer .legal { white-space: pre-line; margin-top: 3pt; color: #6b7280; font-size: 8.5pt; }
+    </style>
+</head>
+<body>
+
+{% if bannerDataUri %}
+    <div class="banner">
+        <img src="{{ bannerDataUri }}" alt="{{ settings.clubName }}">
+    </div>
+{% endif %}
+
+<div class="header-right">
+    <div class="who">{{ primary.fullName }}</div>
+    {% if primary.adresse %}{{ primary.adresse|nl2br }}<br>{% endif %}
+    {% if primary.email %}<em>{{ primary.email }}</em>{% endif %}
+</div>
+
+<h1>Facture d'adhésion au Triathlon Toulouse Métropole</h1>
+
+<div class="meta">
+    <strong>N° facture :</strong> {{ invoiceNumber }}<br>
+    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y à H:i') }}<br>
+    <strong>Saison :</strong> {{ seasonLabel }}
+</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th>Personne</th>
+            <th style="text-align:right;">Montant TTC</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in lines %}
+            <tr>
+                <td>
+                    <strong>{{ line.user.fullName }}</strong>
+                    {% if line.typeLicence %}<br><small>Licence : {{ line.typeLicence }}</small>{% endif %}
+                </td>
+                <td class="amount">{{ (line.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
+            </tr>
+        {% endfor %}
+        <tr class="total-row">
+            <td>Total réglé</td>
+            <td class="amount">{{ (totalCents / 100)|number_format(2, ',', ' ') }} €</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="signature">
+    <div class="sig-label">Le Président,</div>
+    <div class="sig-name">{{ settings.presidentName }}</div>
+    {% if signatureDataUri %}
+        <div class="sig-img"><img src="{{ signatureDataUri }}" alt="Signature"></div>
+    {% endif %}
+</div>
+
+<div class="footer">
+    <div class="club-name">Triathlon Toulouse Métropole</div>
+    <div>54, rue des 7 Troubadours &mdash; 31000 Toulouse</div>
+    {% if settings.legalFooter %}
+        <div class="legal">{{ settings.legalFooter }}</div>
+    {% endif %}
+</div>
+
+</body>
+</html>
