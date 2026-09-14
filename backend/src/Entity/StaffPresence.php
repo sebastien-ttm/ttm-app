@@ -21,8 +21,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  *     title/date/startTime/durationMinutes sont saisis manuellement.
  *
  * Statut :
- *  - 'scheduled' : la personne se positionne à l'avance
- *  - 'attended'  : la personne a confirmé sa présence (post-créneau)
+ *  - 'scheduled'   : la personne se positionne à l'avance
+ *  - 'attended'    : la personne a confirmé sa présence (post-créneau)
+ *  - 'unavailable' : la personne a explicitement déclaré son absence
+ *                    sur ce créneau (visible côté admin/collègues).
  */
 #[ORM\Entity(repositoryClass: StaffPresenceRepository::class)]
 #[ORM\Table(name: 'staff_presence')]
@@ -34,7 +36,8 @@ class StaffPresence
 {
     public const STATUS_SCHEDULED = 'scheduled';
     public const STATUS_ATTENDED = 'attended';
-    public const STATUSES = [self::STATUS_SCHEDULED, self::STATUS_ATTENDED];
+    public const STATUS_UNAVAILABLE = 'unavailable';
+    public const STATUSES = [self::STATUS_SCHEDULED, self::STATUS_ATTENDED, self::STATUS_UNAVAILABLE];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

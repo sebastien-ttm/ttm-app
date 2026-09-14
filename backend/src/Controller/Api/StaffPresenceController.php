@@ -162,6 +162,29 @@ class StaffPresenceController extends AbstractController
         } else {
             $this->em->persist(new StaffWeekUnavailability($user, $monday, $notes));
         }
+
+        // Répercute l'indisponibilité par créneau : pose une StaffPresence
+        // 'unavailable' sur chaque slot de la semaine. L'user pourra ensuite
+        // modifier unitairement (bouton « Je serai là » sur un slot pour
+        // basculer scheduled → écrase la valeur unavailable).
+        $slotRows = $this->schedule->buildWeek($monday);
+        foreach ($slotRows as $slotRow) {
+            if (!empty($slotRow['isCancelled'])) continue;
+            $slotId = $slotRow['id'] ?? null;
+            $templateId = $slotRow['templateId'] ?? null;
+            if ($slotId !== null) {
+                $slot = $this->slots->find($slotId);
+                if ($slot !== null) {
+                    $this->service->setForSlot($user, $slot, StaffPresence::STATUS_UNAVAILABLE, null);
+                }
+            } elseif ($templateId !== null) {
+                $template = $this->templates->find($templateId);
+                if ($template !== null) {
+                    $this->service->setForTemplate($user, $template, $monday, StaffPresence::STATUS_UNAVAILABLE, null);
+                }
+            }
+        }
+
         $this->em->flush();
 
         return new JsonResponse([
@@ -194,8 +217,20 @@ class StaffPresenceController extends AbstractController
         $existing = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
         if ($existing !== null) {
             $this->em->remove($existing);
-            $this->em->flush();
         }
+
+        // Retire aussi les StaffPresence « unavailable » de la semaine —
+        // celles laissées par l'user en manuel sur un slot particulier
+        // sont préservées ? Non : le geste global « je redeviens dispo »
+        // efface l'ensemble des marqueurs unavailable de la semaine ; les
+        // choix « scheduled » posés manuellement restent inchangés.
+        foreach ($this->presences->findByUserAndWeek($user, $monday) as $p) {
+            if ($p->getStatus() === StaffPresence::STATUS_UNAVAILABLE) {
+                $this->em->remove($p);
+            }
+        }
+
+        $this->em->flush();
 
         return new JsonResponse([
             'ok' => true,
@@ -227,12 +262,15 @@ class StaffPresenceController extends AbstractController
             return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
-        // L'app mobile ne permet plus que la pose / annulation d'une présence
-        // (= « Je serai là »). La validation effective (status='attended')
-        // est désormais une prérogative backend uniquement. On force donc
-        // le statut côté serveur — un payload qui tente 'attended' est
-        // ignoré silencieusement (downgrade vers 'scheduled').
-        $status = StaffPresence::STATUS_SCHEDULED;
+        // Statut acceptés côté mobile : « Je serai là » (scheduled) ou
+        // « Je ne serai pas là » (unavailable). La validation effective
+        // (status='attended') reste une prérogative backend uniquement —
+        // toute tentative 'attended' du client est downgradée vers scheduled.
+        $rawStatus = (string) ($payload['status'] ?? StaffPresence::STATUS_SCHEDULED);
+        $status = in_array($rawStatus, [
+            StaffPresence::STATUS_SCHEDULED,
+            StaffPresence::STATUS_UNAVAILABLE,
+        ], true) ? $rawStatus : StaffPresence::STATUS_SCHEDULED;
         $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
 
         $slotId = isset($payload['slotId']) && $payload['slotId'] !== '' ? (int) $payload['slotId'] : null;

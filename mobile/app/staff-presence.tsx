@@ -278,7 +278,9 @@ function SlotCard({
   onSetStatus: (status: StaffPresenceStatus | null) => void;
 }) {
   const presence = slot.myPresence;
-  const isPositioned = presence !== null;
+  const status = presence?.status ?? null;
+  const isPlanned = status === 'scheduled' || status === 'attended';
+  const isUnavailable = status === 'unavailable';
   // Libellé passé/futur basé sur le start datetime exact (date + heure)
   // pour qu'un créneau à 18h ne soit pas encore « passé » à 17h le jour J.
   const slotStart = new Date(`${slot.date}T${slot.startTime}:00`);
@@ -288,7 +290,7 @@ function SlotCard({
   const encadrants = (slot.assignedStaff ?? []).filter((s) => s.role === 'encadrant');
 
   return (
-    <View style={styles.slot}>
+    <View style={[styles.slot, isUnavailable && styles.slotUnavailable]}>
       <View style={styles.slotTimeCol}>
         <Text style={styles.slotTime}>{slot.startTime}</Text>
         <Text style={styles.slotDuration}>{formatDurationHm(slot.durationMinutes)}</Text>
@@ -297,6 +299,11 @@ function SlotCard({
         <Text style={styles.slotTitle}>{slot.title}</Text>
         <View style={styles.slotMeta}>
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
+          {isUnavailable && (
+            <View style={styles.unavailableTag}>
+              <Text style={styles.unavailableTagLabel}>Je ne serai pas là</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.slotLocation}>📍 {slot.location}</Text>
 
@@ -310,22 +317,30 @@ function SlotCard({
             <ActivityIndicator color={COLORS.secondary} />
           ) : (
             <>
-              {/* Bouton « Je serai là / J'étais là » : vert si positionné,
-                  neutre sinon. Pose toujours status='scheduled' — la
-                  validation effective (status='attended') est réservée
-                  au backend. */}
+              {/* « Je serai là / J'étais là » — vert si actif. */}
               <Pressable
-                onPress={() => !isPositioned && onSetStatus('scheduled')}
-                disabled={isPositioned}
-                style={[styles.actionBtn, isPositioned && styles.actionBtnPlanned]}
+                onPress={() => !isPlanned && onSetStatus('scheduled')}
+                disabled={isPlanned}
+                style={[styles.actionBtn, isPlanned && styles.actionBtnPlanned]}
               >
-                <Text style={[styles.actionLabel, isPositioned && styles.actionLabelActive]}>
-                  {isPositioned ? `✓ ${label}` : label}
+                <Text style={[styles.actionLabel, isPlanned && styles.actionLabelActive]}>
+                  {isPlanned ? `✓ ${label}` : label}
                 </Text>
               </Pressable>
 
-              {/* Annuler — visible uniquement quand positionné */}
-              {isPositioned && (
+              {/* « Je ne serai pas là » — rouge si actif. */}
+              <Pressable
+                onPress={() => !isUnavailable && onSetStatus('unavailable')}
+                disabled={isUnavailable}
+                style={[styles.actionBtn, isUnavailable && styles.actionBtnUnavailable]}
+              >
+                <Text style={[styles.actionLabel, isUnavailable && styles.actionLabelActive]}>
+                  {isUnavailable ? '✗ Absent noté' : 'Je ne serai pas là'}
+                </Text>
+              </Pressable>
+
+              {/* Annuler — visible uniquement quand positionné. */}
+              {(isPlanned || isUnavailable) && (
                 <Pressable onPress={() => onSetStatus(null)} style={styles.actionBtnDanger}>
                   <Text style={styles.actionLabelDanger}>Annuler</Text>
                 </Pressable>
@@ -473,6 +488,15 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   actionBtnPlanned: { backgroundColor: COLORS.secondarySoft, borderColor: COLORS.secondary },
+  actionBtnUnavailable: { backgroundColor: '#fee2e2', borderColor: COLORS.error },
+  slotUnavailable: { opacity: 0.75, backgroundColor: '#fef2f2' },
+  unavailableTag: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  unavailableTagLabel: { color: '#991b1b', fontSize: 11, fontWeight: '700' },
   actionBtnAttended: { backgroundColor: '#dcfce7', borderColor: COLORS.success },
   actionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   actionLabelActive: { color: COLORS.text },

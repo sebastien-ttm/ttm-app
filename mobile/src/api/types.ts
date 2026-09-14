@@ -282,7 +282,7 @@ export type WeeklySchedule = {
   plans: TrainingPlan[];
 };
 
-export type StaffPresenceStatus = 'scheduled' | 'attended';
+export type StaffPresenceStatus = 'scheduled' | 'attended' | 'unavailable';
 
 export type StaffPresence = {
   id: number;
