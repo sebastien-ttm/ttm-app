@@ -98,7 +98,10 @@ export default function FeedScreen() {
         renderItem={({ item }) => <ArticleCard article={item} />}
         ListHeaderComponent={
           <View>
-            <BannerImage />
+            {/* BannerImage : temporairement masquée sur mobile.
+                Le composant reste importé pour ré-affichage rapide
+                (retirer le commentaire ci-dessous). */}
+            {/* <BannerImage /> */}
             <UpcomingEvents />
             <View style={styles.sectionHeader}>
               <Ionicons name="newspaper" size={18} color={COLORS.primary} />
