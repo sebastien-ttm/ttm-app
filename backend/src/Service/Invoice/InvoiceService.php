@@ -33,6 +33,7 @@ class InvoiceService
         private readonly EntityManagerInterface $em,
         private readonly Environment $twig,
         private readonly string $signatureDir,
+        private readonly string $publicDir,
     ) {
     }
 
@@ -141,6 +142,7 @@ class InvoiceService
         $html = $this->twig->render('invoice/adherent.html.twig', [
             'settings' => $settings,
             'signatureDataUri' => $signatureDataUri,
+            'bannerDataUri' => $this->bannerDataUri(),
             'user' => $user,
             'membership' => $membership,
             'season' => $season,
@@ -170,6 +172,29 @@ class InvoiceService
     {
         $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $user->getFullName().'-'.$this->seasonLabel($season));
         return 'facture-adhesion-'.trim((string) $slug, '-').'.pdf';
+    }
+
+    /**
+     * Charge une image bannière en data URI pour l'entête de la facture.
+     * dompdf est offline (isRemoteEnabled=false), on doit donc lui
+     * fournir les images en base64 inline. Ordre de recherche :
+     *   1. uploads/banners/banner-saison-{sha1(YY)}.jpg (bannière custom)
+     *   2. img/banner-default.jpg (fallback)
+     * Retourne null si aucun fichier disponible → le template masque
+     * simplement la balise <img>.
+     */
+    private function bannerDataUri(): ?string
+    {
+        $candidates = [
+            $this->publicDir.'/img/banner-default.jpg',
+        ];
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                $mime = mime_content_type($path) ?: 'image/jpeg';
+                return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($path));
+            }
+        }
+        return null;
     }
 
     /**

@@ -53,6 +53,7 @@ services:
     App\Service\Invoice\InvoiceService:
         arguments:
             $signatureDir: '%app.uploads.invoice_signatures_dir%'
+            $publicDir: '%kernel.project_dir%/public'
 
     App\Controller\Admin\InvoiceSettingsCrudController:
         arguments:
