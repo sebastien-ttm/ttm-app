@@ -189,7 +189,7 @@ class InvoiceService
      * }>                    $lines     Lignes à facturer.
      * @param TrainingSeason  $season    Saison concernée.
      */
-    public function renderFamilyPdf(User $primary, array $lines, TrainingSeason $season): string
+    public function renderFamilyPdf(User $primary, array $lines, TrainingSeason $season, ?PaymentType $paymentType = null): string
     {
         if (!class_exists(Dompdf::class)) {
             throw new \RuntimeException(
@@ -246,6 +246,7 @@ class InvoiceService
             'seasonLabel' => $seasonLabel,
             'invoiceNumber' => $invoiceNumber,
             'issuedAt' => new \DateTimeImmutable(),
+            'paymentTypeLabel' => $paymentType?->label(),
         ]);
 
         $options = new Options();

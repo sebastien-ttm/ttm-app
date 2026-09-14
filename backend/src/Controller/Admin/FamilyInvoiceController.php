@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
+use App\Enum\PaymentType;
 use App\Service\Invoice\InvoiceService;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -102,6 +103,7 @@ class FamilyInvoiceController extends AbstractController
             $selectedIds = $request->request->all('include');   // array<int, string>
             $amountsEur = $request->request->all('amount_eur'); // array<userId, string>
             $action = (string) $request->request->get('action', 'pdf'); // 'pdf' | 'email'
+            $paymentType = PaymentType::tryFrom((string) $request->request->get('payment_type', 'cb')) ?? PaymentType::CB;
             $lines = [];
             foreach ($candidates as $u) {
                 $uid = (string) $u->getId();
@@ -116,7 +118,7 @@ class FamilyInvoiceController extends AbstractController
                 $this->addFlash('warning', 'Sélectionnez au moins une personne à facturer.');
             } else {
                 try {
-                    $pdf = $this->invoiceService->renderFamilyPdf($primary, $lines, $season);
+                    $pdf = $this->invoiceService->renderFamilyPdf($primary, $lines, $season, $paymentType);
                 } catch (\RuntimeException $e) {
                     return new Response('<pre style="padding:20px;font-family:monospace;color:#991b1b;">'
                         .htmlspecialchars($e->getMessage()).'</pre>', 500);
@@ -164,10 +166,15 @@ class FamilyInvoiceController extends AbstractController
             'season' => $season,
             'candidates' => $candidates,
             'suggestions' => $suggestions,
+            // Options pour le dropdown mode de paiement (label => value).
+            'paymentTypes' => array_combine(
+                array_map(fn (PaymentType $p) => $p->label(), PaymentType::cases()),
+                array_map(fn (PaymentType $p) => $p->value, PaymentType::cases()),
+            ),
             // POST vers l'URL courante (préserve les params EA déjà en URL)
             'formAction' => $request->getRequestUri(),
-            // Retour vers pick en Symfony native — le controller pick()
-            // re-injecte le contexte EA via son propre early-redirect.
+            // Retour vers pick — layout standalone ne dépend pas du
+            // contexte EA, donc URL Symfony native OK.
             'backUrl' => $this->generateUrl('admin_invoice_family_pick'),
         ]);
     }

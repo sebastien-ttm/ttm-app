@@ -27,6 +27,8 @@
         table.items td.amount { text-align: right; white-space: nowrap; }
         table.items tr.total-row td { border-top: 2pt solid #0d2148; border-bottom: none; padding-top: 12pt; font-weight: 700; font-size: 12pt; color: #0d2148; }
 
+        .payment { margin-top: 14pt; padding: 6pt 12pt; background: #ecfdf5; border-left: 3pt solid #16a34a; font-size: 10pt; }
+
         .stamp {
             position: absolute;
             top: 55%;
@@ -108,6 +110,12 @@
         </tr>
     </tbody>
 </table>
+
+{% if paymentTypeLabel %}
+    <div class="payment">
+        <strong>Mode de paiement :</strong> {{ paymentTypeLabel }}
+    </div>
+{% endif %}
 
 <div class="stamp">Facture acquittée</div>
 
