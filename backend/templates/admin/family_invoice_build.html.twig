@@ -1,8 +1,11 @@
-{% extends '@EasyAdmin/page/content.html.twig' %}
+{% extends 'admin/_layout_standalone.html.twig' %}
 
-{% block content_title %}Facture famille — {{ primary.fullName }}{% endblock %}
+{% block title %}Facture famille — {{ primary.fullName }}{% endblock %}
+{% block topbar_title %}Facturation{% endblock %}
 
 {% block main %}
+    <h1>Facture famille — {{ primary.fullName }}</h1>
+
     <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
         <p style="margin:0;">
             <strong>Facture émise au nom de :</strong> {{ primary.fullName }}

@@ -1,8 +1,11 @@
-{% extends '@EasyAdmin/page/content.html.twig' %}
+{% extends 'admin/_layout_standalone.html.twig' %}
 
-{% block content_title %}Facture famille — Choix de l'adhérent principal{% endblock %}
+{% block title %}Facture famille — Choix de l'adhérent{% endblock %}
+{% block topbar_title %}Facturation{% endblock %}
 
 {% block main %}
+    <h1>Facture famille — Choix de l'adhérent principal</h1>
+
     <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
         <p style="margin:0 0 12px 0; color:#555;">
             La facture sera émise au nom de la personne choisie ici : un

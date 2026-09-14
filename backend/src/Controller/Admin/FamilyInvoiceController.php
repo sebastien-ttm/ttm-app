@@ -5,7 +5,6 @@ namespace App\Controller\Admin;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Service\Invoice\InvoiceService;
-use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,7 +29,6 @@ class FamilyInvoiceController extends AbstractController
         private readonly UserRepository $users,
         private readonly TrainingSeasonRepository $seasons,
         private readonly InvoiceService $invoiceService,
-        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
 
@@ -40,18 +38,6 @@ class FamilyInvoiceController extends AbstractController
     #[Route('/admin/invoice/family', name: 'admin_invoice_family_pick')]
     public function pick(Request $request): Response
     {
-        // Sans les query params du dashboard, @EasyAdmin/page/content.html.twig
-        // plante (ea() = null). On redirige vers l'URL enrichie —
-        // setDashboard explicite garantit que dashboardControllerFqcn
-        // est bien ajouté (sinon AdminUrlGenerator omet ce paramètre).
-        if ($request->query->get('dashboardControllerFqcn') === null) {
-            return $this->redirect($this->adminUrlGenerator
-                ->unsetAll()
-                ->setDashboard(DashboardController::class)
-                ->setRoute('admin_invoice_family_pick', $request->query->all())
-                ->generateUrl());
-        }
-
         $q = trim((string) $request->query->get('q', ''));
         $rows = [];
         if ($q !== '' && mb_strlen($q) >= 2) {
@@ -92,18 +78,6 @@ class FamilyInvoiceController extends AbstractController
     #[Route('/admin/invoice/family/{userId}', name: 'admin_invoice_family_build', requirements: ['userId' => '\d+'])]
     public function build(int $userId, Request $request): Response
     {
-        // Idem que pick() : redirect vers l'URL EA enrichie sur GET
-        // « brut » (bookmark, lien Symfony native). Ne s'applique qu'aux
-        // GET — sur POST le contexte n'est pas requis (le formulaire
-        // renvoie du PDF, pas de template EA à rendre).
-        if ($request->isMethod('GET') && $request->query->get('dashboardControllerFqcn') === null) {
-            return $this->redirect($this->adminUrlGenerator
-                ->unsetAll()
-                ->setDashboard(DashboardController::class)
-                ->setRoute('admin_invoice_family_build', ['userId' => $userId])
-                ->generateUrl());
-        }
-
         $primary = $this->users->find($userId);
         if ($primary === null) {
             throw $this->createNotFoundException();
@@ -111,8 +85,7 @@ class FamilyInvoiceController extends AbstractController
         $season = $this->seasons->findCurrent();
         if ($season === null) {
             $this->addFlash('warning', 'Aucune saison configurée — configurez d\'abord une TrainingSeason.');
-            return $this->redirect($this->adminUrlGenerator
-                ->unsetAll()->setRoute('admin_invoice_family_pick')->generateUrl());
+            return $this->redirectToRoute('admin_invoice_family_pick');
         }
 
         // Candidats : le primaire + les profils liés (email/famille) actifs.
