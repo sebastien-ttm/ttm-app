@@ -8,8 +8,8 @@
         body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.4; }
         h1 { font-size: 18pt; margin: 0 0 6pt 0; color: #0d2148; text-align: center; }
 
-        .banner { text-align: center; margin: 0 -20mm 12pt -20mm; }
-        .banner img { display: block; width: 100%; max-height: 90pt; object-fit: cover; }
+        .banner { text-align: center; margin: 0 0 12pt 0; }
+        .banner img { display: inline-block; max-width: 60%; max-height: 90pt; }
 
         .header-right {
             text-align: right;
@@ -60,16 +60,14 @@
 
 <div class="header-right">
     <div class="who">{{ user.fullName }}</div>
-    {% if user.adresse %}{{ user.adresse|nl2br }}<br>{% endif %}
-    {% if user.email %}<em>{{ user.email }}</em>{% endif %}
+    {% if user.adresse %}{{ user.adresse|nl2br }}{% endif %}
 </div>
 
-<h1>Facture d'adhésion au Triathlon Toulouse Métropole</h1>
+<h1>Facture</h1>
 
 <div class="meta">
     <strong>N° facture :</strong> {{ invoiceNumber }}<br>
-    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y à H:i') }}<br>
-    <strong>Saison :</strong> {{ seasonLabel }}
+    <strong>Émise le :</strong> {{ issuedAt|date('d/m/Y à H:i') }}
 </div>
 
 <table class="items">
