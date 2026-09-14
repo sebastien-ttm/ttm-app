@@ -43,9 +43,13 @@ class FamilyInvoiceController extends AbstractController
         $q = trim((string) $request->query->get('q', ''));
         $matches = [];
         if ($q !== '' && mb_strlen($q) >= 2) {
+            // Filtre : adhérent (type=Adherent) OU parent externe
+            // (type=Externe + subType=parent). Les autres comptes externes
+            // (ami…) et amis du club ne peuvent pas être facturés.
             $matches = $this->users->createQueryBuilder('u')
                 ->where('u.isActive = true')
                 ->andWhere('u.nom LIKE :q OR u.prenom LIKE :q OR u.email LIKE :q OR u.numLicence LIKE :q')
+                ->andWhere("u.type = 'adherent' OR (u.type = 'externe' AND u.subType = 'parent')")
                 ->setParameter('q', '%'.$q.'%')
                 ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC')
                 ->setMaxResults(20)

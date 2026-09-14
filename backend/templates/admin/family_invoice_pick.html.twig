@@ -5,9 +5,11 @@
 {% block main %}
     <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
         <p style="margin:0 0 12px 0; color:#555;">
-            La facture sera émise au nom de la personne choisie ici. Elle regroupera
-            plusieurs lignes (une par personne de la famille) avec des montants
-            modifiables individuellement pour appliquer une réduction.
+            La facture sera émise au nom de la personne choisie ici : un
+            <strong>adhérent</strong> ou un <strong>parent</strong> (compte externe
+            avec profil Parent). Elle regroupera plusieurs lignes (une par personne
+            de la famille) avec des montants modifiables individuellement pour
+            appliquer une réduction.
         </p>
         <form method="get" action="{{ formAction }}" style="display:flex; gap:8px; align-items:center;">
             <input type="text" name="q" value="{{ q }}"
