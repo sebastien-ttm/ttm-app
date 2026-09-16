@@ -38,7 +38,6 @@ class StatsController extends AbstractController
 
         // KPIs
         $activeThisWeek = $this->events->countActiveUsersInRange($weekStart, $tomorrowStart);
-        $loginsThisMonth = $this->events->countLoginsInRange($monthStart, $tomorrowStart);
         $activeThisMonth = $this->events->countActiveUsersInRange($monthStart, $tomorrowStart);
         // Comptes distincts (pas les events bruts) — un même user
         // qui se reconnecte 3 fois dans la journée est compté 1 fois.
@@ -72,7 +71,6 @@ class StatsController extends AbstractController
             'kpis' => [
                 'activeToday' => $activeToday,
                 'activeThisWeek' => $activeThisWeek,
-                'loginsThisMonth' => $loginsThisMonth,
                 'activeThisMonth' => $activeThisMonth,
                 'totalActiveAccounts' => $totalActiveAccounts,
                 'neverLoggedIn' => $neverLoggedIn,
