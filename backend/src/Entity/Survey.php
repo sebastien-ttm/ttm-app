@@ -130,6 +130,20 @@ class Survey
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
+
+    /**
+     * Getters « virtuels » — servent uniquement à ce qu'EasyAdmin trouve
+     * une propriété sur l'entité avant d'appeler formatValue() dans la
+     * colonne de liste. Sans eux, l'admin affiche « Inaccessible ».
+     *
+     * getResponseCount() reste à 0 : la vraie valeur est injectée par
+     * formatValue() côté CRUD via SurveyResponseRepository::countForSurvey.
+     */
+    public function getSectionCount(): int
+    {
+        return count($this->sections ?? []);
+    }
+    public function getResponseCount(): int { return 0; }
     public function touchUpdatedAt(): void { $this->updatedAt = new \DateTimeImmutable(); }
 
     public function isPublished(?\DateTimeImmutable $now = null): bool
