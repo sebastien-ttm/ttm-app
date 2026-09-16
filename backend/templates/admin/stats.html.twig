@@ -11,7 +11,7 @@
 
     {# === KPIs ============================================================ #}
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-        {{ _self.kpi('Connexions aujourd\'hui', kpis.loginsToday, '#0d2148', '🔥') }}
+        {{ _self.kpi('Comptes actifs aujourd\'hui', kpis.activeToday, '#0d2148', '🔥') }}
         {{ _self.kpi('Comptes actifs cette semaine', kpis.activeThisWeek, '#16a34a', '👥', '7 derniers jours') }}
         {{ _self.kpi('Connexions ce mois', kpis.loginsThisMonth, '#1d4ed8', '📈', '30 derniers jours') }}
         {{ _self.kpi('Comptes actifs ce mois', kpis.activeThisMonth, '#7c3aed', '✨', '30 derniers jours') }}

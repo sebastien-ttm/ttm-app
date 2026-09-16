@@ -40,7 +40,10 @@ class StatsController extends AbstractController
         $activeThisWeek = $this->events->countActiveUsersInRange($weekStart, $tomorrowStart);
         $loginsThisMonth = $this->events->countLoginsInRange($monthStart, $tomorrowStart);
         $activeThisMonth = $this->events->countActiveUsersInRange($monthStart, $tomorrowStart);
-        $loginsToday = $this->events->countLoginsInRange($todayStart, $tomorrowStart);
+        // Comptes distincts (pas les events bruts) — un même user
+        // qui se reconnecte 3 fois dans la journée est compté 1 fois.
+        // Aligné avec les KPI « Actifs cette semaine / ce mois ».
+        $activeToday = $this->events->countActiveUsersInRange($todayStart, $tomorrowStart);
 
         // Total des adhérents actifs + jamais connectés
         $em = $this->em;
@@ -67,7 +70,7 @@ class StatsController extends AbstractController
 
         return $this->render('admin/stats.html.twig', [
             'kpis' => [
-                'loginsToday' => $loginsToday,
+                'activeToday' => $activeToday,
                 'activeThisWeek' => $activeThisWeek,
                 'loginsThisMonth' => $loginsThisMonth,
                 'activeThisMonth' => $activeThisMonth,
