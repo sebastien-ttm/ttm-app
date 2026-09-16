@@ -24,6 +24,7 @@
     </div>
 
     {% if respondents|length > 0 %}
+        {# Table rapide : QUI a répondu, quand. #}
         <details style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;" open>
             <summary style="cursor:pointer; font-weight:700; color:#0d2148;">
                 👥 Répondants ({{ respondents|length }})
@@ -48,6 +49,34 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </details>
+
+        {# Vue détaillée : QUI a répondu QUOI, question par question. #}
+        <details style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+            <summary style="cursor:pointer; font-weight:700; color:#0d2148;">
+                📝 Réponses détaillées par adhérent
+            </summary>
+            <div style="margin-top:12px;">
+                {% for r in respondents %}
+                    <div style="border:1px solid #e5e7eb; border-radius:6px; padding:12px 14px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:8px;">
+                            <strong style="color:#0d2148; font-size:14px;">{{ r.fullName }}</strong>
+                            <span style="color:#888; font-size:11px; white-space:nowrap;">
+                                {% if r.numLicence %}<span style="font-family:monospace;">{{ r.numLicence }}</span> · {% endif %}
+                                {{ r.at|date('d/m/Y H:i') }}
+                            </span>
+                        </div>
+                        <dl style="margin:0; font-size:13px;">
+                            {% for d in r.details %}
+                                <dt style="color:#555; font-weight:600; margin-top:6px;">{{ d.label }}</dt>
+                                <dd style="margin:2px 0 0 12px; color:{{ d.answer is null ? '#bbb' : '#222' }}; white-space:pre-wrap;">
+                                    {{ d.answer ?? '— (sans réponse)' }}
+                                </dd>
+                            {% endfor %}
+                        </dl>
+                    </div>
+                {% endfor %}
+            </div>
         </details>
     {% endif %}
 

@@ -49,17 +49,40 @@ class SurveyResultsController extends AbstractController
         $responses = $this->responses->findBySurveyWithUser($survey);
         $aggregate = $this->aggregate($survey, $responses);
 
-        // Liste des répondants — nom + date de la dernière soumission,
-        // triée du plus récent au plus ancien. Sert d'entête à la page
-        // (l'admin voit d'un coup d'œil QUI a répondu).
+        $sectionsRaw = $survey->getSections() ?? [];
+
+        // Liste des répondants — nom + date de la dernière soumission +
+        // détail de leurs réponses par question, triée du plus récent
+        // au plus ancien. Sert à voir qui a répondu quoi individuellement.
         $respondents = [];
         foreach ($responses as $r) {
             $u = $r->getUser();
+            $answers = $r->getAnswers();
+            $details = [];
+            foreach ($sectionsRaw as $q) {
+                $id = $q['id'] ?? null;
+                if (!is_string($id)) continue;
+                $v = $answers[$id] ?? null;
+                $displayed = null;
+                if (is_array($v)) {
+                    $filtered = array_filter($v, fn ($x) => is_string($x) && $x !== '');
+                    $displayed = $filtered === [] ? null : implode(' · ', $filtered);
+                } elseif (is_string($v) && trim($v) !== '') {
+                    $displayed = $v;
+                } elseif (is_scalar($v)) {
+                    $displayed = (string) $v;
+                }
+                $details[] = [
+                    'label' => $q['label'] ?? $id,
+                    'answer' => $displayed,
+                ];
+            }
             $respondents[] = [
                 'fullName' => $u->getFullName(),
                 'numLicence' => $u->getNumLicence(),
                 'email' => $u->getEmail(),
                 'at' => $r->getUpdatedAt() ?? $r->getSubmittedAt(),
+                'details' => $details,
             ];
         }
         usort($respondents, fn ($a, $b) => $b['at'] <=> $a['at']);
