@@ -49,10 +49,26 @@ class SurveyResultsController extends AbstractController
         $responses = $this->responses->findBySurveyWithUser($survey);
         $aggregate = $this->aggregate($survey, $responses);
 
+        // Liste des répondants — nom + date de la dernière soumission,
+        // triée du plus récent au plus ancien. Sert d'entête à la page
+        // (l'admin voit d'un coup d'œil QUI a répondu).
+        $respondents = [];
+        foreach ($responses as $r) {
+            $u = $r->getUser();
+            $respondents[] = [
+                'fullName' => $u->getFullName(),
+                'numLicence' => $u->getNumLicence(),
+                'email' => $u->getEmail(),
+                'at' => $r->getUpdatedAt() ?? $r->getSubmittedAt(),
+            ];
+        }
+        usort($respondents, fn ($a, $b) => $b['at'] <=> $a['at']);
+
         return $this->render('admin/survey_results.html.twig', [
             'survey' => $survey,
             'responseCount' => count($responses),
             'sections' => $aggregate,
+            'respondents' => $respondents,
             'csvUrl' => $this->adminRoute('admin_survey_results_csv', ['id' => $survey->getId()]),
         ]);
     }

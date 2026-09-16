@@ -23,6 +23,34 @@
         </div>
     </div>
 
+    {% if respondents|length > 0 %}
+        <details style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;" open>
+            <summary style="cursor:pointer; font-weight:700; color:#0d2148;">
+                👥 Répondants ({{ respondents|length }})
+            </summary>
+            <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:12px;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:6px 8px; text-align:left;">Adhérent</th>
+                        <th style="padding:6px 8px; text-align:left; white-space:nowrap;">N° licence</th>
+                        <th style="padding:6px 8px; text-align:left;">Email</th>
+                        <th style="padding:6px 8px; text-align:left; white-space:nowrap;">Répondu le</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in respondents %}
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:6px 8px;">{{ r.fullName }}</td>
+                            <td style="padding:6px 8px; font-family:monospace; color:#555;">{{ r.numLicence ?? '—' }}</td>
+                            <td style="padding:6px 8px; color:#555;">{{ r.email ?? '—' }}</td>
+                            <td style="padding:6px 8px; white-space:nowrap;">{{ r.at|date('d/m/Y H:i') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    {% endif %}
+
     {% if sections|length == 0 %}
         <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
             Ce sondage ne contient pas de section. Ajoutez-en dans son édition.
