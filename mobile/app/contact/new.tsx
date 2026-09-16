@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, auth } from '@/api/client';
 import type { MessageScope, Trainer } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /** Sentinelles pour identifier les 2 destinataires « virtuels » (non-user). */
 const RECIPIENT_CLUB = -1;
@@ -27,6 +28,7 @@ const RECIPIENT_ALL_TRAINERS = -2;
  */
 export default function ProfileMessagesNewScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [recipientId, setRecipientId] = useState<number>(RECIPIENT_CLUB);
@@ -159,7 +161,7 @@ export default function ProfileMessagesNewScreen() {
             )}
           </Pressable>
 
-          <Pressable style={styles.cancel} onPress={() => router.back()} disabled={busy}>
+          <Pressable style={styles.cancel} onPress={goBack} disabled={busy}>
             <Text style={styles.cancelLabel}>Annuler</Text>
           </Pressable>
 

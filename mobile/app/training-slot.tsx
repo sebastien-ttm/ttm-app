@@ -9,6 +9,7 @@ import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
@@ -23,6 +24,7 @@ import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
  */
 export default function TrainingSlotDetailScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { slot: rawSlot } = useLocalSearchParams<{ slot?: string }>();
 
   const slot: TrainingSlot | null = useMemo(() => {
@@ -36,7 +38,7 @@ export default function TrainingSlotDetailScreen() {
         <Stack.Screen options={{ title: 'Créneau' }} />
         <View style={styles.errorBox}>
           <Text style={styles.errorLabel}>Créneau introuvable.</Text>
-          <Pressable onPress={() => router.back()} style={styles.backLink}>
+          <Pressable onPress={goBack} style={styles.backLink}>
             <Text style={styles.backLinkLabel}>← Retour</Text>
           </Pressable>
         </View>

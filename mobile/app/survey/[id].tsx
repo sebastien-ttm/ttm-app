@@ -20,6 +20,7 @@ import type { Survey, SurveyAnswers, SurveyQuestion } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
  * Formulaire dynamique de sondage — supporte les 4 types définis
@@ -28,6 +29,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  */
 export default function SurveyScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
 
@@ -167,7 +169,7 @@ export default function SurveyScreen() {
             </Pressable>
           )}
 
-          <Pressable onPress={() => router.back()} style={styles.backBtn} disabled={busy}>
+          <Pressable onPress={goBack} style={styles.backBtn} disabled={busy}>
             <Text style={styles.backBtnLabel}>Retour</Text>
           </Pressable>
         </ScrollView>

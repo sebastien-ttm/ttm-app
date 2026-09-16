@@ -9,6 +9,7 @@ import { poolBadge as api } from '@/api/resources';
 import type { PoolBadge } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
  * Affiche le QR code piscines en plein écran (fond blanc pour faciliter
@@ -17,6 +18,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  */
 export default function PoolBadgeScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const [data, setData] = useState<PoolBadge | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export default function PoolBadgeScreen() {
               title="Aucun badge configuré"
               message="L'administrateur du club n'a pas encore mis en ligne le badge piscines de la saison."
             />
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Pressable onPress={goBack} style={styles.backBtn}>
               <Text style={styles.backLabel}>← Retour</Text>
             </Pressable>
           </View>

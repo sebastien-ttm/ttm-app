@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, auth } from '@/api/client';
 import type { MessageCategory } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
  * Composer simplifié pour les 3 nouvelles catégories de messages
@@ -34,6 +35,7 @@ type Kind = 'feedback' | 'help';
 
 export default function ContactQuickScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { kind: rawKind } = useLocalSearchParams<{ kind?: string }>();
   const kind: Kind = rawKind === 'help' ? 'help' : 'feedback';
 
@@ -126,7 +128,7 @@ export default function ContactQuickScreen() {
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonLabel}>Envoyer au club</Text>}
           </Pressable>
 
-          <Pressable style={styles.cancel} onPress={() => router.back()} disabled={busy}>
+          <Pressable style={styles.cancel} onPress={goBack} disabled={busy}>
             <Text style={styles.cancelLabel}>Annuler</Text>
           </Pressable>
 

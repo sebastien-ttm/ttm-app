@@ -9,6 +9,7 @@ import type { TrainingPlan } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingPlanDetailScreen() {
@@ -19,6 +20,7 @@ export default function TrainingPlanDetailScreen() {
   // du placeholder générique « Plan d'entraînement ».
   const initialTitle = typeof params.title === 'string' ? params.title : '';
   const router = useRouter();
+  const goBack = useGoBackOrHome();
 
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ export default function TrainingPlanDetailScreen() {
             )}
           </Pressable>
 
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable onPress={goBack} style={styles.backBtn}>
             <Text style={styles.backLabel}>← Retour</Text>
           </Pressable>
         </ScrollView>

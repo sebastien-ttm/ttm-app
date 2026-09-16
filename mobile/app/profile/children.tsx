@@ -20,6 +20,7 @@ import type { LinkedChild } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
  * Écran « Mes enfants » — un parent peut lier / délier ses enfants
@@ -33,6 +34,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  */
 export default function ProfileChildrenScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { user, replaceLinkedProfiles } = useAuth();
   const [children, setChildren] = useState<LinkedChild[]>([]);
   const [canManage, setCanManage] = useState(false);
@@ -208,7 +210,7 @@ export default function ProfileChildrenScreen() {
             </Text>
           )}
 
-          <Pressable style={styles.cancel} onPress={() => router.back()} disabled={adding}>
+          <Pressable style={styles.cancel} onPress={goBack} disabled={adding}>
             <Text style={styles.cancelLabel}>Retour au profil</Text>
           </Pressable>
         </ScrollView>

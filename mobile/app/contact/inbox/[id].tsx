@@ -19,6 +19,7 @@ import { ApiError, auth } from '@/api/client';
 import type { InboxMessage, MessageScope } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
  * Détail d'un message reçu : affiche l'expéditeur, la portée
@@ -31,6 +32,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  */
 export default function InboxDetailScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
 
@@ -204,7 +206,7 @@ export default function InboxDetailScreen() {
                 {msg.myArchivedAt ? 'Désarchiver de ma boîte' : 'Archiver dans ma boîte'}
               </Text>
             </Pressable>
-            <Pressable onPress={() => router.back()} disabled={busy} style={styles.backBtn}>
+            <Pressable onPress={goBack} disabled={busy} style={styles.backBtn}>
               <Text style={styles.backBtnLabel}>Retour</Text>
             </Pressable>
           </View>

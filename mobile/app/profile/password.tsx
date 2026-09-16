@@ -16,9 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, auth } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 export default function ProfilePasswordScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { user, refreshMe } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -47,7 +49,7 @@ export default function ProfilePasswordScreen() {
       setNewPassword('');
       setConfirm('');
       // Auto-retour profil après 1.5s
-      setTimeout(() => router.back(), 1500);
+      setTimeout(goBack, 1500);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue');
     } finally {
