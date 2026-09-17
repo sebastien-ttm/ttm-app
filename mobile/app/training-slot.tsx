@@ -101,6 +101,10 @@ export default function TrainingSlotDetailScreen() {
             ))}
           </View>
         )}
+
+        <Pressable onPress={goBack} style={styles.backBtn}>
+          <Text style={styles.backBtnLabel}>Retour</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -185,4 +189,6 @@ const styles = StyleSheet.create({
   errorLabel: { color: COLORS.textMuted, fontSize: 15, marginBottom: SPACING.md },
   backLink: { padding: 10 },
   backLinkLabel: { color: COLORS.primary, fontWeight: '600' },
+  backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: SPACING.sm },
+  backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });
