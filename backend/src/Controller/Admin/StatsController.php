@@ -54,7 +54,7 @@ class StatsController extends AbstractController
         )->getSingleScalarResult();
 
         // Série journalière pour le graphique (30 derniers jours, gap-filled à 0)
-        $daily = $this->events->dailyCountsInRange($monthStart, $tomorrowStart);
+        $daily = $this->events->dailyActiveUsersInRange($monthStart, $tomorrowStart);
         $series = [];
         $cursor = $monthStart;
         while ($cursor < $tomorrowStart) {

@@ -73,4 +73,31 @@ class LoginEventRepository extends ServiceEntityRepository
         }
         return $out;
     }
+
+    /**
+     * Comptes DISTINCTS agrégés par jour (un user compté 1 fois même
+     * s'il s'est reconnecté plusieurs fois dans la journée).
+     * Format identique à dailyCountsInRange pour être drop-in.
+     *
+     * @return array<string, int>
+     */
+    public function dailyActiveUsersInRange(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT DATE(occurred_at) AS d, COUNT(DISTINCT user_id) AS c
+             FROM login_event
+             WHERE occurred_at >= :from AND occurred_at < :to
+             GROUP BY DATE(occurred_at)
+             ORDER BY d ASC",
+            [
+                'from' => $from->format('Y-m-d H:i:s'),
+                'to' => $to->format('Y-m-d H:i:s'),
+            ],
+        );
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row['d']] = (int) $row['c'];
+        }
+        return $out;
+    }
 }
