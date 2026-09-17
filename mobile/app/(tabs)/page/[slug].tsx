@@ -9,6 +9,7 @@ import type { StaticPage, StaticPageNode } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS } from '@/config';
 import { htmlToText } from '@/utils/html';
 
@@ -16,6 +17,7 @@ export default function PageScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const goBack = useGoBackOrHome();
   const slug = String(params.slug ?? '');
 
   const [page, setPage] = useState<StaticPage | null>(null);
@@ -87,6 +89,10 @@ export default function PageScreen() {
           {!hasContent && !hasChildren && (
             <Text style={styles.empty}>Cette page est vide pour le moment.</Text>
           )}
+
+          <Pressable onPress={goBack} style={styles.backBtn}>
+            <Text style={styles.backBtnLabel}>Retour</Text>
+          </Pressable>
         </ScrollView>
       ) : null}
     </View>
@@ -147,4 +153,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
   },
+  backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 12 },
+  backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });

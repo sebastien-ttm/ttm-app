@@ -25,12 +25,14 @@ import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
 import { COLORS } from '@/config';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatDate, formatRelativeFr } from '@/utils/html';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const goBack = useGoBackOrHome();
   const id = Number(params.id);
 
   const [article, setArticle] = useState<Article | null>(null);
@@ -157,6 +159,10 @@ export default function ArticleScreen() {
                 onPosted={(c) => setComments((prev) => [...prev, c])}
               />
             </View>
+
+            <Pressable onPress={goBack} style={styles.backBtn}>
+              <Text style={styles.backBtnLabel}>Retour</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -300,4 +306,6 @@ const styles = StyleSheet.create({
   attachmentName: { flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' },
   attachmentSize: { fontSize: 12, color: COLORS.textMuted },
   pressed: { opacity: 0.6 },
+  backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8 },
+  backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });

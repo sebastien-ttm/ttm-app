@@ -10,6 +10,7 @@ import type { EventItem } from '@/api/types';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
+import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 const TYPE_LABEL: Record<EventItem['type'], string> = {
@@ -35,6 +36,7 @@ function formatTime(d: Date): string {
 
 export default function EventDetailScreen() {
   const router = useRouter();
+  const goBack = useGoBackOrHome();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -164,6 +166,10 @@ export default function EventDetailScreen() {
             <Text style={styles.descEmpty}>Aucun descriptif complémentaire.</Text>
           </View>
         )}
+
+        <Pressable onPress={goBack} style={styles.backBtn}>
+          <Text style={styles.backBtnLabel}>Retour</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -214,4 +220,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   carpoolBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: SPACING.sm },
+  backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });
