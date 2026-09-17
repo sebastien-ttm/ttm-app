@@ -9,6 +9,7 @@ import { events as api } from '@/api/resources';
 import type { EventItem } from '@/api/types';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 const TYPE_LABEL: Record<EventItem['type'], string> = {
@@ -98,6 +99,10 @@ export default function EventDetailScreen() {
         </View>
 
         <Text style={styles.title}>{event.title}</Text>
+
+        <View style={{ flexDirection: 'row', marginBottom: SPACING.md }}>
+          <ShareButton path={`/event/${event.id}`} title={event.title} />
+        </View>
 
         <View style={styles.metaCard}>
           <View style={styles.metaRow}>

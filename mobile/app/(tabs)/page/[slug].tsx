@@ -8,6 +8,7 @@ import { pages as pagesApi } from '@/api/resources';
 import type { StaticPage, StaticPageNode } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
+import { ShareButton } from '@/components/ShareButton';
 import { COLORS } from '@/config';
 import { htmlToText } from '@/utils/html';
 
@@ -69,6 +70,9 @@ export default function PageScreen() {
         <ErrorState message={error} onRetry={load} />
       ) : page ? (
         <ScrollView contentContainerStyle={styles.content}>
+          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+            <ShareButton path={`/page/${page.slug}`} title={page.title} />
+          </View>
           {hasContent && <RichContent html={page.content} style={styles.body} />}
 
           {hasChildren && (

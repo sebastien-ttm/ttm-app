@@ -19,6 +19,7 @@ import { surveys as surveysApi } from '@/api/resources';
 import type { Survey, SurveyAnswers, SurveyQuestion } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
+import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
@@ -110,6 +111,10 @@ export default function SurveyScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>{survey.title}</Text>
+
+          <View style={{ flexDirection: 'row', marginBottom: SPACING.md }}>
+            <ShareButton path={`/survey/${survey.id}`} title={survey.title} />
+          </View>
 
           {survey.isClosed && (
             <View style={styles.closedBanner}>

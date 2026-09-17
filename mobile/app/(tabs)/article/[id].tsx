@@ -23,6 +23,7 @@ import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
+import { ShareButton } from '@/components/ShareButton';
 import { COLORS } from '@/config';
 import { formatDate, formatRelativeFr } from '@/utils/html';
 
@@ -114,6 +115,9 @@ export default function ArticleScreen() {
             <Text style={styles.meta}>
               {article.author.fullName} · {formatDate(article.publishedAt)}
             </Text>
+            <View style={{ flexDirection: 'row', marginTop: 8, marginBottom: 4 }}>
+              <ShareButton path={`/article/${article.id}`} title={article.title} />
+            </View>
 
             <RichContent html={article.content} style={styles.body} />
 
