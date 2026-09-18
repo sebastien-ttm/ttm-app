@@ -7,12 +7,15 @@ namespace App\Enum;
  * (palette club) — plus de color picker dans le CRUD : la couleur est
  * dérivée du type, garantissant une charte cohérente.
  *
- * Ordre d'affichage retenu côté admin : Stage, Compétition, Événement
- * convivial, Bénévolat, Journée cohésion, Tenues (cf. adminChoices()).
+ * Ordre d'affichage retenu côté admin : Stage, Compétition, Cohésion,
+ * Bénévolat, Journée, Tenues, Informations (cf. adminChoices()).
  *
- * `Entrainement` est conservé pour la rétro-compatibilité des lignes
- * existantes (rows en base valorisées 'entrainement') mais n'est plus
- * proposé à la saisie.
+ * Les cas `Entrainement`, `Social`, `JourneeCohesion` sont conservés
+ * pour la rétro-compatibilité des lignes existantes (rows en base
+ * valorisées 'entrainement' / 'social' / 'journee_cohesion') mais ne
+ * sont plus proposés à la saisie. Un admin qui édite un événement
+ * legacy peut basculer vers un des nouveaux types via le dropdown
+ * enrichi côté PAGE_EDIT (cf. EventCrudController).
  */
 enum EventType: string
 {
@@ -23,6 +26,9 @@ enum EventType: string
     case Organisation = 'organisation';
     case JourneeCohesion = 'journee_cohesion';
     case Tenues = 'tenues';
+    case Cohesion = 'cohesion';
+    case Journee = 'journee';
+    case Informations = 'informations';
 
     public function label(): string
     {
@@ -34,6 +40,9 @@ enum EventType: string
             self::Organisation => 'Bénévolat',
             self::JourneeCohesion => 'Journée cohésion',
             self::Tenues => 'Tenues',
+            self::Cohesion => 'Cohésion',
+            self::Journee => 'Journée',
+            self::Informations => 'Informations',
         };
     }
 
@@ -48,10 +57,13 @@ enum EventType: string
             self::Course => '#D32F2F',            // rouge — compétitions
             self::Stage => '#1976D2',             // bleu — stages
             self::Entrainement => '#388E3C',      // vert — séances ponctuelles (legacy)
-            self::Social => '#7B1FA2',            // violet — convivial
+            self::Social => '#7B1FA2',            // violet — convivial (legacy)
             self::Organisation => '#F57C00',      // orange — bénévolat / logistique
-            self::JourneeCohesion => '#00838F',   // teal — cohésion / vie du club
+            self::JourneeCohesion => '#00838F',   // teal — cohésion (legacy)
             self::Tenues => '#5D4037',            // brun — équipement / textile
+            self::Cohesion => '#00838F',          // teal — cohésion
+            self::Journee => '#5E35B1',           // violet profond — journée club
+            self::Informations => '#455A64',      // blue-grey — informations
         };
     }
 
@@ -62,9 +74,10 @@ enum EventType: string
     }
 
     /**
-     * Types proposés à la saisie dans l'admin, dans l'ordre voulu.
-     * `Entrainement` en est exclu : conservé uniquement pour lire les
-     * anciennes lignes.
+     * Types proposés à la saisie côté admin, dans l'ordre voulu.
+     * Les cases legacy (Entrainement, Social, JourneeCohesion) en sont
+     * exclus — ils restent lisibles pour les événements existants et
+     * migrables via la page d'édition (qui, elle, inclut tous les cases).
      *
      * @return list<self>
      */
@@ -73,10 +86,11 @@ enum EventType: string
         return [
             self::Stage,
             self::Course,
-            self::Social,
+            self::Cohesion,
             self::Organisation,
-            self::JourneeCohesion,
+            self::Journee,
             self::Tenues,
+            self::Informations,
         ];
     }
 }

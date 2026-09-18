@@ -32,6 +32,39 @@ class EventCrudController extends AbstractCrudController
             ->setDefaultSort(['startsAt' => 'DESC']);
     }
 
+    /**
+     * Choix du champ « Type » selon la page.
+     * PAGE_NEW → 7 types actuels.
+     * PAGE_EDIT + autres → 7 types actuels + les legacy (Entrainement,
+     * Social, JourneeCohesion) en fin de liste, préfixés « (ancien) »
+     * pour signaler qu'ils sont conservés pour la migration mais plus
+     * proposés aux nouveaux événements.
+     *
+     * @return array<string, EventType>
+     */
+    private function buildTypeChoices(string $pageName): array
+    {
+        $adminChoices = EventType::adminChoices();
+        if ($pageName === Crud::PAGE_NEW) {
+            return array_combine(
+                array_map(fn (EventType $c) => $c->label(), $adminChoices),
+                $adminChoices,
+            );
+        }
+        $legacy = array_filter(
+            EventType::cases(),
+            fn (EventType $c) => !in_array($c, $adminChoices, true),
+        );
+        $choices = [];
+        foreach ($adminChoices as $c) {
+            $choices[$c->label()] = $c;
+        }
+        foreach ($legacy as $c) {
+            $choices['(ancien) '.$c->label()] = $c;
+        }
+        return $choices;
+    }
+
     public function configureActions(Actions $actions): Actions
     {
         // Bouton « Voir les votes » disponible sur les événements
@@ -49,11 +82,19 @@ class EventCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre');
+        // Choix proposés dans le dropdown :
+        //  - PAGE_NEW : les 7 types actuels uniquement (adminChoices).
+        //  - PAGE_EDIT : tous les cases de l'enum, pour qu'un event
+        //    dont le type actuel est legacy (Entrainement, Social,
+        //    JourneeCohesion…) puisse être migré vers un nouveau type.
+        //    Sans cet enrichissement, ChoiceType Symfony reçoit une
+        //    valeur initiale qui n'est pas dans ses choix : la soumission
+        //    du formulaire échoue silencieusement et l'ancien type reste
+        //    en base. On liste d'abord les 7 nouveaux, puis les legacy
+        //    en fin de liste, préfixés « (ancien) » pour clarté.
+        $typeChoices = $this->buildTypeChoices($pageName);
         yield ChoiceField::new('type', 'Type')
-            ->setChoices(array_combine(
-                array_map(fn ($c) => $c->label(), EventType::adminChoices()),
-                EventType::adminChoices()
-            ))
+            ->setChoices($typeChoices)
             ->renderAsBadges()
             ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
         yield BooleanField::new('isAllDay', 'Toute la journée')

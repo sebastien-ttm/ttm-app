@@ -138,7 +138,10 @@ export type EventItem = {
     | 'social'
     | 'organisation'
     | 'journee_cohesion'
-    | 'tenues';
+    | 'tenues'
+    | 'cohesion'
+    | 'journee'
+    | 'informations';
   /**
    * Libellé humain FR du type, calculé côté backend (source de vérité).
    * Le mobile n'a plus besoin d'une carte type→label dupliquée.
