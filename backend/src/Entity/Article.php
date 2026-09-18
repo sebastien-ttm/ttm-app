@@ -29,6 +29,14 @@ class Article
     #[Assert\Length(max: 200)]
     private string $title;
 
+    /**
+     * Emoji court affiché devant le titre de l'article (résumé mobile).
+     * Nullable → pas d'emoji ajouté par défaut.
+     */
+    #[ORM\Column(length: 16, nullable: true)]
+    #[Assert\Length(max: 16)]
+    private ?string $icon = null;
+
     #[ORM\Column(type: 'text')]
     #[Assert\NotBlank]
     private string $content = '';
@@ -122,6 +130,18 @@ class Article
     public function setTitle(string $title): self
     {
         $this->title = $title;
+        return $this;
+    }
+
+    public function getIcon(): ?string
+    {
+        return $this->icon;
+    }
+
+    public function setIcon(?string $icon): self
+    {
+        $trimmed = $icon !== null ? trim($icon) : null;
+        $this->icon = ($trimmed === null || $trimmed === '') ? null : $trimmed;
         return $this;
     }
 
