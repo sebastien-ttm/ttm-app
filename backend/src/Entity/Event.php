@@ -111,5 +111,16 @@ class Event
         return $this->type->color();
     }
 
+    /**
+     * Libellé humain FR du type (« Bénévolat », « Compétition »…).
+     * Utilisé pour l'affichage sur les pages INDEX / DETAIL admin — le
+     * ChoiceConfigurator d'EasyAdmin affiche autrement le `->name` du
+     * case enum (ex : « Organisation » au lieu de « Bénévolat »).
+     */
+    public function getTypeLabel(): string
+    {
+        return $this->type->label();
+    }
+
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
 }

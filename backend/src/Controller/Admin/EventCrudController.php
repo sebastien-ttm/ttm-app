@@ -82,21 +82,28 @@ class EventCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre');
-        // Choix proposés dans le dropdown :
-        //  - PAGE_NEW : les 7 types actuels uniquement (adminChoices).
-        //  - PAGE_EDIT : tous les cases de l'enum, pour qu'un event
-        //    dont le type actuel est legacy (Entrainement, Social,
+        // Affichage vs saisie du type :
+        //  - PAGE_INDEX / PAGE_DETAIL : on affiche le libellé humain via
+        //    Event::getTypeLabel() (« Bénévolat » plutôt que le nom du case
+        //    enum « Organisation » qu'EA afficherait par défaut).
+        //  - PAGE_NEW : dropdown limité aux 7 types actuels (adminChoices).
+        //  - PAGE_EDIT : dropdown enrichi de tous les cases pour qu'un
+        //    event dont le type actuel est legacy (Entrainement, Social,
         //    JourneeCohesion…) puisse être migré vers un nouveau type.
         //    Sans cet enrichissement, ChoiceType Symfony reçoit une
         //    valeur initiale qui n'est pas dans ses choix : la soumission
         //    du formulaire échoue silencieusement et l'ancien type reste
         //    en base. On liste d'abord les 7 nouveaux, puis les legacy
         //    en fin de liste, préfixés « (ancien) » pour clarté.
-        $typeChoices = $this->buildTypeChoices($pageName);
-        yield ChoiceField::new('type', 'Type')
-            ->setChoices($typeChoices)
-            ->renderAsBadges()
-            ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
+        if (in_array($pageName, [Crud::PAGE_INDEX, Crud::PAGE_DETAIL], true)) {
+            yield TextField::new('typeLabel', 'Type');
+        } else {
+            $typeChoices = $this->buildTypeChoices($pageName);
+            yield ChoiceField::new('type', 'Type')
+                ->setChoices($typeChoices)
+                ->renderAsBadges()
+                ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
+        }
         yield BooleanField::new('isAllDay', 'Toute la journée')
             ->setHelp('Cocher si l\'événement n\'a pas d\'heure précise — l\'heure ne sera pas affichée dans l\'app mobile.');
         yield BooleanField::new('voteEnabled', 'Soumis au vote de présence')
