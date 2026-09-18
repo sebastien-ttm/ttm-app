@@ -32,7 +32,6 @@ const SPORT_FILTERS: { key: SportKey | 'all'; label: string }[] = [
   { key: 'velo', label: 'Vélo' },
   { key: 'course', label: 'Course' },
   { key: 'multi', label: 'Multi' },
-  { key: 'renfo', label: 'Renfo' },
   { key: 'autre', label: 'Autre' },
 ];
 
@@ -165,10 +164,8 @@ export default function StaffPresenceScreen() {
     <SafeAreaView style={styles.root} edges={['bottom']}>
       <Stack.Screen options={{ title: 'Mes Présences' }} />
       <View style={styles.header}>
-        <Text style={styles.subtitle}>
-          Positionnez-vous sur les créneaux que vous encadrez. La validation
-          finale (présence effective) est gérée par l'équipe depuis le backend.
-        </Text>
+        <Text style={styles.headerTitle}>Indiquer / Confirmer</Text>
+        <Text style={styles.headerSub}>sur les créneaux de la semaine</Text>
       </View>
 
       <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
@@ -376,15 +373,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: {
     backgroundColor: COLORS.surface,
-    padding: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  backBtn: { alignSelf: 'flex-start', paddingVertical: 4 },
-  backLabel: { color: COLORS.secondary, fontSize: 14, fontWeight: '600' },
-  title: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginTop: 4 },
-  subtitle: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  headerSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   scrollContent: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.md },
   filterChip: {

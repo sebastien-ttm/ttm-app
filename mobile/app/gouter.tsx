@@ -133,11 +133,8 @@ export default function GouterScreen() {
         }
       >
         <View style={styles.intro}>
-          <Text style={styles.introIcon}>🍪</Text>
-          <Text style={styles.introText}>
-            Positionnez-vous sur un mercredi pour amener le goûter. 2 personnes
-            par créneau — inscrivez-vous à l'avance et voyez qui a déjà signé.
-          </Text>
+          <Text style={styles.introTitle}>Choisir un créneau</Text>
+          <Text style={styles.introSub}>2 places par mercredi</Text>
         </View>
 
         {flash && (
@@ -355,15 +352,22 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.xxl },
   intro: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
     backgroundColor: COLORS.primarySoft,
     borderRadius: RADIUS.md,
-    alignItems: 'center',
   },
-  introIcon: { fontSize: 26 },
-  introText: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 18 },
+  introTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  introSub: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
   flash: {
     padding: SPACING.md,
     backgroundColor: '#fee2e2',

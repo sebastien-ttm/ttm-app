@@ -169,7 +169,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.card}>
-        <Row label="N° de licence FFTri" value={user.licenceLabel} />
+        <Row label="Identifiant FFTri" value={user.licenceLabel} />
         <Row
           label="Statut"
           value={user.membershipStatus?.label ?? subTypeLabel(user.subType)}
