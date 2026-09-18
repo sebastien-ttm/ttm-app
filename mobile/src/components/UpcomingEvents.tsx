@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { events as eventsApi } from '@/api/resources';
 import type { EventItem } from '@/api/types';
@@ -66,7 +66,7 @@ export function UpcomingEvents() {
   return (
     <View>
       <View style={styles.header}>
-        <Ionicons name="calendar" size={18} color={COLORS.primary} />
+        <Ionicons name="calendar" size={18} color={COLORS.secondary} />
         <Text style={styles.title}>Prochainement</Text>
       </View>
 
@@ -109,11 +109,18 @@ function EventRow({ event }: { event: EventItem }) {
       ) : (
         <DateBox date={start} color={color} />
       )}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-        {/* Le jour de la semaine est désormais intégré dans la DateBox.
-            Sur cette ligne : heure (en gras pour visibilité) OU « Toute
-            la journée » + lieu si présent. Multi-jour → uniquement le lieu. */}
+        {/* Badge type d'événement (Compétition, Bénévolat, …) — libellé
+            servi par le backend (event.typeLabel). Rendu en pastille de
+            la couleur du type, distinct du titre. */}
+        {event.typeLabel ? (
+          <View style={[styles.typeChip, { backgroundColor: color }]}>
+            <Text style={styles.typeChipLabel} numberOfLines={1}>{event.typeLabel}</Text>
+          </View>
+        ) : null}
+        {/* Heure (en gras pour visibilité) OU « Toute la journée » + lieu
+            si présent. Multi-jour → uniquement le lieu. */}
         {(() => {
           const timeStr = !isMultiDay && !event.isAllDay
             ? start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -131,115 +138,17 @@ function EventRow({ event }: { event: EventItem }) {
       </View>
       {/* Boutons de vote compacts (icônes seules) alignés sur la même
           ligne que le titre — n'augmentent pas la hauteur totale de la
-          row au-delà de la DateBox. */}
+          row au-delà de la DateBox. Le bouton « ajouter au calendrier »
+          a été déplacé sur la page de détail de l'événement pour laisser
+          plus de place au titre dans la liste. */}
       {event.voteEnabled && (
         <View style={styles.voteInline}>
           <EventVoteBar event={event} size="xs" />
         </View>
       )}
-
-      {/* Bouton discret « ajouter au calendrier » — icône seule, à droite.
-          stopPropagation via un handler dédié pour ne pas déclencher la
-          navigation vers le détail de l'événement en même temps. */}
-      <Pressable
-        onPress={(e) => {
-          e.stopPropagation?.();
-          addEventToCalendar(event);
-        }}
-        hitSlop={8}
-        accessibilityLabel="Ajouter à mon calendrier"
-        style={({ pressed }) => [styles.calBtn, pressed && { opacity: 0.5 }]}
-      >
-        <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
-      </Pressable>
     </Pressable>
     </View>
   );
-}
-
-/**
- * Ajoute un événement au calendrier personnel.
- *  - Web : ouvre Google Calendar dans un nouvel onglet avec l'événement
- *    pré-rempli (titre, date, heures, lieu, description).
- *  - Natif : ouvre un data-URL text/calendar via Linking (iOS + Android
- *    associent le mime type à leur calendrier système).
- */
-function addEventToCalendar(event: EventItem): void {
-  const start = new Date(event.startsAt);
-  const end = event.endsAt ? new Date(event.endsAt) : null;
-  // Format Google Calendar :
-  //  - all-day : YYYYMMDD/YYYYMMDDNextDay (fin exclusive)
-  //  - timed   : YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ (UTC)
-  const gcalDates = buildGcalDates(start, end, event.isAllDay);
-
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: event.title,
-      dates: gcalDates,
-    });
-    if (event.location) params.set('location', event.location);
-    if (event.description) params.set('details', event.description);
-    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
-    return;
-  }
-
-  // Natif : ICS text/calendar via Linking
-  const ics = buildEventIcs(event, start, end);
-  void Linking.openURL('data:text/calendar;charset=utf-8,' + encodeURIComponent(ics));
-}
-
-function pad(n: number): string { return String(n).padStart(2, '0'); }
-function ymdLocal(d: Date): string {
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-}
-function ymdUtc(d: Date): string {
-  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
-}
-function hmsUtc(d: Date): string {
-  return `${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`;
-}
-
-function buildGcalDates(start: Date, end: Date | null, isAllDay: boolean): string {
-  if (isAllDay) {
-    const s = ymdLocal(start);
-    // Fin exclusive : jour après la date de fin (ou start si pas d'end)
-    const endBase = end ? new Date(end) : new Date(start);
-    endBase.setDate(endBase.getDate() + 1);
-    return `${s}/${ymdLocal(endBase)}`;
-  }
-  const effectiveEnd = end ?? new Date(start.getTime() + 60 * 60_000); // 1 h par défaut
-  return `${ymdUtc(start)}T${hmsUtc(start)}Z/${ymdUtc(effectiveEnd)}T${hmsUtc(effectiveEnd)}Z`;
-}
-
-function buildEventIcs(event: EventItem, start: Date, end: Date | null): string {
-  const now = new Date();
-  const stamp = `${ymdUtc(now)}T${hmsUtc(now)}Z`;
-  const uid = `ttm-event-${event.id}-${now.getTime()}@ttm`;
-  const lines: string[] = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//TTM//events//FR',
-    'CALSCALE:GREGORIAN',
-    'BEGIN:VEVENT',
-    `UID:${uid}`,
-    `DTSTAMP:${stamp}`,
-  ];
-  if (event.isAllDay) {
-    const endBase = end ? new Date(end) : new Date(start);
-    endBase.setDate(endBase.getDate() + 1);
-    lines.push(`DTSTART;VALUE=DATE:${ymdLocal(start)}`);
-    lines.push(`DTEND;VALUE=DATE:${ymdLocal(endBase)}`);
-  } else {
-    const effectiveEnd = end ?? new Date(start.getTime() + 60 * 60_000);
-    lines.push(`DTSTART:${ymdUtc(start)}T${hmsUtc(start)}Z`);
-    lines.push(`DTEND:${ymdUtc(effectiveEnd)}T${hmsUtc(effectiveEnd)}Z`);
-  }
-  lines.push(`SUMMARY:${(event.title || '').replace(/\r?\n/g, ' ')}`);
-  if (event.location) lines.push(`LOCATION:${event.location.replace(/\r?\n/g, ' ')}`);
-  if (event.description) lines.push(`DESCRIPTION:${event.description.replace(/\r?\n/g, ' ')}`);
-  lines.push('END:VEVENT', 'END:VCALENDAR');
-  return lines.join('\r\n');
 }
 
 function DateBox({ date, color }: { date: Date; color: string }) {
@@ -315,8 +224,23 @@ const styles = StyleSheet.create({
   dateDay: { color: '#fff', fontSize: 17, fontWeight: '700', lineHeight: 20 },
   dateMonth: { color: '#fff', fontSize: 10, fontWeight: '600', letterSpacing: 0.5, lineHeight: 12 },
   eventTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   eventTime: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  typeChip: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: RADIUS.sm,
+    maxWidth: '100%',
+  },
+  typeChipLabel: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   allLink: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,11 +251,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   allLinkLabel: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
-  calBtn: {
-    marginLeft: 6,
-    padding: 6,
-    alignSelf: 'center',
-  },
   // Wrapper qui englobe la row + les boutons de vote pour que ces derniers
   // se retrouvent hors du Pressable (donc pas cliqués par accident).
   rowContainer: {

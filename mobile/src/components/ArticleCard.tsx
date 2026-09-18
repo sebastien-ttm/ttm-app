@@ -31,6 +31,7 @@ export function ArticleCard({ article }: { article: Article }) {
       )}
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>
+          {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
           {article.title}
         </Text>
         <Text style={styles.excerpt} numberOfLines={3}>
@@ -88,6 +89,7 @@ const styles = StyleSheet.create({
   cover: { width: '100%', aspectRatio: 16 / 9, backgroundColor: COLORS.border },
   body: { padding: SPACING.lg },
   title: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 6, letterSpacing: -0.1 },
+  titleIcon: { fontSize: 20 },
   excerpt: { fontSize: 14, color: COLORS.textMuted, lineHeight: 21 },
   meta: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.md },
   author: { fontSize: 13, color: COLORS.text, fontWeight: '600' },

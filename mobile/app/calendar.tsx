@@ -10,14 +10,6 @@ import { MonthCalendar } from '@/components/MonthCalendar';
 import { COLORS } from '@/config';
 import { formatDate, formatDateTime } from '@/utils/html';
 
-const TYPE_LABEL: Record<EventItem['type'], string> = {
-  course: 'Compétition',
-  stage: 'Stage',
-  entrainement: 'Entraînement exceptionnel',
-  social: 'Événement social',
-  organisation: 'Organisation',
-};
-
 function startOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 0, 1);
 }
@@ -153,7 +145,7 @@ function EventRow({ event }: { event: EventItem }) {
       <View style={[styles.bar, { backgroundColor: event.color }]} />
       <View style={styles.body}>
         <View style={styles.header}>
-          <Text style={[styles.type, { color: event.color }]}>{TYPE_LABEL[event.type]}</Text>
+          <Text style={[styles.type, { color: event.color }]}>{event.typeLabel}</Text>
           <Text style={styles.date}>
             {event.isAllDay ? formatDate(event.startsAt) : formatDateTime(event.startsAt)}
           </Text>

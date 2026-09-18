@@ -113,7 +113,10 @@ export default function ArticleScreen() {
           ) : null}
 
           <View style={styles.content}>
-            <Text style={styles.title}>{article.title}</Text>
+            <Text style={styles.title}>
+              {article.icon ? <Text>{article.icon} </Text> : null}
+              {article.title}
+            </Text>
             <Text style={styles.meta}>
               {article.author.fullName} · {formatDate(article.publishedAt)}
             </Text>

@@ -10,16 +10,9 @@ import type { EventItem } from '@/api/types';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
+import { addEventToCalendar } from '@/lib/addToCalendar';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
-
-const TYPE_LABEL: Record<EventItem['type'], string> = {
-  course: 'Compétition',
-  stage: 'Stage',
-  entrainement: 'Entraînement exceptionnel',
-  social: 'Événement social',
-  organisation: 'Organisation',
-};
 
 function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear()
@@ -85,25 +78,35 @@ export default function EventDetailScreen() {
     );
   }
 
+  const typeLabel = event.typeLabel || 'Événement';
+
   const start = new Date(event.startsAt);
   const end = event.endsAt ? new Date(event.endsAt) : null;
   const multiDay = end !== null && !sameDay(start, end);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: TYPE_LABEL[event.type] ?? 'Événement' }} />
+      <Stack.Screen options={{ title: typeLabel }} />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <View style={[styles.typeBadge, { backgroundColor: event.color }]}>
-          <Text style={styles.typeBadgeLabel}>{TYPE_LABEL[event.type]}</Text>
+          <Text style={styles.typeBadgeLabel}>{typeLabel}</Text>
         </View>
 
         <Text style={styles.title}>{event.title}</Text>
 
-        <View style={{ flexDirection: 'row', marginBottom: SPACING.md }}>
+        <View style={styles.actionsRow}>
           <ShareButton path={`/event/${event.id}`} title={event.title} />
+          <Pressable
+            onPress={() => addEventToCalendar(event)}
+            accessibilityLabel="Ajouter à mon calendrier"
+            style={({ pressed }) => [styles.calendarBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.calendarBtnLabel}>Ajouter au calendrier</Text>
+          </Pressable>
         </View>
 
         <View style={styles.metaCard}>
@@ -209,6 +212,29 @@ const styles = StyleSheet.create({
   },
   descText: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
   descEmpty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center' },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  calendarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  calendarBtnLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
   carpoolBtn: {
     flexDirection: 'row',
     alignItems: 'center',

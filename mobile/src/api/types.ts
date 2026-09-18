@@ -24,6 +24,11 @@ export type ArticleAttachment = {
 export type Article = {
   id: number;
   title: string;
+  /**
+   * Emoji court affiché devant le titre dans le résumé mobile.
+   * Null si l'auteur n'en a pas choisi.
+   */
+  icon: string | null;
   content: string;
   publishedAt: string | null;
   author: UserSummary;
@@ -126,7 +131,19 @@ export type EventItem = {
   location: string | null;
   startsAt: string;
   endsAt: string | null;
-  type: 'course' | 'stage' | 'entrainement' | 'social' | 'organisation';
+  type:
+    | 'course'
+    | 'stage'
+    | 'entrainement'
+    | 'social'
+    | 'organisation'
+    | 'journee_cohesion'
+    | 'tenues';
+  /**
+   * Libellé humain FR du type, calculé côté backend (source de vérité).
+   * Le mobile n'a plus besoin d'une carte type→label dupliquée.
+   */
+  typeLabel: string;
   color: string;
   /** True = événement « toute la journée » : ne pas afficher l'heure. */
   isAllDay: boolean;
