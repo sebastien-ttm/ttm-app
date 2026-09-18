@@ -1,20 +1,49 @@
 /**
- * Positionne les actions globales (bouton « Créer … ») à GAUCHE du
- * titre de section sur toutes les pages d'index EasyAdmin — le bouton
- * est ainsi immédiatement visible, sans avoir à scroller à droite
- * (utile en particulier sur les listes larges comme le calendrier).
+ * Sur les pages d'index EasyAdmin, empile les actions globales
+ * (bouton « Créer … » + filtres) AU-DESSUS du titre de section, à
+ * gauche — le bouton est ainsi immédiatement visible sans scroll,
+ * y compris sur les listes très larges (calendrier, adhérents…).
  *
- * .content-header est déjà un flex container dans le thème EA. On
- * change simplement l'ordre visuel du bloc .global-actions pour qu'il
- * apparaisse avant .content-header-title, avec un léger espace à
- * droite pour aérer.
+ * Le DOM EA est :
+ *   <section class="content-header">
+ *     <div class="content-header-title">...</div>
+ *     <div class="page-actions">
+ *       <div class="datagrid-filters">...</div>
+ *       <div class="global-actions">…bouton Créer…</div>
+ *     </div>
+ *   </section>
+ *
+ * On force `content-header` en flex column-reverse pour que
+ * `.page-actions` s'affiche AVANT `.content-header-title`, puis on
+ * aligne son contenu à gauche (EA le justifie à droite par défaut,
+ * cf. base.css `.content-header .page-actions { justify-content:
+ * right }`).
+ *
+ * `!important` sur justify-content : la règle EA a la même
+ * spécificité (0,2,0) et gagnerait sinon par ordre de chargement
+ * dans certaines conditions de cache.
  */
 body.ea-index .content-header {
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding-top: 16px;
+    padding-bottom: 12px;
+    gap: 12px;
 }
 
+body.ea-index .content-header .page-actions,
 body.ea-index .content-header .global-actions {
+    justify-content: flex-start !important;
+    margin: 0;
+}
+
+/* Le wrapper .page-actions est en flex row : ordonne ses enfants
+   pour que le bouton "Créer" (.global-actions) soit d'abord, puis
+   les filtres (.datagrid-filters). Batch-actions reste hidden. */
+body.ea-index .content-header .page-actions .global-actions {
     order: -1;
-    margin-inline-end: 1rem;
-    margin-inline-start: 0;
+}
+body.ea-index .content-header .page-actions .datagrid-filters {
+    order: 0;
 }

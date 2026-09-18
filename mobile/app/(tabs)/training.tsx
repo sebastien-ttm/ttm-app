@@ -139,11 +139,8 @@ function TrainingScreenInner() {
                   <Text style={{ fontSize: 22 }}>🍪</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesGouter.title}>Positionnez-vous</Text>
-                  <Text style={stylesGouter.sub}>
-                    Amenez le goûter pour l'entraînement des jeunes du mercredi
-                    (2 places par mercredi).
-                  </Text>
+                  <Text style={stylesGouter.title}>Choisir un créneau</Text>
+                  <Text style={stylesGouter.sub}>2 places par mercredi</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
@@ -187,9 +184,8 @@ function TrainingScreenInner() {
                   <Ionicons name="checkmark-circle" size={22} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={stylesStaff.title}>
-                    Réserver / Confirmer ma présence sur les créneaux que j'encadre
-                  </Text>
+                  <Text style={stylesStaff.title}>Indiquer / Confirmer</Text>
+                  <Text style={stylesStaff.sub}>sur les créneaux de la semaine</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
