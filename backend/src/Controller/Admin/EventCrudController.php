@@ -29,7 +29,7 @@ class EventCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('Événement')
             ->setEntityLabelInPlural('Calendrier')
             ->setEntityPermission('ROLE_EDITEUR')
-            ->setDefaultSort(['startsAt' => 'ASC']);
+            ->setDefaultSort(['startsAt' => 'DESC']);
     }
 
     public function configureActions(Actions $actions): Actions
