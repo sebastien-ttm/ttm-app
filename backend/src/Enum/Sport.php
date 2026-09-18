@@ -53,9 +53,27 @@ enum Sport: string
     public static function choices(): array
     {
         $out = [];
-        foreach (self::cases() as $c) {
+        foreach (self::adminChoices() as $c) {
             $out[$c->label()] = $c->value;
         }
         return $out;
+    }
+
+    /**
+     * Sports proposés à la saisie côté admin.
+     * `Renfo` en est exclu : conservé uniquement comme case pour lire
+     * les anciens créneaux valorisés 'renfo'.
+     *
+     * @return list<self>
+     */
+    public static function adminChoices(): array
+    {
+        return [
+            self::Natation,
+            self::Velo,
+            self::Course,
+            self::Multi,
+            self::Autre,
+        ];
     }
 }

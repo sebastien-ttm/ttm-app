@@ -88,12 +88,16 @@ class StaffPresenceController extends AbstractController
 
         // 3) TOUTES les présences staff de la semaine, réindexées par slot.id
         //    → permet d'afficher qui est déjà positionné sur chaque créneau.
+        //    On EXCLUT les présences de statut 'unavailable' : « je ne serai
+        //    pas là » n'est pas une inscription positive et ne doit pas faire
+        //    apparaître la personne dans la liste des présents.
         $allPresences = $this->presences->findStaffPresencesForWeekGroupedByUser($monday);
         $assignedBySlot = [];
         foreach ($allPresences as $userPresences) {
             foreach ($userPresences as $p) {
                 $slot = $p->getSlot();
                 if ($slot === null) continue;
+                if ($p->getStatus() === StaffPresence::STATUS_UNAVAILABLE) continue;
                 $assignedBySlot[$slot->getId()] ??= [];
                 $assignedBySlot[$slot->getId()][] = [
                     'userId' => $p->getUser()->getId(),

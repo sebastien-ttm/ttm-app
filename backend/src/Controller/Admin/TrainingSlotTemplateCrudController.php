@@ -55,7 +55,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
     private static function sportChoices(): array
     {
         $out = [];
-        foreach (Sport::cases() as $c) {
+        foreach (Sport::adminChoices() as $c) {
             $out[$c->label()] = $c;
         }
         return $out;
