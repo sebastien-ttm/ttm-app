@@ -1,0 +1,20 @@
+/**
+ * Positionne les actions globales (bouton « Créer … ») à GAUCHE du
+ * titre de section sur toutes les pages d'index EasyAdmin — le bouton
+ * est ainsi immédiatement visible, sans avoir à scroller à droite
+ * (utile en particulier sur les listes larges comme le calendrier).
+ *
+ * .content-header est déjà un flex container dans le thème EA. On
+ * change simplement l'ordre visuel du bloc .global-actions pour qu'il
+ * apparaisse avant .content-header-title, avec un léger espace à
+ * droite pour aérer.
+ */
+body.ea-index .content-header {
+    flex-wrap: wrap;
+}
+
+body.ea-index .content-header .global-actions {
+    order: -1;
+    margin-inline-end: 1rem;
+    margin-inline-start: 0;
+}

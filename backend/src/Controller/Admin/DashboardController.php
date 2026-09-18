@@ -63,7 +63,10 @@ class DashboardController extends AbstractDashboardController
             // textareas [data-survey-builder]. Réutilise le CSS du builder
             // charte (classes .cfb-* partagées).
             ->addJsFile('js/admin/survey-form-builder.js?v='.$this->assetVersion('public/js/admin/survey-form-builder.js'))
-            ->addCssFile('css/admin/charter-form-builder.css?v='.$this->assetVersion('public/css/admin/charter-form-builder.css'));
+            ->addCssFile('css/admin/charter-form-builder.css?v='.$this->assetVersion('public/css/admin/charter-form-builder.css'))
+            // Repositionne le bouton « Créer … » à gauche sur les pages
+            // d'index — évite d'avoir à scroller sur les listes larges.
+            ->addCssFile('css/admin/index-actions.css?v='.$this->assetVersion('public/css/admin/index-actions.css'));
     }
 
     /**
