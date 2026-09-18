@@ -82,6 +82,7 @@ class ApiSerializer
         return [
             'id' => $a->getId(),
             'title' => $a->getTitle(),
+            'icon' => $a->getIcon(),
             'content' => $a->getContent(),
             'publishedAt' => $a->getPublishedAt()?->format(\DATE_ATOM),
             'author' => $this->user($a->getAuthor()),
@@ -221,6 +222,7 @@ class ApiSerializer
             'startsAt' => $e->getStartsAt()->format(\DATE_ATOM),
             'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
             'type' => $e->getType()->value,
+            'typeLabel' => $e->getType()->label(),
             'color' => $e->getColor(),
             'isAllDay' => $e->isAllDay(),
             'audience' => $e->getAudience(),

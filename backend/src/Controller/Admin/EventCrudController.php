@@ -51,8 +51,8 @@ class EventCrudController extends AbstractCrudController
         yield TextField::new('title', 'Titre');
         yield ChoiceField::new('type', 'Type')
             ->setChoices(array_combine(
-                array_map(fn ($c) => $c->label(), EventType::cases()),
-                EventType::cases()
+                array_map(fn ($c) => $c->label(), EventType::adminChoices()),
+                EventType::adminChoices()
             ))
             ->renderAsBadges()
             ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
