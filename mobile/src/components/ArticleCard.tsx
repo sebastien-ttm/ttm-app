@@ -1,14 +1,25 @@
 import { useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Article } from '@/api/types';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
-import { formatRelativeFr, htmlExcerpt } from '@/utils/html';
+import { formatRelativeFr } from '@/utils/html';
 
+/**
+ * Carte article — version compacte de la liste Actualités.
+ *
+ * Layout (2 rangs) :
+ *   [🎉 Titre article ...............................] [Auteur · date]
+ *   [👍 3] [❤️ 2] [💬 5]
+ *
+ * Pas de cover, pas d'excerpt : le résumé complet reste accessible en
+ * tapant sur la carte (page /article/{id}). L'objectif est la densité
+ * verticale pour voir plus d'articles sans scroller.
+ */
 export function ArticleCard({ article }: { article: Article }) {
   const router = useRouter();
-  const cover = article.photos.find((p) => p.url) ?? null;
   const reactionEntries = Object.entries(article.reactionCounts).filter(([, n]) => n > 0);
+  const hasStats = reactionEntries.length > 0 || article.commentCount > 0;
 
   return (
     <Pressable
@@ -21,48 +32,32 @@ export function ArticleCard({ article }: { article: Article }) {
       ]}
       onPress={() => router.push(`/article/${article.id}` as never)}
     >
-      {cover?.url && (
-        <Image
-          source={{ uri: cover.url }}
-          style={styles.cover}
-          resizeMode="cover"
-          accessibilityLabel={cover.alt ?? article.title}
-        />
-      )}
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>
+      <View style={styles.header}>
+        <Text style={styles.title} numberOfLines={1}>
           {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
           {article.title}
         </Text>
-        <Text style={styles.excerpt} numberOfLines={3}>
-          {htmlExcerpt(article.content, 200)}
+        <Text style={styles.meta} numberOfLines={1}>
+          {article.author.fullName} · {formatRelativeFr(article.publishedAt)}
         </Text>
-
-        <View style={styles.meta}>
-          <Text style={styles.author} numberOfLines={1}>
-            {article.author.fullName}
-          </Text>
-          <Text style={styles.dot}> · </Text>
-          <Text style={styles.metaTime}>{formatRelativeFr(article.publishedAt)}</Text>
-        </View>
-
-        {(reactionEntries.length > 0 || article.commentCount > 0) && (
-          <View style={styles.stats}>
-            {reactionEntries.map(([emoji, n]) => (
-              <View key={emoji} style={styles.statBadge}>
-                <Text style={styles.statEmoji}>{emoji}</Text>
-                <Text style={styles.statCount}>{n}</Text>
-              </View>
-            ))}
-            {article.commentCount > 0 && (
-              <View style={[styles.statBadge, styles.statBadgeComment]}>
-                <Text style={styles.statEmoji}>💬</Text>
-                <Text style={[styles.statCount, styles.statCountComment]}>{article.commentCount}</Text>
-              </View>
-            )}
-          </View>
-        )}
       </View>
+
+      {hasStats && (
+        <View style={styles.stats}>
+          {reactionEntries.map(([emoji, n]) => (
+            <View key={emoji} style={styles.statBadge}>
+              <Text style={styles.statEmoji}>{emoji}</Text>
+              <Text style={styles.statCount}>{n}</Text>
+            </View>
+          ))}
+          {article.commentCount > 0 && (
+            <View style={[styles.statBadge, styles.statBadgeComment]}>
+              <Text style={styles.statEmoji}>💬</Text>
+              <Text style={[styles.statCount, styles.statCountComment]}>{article.commentCount}</Text>
+            </View>
+          )}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -70,45 +65,61 @@ export function ArticleCard({ article }: { article: Article }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
+    borderRadius: RADIUS.md,
     marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: 6,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     ...SHADOWS.sm,
     // @ts-expect-error web-only transition for smooth hover
-    transition: 'transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease',
+    transition: 'border-color 150ms ease, box-shadow 150ms ease',
   },
   hovered: {
     borderColor: COLORS.borderStrong,
     ...SHADOWS.md,
-    transform: [{ translateY: -1 }],
   },
-  pressed: { opacity: 0.92 },
-  cover: { width: '100%', aspectRatio: 16 / 9, backgroundColor: COLORS.border },
-  body: { padding: SPACING.lg },
-  title: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 6, letterSpacing: -0.1 },
-  titleIcon: { fontSize: 20 },
-  excerpt: { fontSize: 14, color: COLORS.textMuted, lineHeight: 21 },
-  meta: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.md },
-  author: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
-  dot: { fontSize: 13, color: COLORS.textSubtle },
-  metaTime: { fontSize: 13, color: COLORS.textMuted },
-  stats: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: SPACING.md },
+  pressed: { opacity: 0.9 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  title: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: -0.1,
+    minWidth: 0,
+  },
+  titleIcon: { fontSize: 16 },
+  meta: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    flexShrink: 0,
+    maxWidth: '45%',
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
   statBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 4,
+    gap: 3,
   },
-  statEmoji: { fontSize: 13 },
-  statCount: { fontSize: 12, color: COLORS.text, fontWeight: '600' },
+  statEmoji: { fontSize: 12 },
+  statCount: { fontSize: 11, color: COLORS.text, fontWeight: '600' },
   statBadgeComment: { backgroundColor: COLORS.secondarySoft, borderColor: COLORS.secondarySoft },
   statCountComment: { color: COLORS.secondaryDark },
 });

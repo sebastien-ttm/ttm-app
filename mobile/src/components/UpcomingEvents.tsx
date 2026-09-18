@@ -9,7 +9,7 @@ import { EventVoteBar } from '@/components/EventVoteBar';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
-const MAX_PREVIEW = 3;
+const MAX_PREVIEW = 5;
 
 /**
  * En-tête de l'onglet « Vie du Club » : affiche les 2-3 prochains
