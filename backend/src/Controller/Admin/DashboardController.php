@@ -20,6 +20,7 @@ use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Entity\WelcomeEmailTemplate;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Asset;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
@@ -66,7 +67,17 @@ class DashboardController extends AbstractDashboardController
             ->addCssFile('css/admin/charter-form-builder.css?v='.$this->assetVersion('public/css/admin/charter-form-builder.css'))
             // Repositionne le bouton « Créer … » à gauche sur les pages
             // d'index — évite d'avoir à scroller sur les listes larges.
-            ->addCssFile('css/admin/index-actions.css?v='.$this->assetVersion('public/css/admin/index-actions.css'));
+            ->addCssFile('css/admin/index-actions.css?v='.$this->assetVersion('public/css/admin/index-actions.css'))
+            // emoji-picker-element (~50 KB gzipped) : web component
+            // <emoji-picker> avec barre de recherche et catégories.
+            // Chargé en type=module car c'est un ES module natif.
+            ->addJsFile(
+                Asset::new('https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js')
+                    ->htmlAttr('type', 'module')
+            )
+            // Glue JS : attache un bouton picker à chaque input marqué
+            // data-emoji-picker="1" (ex : champ « Icône » des articles).
+            ->addJsFile('js/admin/emoji-picker.js?v='.$this->assetVersion('public/js/admin/emoji-picker.js'));
     }
 
     /**

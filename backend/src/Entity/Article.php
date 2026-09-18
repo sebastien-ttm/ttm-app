@@ -31,10 +31,11 @@ class Article
 
     /**
      * Emoji court affiché devant le titre de l'article (résumé mobile).
-     * Nullable → pas d'emoji ajouté par défaut.
+     * Nullable → pas d'emoji ajouté par défaut. 32 chars pour absorber
+     * les séquences composées (ZWJ, drapeaux, modificateurs de teint).
      */
-    #[ORM\Column(length: 16, nullable: true)]
-    #[Assert\Length(max: 16)]
+    #[ORM\Column(length: 32, nullable: true)]
+    #[Assert\Length(max: 32)]
     private ?string $icon = null;
 
     #[ORM\Column(type: 'text')]

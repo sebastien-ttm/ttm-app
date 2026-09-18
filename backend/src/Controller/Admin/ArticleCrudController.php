@@ -63,25 +63,25 @@ class ArticleCrudController extends AbstractCrudController
             ->add(Crud::PAGE_EDIT, $manageAttachments);
     }
 
-    /**
-     * Emojis suggérés pour le champ « Icône » de l'article — la liste
-     * couvre les cas courants (info, actualités sportives, événements).
-     * L'éditeur peut aussi taper un emoji libre (max 16 caractères).
-     */
-    private const ICON_SUGGESTIONS = [
-        '📰', '📣', '🏊', '🚴', '🏃', '🏆', '🥇', '🎯',
-        '📅', '💪', '🎉', '🥳', '🍽️', '☕', '📸', '📷',
-        '🚗', '🚌', '👕', '🎽', '⚠️', '📌', '✅', '❓',
-        '💡', '❤️', '👍', '🎂', '🏝️', '⛰️',
-    ];
-
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre');
-        yield ChoiceField::new('icon', 'Icône (emoji)')
-            ->setChoices(array_combine(self::ICON_SUGGESTIONS, self::ICON_SUGGESTIONS))
+        // Emoji devant le titre — picker complet avec recherche fourni
+        // par le web component <emoji-picker> (emoji-picker-element)
+        // chargé en type=module dans DashboardController. Le glue JS
+        // (public/js/admin/emoji-picker.js) attache un bouton « 😀 » à
+        // tout input marqué data-emoji-picker="1" et remplit l'input
+        // au clic sur un emoji. L'éditeur peut aussi coller/saisir
+        // directement (max 16 caractères, cf. Article.icon).
+        yield TextField::new('icon', 'Icône (emoji)')
             ->setRequired(false)
-            ->setHelp('Emoji affiché devant le titre dans la liste des actualités. Laisser vide pour ne pas en afficher.')
+            ->setFormTypeOption('attr', [
+                'data-emoji-picker' => '1',
+                'maxlength' => '32',
+                'placeholder' => 'ex : 📰',
+                'autocomplete' => 'off',
+            ])
+            ->setHelp('Emoji affiché devant le titre dans la liste des actualités. Cliquez sur 😀 pour ouvrir le picker avec recherche, ou saisissez/collez directement. Laisser vide pour ne pas en afficher.')
             ->hideOnIndex();
         yield TextEditorField::new('content', 'Contenu')
             ->setNumOfRows(15)
