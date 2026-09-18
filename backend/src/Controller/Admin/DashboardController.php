@@ -92,84 +92,74 @@ class DashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
+        // Entrées hors-section : accessibles ou masquées par leur propre
+        // setPermission() géré par EasyAdmin. Toujours yieldées telles quelles.
         yield AdminMenuItem::linktoDashboard('Accueil', 'fa fa-home');
         yield AdminMenuItem::linkToRoute('Statistiques', 'fa fa-chart-line', 'admin_stats')
             ->setPermission('ROLE_ENTRAINEUR');
 
-        yield AdminMenuItem::section('Communication');
-        yield AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)
-            ->setPermission('ROLE_ENTRAINEUR');
+        // Structure de menu par section : chaque item porte le rôle
+        // Symfony minimal nécessaire pour le voir. Si aucun item d'une
+        // section n'est accessible au user courant, l'en-tête de section
+        // n'est pas rendu non plus — évite les séparateurs orphelins.
+        $sections = [
+            'Communication' => [
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
+            ],
+            'Entraînements' => [
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
+            ],
+            'Présences staff' => [
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
+            ],
+            'Configuration' => [
+                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)],
+                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)],
+                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)],
+            ],
+            'Adhérents' => [
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)],
+            ],
+            'Facturation' => [
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Grille tarifaire', 'fa fa-euro-sign', MembershipFee::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Paramètres facture', 'fa fa-file-invoice', InvoiceSettings::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToRoute('Facture famille', 'fa fa-users', 'admin_invoice_family_pick')],
+            ],
+            'Acceptation' => [
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Messages ponctuels', 'fa fa-bullhorn', AdminNotice::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-square-check', 'admin_charter_tracking')],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToRoute('Réponses au formulaire', 'fa fa-clipboard-list', 'admin_charter_responses')],
+            ],
+        ];
 
-        yield AdminMenuItem::section('Entraînements');
-        yield AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)
-            ->setPermission('ROLE_ENTRAINEUR');
+        foreach ($sections as $label => $items) {
+            $accessible = array_filter($items, fn (array $it) => $this->isGranted($it[0]));
+            if (count($accessible) === 0) continue;
+            yield AdminMenuItem::section($label);
+            foreach ($accessible as [$role, $factory]) {
+                yield $factory()->setPermission($role);
+            }
+        }
 
-        yield AdminMenuItem::section('Présences staff');
-        yield AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')
-            ->setPermission('ROLE_EDITEUR');
-
-        yield AdminMenuItem::section('Configuration');
-        yield AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)
-            ->setPermission('ROLE_EDITEUR');
-        yield AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)
-            ->setPermission('ROLE_EDITEUR');
-
-        yield AdminMenuItem::section('Adhérents');
-        yield AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')
-            ->setPermission('ROLE_ENTRAINEUR');
-        yield AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)
-            ->setPermission('ROLE_ADMIN');
-
-        yield AdminMenuItem::section('Facturation');
-        yield AdminMenuItem::linkToCrud('Grille tarifaire', 'fa fa-euro-sign', MembershipFee::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Paramètres facture', 'fa fa-file-invoice', InvoiceSettings::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToRoute('Facture famille', 'fa fa-users', 'admin_invoice_family_pick')
-            ->setPermission('ROLE_ADMIN');
-
-        yield AdminMenuItem::section('Acceptation');
-        yield AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Messages ponctuels', 'fa fa-bullhorn', AdminNotice::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-square-check', 'admin_charter_tracking')
-            ->setPermission('ROLE_ADMIN');
-        yield AdminMenuItem::linkToRoute('Réponses au formulaire', 'fa fa-clipboard-list', 'admin_charter_responses')
-            ->setPermission('ROLE_ADMIN');
-
+        // Séparateur final + lien API (toujours visible pour toute personne
+        // autorisée à voir le backend).
         yield AdminMenuItem::section();
         yield AdminMenuItem::linkToRoute('Voir l\'API', 'fa fa-book', 'api_doc');
     }
