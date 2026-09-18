@@ -165,14 +165,14 @@ export default function ContactScreen() {
               onPress={() => router.push('/contact/quick?kind=feedback' as never)}
             >
               <Text style={styles.quickBtnIcon}>🐞</Text>
-              <Text style={styles.quickBtnLabel}>Bug / Idée d'amélioration</Text>
+              <Text style={styles.quickBtnLabel}>Bug / Idée amélioration appli</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
               onPress={() => router.push('/contact/quick?kind=help' as never)}
             >
-              <Text style={styles.quickBtnIcon}>🤝</Text>
-              <Text style={styles.quickBtnLabel}>Je propose mon aide au club</Text>
+              <Text style={styles.quickBtnIcon}>💡</Text>
+              <Text style={styles.quickBtnLabel}>Idée vie du club</Text>
             </Pressable>
           </View>
 

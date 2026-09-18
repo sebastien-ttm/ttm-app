@@ -25,7 +25,8 @@ import { useGoBackOrHome } from '@/lib/goBackOrHome';
  *
  *  - kind=feedback : « Amélioration de l'appli » avec radio Bug/Idée
  *                    → adressé au club (scope=club)
- *  - kind=help     : « Je propose mon aide au club »
+ *  - kind=help     : « Idée pour club » (vie du club, sorties,
+ *                    déplacements groupés, moments conviviaux…)
  *                    → adressé au club (scope=club)
  *
  * Pas de choix de destinataire ni d'objet (préréglés) — l'user tape
@@ -165,13 +166,13 @@ function TypeChoice({ icon, label, selected, onPress }: {
 function configFor(kind: Kind, feedbackKind: 'bug' | 'improvement') {
   if (kind === 'help') {
     return {
-      headerTitle: 'Proposer mon aide',
-      icon: '🤝',
-      title: 'Je propose mon aide au club',
-      subtitle: 'Bénévolat, coup de main ponctuel, compétences… Dites-nous ce que vous pouvez apporter.',
-      textareaLabel: 'Décrivez ce que vous pouvez faire',
-      placeholder: 'Ex : disponible les samedis matins pour aider aux compétitions, je peux gérer un stand goûter, je maîtrise Excel pour les inscriptions…',
-      subject: 'Proposition d\'aide',
+      headerTitle: 'Idée pour club',
+      icon: '💡',
+      title: 'Une idée pour la vie du club ?',
+      subtitle: 'Proposition d\'amélioration de la vie du club : idée de déplacement groupé, de moment convivial, sortie, événement, coup de main que vous pouvez apporter…',
+      textareaLabel: 'Décrivez votre idée',
+      placeholder: 'Ex : covoiturage groupé pour la course de Blagnac le 12 mai · barbecue de fin de saison au parc de la Reynerie · proposer un stage vélo un dimanche · je peux animer une session « comment bien préparer sa transition »…',
+      subject: 'Idée vie du club',
     };
   }
   const isBug = feedbackKind === 'bug';
@@ -184,7 +185,7 @@ function configFor(kind: Kind, feedbackKind: 'bug' | 'improvement') {
     placeholder: isBug
       ? 'Ex : quand j\'ouvre l\'onglet Actualités sur iPhone, la liste ne charge pas. Cela arrive à chaque fois depuis mardi.'
       : 'Ex : ajouter un widget météo sur la page piscine, permettre de trier les articles par date…',
-    subject: isBug ? 'Bug appli' : 'Idée d\'amélioration',
+    subject: isBug ? 'Bug appli' : 'Idée amélioration appli',
   };
 }
 
