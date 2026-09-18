@@ -51,7 +51,7 @@ export default function StaffPresenceScreen() {
   if (user && !user.profiles.includes('encadrant') && !user.profiles.includes('entraineur')) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Mes Présences' }} />
+        <Stack.Screen options={{ title: 'Mes encadrements' }} />
         <EmptyState
           icon="🔒"
           title="Accès réservé"
@@ -107,12 +107,21 @@ export default function StaffPresenceScreen() {
     return map;
   }, [filteredSlots]);
 
+  // « J'ai déjà choisi au moins un créneau positivement » — bascule le
+  // bouton d'indisponibilité globale vers l'action ciblée
+  // « marquer les créneaux restants comme "Je ne serai pas là" ».
+  const hasScheduledSlots = (data?.slots ?? []).some(
+    (s) => s.myPresence?.status === 'scheduled' || s.myPresence?.status === 'attended',
+  );
+
   async function toggleUnavailable() {
     const iso = toIsoDate(weekStart);
     setUpdatingKey('unavail');
     try {
       if (data?.unavailable) {
         await api.unsetUnavailable(iso);
+      } else if (hasScheduledSlots) {
+        await api.setUnavailableMissing(iso);
       } else {
         await api.setUnavailable(iso);
       }
@@ -153,7 +162,7 @@ export default function StaffPresenceScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Mes Présences' }} />
+        <Stack.Screen options={{ title: 'Mes encadrements' }} />
         <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
         <FullScreenLoading />
       </SafeAreaView>
@@ -162,7 +171,7 @@ export default function StaffPresenceScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Mes Présences' }} />
+      <Stack.Screen options={{ title: 'Mes encadrements' }} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Indiquer / Confirmer</Text>
         <Text style={styles.headerSub}>sur les créneaux de la semaine</Text>
@@ -185,12 +194,18 @@ export default function StaffPresenceScreen() {
           ) : (
             <>
               <Text style={[stylesUnav.title, data?.unavailable && stylesUnav.titleActive]}>
-                {data?.unavailable ? '❌ Non dispo cette semaine' : 'Je ne suis pas dispo cette semaine'}
+                {data?.unavailable
+                  ? '❌ Non dispo cette semaine'
+                  : hasScheduledSlots
+                    ? 'Je ne suis pas dispo sur les créneaux manquants'
+                    : 'Je ne suis pas dispo cette semaine'}
               </Text>
               <Text style={[stylesUnav.sub, data?.unavailable && stylesUnav.subActive]}>
                 {data?.unavailable
                   ? 'Cliquez pour retirer ce marqueur'
-                  : 'Signale à l\'équipe que vous n\'êtes pas positionnable cette semaine'}
+                  : hasScheduledSlots
+                    ? 'Marque les créneaux restants comme « Je ne serai pas là »'
+                    : 'Signale à l\'équipe que vous n\'êtes pas positionnable cette semaine'}
               </Text>
             </>
           )}

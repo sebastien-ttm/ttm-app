@@ -97,6 +97,16 @@ export const staffPresence = {
     api.delete<{ ok: boolean; unavailable: false }>(
       `/api/me/staff-presence/unavailable?week=${encodeURIComponent(week)}`,
     ),
+  /**
+   * Pose 'unavailable' UNIQUEMENT sur les slots où l'user n'a pas
+   * encore de présence — ne marque pas la semaine entière. Sert au
+   * bouton « Je ne suis pas dispo sur les créneaux manquants ».
+   */
+  setUnavailableMissing: (week: string) =>
+    api.post<{ ok: boolean; week: string; markedCount: number }>(
+      '/api/me/staff-presence/unavailable-missing',
+      { week },
+    ),
 };
 
 export const gouters = {

@@ -200,6 +200,80 @@ class StaffPresenceController extends AbstractController
     }
 
     /**
+     * Pose « unavailable » sur les créneaux de la semaine où l'user n'a
+     * PAS ENCORE de présence (scheduled/attended/unavailable). Ne touche
+     * ni les slots déjà positionnés, ni le marqueur hebdo — geste ciblé
+     * « je remplis les cases restantes ».
+     *
+     * Body : { week: "YYYY-MM-DD" }
+     */
+    #[Route('/api/me/staff-presence/unavailable-missing', name: 'api_staff_presence_set_unavailable_missing', methods: ['POST'])]
+    public function setUnavailableMissing(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $weekRaw = (string) ($payload['week'] ?? '');
+        try {
+            $week = $weekRaw !== '' ? new \DateTimeImmutable($weekRaw) : new \DateTimeImmutable('today');
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $monday = WeeklyScheduleService::snapToMonday($week);
+
+        // Index des slots déjà positionnés par l'user (par slot id).
+        $existingByslotId = [];
+        foreach ($this->presences->findByUserAndWeek($user, $monday) as $p) {
+            $slot = $p->getSlot();
+            if ($slot !== null) {
+                $existingByslotId[$slot->getId()] = true;
+            }
+        }
+
+        // Pose 'unavailable' UNIQUEMENT sur les slots non déjà positionnés.
+        $count = 0;
+        $slotRows = $this->schedule->buildWeek($monday);
+        foreach ($slotRows as $slotRow) {
+            if (!empty($slotRow['isCancelled'])) continue;
+            $slotId = $slotRow['id'] ?? null;
+            $templateId = $slotRow['templateId'] ?? null;
+
+            // Slot déjà matérialisé et positionné : skip.
+            if ($slotId !== null && isset($existingByslotId[$slotId])) continue;
+
+            if ($slotId !== null) {
+                $slot = $this->slots->find($slotId);
+                if ($slot !== null) {
+                    $this->service->setForSlot($user, $slot, StaffPresence::STATUS_UNAVAILABLE, null);
+                    $count++;
+                }
+            } elseif ($templateId !== null) {
+                $template = $this->templates->find($templateId);
+                if ($template !== null) {
+                    // Un template virtuel n'a jamais de présence pré-existante
+                    // (par définition il n'a pas d'id de slot matérialisé pour
+                    // cet user), on peut donc marquer sans check supplémentaire.
+                    $this->service->setForTemplate($user, $template, $monday, StaffPresence::STATUS_UNAVAILABLE, null);
+                    $count++;
+                }
+            }
+        }
+
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'week' => $monday->format('Y-m-d'),
+            'markedCount' => $count,
+        ]);
+    }
+
+    /**
      * Retire la déclaration d'indisponibilité pour la semaine.
      * Body : { week: "YYYY-MM-DD" }
      */

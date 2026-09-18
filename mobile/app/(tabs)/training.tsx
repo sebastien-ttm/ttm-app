@@ -130,13 +130,13 @@ function TrainingScreenInner() {
               voir dans cet onglet (auparavant dans le tab Profil). */}
           {showGouter && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🍪 Goûter du mercredi</Text>
+              <Text style={styles.sectionTitle}>🍪 Goûters du mercredi</Text>
               <Pressable
                 onPress={() => router.push('/gouter' as never)}
                 style={({ pressed }) => [stylesGouter.card, pressed && { opacity: 0.7 }]}
               >
                 <View style={stylesGouter.iconWrap}>
-                  <Text style={{ fontSize: 22 }}>🍪</Text>
+                  <Text style={{ fontSize: 22 }}>📅</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={stylesGouter.title}>Choisir un créneau</Text>
@@ -163,7 +163,7 @@ function TrainingScreenInner() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={stylesPool.title}>QR Code</Text>
-                  <Text style={stylesPool.sub}>à présenter à l'entrée</Text>
+                  <Text style={stylesPool.sub}>à scanner au portique</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
@@ -175,7 +175,7 @@ function TrainingScreenInner() {
               chaque créneau. */}
           {isStaff && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ Mes présences</Text>
+              <Text style={styles.sectionTitle}>✅ Mes encadrements</Text>
               <Pressable
                 style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
                 onPress={() => router.push('/staff-presence' as never)}
@@ -185,7 +185,7 @@ function TrainingScreenInner() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={stylesStaff.title}>Indiquer / Confirmer</Text>
-                  <Text style={stylesStaff.sub}>sur les créneaux de la semaine</Text>
+                  <Text style={stylesStaff.sub}>pour les créneaux de la semaine et des suivantes</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
