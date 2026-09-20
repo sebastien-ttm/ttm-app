@@ -54,11 +54,22 @@ export default function SurveyScreen() {
       setAnswers(resp.myResponse?.answers ?? initialAnswersFor(resp.sections));
       setSubmittedAt(resp.myResponse?.updatedAt ?? resp.myResponse?.submittedAt ?? null);
     } catch (e) {
+      // 403 / 404 : sondage inexistant OU audience incompatible avec
+      // le profil du user (le backend masque la distinction). Renvoie
+      // sur l'écran d'accès refusé plutôt que d'afficher un état
+      // d'erreur générique qui laisserait deviner l'existence.
+      if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+        router.replace({
+          pathname: '/access-denied',
+          params: { reason: e.status === 403 ? 'forbidden' : 'not-found' },
+        } as never);
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, router]);
 
   useEffect(() => { void load(); }, [load]);
 

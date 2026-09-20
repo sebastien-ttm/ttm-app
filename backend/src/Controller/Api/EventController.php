@@ -2,11 +2,13 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Event;
 use App\Entity\EventAttendance;
 use App\Entity\User;
 use App\Enum\AttendanceStatus;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
+use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,18 +26,31 @@ class EventController extends AbstractController
         private readonly ApiSerializer $serializer,
         private readonly EventAttendanceRepository $attendances,
         private readonly EntityManagerInterface $em,
+        private readonly AudienceFilter $audienceFilter,
     ) {
+    }
+
+    /**
+     * Filet audience pour les endpoints unitaires (show / attendance) :
+     * un deep-link direct ne doit pas contourner le filtrage appliqué
+     * dans les listes. Retourne l'événement s'il est visible pour le
+     * viewer, sinon 404 (on ne révèle pas l'existence de la ressource).
+     */
+    private function findVisibleOr404(int $id, ?User $viewer): Event
+    {
+        $event = $this->events->find($id);
+        if ($event === null || !$this->audienceFilter->isVisible($event->getAudience(), $viewer)) {
+            throw $this->createNotFoundException();
+        }
+        return $event;
     }
 
     #[Route('/api/events/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(int $id): JsonResponse
     {
-        $event = $this->events->find($id);
-        if ($event === null) {
-            return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
-        }
         /** @var User $viewer */
         $viewer = $this->getUser();
+        $event = $this->findVisibleOr404($id, $viewer);
         $counts = $event->isVoteEnabled() ? $this->attendances->countsForEvent($event) : null;
         $myVote = $event->isVoteEnabled()
             ? $this->attendances->findOneByUserAndEvent($viewer, $event)?->getStatus()->value
@@ -51,15 +66,12 @@ class EventController extends AbstractController
     #[Route('/api/events/{id}/attendance', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function setAttendance(int $id, Request $request): JsonResponse
     {
-        $event = $this->events->find($id);
-        if ($event === null) {
-            return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
-        }
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $event = $this->findVisibleOr404($id, $viewer);
         if (!$event->isVoteEnabled()) {
             return new JsonResponse(['error' => 'Cet événement n\'est pas soumis au vote.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        /** @var User $viewer */
-        $viewer = $this->getUser();
 
         $payload = json_decode($request->getContent() ?: '{}', true);
         $raw = is_array($payload) ? ($payload['status'] ?? null) : null;

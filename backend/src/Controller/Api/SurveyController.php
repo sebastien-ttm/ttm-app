@@ -7,6 +7,7 @@ use App\Entity\SurveyResponse;
 use App\Entity\User;
 use App\Repository\SurveyRepository;
 use App\Repository\SurveyResponseRepository;
+use App\Service\Audience\AudienceFilter;
 use App\Service\Survey\SurveySchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -32,7 +33,26 @@ class SurveyController extends AbstractController
         private readonly SurveyResponseRepository $responses,
         private readonly SurveySchemaValidator $validator,
         private readonly EntityManagerInterface $em,
+        private readonly AudienceFilter $audienceFilter,
     ) {
+    }
+
+    /**
+     * Filet audience pour les endpoints unitaires (get / submit) :
+     * un deep-link direct ne doit pas contourner le filtrage appliqué
+     * à la liste. Retourne le sondage s'il est publié ET visible pour
+     * le viewer, sinon 404 (on ne révèle pas l'existence).
+     */
+    private function findVisibleOr404(int $id, ?User $viewer): Survey
+    {
+        $survey = $this->surveys->find($id);
+        if ($survey === null
+            || !$survey->isPublished()
+            || !$this->audienceFilter->isVisible($survey->getAudience(), $viewer)
+        ) {
+            throw $this->createNotFoundException();
+        }
+        return $survey;
     }
 
     #[Route('/api/me/surveys', methods: ['GET'])]
@@ -54,10 +74,7 @@ class SurveyController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $survey = $this->surveys->find($id);
-        if ($survey === null || !$survey->isPublished()) {
-            return new JsonResponse(['error' => 'Sondage introuvable.'], Response::HTTP_NOT_FOUND);
-        }
+        $survey = $this->findVisibleOr404($id, $user);
         $mine = $this->responses->findOneByUserAndSurvey($user, $survey);
         return new JsonResponse($this->serializeFull($survey, $mine));
     }
@@ -67,10 +84,7 @@ class SurveyController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $survey = $this->surveys->find($id);
-        if ($survey === null || !$survey->isPublished()) {
-            return new JsonResponse(['error' => 'Sondage introuvable.'], Response::HTTP_NOT_FOUND);
-        }
+        $survey = $this->findVisibleOr404($id, $user);
         if ($survey->isClosed()) {
             return new JsonResponse(['error' => 'Ce sondage est fermé.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }

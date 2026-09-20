@@ -45,9 +45,20 @@ export default function EventDetailScreen() {
       const resp = await api.get(id);
       setEvent(resp);
     } catch (e) {
+      // 403 / 404 : soit l'événement n'existe pas, soit l'audience
+      // ne correspond pas au profil du user (le backend renvoie 404
+      // dans les deux cas pour ne pas révéler l'existence). On envoie
+      // sur l'écran « Contenu non autorisé ».
+      if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+        router.replace({
+          pathname: '/access-denied',
+          params: { reason: e.status === 403 ? 'forbidden' : 'not-found' },
+        } as never);
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     }
-  }, [id]);
+  }, [id, router]);
 
   useEffect(() => {
     (async () => {
