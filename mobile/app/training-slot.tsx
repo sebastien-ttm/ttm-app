@@ -61,12 +61,13 @@ export default function TrainingSlotDetailScreen() {
         <View style={styles.headerCard}>
           <View style={styles.sportRow}>
             <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="md" />
+            {slot.isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />}
             {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
             {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
             {isPast && <Tag color={COLORS.textMuted} bg={COLORS.background} label="Passé" />}
           </View>
 
-          <Text style={styles.title}>{slot.title}</Text>
+          <Text style={[styles.title, slot.isCancelled && styles.titleCancelled]}>{slot.title}</Text>
 
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />
@@ -148,6 +149,7 @@ const styles = StyleSheet.create({
   },
   sportRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginTop: 4 },
+  titleCancelled: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   metaValue: { fontSize: 15, color: COLORS.text, fontWeight: '500', flex: 1 },
   metaSub: { color: COLORS.textMuted, fontWeight: '400' },

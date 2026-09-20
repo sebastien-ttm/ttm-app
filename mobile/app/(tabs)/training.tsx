@@ -86,15 +86,16 @@ function TrainingScreenInner() {
   useRefreshOnResume(() => { void load(toIsoDate(weekStart)); });
 
   // Groupement par jour de la semaine.
-  //  - Annulés : masqués côté adhérent.
-  //  - Passés (fin dépassée) : masqués aussi — l'adhérent voit
-  //    naturellement le prochain créneau non-fini en tête puisque
-  //    la boucle 1..7 respecte l'ordre chronologique.
+  //  - Annulés : affichés (barrés dans SlotRow) — l'adhérent doit voir
+  //    qu'un créneau habituel a été supprimé pour cette semaine, sinon
+  //    il peut se déplacer sans savoir.
+  //  - Passés (fin dépassée) : masqués — l'adhérent voit naturellement
+  //    le prochain créneau non-fini en tête puisque la boucle 1..7
+  //    respecte l'ordre chronologique.
   const slotsByDay = useMemo(() => {
     const now = Date.now();
     const map = new Map<number, TrainingSlot[]>();
     (data?.slots ?? [])
-      .filter((s) => !s.isCancelled)
       .filter((s) => {
         const endMs = new Date(`${s.date}T${s.startTime}:00`).getTime() + s.durationMinutes * 60_000;
         return !Number.isFinite(endMs) || endMs >= now;
@@ -256,19 +257,31 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
   const router = useRouter();
   const hasExtra = !!slot.description || slot.attachments.length > 0;
 
+  const isCancelled = slot.isCancelled;
+
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
-      style={({ pressed }) => [styles.slot, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.slot,
+        isCancelled && styles.slotCancelled,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.slotTimeCol}>
-        <Text style={styles.slotTime}>{slot.startTime}</Text>
+        <Text style={[styles.slotTime, isCancelled && styles.cancelledText]}>{slot.startTime}</Text>
         <Text style={styles.slotDuration}>{formatDurationHm(slot.durationMinutes)}</Text>
       </View>
       <View style={styles.slotBody}>
-        <Text style={styles.slotTitle} numberOfLines={1}>{slot.title}</Text>
+        <Text
+          style={[styles.slotTitle, isCancelled && styles.cancelledText]}
+          numberOfLines={1}
+        >
+          {slot.title}
+        </Text>
         <View style={styles.slotMeta}>
           <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
+          {isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />}
           {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
           {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
           {hasExtra && (
@@ -278,7 +291,12 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
             </View>
           )}
         </View>
-        <Text style={styles.slotLocation} numberOfLines={1}>📍 {slot.location}</Text>
+        <Text
+          style={[styles.slotLocation, isCancelled && styles.cancelledText]}
+          numberOfLines={1}
+        >
+          📍 {slot.location}
+        </Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} style={{ alignSelf: 'center' }} />
     </Pressable>
