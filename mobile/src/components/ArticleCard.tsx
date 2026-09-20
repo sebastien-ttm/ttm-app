@@ -8,9 +8,10 @@ import { formatRelativeFr } from '@/utils/html';
 /**
  * Carte article — version compacte de la liste Actualités.
  *
- * Layout (2 rangs) :
- *   [🎉 Titre article ...............................] [Auteur · date]
- *   [👍 3] [❤️ 2] [💬 5]
+ * Layout fixe sur 2 rangs (le rang 2 est toujours présent, même sans
+ * réaction) :
+ *   [🎉 Titre article ..........................................]
+ *   [👍 3] [❤️ 2] [💬 5]                             Auteur · date
  *
  * Pas de cover, pas d'excerpt : le résumé complet reste accessible en
  * tapant sur la carte (page /article/{id}). L'objectif est la densité
@@ -19,7 +20,6 @@ import { formatRelativeFr } from '@/utils/html';
 export function ArticleCard({ article }: { article: Article }) {
   const router = useRouter();
   const reactionEntries = Object.entries(article.reactionCounts).filter(([, n]) => n > 0);
-  const hasStats = reactionEntries.length > 0 || article.commentCount > 0;
 
   return (
     <Pressable
@@ -32,17 +32,14 @@ export function ArticleCard({ article }: { article: Article }) {
       ]}
       onPress={() => router.push(`/article/${article.id}` as never)}
     >
-      <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={1}>
-          {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
-          {article.title}
-        </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {article.author.fullName} · {formatRelativeFr(article.publishedAt)}
-        </Text>
-      </View>
+      <Text style={styles.title} numberOfLines={2}>
+        {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
+        {article.title}
+      </Text>
 
-      {hasStats && (
+      {/* Rang 2 toujours affiché : stats à gauche (peut être vide), auteur
+          + date à droite pour ancrer visuellement chaque carte. */}
+      <View style={styles.footer}>
         <View style={styles.stats}>
           {reactionEntries.map(([emoji, n]) => (
             <View key={emoji} style={styles.statBadge}>
@@ -57,7 +54,10 @@ export function ArticleCard({ article }: { article: Article }) {
             </View>
           )}
         </View>
-      )}
+        <Text style={styles.meta} numberOfLines={1}>
+          {article.author.fullName} · {formatRelativeFr(article.publishedAt)}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -81,31 +81,33 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   pressed: { opacity: 0.9 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   title: {
-    flex: 1,
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.1,
-    minWidth: 0,
   },
   titleIcon: { fontSize: 16 },
-  meta: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    flexShrink: 0,
-    maxWidth: '45%',
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 6,
+    minHeight: 20,
   },
   stats: {
     flexDirection: 'row',
     gap: 6,
     flexWrap: 'wrap',
-    marginTop: 6,
+    flexShrink: 1,
+  },
+  meta: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    flexShrink: 0,
+    textAlign: 'right',
+    maxWidth: '55%',
   },
   statBadge: {
     flexDirection: 'row',
