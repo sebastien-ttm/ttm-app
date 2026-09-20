@@ -21,6 +21,12 @@
         {% for staffMember in staff %}
             {% set my_presences = presencesByUser[staffMember.id]|default([]) %}
             {% set unav = unavailableByUser[staffMember.id]|default(null) %}
+            {# Sépare les présences positives (scheduled/attended) des
+               indisponibilités par créneau (status=unavailable) — sans ça,
+               le staff comptait comme « présent sur N créneaux » alors
+               qu'il avait cliqué « Je ne serai pas là » sur certains. #}
+            {% set positive_presences = my_presences|filter(p => p.status != 'unavailable') %}
+            {% set unavailable_presences = my_presences|filter(p => p.status == 'unavailable') %}
             <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:14px;">
                 <h3 style="margin:0 0 12px 0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span style="background:{{ profile == 'encadrant' ? '#dc2626' : '#0d2148' }}; color:#fff; padding:2px 8px; border-radius:4px; font-size:12px;">
@@ -28,16 +34,24 @@
                     </span>
                     {{ staffMember.fullName }}
 
-                    {# Badge de statut : distingue les 3 états #}
+                    {# Badge de statut : semaine entière non-dispo, ou compteurs
+                       présent/absent par créneau, ou aucune réponse. #}
                     {% if unav %}
                         <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
                             ❌ Non dispo cette semaine
                             {% if unav.notes %}<span style="font-weight:normal;">— {{ unav.notes }}</span>{% endif %}
                         </span>
-                    {% elseif my_presences|length > 0 %}
-                        <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
-                            ✓ {{ my_presences|length }} créneau(x)
-                        </span>
+                    {% elseif positive_presences|length > 0 or unavailable_presences|length > 0 %}
+                        {% if positive_presences|length > 0 %}
+                            <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                                ✓ {{ positive_presences|length }} présent{{ positive_presences|length > 1 ? 's' : '' }}
+                            </span>
+                        {% endif %}
+                        {% if unavailable_presences|length > 0 %}
+                            <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                                ✗ {{ unavailable_presences|length }} non dispo
+                            </span>
+                        {% endif %}
                     {% else %}
                         <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
                             ⏳ Aucune réponse
@@ -71,10 +85,14 @@
 
                 {% set available = availableByUser[staffMember.id]|default([]) %}
 
-                {# Signale un conflit : encadrant marqué non-dispo mais avec présences #}
-                {% if unav and my_presences|length > 0 %}
+                {# Signale un conflit : encadrant marqué non-dispo pour toute
+                   la semaine mais avec des créneaux positifs (scheduled /
+                   attended) — le marqueur hebdo est probablement obsolète.
+                   On ignore les 'unavailable' par créneau : ils vont dans
+                   le sens du marqueur, ne sont pas contradictoires. #}
+                {% if unav and positive_presences|length > 0 %}
                     <div style="background:#fef3c7; color:#92400e; padding:10px 12px; border-radius:4px; margin-bottom:12px; font-size:13px;">
-                        ⚠️ Contradiction : cet encadrant est déclaré non-dispo mais a {{ my_presences|length }} présence(s) enregistrée(s). Décidez laquelle prime.
+                        ⚠️ Contradiction : cet encadrant est déclaré non-dispo mais a {{ positive_presences|length }} présence(s) positive(s). Décidez laquelle prime.
                     </div>
                 {% endif %}
 
@@ -112,13 +130,23 @@
                                     <td style="padding:8px;">
                                         {% if p.status == 'attended' %}
                                             <span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:3px; font-size:12px; font-weight:600;">✓ Présent</span>
+                                        {% elseif p.status == 'unavailable' %}
+                                            <span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:3px; font-size:12px; font-weight:600;">✗ Non dispo</span>
                                         {% else %}
                                             <span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:3px; font-size:12px; font-weight:600;">📅 Réservé</span>
                                         {% endif %}
                                     </td>
                                     <td style="padding:8px;">
                                         <div style="display:flex; gap:4px;">
-                                            {% if p.status != 'attended' %}
+                                            {# Un créneau marqué 'unavailable' par l'encadrant
+                                               dit « je ne serai pas là » : ne pas proposer
+                                               « Marquer présent » (contradictoire). Seule
+                                               action offerte : retirer la ligne pour laisser
+                                               l'encadrant re-choisir depuis le mobile, ou
+                                               que l'admin re-positionne via + Pré-positionner. #}
+                                            {% if p.status == 'unavailable' %}
+                                                {# aucune action de statut #}
+                                            {% elseif p.status != 'attended' %}
                                                 <form method="post" action="{{ path('admin_staff_supervision_update', {id: p.id}) }}" style="display:inline;">
                                                     <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
                                                     <input type="hidden" name="status" value="attended">
