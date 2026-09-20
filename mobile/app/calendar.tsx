@@ -145,7 +145,15 @@ function EventRow({ event }: { event: EventItem }) {
       <View style={[styles.bar, { backgroundColor: event.color }]} />
       <View style={styles.body}>
         <View style={styles.header}>
-          <Text style={[styles.type, { color: event.color }]}>{event.typeLabel}</Text>
+          {event.tags.length > 0 ? (
+            <View style={styles.tags}>
+              {event.tags.map((tag) => (
+                <Text key={tag.id} style={[styles.type, { color: tag.color }]}>{tag.name}</Text>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.tags} />
+          )}
           <Text style={styles.date}>
             {event.isAllDay ? formatDate(event.startsAt) : formatDateTime(event.startsAt)}
           </Text>
@@ -185,7 +193,8 @@ const styles = StyleSheet.create({
   },
   bar: { width: 5 },
   body: { flex: 1, padding: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1 },
   type: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   date: { fontSize: 12, color: COLORS.textMuted },
   title: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 4 },

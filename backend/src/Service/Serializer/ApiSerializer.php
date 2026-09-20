@@ -214,6 +214,15 @@ class ApiSerializer
      */
     public function event(Event $e, ?string $myVote = null, ?array $voteCounts = null): array
     {
+        $tags = [];
+        foreach ($e->getTags() as $tag) {
+            $tags[] = [
+                'id' => $tag->getId(),
+                'name' => $tag->getName(),
+                'color' => $tag->getColor(),
+            ];
+        }
+
         return [
             'id' => $e->getId(),
             'title' => $e->getTitle(),
@@ -221,8 +230,7 @@ class ApiSerializer
             'location' => $e->getLocation(),
             'startsAt' => $e->getStartsAt()->format(\DATE_ATOM),
             'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
-            'type' => $e->getType()->value,
-            'typeLabel' => $e->getType()->label(),
+            'tags' => $tags,
             'color' => $e->getColor(),
             'isAllDay' => $e->isAllDay(),
             'audience' => $e->getAudience(),

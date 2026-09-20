@@ -8,6 +8,7 @@ use App\Entity\Banner;
 use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
+use App\Entity\EventTag;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
@@ -122,6 +123,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
             ],
             'Entraînements' => [

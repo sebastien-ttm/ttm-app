@@ -3,13 +3,15 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Event;
+use App\Entity\EventTag;
 use App\Enum\ContentAudience;
-use App\Enum\EventType;
 use App\Enum\Profile;
+use App\Repository\EventTagRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
@@ -18,6 +20,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class EventCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private readonly EventTagRepository $tagsRepo,
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Event::class;
@@ -30,39 +37,6 @@ class EventCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Calendrier')
             ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['startsAt' => 'DESC']);
-    }
-
-    /**
-     * Choix du champ « Type » selon la page.
-     * PAGE_NEW → 7 types actuels.
-     * PAGE_EDIT + autres → 7 types actuels + les legacy (Entrainement,
-     * Social, JourneeCohesion) en fin de liste, préfixés « (ancien) »
-     * pour signaler qu'ils sont conservés pour la migration mais plus
-     * proposés aux nouveaux événements.
-     *
-     * @return array<string, EventType>
-     */
-    private function buildTypeChoices(string $pageName): array
-    {
-        $adminChoices = EventType::adminChoices();
-        if ($pageName === Crud::PAGE_NEW) {
-            return array_combine(
-                array_map(fn (EventType $c) => $c->label(), $adminChoices),
-                $adminChoices,
-            );
-        }
-        $legacy = array_filter(
-            EventType::cases(),
-            fn (EventType $c) => !in_array($c, $adminChoices, true),
-        );
-        $choices = [];
-        foreach ($adminChoices as $c) {
-            $choices[$c->label()] = $c;
-        }
-        foreach ($legacy as $c) {
-            $choices['(ancien) '.$c->label()] = $c;
-        }
-        return $choices;
     }
 
     public function configureActions(Actions $actions): Actions
@@ -82,28 +56,23 @@ class EventCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('title', 'Titre');
-        // Affichage vs saisie du type :
-        //  - PAGE_INDEX / PAGE_DETAIL : on affiche le libellé humain via
-        //    Event::getTypeLabel() (« Bénévolat » plutôt que le nom du case
-        //    enum « Organisation » qu'EA afficherait par défaut).
-        //  - PAGE_NEW : dropdown limité aux 7 types actuels (adminChoices).
-        //  - PAGE_EDIT : dropdown enrichi de tous les cases pour qu'un
-        //    event dont le type actuel est legacy (Entrainement, Social,
-        //    JourneeCohesion…) puisse être migré vers un nouveau type.
-        //    Sans cet enrichissement, ChoiceType Symfony reçoit une
-        //    valeur initiale qui n'est pas dans ses choix : la soumission
-        //    du formulaire échoue silencieusement et l'ancien type reste
-        //    en base. On liste d'abord les 7 nouveaux, puis les legacy
-        //    en fin de liste, préfixés « (ancien) » pour clarté.
-        if (in_array($pageName, [Crud::PAGE_INDEX, Crud::PAGE_DETAIL], true)) {
-            yield TextField::new('typeLabel', 'Type');
-        } else {
-            $typeChoices = $this->buildTypeChoices($pageName);
-            yield ChoiceField::new('type', 'Type')
-                ->setChoices($typeChoices)
-                ->renderAsBadges()
-                ->setHelp('La couleur de l\'événement est dérivée automatiquement du type.');
-        }
+
+        // Tags configurables (remplacent l'ancien enum EventType).
+        // Multi-sélection : un événement peut porter plusieurs tags —
+        // la couleur d'affichage est celle du 1er tag (position asc).
+        yield AssociationField::new('tags', 'Tags')
+            ->setFormTypeOption('by_reference', false)
+            ->setFormTypeOption('choice_label', 'name')
+            ->setFormTypeOption('query_builder', function () {
+                return $this->tagsRepo->createQueryBuilder('t')
+                    ->andWhere('t.active = true')
+                    ->orderBy('t.position', 'ASC')
+                    ->addOrderBy('t.name', 'ASC');
+            })
+            ->setRequired(false)
+            ->setHelp('Sélectionne un ou plusieurs tags. La couleur d\'affichage est celle du premier tag. Les tags se gèrent dans « Tags d\'événements ».')
+            ->formatValue(fn ($value) => $this->formatTagList($value));
+
         yield BooleanField::new('isAllDay', 'Toute la journée')
             ->setHelp('Cocher si l\'événement n\'a pas d\'heure précise — l\'heure ne sera pas affichée dans l\'app mobile.');
         yield BooleanField::new('voteEnabled', 'Soumis au vote de présence')
@@ -140,5 +109,23 @@ class EventCrudController extends AbstractCrudController
                 .'Tag « École de Triathlon » : reste visible par tous, mais devient '
                 .'l\'unique catégorie visible pour les comptes Dirigeant.'
             );
+    }
+
+    /**
+     * Sur les pages INDEX/DETAIL, l'AssociationField multi-values
+     * affiche par défaut « X éléments » — pas très parlant. On rend
+     * ici la liste des libellés séparés par des virgules.
+     */
+    private function formatTagList(mixed $value): string
+    {
+        if ($value === null) return '';
+        $items = is_iterable($value) ? $value : [$value];
+        $names = [];
+        foreach ($items as $t) {
+            if ($t instanceof EventTag) {
+                $names[] = $t->getName();
+            }
+        }
+        return implode(', ', $names);
     }
 }

@@ -78,7 +78,7 @@ export default function EventDetailScreen() {
     );
   }
 
-  const typeLabel = event.typeLabel || 'Événement';
+  const headerTitle = event.tags.length > 0 ? event.tags.map((t) => t.name).join(' · ') : 'Événement';
 
   const start = new Date(event.startsAt);
   const end = event.endsAt ? new Date(event.endsAt) : null;
@@ -86,14 +86,20 @@ export default function EventDetailScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: typeLabel }} />
+      <Stack.Screen options={{ title: headerTitle }} />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
-        <View style={[styles.typeBadge, { backgroundColor: event.color }]}>
-          <Text style={styles.typeBadgeLabel}>{typeLabel}</Text>
-        </View>
+        {event.tags.length > 0 && (
+          <View style={styles.typeBadges}>
+            {event.tags.map((tag) => (
+              <View key={tag.id} style={[styles.typeBadge, { backgroundColor: tag.color }]}>
+                <Text style={styles.typeBadgeLabel}>{tag.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.title}>{event.title}</Text>
 
@@ -181,12 +187,16 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.lg, paddingBottom: SPACING.xxl },
+  typeBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: SPACING.sm,
+  },
   typeBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: RADIUS.sm,
-    marginBottom: SPACING.sm,
   },
   typeBadgeLabel: { color: '#fff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.lg },

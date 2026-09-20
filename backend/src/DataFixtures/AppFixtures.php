@@ -8,7 +8,6 @@ use App\Entity\Event;
 use App\Entity\MenuItem;
 use App\Entity\StaticPage;
 use App\Entity\User;
-use App\Enum\EventType;
 use App\Enum\MenuItemType;
 use App\Enum\Profile;
 use App\Enum\UserType;
@@ -77,18 +76,19 @@ class AppFixtures extends Fixture
             ->setPublishedAt(new \DateTimeImmutable('-3 hours'));
         $manager->persist($a3);
 
-        // -- Events --
+        // -- Events -- (les tags sont gérés dynamiquement en base et
+        // seedés par migration ; on ne les rattache pas ici pour rester
+        // agnostique du fixture — l'admin les associera manuellement).
         $events = [
-            ['title' => 'Triathlon de Toulouse', 'type' => EventType::Course, 'date' => '+45 days', 'location' => 'Toulouse'],
-            ['title' => 'Stage Banyuls', 'type' => EventType::Stage, 'date' => '+30 days', 'location' => 'Banyuls-sur-Mer'],
-            ['title' => 'Sortie longue VTT', 'type' => EventType::Entrainement, 'date' => '+5 days', 'location' => 'Lac de la Ramée'],
-            ['title' => 'Repas de fin de saison', 'type' => EventType::Social, 'date' => '+90 days', 'location' => 'Restaurant Le Bistrot'],
-            ['title' => 'Ironman Vichy', 'type' => EventType::Course, 'date' => '+120 days', 'location' => 'Vichy'],
+            ['title' => 'Triathlon de Toulouse',      'date' => '+45 days',  'location' => 'Toulouse'],
+            ['title' => 'Stage Banyuls',              'date' => '+30 days',  'location' => 'Banyuls-sur-Mer'],
+            ['title' => 'Sortie longue VTT',          'date' => '+5 days',   'location' => 'Lac de la Ramée'],
+            ['title' => 'Repas de fin de saison',     'date' => '+90 days',  'location' => 'Restaurant Le Bistrot'],
+            ['title' => 'Ironman Vichy',              'date' => '+120 days', 'location' => 'Vichy'],
         ];
         foreach ($events as $e) {
             $event = (new Event())
                 ->setTitle($e['title'])
-                ->setType($e['type'])
                 ->setStartsAt(new \DateTimeImmutable($e['date']))
                 ->setLocation($e['location']);
             $manager->persist($event);

@@ -111,14 +111,17 @@ function EventRow({ event }: { event: EventItem }) {
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-        {/* Badge type d'événement (Compétition, Bénévolat, …) — libellé
-            servi par le backend (event.typeLabel). Rendu en pastille de
-            la couleur du type, distinct du titre. */}
-        {event.typeLabel ? (
-          <View style={[styles.typeChip, { backgroundColor: color }]}>
-            <Text style={styles.typeChipLabel} numberOfLines={1}>{event.typeLabel}</Text>
+        {/* Tags d'événement (configurables côté backend). Rendus en
+            pastilles de la couleur propre à chaque tag, sous le titre. */}
+        {event.tags.length > 0 && (
+          <View style={styles.tagsRow}>
+            {event.tags.map((tag) => (
+              <View key={tag.id} style={[styles.typeChip, { backgroundColor: tag.color }]}>
+                <Text style={styles.typeChipLabel} numberOfLines={1}>{tag.name}</Text>
+              </View>
+            ))}
           </View>
-        ) : null}
+        )}
         {/* Heure (en gras pour visibilité) OU « Toute la journée » + lieu
             si présent. Multi-jour → uniquement le lieu. */}
         {(() => {
@@ -226,13 +229,16 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   eventSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   eventTime: { fontSize: 13, fontWeight: '700', color: COLORS.text },
-  typeChip: {
-    alignSelf: 'flex-start',
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
     marginTop: 2,
+  },
+  typeChip: {
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: RADIUS.sm,
-    maxWidth: '100%',
   },
   typeChipLabel: {
     color: '#fff',

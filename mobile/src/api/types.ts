@@ -124,6 +124,17 @@ export type MenuItem = {
 
 export type AttendanceStatus = 'yes' | 'no' | 'maybe';
 
+/**
+ * Tag événement — libellé + couleur configurables côté backend
+ * (entité EventTag). Renvoyés dans EventItem.tags dans l'ordre
+ * d'affichage (position asc).
+ */
+export type EventTagSummary = {
+  id: number;
+  name: string;
+  color: string;
+};
+
 export type EventItem = {
   id: number;
   title: string;
@@ -131,22 +142,12 @@ export type EventItem = {
   location: string | null;
   startsAt: string;
   endsAt: string | null;
-  type:
-    | 'course'
-    | 'stage'
-    | 'entrainement'
-    | 'social'
-    | 'organisation'
-    | 'journee_cohesion'
-    | 'tenues'
-    | 'cohesion'
-    | 'journee'
-    | 'informations';
   /**
-   * Libellé humain FR du type, calculé côté backend (source de vérité).
-   * Le mobile n'a plus besoin d'une carte type→label dupliquée.
+   * Tags dynamiques (configurables côté backend). Un événement peut
+   * en porter 0..n. Le premier détermine la couleur d'affichage
+   * principale (event.color).
    */
-  typeLabel: string;
+  tags: EventTagSummary[];
   color: string;
   /** True = événement « toute la journée » : ne pas afficher l'heure. */
   isAllDay: boolean;

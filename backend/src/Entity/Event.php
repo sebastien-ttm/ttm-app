@@ -4,8 +4,9 @@ namespace App\Entity;
 
 use App\Entity\Trait\AudienceAwareTrait;
 use App\Entity\Trait\ContentAudienceAwareTrait;
-use App\Enum\EventType;
 use App\Repository\EventRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -16,6 +17,9 @@ class Event
 {
     use AudienceAwareTrait;
     use ContentAudienceAwareTrait;
+
+    /** Couleur par défaut si aucun tag n'est associé — gris neutre. */
+    public const DEFAULT_COLOR = '#607D8B';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -39,8 +43,17 @@ class Event
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $endsAt = null;
 
-    #[ORM\Column(length: 16, enumType: EventType::class)]
-    private EventType $type = EventType::Entrainement;
+    /**
+     * Tags libres pilotés depuis l'admin (remplace l'ancien enum
+     * EventType). Un événement peut porter 0..n tags — sa couleur
+     * d'affichage est déduite du premier (position asc).
+     *
+     * @var Collection<int, EventTag>
+     */
+    #[ORM\ManyToMany(targetEntity: EventTag::class)]
+    #[ORM\JoinTable(name: 'event_event_tag')]
+    #[ORM\OrderBy(['position' => 'ASC', 'name' => 'ASC'])]
+    private Collection $tags;
 
     /**
      * Événement « toute la journée » : pas d'heure significative.
@@ -76,6 +89,11 @@ class Event
     #[ORM\Column(name: 'external_registration_url', length: 500, nullable: true)]
     private ?string $externalRegistrationUrl = null;
 
+    public function __construct()
+    {
+        $this->tags = new ArrayCollection();
+    }
+
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
     public function setTitle(string $title): self { $this->title = $title; return $this; }
@@ -87,8 +105,23 @@ class Event
     public function setStartsAt(\DateTimeImmutable $d): self { $this->startsAt = $d; return $this; }
     public function getEndsAt(): ?\DateTimeImmutable { return $this->endsAt; }
     public function setEndsAt(?\DateTimeImmutable $d): self { $this->endsAt = $d; return $this; }
-    public function getType(): EventType { return $this->type; }
-    public function setType(EventType $type): self { $this->type = $type; return $this; }
+
+    /** @return Collection<int, EventTag> */
+    public function getTags(): Collection { return $this->tags; }
+
+    public function addTag(EventTag $tag): self
+    {
+        if (!$this->tags->contains($tag)) {
+            $this->tags->add($tag);
+        }
+        return $this;
+    }
+
+    public function removeTag(EventTag $tag): self
+    {
+        $this->tags->removeElement($tag);
+        return $this;
+    }
 
     public function isAllDay(): bool { return $this->isAllDay; }
     public function setIsAllDay(bool $v): self { $this->isAllDay = $v; return $this; }
@@ -105,21 +138,14 @@ class Event
         return $this;
     }
 
-    /** Couleur dérivée du type — plus de surcharge possible (palette club). */
+    /**
+     * Couleur d'affichage dérivée du premier tag (ordre asc). Aucune
+     * étiquette → gris neutre (DEFAULT_COLOR).
+     */
     public function getColor(): string
     {
-        return $this->type->color();
-    }
-
-    /**
-     * Libellé humain FR du type (« Bénévolat », « Compétition »…).
-     * Utilisé pour l'affichage sur les pages INDEX / DETAIL admin — le
-     * ChoiceConfigurator d'EasyAdmin affiche autrement le `->name` du
-     * case enum (ex : « Organisation » au lieu de « Bénévolat »).
-     */
-    public function getTypeLabel(): string
-    {
-        return $this->type->label();
+        $first = $this->tags->first();
+        return $first instanceof EventTag ? $first->getColor() : self::DEFAULT_COLOR;
     }
 
     public function __toString(): string { return $this->title ?? '#'.$this->id; }
