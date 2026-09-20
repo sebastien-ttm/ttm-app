@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Repository\LoginEventRepository;
+use App\Repository\TrainingPlanOpenRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,6 +25,7 @@ class StatsController extends AbstractController
         private readonly LoginEventRepository $events,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly TrainingPlanOpenRepository $planOpens,
     ) {
     }
 
@@ -67,6 +69,27 @@ class StatsController extends AbstractController
             $cursor = $cursor->modify('+1 day');
         }
 
+        // Ouvertures uniques des PDF de programme, groupées par plan
+        // (chaque plan a son weekStartsAt). Un adhérent est compté une
+        // seule fois par plan quel que soit le nombre de clics.
+        $planOpens = $this->planOpens->weeklyDistinctOpens();
+        $planOpensRows = array_map(static function (array $r) {
+            $week = $r['weekStartsAt'];
+            return [
+                'planId' => $r['planId'],
+                'title' => $r['title'],
+                'category' => $r['category'],
+                'weekStartsAt' => $week,
+                'weekLabel' => $week !== null
+                    ? sprintf('S%s · %s', $week->format('W'), $week->format('Y'))
+                    : '—',
+                'weekDates' => $week !== null
+                    ? sprintf('%s au %s', $week->format('d/m'), $week->modify('+6 days')->format('d/m'))
+                    : '',
+                'openCount' => $r['openCount'],
+            ];
+        }, $planOpens);
+
         return $this->render('admin/stats.html.twig', [
             'kpis' => [
                 'activeToday' => $activeToday,
@@ -76,6 +99,7 @@ class StatsController extends AbstractController
                 'neverLoggedIn' => $neverLoggedIn,
             ],
             'series' => $series,
+            'planOpens' => $planOpensRows,
             'now' => $now,
             'periodStart' => $monthStart,
         ]);

@@ -3,10 +3,14 @@
 namespace App\Controller\Api;
 
 use App\Entity\TrainingPlan;
+use App\Entity\TrainingPlanOpen;
 use App\Entity\User;
+use App\Repository\TrainingPlanOpenRepository;
 use App\Repository\TrainingPlanRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,6 +27,8 @@ class TrainingPlanController extends AbstractController
         private readonly TrainingPlanRepository $plans,
         private readonly ApiSerializer $serializer,
         private readonly AudienceFilter $audienceFilter,
+        private readonly TrainingPlanOpenRepository $opens,
+        private readonly EntityManagerInterface $em,
         private readonly string $trainingDir,
     ) {
     }
@@ -79,6 +85,12 @@ class TrainingPlanController extends AbstractController
         if (!is_file($absolute)) {
             throw $this->createNotFoundException();
         }
+
+        // Trace l'ouverture (1 seule ligne par couple user/plan grâce à
+        // l'index unique). Best-effort : un échec de persist ne doit pas
+        // bloquer le téléchargement du PDF.
+        $this->recordOpen($viewer, $plan);
+
         $response = new BinaryFileResponse($absolute);
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_INLINE,
@@ -86,5 +98,23 @@ class TrainingPlanController extends AbstractController
         );
         $response->headers->set('Content-Type', 'application/pdf');
         return $response;
+    }
+
+    private function recordOpen(User $user, TrainingPlan $plan): void
+    {
+        try {
+            if ($this->opens->findOneByUserAndPlan($user, $plan) !== null) {
+                return;
+            }
+            $this->em->persist(new TrainingPlanOpen($user, $plan));
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException) {
+            // Race condition entre 2 requêtes concurrentes : l'index unique
+            // rejette la seconde. Ce n'est pas une erreur — le premier
+            // enregistrement suffit.
+        } catch (\Throwable) {
+            // Toute autre erreur (SGBD down, connexion perdue) : on ignore
+            // pour ne pas priver l'adhérent du PDF.
+        }
     }
 }
