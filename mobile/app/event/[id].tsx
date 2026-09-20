@@ -11,6 +11,7 @@ import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
 import { addEventToCalendar } from '@/lib/addToCalendar';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -60,6 +61,9 @@ export default function EventDetailScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  // Titre partagé (web) : nom de l'événement + description.
+  useDocumentTitle(event?.title, event?.description ?? null);
 
   if (loading) {
     return (

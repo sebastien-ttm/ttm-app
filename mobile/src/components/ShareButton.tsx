@@ -1,8 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, Share, StyleSheet, Text } from 'react-native';
 
 import { COLORS, RADIUS } from '@/config';
+
+const APP_NAME = 'TTM Toulouse Métropole';
+
+/**
+ * Compose le titre partagé : le nom de la page en avant, puis le nom
+ * de l'appli en complément. Fallback : nom de l'appli seul si aucun
+ * titre spécifique n'a été passé.
+ */
+function composeShareTitle(pageTitle?: string): string {
+  const t = (pageTitle ?? '').trim();
+  return t === '' ? APP_NAME : `${t} · ${APP_NAME}`;
+}
 
 /**
  * Bouton « Partager » unifié web + natif.
@@ -28,6 +40,7 @@ export function ShareButton({ path, title, label = 'Partager' }: {
 
   async function onPress() {
     const url = absoluteUrl(path);
+    const shareTitle = composeShareTitle(title);
 
     // Web : Web Share API (mobile) → clipboard fallback (desktop).
     if (Platform.OS === 'web') {
@@ -35,7 +48,7 @@ export function ShareButton({ path, title, label = 'Partager' }: {
       const nav = typeof navigator !== 'undefined' ? navigator : undefined;
       if (nav && typeof nav.share === 'function') {
         try {
-          await nav.share({ title, url });
+          await nav.share({ title: shareTitle, text: shareTitle, url });
           return;
         } catch {
           /* user a annulé → on ne fait rien de plus */
@@ -55,12 +68,15 @@ export function ShareButton({ path, title, label = 'Partager' }: {
       return;
     }
 
-    // Natif : Share.share (RN)
+    // Natif : Share.share (RN). `title` est utilisé par Android comme
+    // titre de la Share Sheet. `message` porte le contenu partagé —
+    // on préfixe le titre composé pour qu'il apparaisse en tête dans
+    // les apps qui n'exploitent que ce champ (WhatsApp, iMessage…).
     try {
       await Share.share({
-        message: title ? `${title}\n${url}` : url,
+        message: `${shareTitle}\n${url}`,
         url,
-        title,
+        title: shareTitle,
       });
     } catch {
       /* silencieux */

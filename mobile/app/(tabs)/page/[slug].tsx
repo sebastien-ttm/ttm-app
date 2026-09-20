@@ -9,6 +9,7 @@ import type { StaticPage, StaticPageNode } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS } from '@/config';
 import { htmlToText } from '@/utils/html';
@@ -28,6 +29,9 @@ export default function PageScreen() {
   useEffect(() => {
     navigation.setOptions({ title: page?.title ?? '' });
   }, [navigation, page?.title]);
+
+  // Web : document.title + og:title portent le nom de la page.
+  useDocumentTitle(page?.title, page ? htmlToText(page.content).slice(0, 160) : null);
 
   const load = useCallback(async () => {
     if (!slug) return;

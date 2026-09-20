@@ -25,8 +25,9 @@ import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
 import { COLORS } from '@/config';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { formatDate, formatRelativeFr } from '@/utils/html';
+import { formatDate, formatRelativeFr, htmlExcerpt } from '@/utils/html';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -45,6 +46,10 @@ export default function ArticleScreen() {
   useEffect(() => {
     navigation.setOptions({ title: article?.title ?? 'Article' });
   }, [navigation, article?.title]);
+
+  // Sur le web, met à jour <title>, og:title, twitter:title (et
+  // description) — pour que le lien partagé porte le nom de l'article.
+  useDocumentTitle(article?.title, article ? htmlExcerpt(article.content, 160) : null);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id)) return;

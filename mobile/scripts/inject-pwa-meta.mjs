@@ -43,6 +43,17 @@ const HEAD_INJECTION = `
     <meta name="description" content="Application du club Triathlon Toulouse Métropole." />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
 
+    <!-- Open Graph / Twitter — mis à jour dynamiquement par
+         useDocumentTitle() sur les pages de détail (article, event,
+         page statique, sondage). Les valeurs par défaut ci-dessous
+         restent affichées pour les URLs sans page-title (racine…). -->
+    <meta property="og:title" content="TTM — Triathlon Toulouse Métropole" />
+    <meta property="og:description" content="Application du club Triathlon Toulouse Métropole." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="TTM — Triathlon Toulouse Métropole" />
+    <meta name="twitter:description" content="Application du club Triathlon Toulouse Métropole." />
+
     <!-- Version embarquée dans le bundle courant. Le WebUpdateGate
          compare cette valeur au /version.json récent pour détecter
          un déploiement sans passer par un rebuild. -->

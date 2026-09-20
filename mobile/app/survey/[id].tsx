@@ -21,6 +21,7 @@ import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
 /**
@@ -41,6 +42,8 @@ export default function SurveyScreen() {
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+
+  useDocumentTitle(survey?.title, survey?.description ?? null);
 
   const load = useCallback(async () => {
     if (!id) { setError('Identifiant invalide.'); setLoading(false); return; }
