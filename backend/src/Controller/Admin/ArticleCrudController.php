@@ -87,8 +87,15 @@ class ArticleCrudController extends AbstractCrudController
             ->setNumOfRows(15)
             ->setHelp('Glissez-déposez ou collez une image dans l\'éditeur pour l\'insérer. Cliquez sur l\'image pour la redimensionner.')
             ->onlyOnForms();
+        // Choix d'auteur : tous les users qui ont accès au backend, i.e.
+        // rôle direct >= editeur OU membre du Comité Directeur (qui reçoit
+        // ROLE_EDITEUR via getRoles() même quand role='user' en base). Sans
+        // le OR boardRole, un membre CoDir ne se voyait pas lui-même dans
+        // la liste au moment de créer son propre article.
         yield AssociationField::new('author', 'Auteur')
-            ->setQueryBuilder(fn ($qb) => $qb->andWhere("entity.role IN ('editeur', 'entraineur', 'admin')"));
+            ->setQueryBuilder(fn ($qb) => $qb->andWhere(
+                "entity.role IN ('editeur', 'entraineur', 'admin') OR entity.boardRole IS NOT NULL"
+            ));
         yield DateTimeField::new('publishedAt', 'Publication')
             ->setRequired(false)
             ->setHelp('Laisser vide = publier immédiatement. Date future = publication programmée.');
