@@ -65,7 +65,7 @@
                 plugins: 'autoresize lists link image table code emoticons',
                 toolbar:
                     'undo redo | blocks | bold italic underline | bullist numlist | ' +
-                    'link image table emoticons ttmButton | alignleft aligncenter alignright alignjustify | code',
+                    'link ttmInternalLink image table emoticons ttmButton | alignleft aligncenter alignright alignjustify | code',
                 block_formats: 'Paragraphe=p; Titre 2=h2; Titre 3=h3; Citation=blockquote',
                 image_caption: true,
                 image_advtab: true,
@@ -148,6 +148,101 @@
                             },
                         });
                     };
+
+                    /* Cache des suggestions (pages + événements). Chargé
+                       à la 1re ouverture du picker et réutilisé ensuite. */
+                    var linkCache = null;
+                    var linkFetching = null;
+
+                    function fetchLinkSuggestions() {
+                        if (linkCache !== null) return Promise.resolve(linkCache);
+                        if (linkFetching !== null) return linkFetching;
+                        linkFetching = fetch('/admin/link-suggestions', { credentials: 'same-origin' })
+                            .then(function (r) { return r.ok ? r.json() : { pages: [], events: [] }; })
+                            .then(function (d) {
+                                linkCache = d;
+                                linkFetching = null;
+                                return d;
+                            })
+                            .catch(function () {
+                                linkFetching = null;
+                                return { pages: [], events: [] };
+                            });
+                        return linkFetching;
+                    }
+
+                    function esc(s) {
+                        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    }
+
+                    /* Ouvre le picker interne. `kind` = 'page' | 'event'. */
+                    function openInternalLinkPicker(kind) {
+                        fetchLinkSuggestions().then(function (data) {
+                            var items = kind === 'page' ? (data.pages || []) : (data.events || []);
+                            var selectedText = editor.selection.getContent({ format: 'text' });
+
+                            /* Construit la liste des options pour le SelectBox
+                               TinyMCE — { value: url, text: libellé affiché }. */
+                            var options = items.map(function (it) {
+                                var label = kind === 'event' && it.startsAtLabel
+                                    ? it.title + '  (' + it.startsAtLabel + ')'
+                                    : it.title;
+                                return { value: it.url, text: label };
+                            });
+                            if (options.length === 0) {
+                                editor.notificationManager.open({
+                                    text: kind === 'page'
+                                        ? 'Aucune page statique publiée.'
+                                        : 'Aucun événement dans la fenêtre (-60 j / +12 mois).',
+                                    type: 'info',
+                                    timeout: 3000,
+                                });
+                                return;
+                            }
+                            options.unshift({ value: '', text: '— Choisir —' });
+
+                            editor.windowManager.open({
+                                title: kind === 'page' ? 'Lien vers une page' : 'Lien vers un événement',
+                                body: {
+                                    type: 'panel',
+                                    items: [
+                                        { type: 'selectbox', name: 'url', label: kind === 'page' ? 'Page' : 'Événement', items: options },
+                                        { type: 'input', name: 'label', label: 'Texte du lien (vide = titre)' },
+                                    ],
+                                },
+                                initialData: { url: '', label: selectedText || '' },
+                                buttons: [
+                                    { type: 'cancel', text: 'Annuler' },
+                                    { type: 'submit', text: 'Insérer', primary: true },
+                                ],
+                                onSubmit: function (api) {
+                                    var d = api.getData();
+                                    var url = (d.url || '').trim();
+                                    if (url === '') { api.close(); return; }
+                                    /* Retrouve le libellé par défaut (titre de la page/événement)
+                                       si l'utilisateur n'a rien saisi. */
+                                    var picked = items.find(function (x) { return x.url === url; });
+                                    var label = (d.label || '').trim() || (picked ? picked.title : url);
+                                    editor.insertContent('<a href="' + esc(url) + '">' + esc(label) + '</a>');
+                                    api.close();
+                                },
+                            });
+                        });
+                    }
+
+                    editor.ui.registry.addMenuButton('ttmInternalLink', {
+                        text: 'Lien interne',
+                        tooltip: 'Insérer un lien vers une page ou un événement',
+                        fetch: function (cb) {
+                            cb([
+                                { type: 'menuitem', text: 'Vers une page statique',
+                                  onAction: function () { openInternalLinkPicker('page'); } },
+                                { type: 'menuitem', text: 'Vers un événement calendrier',
+                                  onAction: function () { openInternalLinkPicker('event'); } },
+                            ]);
+                        },
+                    });
 
                     editor.ui.registry.addMenuButton('ttmButton', {
                         text: 'Bouton',
