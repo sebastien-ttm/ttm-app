@@ -18,7 +18,9 @@ export default function PageScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const navigation = useNavigation();
-  const goBack = useGoBackOrHome();
+  // Fallback vers l'onglet Club (les pages statiques y sont indexées)
+  // plutôt que Actualités quand il n'y a pas d'historique (deep-link).
+  const goBack = useGoBackOrHome('/(tabs)/practical');
   const slug = String(params.slug ?? '');
 
   const [page, setPage] = useState<StaticPage | null>(null);
