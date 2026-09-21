@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { articles as articlesApi } from '@/api/resources';
@@ -15,6 +15,14 @@ import { COLORS, RADIUS } from '@/config';
  *  - Pas de compteurs affichés ici. La page de détail n'expose que le
  *    choix personnel — l'agrégat (compteurs par emoji) reste réservé
  *    à la liste des articles (ArticleCard).
+ *
+ * L'état `mine` est initialisé une fois depuis `initialMine` au mount
+ * et géré exclusivement en local ensuite (aucun useEffect « sync »
+ * depuis les props — le parent ne refetch pas l'article après un
+ * clic, donc `initialMine` reste figé à la valeur pré-clic et
+ * écraserait tout le travail optimiste). ReactionBar est remounté
+ * proprement par le parent quand l'article change (setArticle(null)
+ * sur changement d'id) : rien à synchroniser en cours de vie.
  */
 type Props = {
   articleId: number;
@@ -27,16 +35,6 @@ export function ReactionBar({ articleId, initialMine, onChange }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const mineRef = useRef<string | null>(mine);
   mineRef.current = mine;
-
-  // Sync défensif : si l'article parent se recharge et fournit un
-  // initialMine différent (ex : reconnexion, changement de compte lié),
-  // on adopte la vérité serveur — tant qu'on n'est pas au milieu d'un
-  // clic (busy) pour ne pas écraser un choix en cours d'envoi.
-  useEffect(() => {
-    if (busy !== null) return;
-    const next = initialMine[0] ?? null;
-    if (next !== mineRef.current) setMine(next);
-  }, [initialMine, busy]);
 
   async function toggle(emoji: ReactionEmoji) {
     if (busy) return;
