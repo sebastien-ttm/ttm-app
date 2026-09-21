@@ -5,44 +5,43 @@ import { articles as articlesApi } from '@/api/resources';
 import { REACTION_EMOJIS, type ReactionEmoji } from '@/api/types';
 import { COLORS } from '@/config';
 
+/**
+ * Barre de réactions d'article (page détail).
+ *
+ * Comportement :
+ *  - Exclusivité : un user a au plus UN emoji actif à la fois.
+ *    Cliquer un nouvel emoji retire automatiquement l'ancien (garanti
+ *    aussi côté backend, cf. ArticleController::toggleReaction).
+ *  - Pas de compteurs affichés ici. La page de détail n'expose que le
+ *    choix personnel — l'agrégat (compteurs par emoji) reste réservé
+ *    à la liste des articles (ArticleCard).
+ */
 type Props = {
   articleId: number;
-  initialCounts: Record<string, number>;
   initialMine: string[];
   onChange?: (counts: Record<string, number>) => void;
 };
 
-export function ReactionBar({ articleId, initialCounts, initialMine, onChange }: Props) {
-  const [counts, setCounts] = useState<Record<string, number>>(initialCounts);
-  const [mine, setMine] = useState<Set<string>>(new Set(initialMine));
+export function ReactionBar({ articleId, initialMine, onChange }: Props) {
+  const [mine, setMine] = useState<string | null>(initialMine[0] ?? null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function toggle(emoji: ReactionEmoji) {
     if (busy) return;
     setBusy(emoji);
 
-    // Optimistic update
-    const wasActive = mine.has(emoji);
-    const newMine = new Set(mine);
-    const newCounts = { ...counts };
-    if (wasActive) {
-      newMine.delete(emoji);
-      newCounts[emoji] = Math.max(0, (newCounts[emoji] ?? 0) - 1);
-    } else {
-      newMine.add(emoji);
-      newCounts[emoji] = (newCounts[emoji] ?? 0) + 1;
-    }
-    setMine(newMine);
-    setCounts(newCounts);
+    // Optimistic exclusif : si on reclique la même → on efface ; sinon
+    // on remplace directement (pas de double-affichage transitoire).
+    const previous = mine;
+    setMine(previous === emoji ? null : emoji);
 
     try {
       const resp = await articlesApi.toggleReaction(articleId, emoji);
-      setCounts(resp.reactionCounts);
+      setMine(resp.myReactions[0] ?? null);
       onChange?.(resp.reactionCounts);
     } catch {
       // Revert on failure
-      setMine(new Set(mine));
-      setCounts(counts);
+      setMine(previous);
     } finally {
       setBusy(null);
     }
@@ -51,8 +50,7 @@ export function ReactionBar({ articleId, initialCounts, initialMine, onChange }:
   return (
     <View style={styles.row}>
       {REACTION_EMOJIS.map((emoji) => {
-        const count = counts[emoji] ?? 0;
-        const active = mine.has(emoji);
+        const active = mine === emoji;
         return (
           <Pressable
             key={emoji}
@@ -61,7 +59,6 @@ export function ReactionBar({ articleId, initialCounts, initialMine, onChange }:
             style={[styles.button, active && styles.buttonActive, busy === emoji && styles.buttonBusy]}
           >
             <Text style={styles.emoji}>{emoji}</Text>
-            {count > 0 && <Text style={[styles.count, active && styles.countActive]}>{count}</Text>}
           </Pressable>
         );
       })}
@@ -72,19 +69,17 @@ export function ReactionBar({ articleId, initialCounts, initialMine, onChange }:
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   button: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.background,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 4,
+    minWidth: 44,
   },
   buttonActive: { backgroundColor: '#FFE6E6', borderColor: COLORS.primary },
   buttonBusy: { opacity: 0.5 },
-  emoji: { fontSize: 16 },
-  count: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  countActive: { color: COLORS.primary },
+  emoji: { fontSize: 18 },
 });

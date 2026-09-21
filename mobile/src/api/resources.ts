@@ -37,7 +37,13 @@ export const articles = {
   addComment: (id: number, content: string) =>
     api.post<Comment>(`/api/articles/${id}/comments`, { content }),
   toggleReaction: (id: number, emoji: string) =>
-    api.put<{ action: 'added' | 'removed'; emoji: string; reactionCounts: Record<string, number> }>(
+    api.put<{
+      action: 'added' | 'removed';
+      emoji: string;
+      reactionCounts: Record<string, number>;
+      /** Réactions du user courant après l'opération (0 ou 1 emoji — exclusif). */
+      myReactions: string[];
+    }>(
       `/api/articles/${id}/reactions`,
       { emoji },
     ),

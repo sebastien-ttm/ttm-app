@@ -171,22 +171,45 @@ class ArticleController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $existing = $this->reactions->findOne($article, $user, $emoji);
-        if ($existing !== null) {
-            $this->em->remove($existing);
-            $action = 'removed';
-        } else {
+        // Exclusivité : un user a AU PLUS une réaction par article.
+        //  - Re-clic sur son emoji actuel   → suppression (aucune réaction).
+        //  - Clic sur un autre emoji        → l'ancienne est supprimée avant
+        //                                     de poser la nouvelle.
+        //  - Premier clic                   → ajoute simplement.
+        $existingMine = $this->reactions->findAllByUserAndArticle($user, $article);
+        $currentEmoji = null;
+        foreach ($existingMine as $r) {
+            if ($r->getEmoji() === $emoji) {
+                $currentEmoji = $r->getEmoji();
+            }
+            // On efface tout : soit re-toggle de l'emoji courant, soit
+            // remplacement par un autre. Dans les deux cas, la ligne
+            // existante disparaît.
+            $this->em->remove($r);
+        }
+
+        $action = 'removed';
+        if ($currentEmoji === null) {
+            // Pas de re-toggle : on pose la nouvelle réaction.
             $this->em->persist(new Reaction($article, $user, $emoji));
             $action = 'added';
         }
         $this->em->flush();
 
-        // Refresh counts
+        // Refresh counts + réactions du user (renvoyées pour permettre au
+        // client de resynchroniser son état sans re-fetch complet).
         $this->em->refresh($article);
+        $myReactions = [];
+        foreach ($article->getReactions() as $r) {
+            if ($r->getUser()->getId() === $user->getId()) {
+                $myReactions[] = $r->getEmoji();
+            }
+        }
         return new JsonResponse([
             'action' => $action,
             'emoji' => $emoji,
             'reactionCounts' => $article->getReactionCounts(),
+            'myReactions' => $myReactions,
         ]);
     }
 }

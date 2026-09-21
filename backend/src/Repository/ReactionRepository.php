@@ -22,4 +22,15 @@ class ReactionRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['article' => $article, 'user' => $user, 'emoji' => $emoji]);
     }
+
+    /**
+     * Toutes les réactions d'un user sur un article — utilisé pour
+     * imposer l'exclusivité (1 seule réaction par user par article).
+     *
+     * @return list<Reaction>
+     */
+    public function findAllByUserAndArticle(User $user, Article $article): array
+    {
+        return $this->findBy(['user' => $user, 'article' => $article]);
+    }
 }

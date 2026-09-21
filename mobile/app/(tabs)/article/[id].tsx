@@ -146,7 +146,6 @@ export default function ArticleScreen() {
               <Text style={styles.sectionTitle}>Réactions</Text>
               <ReactionBar
                 articleId={article.id}
-                initialCounts={article.reactionCounts}
                 initialMine={article.myReactions}
               />
             </View>
