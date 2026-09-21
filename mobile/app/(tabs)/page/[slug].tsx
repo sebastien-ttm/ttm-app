@@ -10,7 +10,6 @@ import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS } from '@/config';
 import { htmlToText } from '@/utils/html';
 
@@ -18,9 +17,16 @@ export default function PageScreen() {
   const params = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const navigation = useNavigation();
-  // Fallback vers l'onglet Club (les pages statiques y sont indexées)
-  // plutôt que Actualités quand il n'y a pas d'historique (deep-link).
-  const goBack = useGoBackOrHome('/(tabs)/practical');
+  // Retour explicite vers l'onglet Club — les pages statiques y sont
+  // indexées, c'est le contexte naturel de sortie. On ne passe PAS par
+  // router.back() : les changements d'onglet ne sont pas empilés dans
+  // l'historique de navigation (semantics `navigate` par défaut sur
+  // Tabs), donc back() renverrait sur l'écran root (Actualités) même
+  // quand l'user était sur Club juste avant. Cohérent avec le bouton
+  // flèche gauche du header (backToPractical).
+  const goBack = useCallback(() => {
+    router.replace('/(tabs)/practical' as never);
+  }, [router]);
   const slug = String(params.slug ?? '');
 
   const [page, setPage] = useState<StaticPage | null>(null);
