@@ -7,13 +7,18 @@ type Props = {
   label: string;
   color: string;
   size?: 'sm' | 'md';
+  /**
+   * Barre le libellé (utile pour signaler visuellement un créneau
+   * annulé sans perdre l'info du sport).
+   */
+  strikethrough?: boolean;
 };
 
 /**
  * Badge coloré pour identifier le sport d'un créneau.
  * La couleur vient du backend (enum Sport::color()).
  */
-export function SportBadge({ icon, label, color, size = 'md' }: Props) {
+export function SportBadge({ icon, label, color, size = 'md', strikethrough = false }: Props) {
   const isSm = size === 'sm';
   return (
     <View
@@ -23,8 +28,8 @@ export function SportBadge({ icon, label, color, size = 'md' }: Props) {
         { backgroundColor: hexToRgba(color, 0.12), borderColor: hexToRgba(color, 0.35) },
       ]}
     >
-      <Text style={[styles.icon, isSm && styles.iconSm]}>{icon}</Text>
-      <Text style={[styles.label, isSm && styles.labelSm, { color }]}>{label}</Text>
+      <Text style={[styles.icon, isSm && styles.iconSm, strikethrough && styles.strikethrough]}>{icon}</Text>
+      <Text style={[styles.label, isSm && styles.labelSm, { color }, strikethrough && styles.strikethrough]}>{label}</Text>
     </View>
   );
 }
@@ -51,4 +56,5 @@ const styles = StyleSheet.create({
   iconSm: { fontSize: 12 },
   label: { fontWeight: '700', fontSize: 13 },
   labelSm: { fontSize: 11 },
+  strikethrough: { textDecorationLine: 'line-through' },
 });

@@ -48,6 +48,9 @@ function TrainingScreenInner() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Vue « Créneaux d'entraînement » : chronologique (défaut, liste par
+  // jour) ou grille calendrier semaine (Google Calendar simplifié).
+  const [slotsView, setSlotsView] = useState<'chrono' | 'grid'>('chrono');
 
   const load = useCallback(async (mondayIso: string) => {
     try {
@@ -227,22 +230,44 @@ function TrainingScreenInner() {
                 />
               ) : (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
-                  {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                    const slots = slotsByDay.get(day) ?? [];
-                    if (slots.length === 0) return null;
-                    const dayDate = addDays(weekStart, day - 1);
-                    return (
-                      <View key={day} style={styles.dayBlock}>
-                        <Text style={styles.dayHeader}>
-                          {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
-                        </Text>
-                        {slots.map((s, idx) => (
-                          <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
-                        ))}
-                      </View>
-                    );
-                  })}
+                  <View style={styles.slotsHeader}>
+                    <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
+                    <View style={styles.viewToggle}>
+                      <Pressable
+                        onPress={() => setSlotsView('chrono')}
+                        style={[styles.viewToggleBtn, slotsView === 'chrono' && styles.viewToggleBtnActive]}
+                      >
+                        <Ionicons name="list-outline" size={14} color={slotsView === 'chrono' ? '#fff' : COLORS.textMuted} />
+                        <Text style={[styles.viewToggleLabel, slotsView === 'chrono' && styles.viewToggleLabelActive]}>Liste</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setSlotsView('grid')}
+                        style={[styles.viewToggleBtn, slotsView === 'grid' && styles.viewToggleBtnActive]}
+                      >
+                        <Ionicons name="grid-outline" size={14} color={slotsView === 'grid' ? '#fff' : COLORS.textMuted} />
+                        <Text style={[styles.viewToggleLabel, slotsView === 'grid' && styles.viewToggleLabelActive]}>Semaine</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                  {slotsView === 'chrono' ? (
+                    [1, 2, 3, 4, 5, 6, 7].map((day) => {
+                      const slots = slotsByDay.get(day) ?? [];
+                      if (slots.length === 0) return null;
+                      const dayDate = addDays(weekStart, day - 1);
+                      return (
+                        <View key={day} style={styles.dayBlock}>
+                          <Text style={styles.dayHeader}>
+                            {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                          </Text>
+                          {slots.map((s, idx) => (
+                            <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
+                          ))}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <WeekGrid slotsByDay={slotsByDay} weekStart={weekStart} />
+                  )}
                 </View>
               )}
             </>
@@ -253,10 +278,125 @@ function TrainingScreenInner() {
   );
 }
 
+/**
+ * Grille calendrier semaine (Google-Calendar-like, en version compacte).
+ *  - 7 colonnes (lun-dim), scroll horizontal si l'écran est trop étroit.
+ *  - Axe vertical en heures, hauteur d'une heure fixe (HOUR_HEIGHT).
+ *  - Chaque slot est positionné en absolu par startTime / durationMinutes.
+ *  - Tap → même détail que la vue chrono.
+ */
+function WeekGrid({ slotsByDay, weekStart }: {
+  slotsByDay: Map<number, TrainingSlot[]>;
+  weekStart: Date;
+}) {
+  const router = useRouter();
+  const HOUR_HEIGHT = 44;
+  const DAY_WIDTH = 88;
+  const TIME_COL_WIDTH = 40;
+
+  // Fenêtre horaire : entre l'heure du 1er slot (arrondie au-dessous) et
+  // l'heure de fin du dernier (arrondie au-dessus). Fallback 7h-22h.
+  const bounds = useMemo(() => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const arr of slotsByDay.values()) {
+      for (const s of arr) {
+        const [h, m] = s.startTime.split(':').map(Number);
+        const startMin = h * 60 + m;
+        const endMin = startMin + s.durationMinutes;
+        if (startMin < min) min = startMin;
+        if (endMin > max) max = endMin;
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      min = 7 * 60;
+      max = 22 * 60;
+    }
+    const startHour = Math.max(0, Math.floor(min / 60));
+    const endHour = Math.min(24, Math.ceil(max / 60));
+    return { startHour, endHour };
+  }, [slotsByDay]);
+
+  const hours = useMemo(
+    () => Array.from({ length: bounds.endHour - bounds.startHour }, (_, i) => bounds.startHour + i),
+    [bounds],
+  );
+  const gridHeight = hours.length * HOUR_HEIGHT;
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: SPACING.md }}>
+      <View>
+        {/* En-tête jours */}
+        <View style={[gridStyles.headerRow, { paddingLeft: TIME_COL_WIDTH }]}>
+          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+            const dayDate = addDays(weekStart, day - 1);
+            return (
+              <View key={day} style={[gridStyles.dayHeader, { width: DAY_WIDTH }]}>
+                <Text style={gridStyles.dayHeaderName}>{dayLabel(day)}</Text>
+                <Text style={gridStyles.dayHeaderDate}>{dayDate.getDate()}/{dayDate.getMonth() + 1}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={{ flexDirection: 'row', height: gridHeight }}>
+          {/* Colonne des heures */}
+          <View style={{ width: TIME_COL_WIDTH }}>
+            {hours.map((h) => (
+              <View key={h} style={[gridStyles.hourCell, { height: HOUR_HEIGHT }]}>
+                <Text style={gridStyles.hourLabel}>{h}h</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Grille : 7 colonnes de jour */}
+          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+            const slots = slotsByDay.get(day) ?? [];
+            return (
+              <View key={day} style={[gridStyles.dayCol, { width: DAY_WIDTH, height: gridHeight }]}>
+                {/* Lignes horaires (fond) */}
+                {hours.map((h) => (
+                  <View key={h} style={[gridStyles.hourGridLine, { top: (h - bounds.startHour) * HOUR_HEIGHT }]} />
+                ))}
+
+                {/* Slots positionnés en absolu */}
+                {slots.map((s, idx) => {
+                  const [sh, sm] = s.startTime.split(':').map(Number);
+                  const startMin = sh * 60 + sm;
+                  const top = ((startMin - bounds.startHour * 60) / 60) * HOUR_HEIGHT;
+                  const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 2);
+                  const bg = s.sportColor + '22'; // couleur sport + alpha
+                  return (
+                    <Pressable
+                      key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`}
+                      onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(s) } })}
+                      style={({ pressed }) => [
+                        gridStyles.slotBlock,
+                        { top, height, backgroundColor: bg, borderLeftColor: s.sportColor },
+                        s.isCancelled && gridStyles.slotBlockCancelled,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Text style={[gridStyles.slotTime, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={1}>
+                        {s.sportIcon} {s.startTime}
+                      </Text>
+                      <Text style={[gridStyles.slotTitle, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={2}>
+                        {s.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 function SlotRow({ slot }: { slot: TrainingSlot }) {
   const router = useRouter();
-  const hasExtra = !!slot.description || slot.attachments.length > 0;
-
   const isCancelled = slot.isCancelled;
 
   return (
@@ -270,7 +410,9 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
     >
       <View style={styles.slotTimeCol}>
         <Text style={[styles.slotTime, isCancelled && styles.cancelledText]}>{slot.startTime}</Text>
-        <Text style={styles.slotDuration}>{formatDurationHm(slot.durationMinutes)}</Text>
+        <Text style={[styles.slotDuration, isCancelled && styles.cancelledText]}>
+          {formatDurationHm(slot.durationMinutes)}
+        </Text>
       </View>
       <View style={styles.slotBody}>
         <Text
@@ -280,14 +422,29 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
           {slot.title}
         </Text>
         <View style={styles.slotMeta}>
-          <SportBadge icon={slot.sportIcon} label={slot.sportLabel} color={slot.sportColor} size="sm" />
-          {isCancelled && <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />}
-          {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
-          {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
-          {hasExtra && (
+          <SportBadge
+            icon={slot.sportIcon}
+            label={slot.sportLabel}
+            color={isCancelled ? COLORS.textMuted : slot.sportColor}
+            size="sm"
+            strikethrough={isCancelled}
+          />
+          {/* Un créneau annulé n'expose qu'un seul tag « Annulé ».
+              Les tags « Occasionnel » / « Modifié » perdent leur sens
+              dans ce cas (l'événement n'aura pas lieu). */}
+          {isCancelled ? (
+            <Tag color="#991B1B" bg="#FEE2E2" label="Annulé" />
+          ) : (
+            <>
+              {slot.isOccasional && <Tag color={COLORS.secondary} label="Occasionnel" />}
+              {slot.isOverride && !slot.isOccasional && <Tag color="#92400E" bg="#FEF3C7" label="Modifié" />}
+            </>
+          )}
+          {/* Icône 📎 uniquement — 📝 (description) était redondante avec
+              l'ouverture du détail au tap. */}
+          {slot.attachments.length > 0 && (
             <View style={styles.extraHint}>
-              {slot.description ? <Text style={styles.extraHintIcon}>📝</Text> : null}
-              {slot.attachments.length > 0 ? <Text style={styles.extraHintIcon}>📎</Text> : null}
+              <Text style={styles.extraHintIcon}>📎</Text>
             </View>
           )}
         </View>
@@ -345,6 +502,41 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  slotsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: RADIUS.full,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.sm,
+  },
+  viewToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  viewToggleBtnActive: {
+    backgroundColor: COLORS.secondary,
+  },
+  viewToggleLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  viewToggleLabelActive: { color: '#fff' },
   planEmpty: {
     fontSize: 13,
     color: COLORS.textMuted,
@@ -503,4 +695,60 @@ const stylesGouter = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 16 },
+});
+
+const gridStyles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  dayHeader: {
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  dayHeaderName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  dayHeaderDate: { fontSize: 11, color: COLORS.textSubtle, marginTop: 1 },
+  hourCell: {
+    justifyContent: 'flex-start',
+    paddingRight: 6,
+    alignItems: 'flex-end',
+  },
+  hourLabel: { fontSize: 10, color: COLORS.textMuted, marginTop: -6 },
+  dayCol: {
+    position: 'relative',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: COLORS.border,
+  },
+  hourGridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+  },
+  slotBlock: {
+    position: 'absolute',
+    left: 2,
+    right: 2,
+    borderRadius: RADIUS.sm,
+    padding: 4,
+    borderLeftWidth: 3,
+    overflow: 'hidden',
+  },
+  slotBlockCancelled: {
+    opacity: 0.55,
+    backgroundColor: '#f3f4f6',
+    borderLeftColor: COLORS.textMuted,
+  },
+  slotTime: { fontSize: 10, fontWeight: '700', color: COLORS.text },
+  slotTitle: { fontSize: 11, color: COLORS.text, lineHeight: 13, marginTop: 1 },
+  slotCancelledText: { textDecorationLine: 'line-through', color: COLORS.textMuted },
 });
