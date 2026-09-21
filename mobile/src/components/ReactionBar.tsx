@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { articles as articlesApi } from '@/api/resources';
 import { REACTION_EMOJIS, type ReactionEmoji } from '@/api/types';
-import { COLORS } from '@/config';
+import { COLORS, RADIUS } from '@/config';
 
 /**
  * Barre de réactions d'article (page détail).
@@ -25,15 +25,28 @@ type Props = {
 export function ReactionBar({ articleId, initialMine, onChange }: Props) {
   const [mine, setMine] = useState<string | null>(initialMine[0] ?? null);
   const [busy, setBusy] = useState<string | null>(null);
+  const mineRef = useRef<string | null>(mine);
+  mineRef.current = mine;
+
+  // Sync défensif : si l'article parent se recharge et fournit un
+  // initialMine différent (ex : reconnexion, changement de compte lié),
+  // on adopte la vérité serveur — tant qu'on n'est pas au milieu d'un
+  // clic (busy) pour ne pas écraser un choix en cours d'envoi.
+  useEffect(() => {
+    if (busy !== null) return;
+    const next = initialMine[0] ?? null;
+    if (next !== mineRef.current) setMine(next);
+  }, [initialMine, busy]);
 
   async function toggle(emoji: ReactionEmoji) {
     if (busy) return;
-    setBusy(emoji);
 
-    // Optimistic exclusif : si on reclique la même → on efface ; sinon
-    // on remplace directement (pas de double-affichage transitoire).
-    const previous = mine;
-    setMine(previous === emoji ? null : emoji);
+    // Optimistic exclusif : on met à jour la sélection AVANT de marquer
+    // busy, pour que le rerender applique immédiatement la surbrillance.
+    const previous = mineRef.current;
+    const nextOptimistic = previous === emoji ? null : emoji;
+    setMine(nextOptimistic);
+    setBusy(emoji);
 
     try {
       const resp = await articlesApi.toggleReaction(articleId, emoji);
@@ -55,8 +68,17 @@ export function ReactionBar({ articleId, initialMine, onChange }: Props) {
           <Pressable
             key={emoji}
             onPress={() => toggle(emoji)}
-            disabled={busy === emoji}
-            style={[styles.button, active && styles.buttonActive, busy === emoji && styles.buttonBusy]}
+            // Bloqué pendant qu'une requête est en cours (le `if (busy)
+            // return` dans toggle en garantit aussi côté handler) — évite
+            // les doubles-clics rapides qui produiraient des requêtes
+            // concurrentes désynchronisées.
+            disabled={busy !== null}
+            style={({ pressed }) => [
+              styles.button,
+              active && styles.buttonActive,
+              busy === emoji && styles.buttonBusy,
+              pressed && { opacity: 0.7 },
+            ]}
           >
             <Text style={styles.emoji}>{emoji}</Text>
           </Pressable>
@@ -71,15 +93,19 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: RADIUS.full,
+    borderWidth: 2,
     borderColor: COLORS.border,
-    minWidth: 44,
+    minWidth: 52,
   },
-  buttonActive: { backgroundColor: '#FFE6E6', borderColor: COLORS.primary },
-  buttonBusy: { opacity: 0.5 },
-  emoji: { fontSize: 18 },
+  buttonActive: {
+    backgroundColor: COLORS.primarySoft,
+    borderColor: COLORS.primary,
+    transform: [{ scale: 1.08 }],
+  },
+  buttonBusy: { opacity: 0.55 },
+  emoji: { fontSize: 20 },
 });
