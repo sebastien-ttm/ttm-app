@@ -32,7 +32,7 @@ export function ArticleCard({ article }: { article: Article }) {
       ]}
       onPress={() => router.push(`/article/${article.id}` as never)}
     >
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={styles.title} numberOfLines={1}>
         {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
         {article.title}
       </Text>
