@@ -184,6 +184,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'notify_training_plan_email', options: ['default' => false])]
     private bool $notifyTrainingPlanEmail = false;
 
+    /**
+     * Préférence opt-in : recevoir un email à chaque publication d'un
+     * nouvel article. Même sémantique que notifyTrainingPlanEmail — case
+     * à cocher dans le profil mobile, défaut FALSE.
+     */
+    #[ORM\Column(name: 'notify_article_email', options: ['default' => false])]
+    private bool $notifyArticleEmail = false;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -703,6 +711,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function isNotifyTrainingPlanEmail(): bool { return $this->notifyTrainingPlanEmail; }
     public function setNotifyTrainingPlanEmail(bool $v): self { $this->notifyTrainingPlanEmail = $v; return $this; }
+
+    public function isNotifyArticleEmail(): bool { return $this->notifyArticleEmail; }
+    public function setNotifyArticleEmail(bool $v): self { $this->notifyArticleEmail = $v; return $this; }
 
     /** Appelé par les listeners de login (JWT mobile + admin form). */
     public function recordLogin(?\DateTimeImmutable $at = null): self

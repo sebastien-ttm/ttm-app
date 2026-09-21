@@ -262,6 +262,53 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Destinataires éligibles à la notification email d'un nouvel article.
+     * Miroir de findTrainingPlanEmailRecipients() — même sémantique :
+     *  - opt-in obligatoire (u.notifyArticleEmail = true)
+     *  - actif, email présent
+     *  - filtre d'audience de l'article (Article utilise AudienceAwareTrait)
+     *  - dédup par email pour éviter les doublons parent/enfant
+     *
+     * Différence avec les plans : PAS d'exclusion Jeune / typeLicence
+     * Dirigeant / licence obligatoire. Les articles s'adressent à tout
+     * le club — l'audience de l'article est la seule restriction.
+     *
+     * @return list<User>
+     */
+    public function findArticleEmailRecipients(\App\Entity\Article $article): array
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere('u.email IS NOT NULL')
+            ->andWhere('u.notifyArticleEmail = true');
+
+        $audience = $article->getAudience();
+        if ($audience !== []) {
+            $orParts = [];
+            foreach ($audience as $i => $p) {
+                $key = "aud_{$i}";
+                $orParts[] = "JSON_CONTAINS(u.profiles, :{$key}) = 1";
+                $qb->setParameter($key, json_encode($p));
+            }
+            $qb->andWhere('('.implode(' OR ', $orParts).')');
+        }
+
+        $users = $qb->getQuery()->getResult();
+
+        // Dédup par email — même parent/enfant qui partagent une adresse.
+        $byEmail = [];
+        foreach ($users as $u) {
+            $email = mb_strtolower((string) $u->getEmail(), 'UTF-8');
+            if ($email === '' || isset($byEmail[$email])) {
+                continue;
+            }
+            $byEmail[$email] = $u;
+        }
+
+        return array_values($byEmail);
+    }
+
+    /**
      * Tous les utilisateurs actifs ayant un rôle backend donné.
      * Utilisé pour les notifications (ex : email à tous les admins quand
      * un message « au club » est reçu).

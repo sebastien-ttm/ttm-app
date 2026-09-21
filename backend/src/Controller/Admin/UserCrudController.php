@@ -208,6 +208,9 @@ class UserCrudController extends AbstractCrudController
         yield BooleanField::new('notifyTrainingPlanEmail', 'Email plans d\'entraînement')
             ->hideOnIndex()
             ->setHelp('Opt-in adhérent : recevoir un email à chaque publication de plan. L\'adhérent gère lui-même cette case depuis son profil mobile.');
+        yield BooleanField::new('notifyArticleEmail', 'Email nouveaux articles')
+            ->hideOnIndex()
+            ->setHelp('Opt-in adhérent : recevoir un email à chaque nouvel article publié. Géré par l\'adhérent depuis son profil mobile.');
 
         // Profil lié (parent/enfant partageant l'e-mail)
         yield TextField::new('linkLabel', 'Lien')

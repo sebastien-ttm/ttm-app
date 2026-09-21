@@ -1,0 +1,15 @@
+Bonjour {{ user.prenom }},
+
+Un nouvel article vient d'être publié sur l'application du club :
+
+  {{ article.icon ? article.icon ~ ' ' : '' }}{{ article.title }}
+
+  Publié par {{ article.author.fullName }} le {{ article.publishedAt|date('d/m/Y') }}
+
+Consultez-le dans l'application :
+{{ articleUrl }}
+
+---
+Triathlon Toulouse Métropole — message automatique, ne pas répondre.
+Vous recevez cet e-mail parce que vous avez activé les notifications
+« nouvel article » dans votre profil.

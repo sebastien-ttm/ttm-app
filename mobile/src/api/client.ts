@@ -198,6 +198,8 @@ export type AuthenticatedUser = {
   avatarUrl: string | null;
   /** Préférence opt-in : recevoir un email à chaque nouveau plan d'entraînement. */
   notifyTrainingPlanEmail: boolean;
+  /** Préférence opt-in : recevoir un email à chaque nouvel article publié. */
+  notifyArticleEmail: boolean;
   /**
    * Statut d'adhésion calculé côté serveur (label prêt-à-afficher + drapeau
    * de renouvellement). Null pour les comptes externes (parent, ami) qui
@@ -274,8 +276,8 @@ export const auth = {
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
 
   /** Mise à jour partielle des préférences de notification. */
-  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean }) =>
-    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean }>(
+  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean }) =>
+    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean; notifyArticleEmail: boolean }>(
       '/api/me/notification-preferences',
       prefs,
     ),

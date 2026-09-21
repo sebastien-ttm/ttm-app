@@ -57,6 +57,18 @@ export default function ProfileScreen() {
     }
   }
 
+  async function toggleArticleEmail(next: boolean) {
+    setTogglingNotif(true);
+    try {
+      await authApi.updateNotificationPreferences({ notifyArticleEmail: next });
+      await refreshMe();
+    } catch (e) {
+      Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
+    } finally {
+      setTogglingNotif(false);
+    }
+  }
+
   const hasBackendAccess = user.role === 'admin' || user.role === 'entraineur' || user.role === 'editeur';
   const backendRoleLabel =
     user.role === 'admin' ? 'Admin'
@@ -247,6 +259,26 @@ export default function ProfileScreen() {
             <Switch
               value={user.notifyTrainingPlanEmail}
               onValueChange={toggleTrainingPlanEmail}
+              trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
+              thumbColor="#fff"
+              ios_backgroundColor="#d4d4d8"
+              activeThumbColor="#fff"
+            />
+          )}
+        </View>
+        <View style={[styles.switchRow, { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: 12 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Nouveaux articles</Text>
+            <Text style={styles.actionHint}>
+              Recevoir un email à chaque nouvel article publié dans les actualités du club.
+            </Text>
+          </View>
+          {togglingNotif ? (
+            <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
+          ) : (
+            <Switch
+              value={user.notifyArticleEmail}
+              onValueChange={toggleArticleEmail}
               trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
               ios_backgroundColor="#d4d4d8"

@@ -77,6 +77,7 @@ class AuthSuccessListener
             'hasPassword' => $user->getPassword() !== null,
             'avatarUrl' => $avatarUrl,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
+            'notifyArticleEmail' => $user->isNotifyArticleEmail(),
             // Statut d'adhésion calculé : label prêt-à-afficher (« Adhérent
             // 2025-2026 » / « Adhérent externe 2025-2026 » / « Adhérent
             // 2024-2025 » quand needsRenewal). null pour les comptes

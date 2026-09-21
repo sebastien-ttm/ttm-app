@@ -166,11 +166,15 @@ class MeController extends AbstractController
         if (array_key_exists('notifyTrainingPlanEmail', $payload)) {
             $user->setNotifyTrainingPlanEmail((bool) $payload['notifyTrainingPlanEmail']);
         }
+        if (array_key_exists('notifyArticleEmail', $payload)) {
+            $user->setNotifyArticleEmail((bool) $payload['notifyArticleEmail']);
+        }
         $this->em->flush();
 
         return new JsonResponse([
             'ok' => true,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
+            'notifyArticleEmail' => $user->isNotifyArticleEmail(),
         ]);
     }
 

@@ -52,6 +52,14 @@ class Article
     #[ORM\Column]
     private bool $notifyOnPublish = false;
 
+    /**
+     * Horodate l'envoi des emails de notification. NULL = pas encore
+     * envoyés. Assure l'idempotence en cas de retry de la queue
+     * Messenger ou de re-publication.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $emailsSentAt = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -183,6 +191,9 @@ class Article
     {
         return $this->publishedAt !== null && $this->publishedAt <= new \DateTimeImmutable();
     }
+
+    public function getEmailsSentAt(): ?\DateTimeImmutable { return $this->emailsSentAt; }
+    public function setEmailsSentAt(?\DateTimeImmutable $at): self { $this->emailsSentAt = $at; return $this; }
 
     public function isNotifyOnPublish(): bool
     {
