@@ -15,7 +15,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class EventCrudController extends AbstractCrudController
@@ -92,7 +92,15 @@ class EventCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setHelp('Optionnel. Pour un événement multi-jours, mettez la date de fin.');
         yield TextField::new('location', 'Lieu')->setRequired(false);
-        yield TextareaField::new('description')->setRequired(false)->hideOnIndex();
+        // Rich text (TinyMCE) : permet d'insérer des liens hypertexte
+        // (bouton `link` de la toolbar) et des boutons stylés (menu
+        // « Bouton » — variantes primary/secondary/outline). Rendu côté
+        // mobile via RichContent avec styles cohérents.
+        yield TextEditorField::new('description', 'Descriptif')
+            ->setRequired(false)
+            ->hideOnIndex()
+            ->setNumOfRows(10)
+            ->setHelp('Utilisez le bouton link (🔗) pour insérer un lien hypertexte, ou le menu « Bouton » pour un lien mis en avant.');
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()

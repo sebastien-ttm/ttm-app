@@ -10,10 +10,33 @@ import type { EventItem } from '@/api/types';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
+import { RichContent } from '@/components/RichContent';
 import { addEventToCalendar } from '@/lib/addToCalendar';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
+
+/**
+ * Prépare la description pour RichContent :
+ *  - si elle contient déjà des tags HTML (édition TinyMCE), on la
+ *    laisse telle quelle ;
+ *  - sinon (descriptions antérieures = texte brut) on convertit
+ *    les URLs en <a> cliquables, on remplace les sauts de ligne
+ *    par <br> et on enrobe le tout dans un <p> pour que le rendu
+ *    HTML respecte les paragraphes.
+ */
+function toRichHtml(raw: string): string {
+  if (/<\w+[^>]*>/.test(raw)) return raw;
+  const escaped = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const linkified = escaped.replace(
+    /(\bhttps?:\/\/[^\s<]+)/g,
+    (m) => `<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`,
+  );
+  return '<p>' + linkified.replace(/\r?\n/g, '<br />') + '</p>';
+}
 
 function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear()
@@ -181,9 +204,12 @@ export default function EventDetailScreen() {
         {event.description ? (
           <View style={styles.descCard}>
             <Text style={styles.descTitle}>Descriptif</Text>
-            {/* Description stockée en texte brut (TextareaField admin) —
-                affichage respectant les retours à la ligne. */}
-            <Text style={styles.descText}>{event.description}</Text>
+            {/* Description éditée via TinyMCE côté admin — liens
+                hypertexte, boutons stylés (a.ttm-btn) et retours à la
+                ligne sont rendus par RichContent. Fallback plain-text
+                (descriptions antérieures au passage rich-text) : on
+                enrobe pour préserver les paragraphes. */}
+            <RichContent html={toRichHtml(event.description)} />
           </View>
         ) : (
           <View style={styles.descCard}>
@@ -235,7 +261,6 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: COLORS.textMuted,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.sm,
   },
-  descText: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
   descEmpty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center' },
   actionsRow: {
     flexDirection: 'row',
