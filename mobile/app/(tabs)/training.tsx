@@ -92,24 +92,31 @@ function TrainingScreenInner() {
   //  - Annulés : affichés (barrés dans SlotRow) — l'adhérent doit voir
   //    qu'un créneau habituel a été supprimé pour cette semaine, sinon
   //    il peut se déplacer sans savoir.
-  //  - Passés (fin dépassée) : masqués — l'adhérent voit naturellement
-  //    le prochain créneau non-fini en tête puisque la boucle 1..7
-  //    respecte l'ordre chronologique.
+  //  - Passés (fin dépassée) : masqués en vue Liste (le prochain
+  //    créneau non-fini remonte naturellement en tête chronologique)
+  //    mais gardés en vue Semaine — la grille sert de vue synoptique
+  //    complète de la semaine, y compris ce qui vient d'avoir lieu.
+  const slotsByDayFull = useMemo(() => {
+    const map = new Map<number, TrainingSlot[]>();
+    (data?.slots ?? []).forEach((s) => {
+      const arr = map.get(s.dayOfWeek) ?? [];
+      arr.push(s);
+      map.set(s.dayOfWeek, arr);
+    });
+    return map;
+  }, [data]);
   const slotsByDay = useMemo(() => {
     const now = Date.now();
     const map = new Map<number, TrainingSlot[]>();
-    (data?.slots ?? [])
-      .filter((s) => {
+    for (const [day, slots] of slotsByDayFull) {
+      const future = slots.filter((s) => {
         const endMs = new Date(`${s.date}T${s.startTime}:00`).getTime() + s.durationMinutes * 60_000;
         return !Number.isFinite(endMs) || endMs >= now;
-      })
-      .forEach((s) => {
-        const arr = map.get(s.dayOfWeek) ?? [];
-        arr.push(s);
-        map.set(s.dayOfWeek, arr);
       });
+      if (future.length > 0) map.set(day, future);
+    }
     return map;
-  }, [data]);
+  }, [slotsByDayFull]);
 
   return (
     <View style={styles.root}>
@@ -220,56 +227,69 @@ function TrainingScreenInner() {
                 </Pressable>
               </View>
 
-              {Array.from(slotsByDay.values()).reduce((acc, arr) => acc + arr.length, 0) === 0 ? (
-                <EmptyState
-                  icon="📅"
-                  title="Aucun créneau à venir cette semaine"
-                  message={(data?.slots ?? []).length === 0
-                    ? "Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
-                    : "Tous les créneaux de cette semaine sont déjà terminés."}
-                />
-              ) : (
-                <View style={styles.section}>
-                  <View style={styles.slotsHeader}>
-                    <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
-                    <View style={styles.viewToggle}>
-                      <Pressable
-                        onPress={() => setSlotsView('chrono')}
-                        style={[styles.viewToggleBtn, slotsView === 'chrono' && styles.viewToggleBtnActive]}
-                      >
-                        <Ionicons name="list-outline" size={14} color={slotsView === 'chrono' ? '#fff' : COLORS.textMuted} />
-                        <Text style={[styles.viewToggleLabel, slotsView === 'chrono' && styles.viewToggleLabelActive]}>Liste</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => setSlotsView('grid')}
-                        style={[styles.viewToggleBtn, slotsView === 'grid' && styles.viewToggleBtnActive]}
-                      >
-                        <Ionicons name="grid-outline" size={14} color={slotsView === 'grid' ? '#fff' : COLORS.textMuted} />
-                        <Text style={[styles.viewToggleLabel, slotsView === 'grid' && styles.viewToggleLabelActive]}>Semaine</Text>
-                      </Pressable>
+              {(() => {
+                const chronoTotal = Array.from(slotsByDay.values()).reduce((n, arr) => n + arr.length, 0);
+                const gridTotal = Array.from(slotsByDayFull.values()).reduce((n, arr) => n + arr.length, 0);
+                // Vraiment aucun créneau dans la semaine (ni passé ni futur) → empty state.
+                if (gridTotal === 0) {
+                  return (
+                    <EmptyState
+                      icon="📅"
+                      title="Aucun créneau cette semaine"
+                      message="Les entraîneurs n'ont pas (encore) défini de créneau pour cette semaine."
+                    />
+                  );
+                }
+                return (
+                  <View style={styles.section}>
+                    <View style={styles.slotsHeader}>
+                      <Text style={styles.sectionTitle}>📅 Créneaux d'entraînement</Text>
+                      <View style={styles.viewToggle}>
+                        <Pressable
+                          onPress={() => setSlotsView('chrono')}
+                          style={[styles.viewToggleBtn, slotsView === 'chrono' && styles.viewToggleBtnActive]}
+                        >
+                          <Ionicons name="list-outline" size={14} color={slotsView === 'chrono' ? '#fff' : COLORS.textMuted} />
+                          <Text style={[styles.viewToggleLabel, slotsView === 'chrono' && styles.viewToggleLabelActive]}>Liste</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setSlotsView('grid')}
+                          style={[styles.viewToggleBtn, slotsView === 'grid' && styles.viewToggleBtnActive]}
+                        >
+                          <Ionicons name="grid-outline" size={14} color={slotsView === 'grid' ? '#fff' : COLORS.textMuted} />
+                          <Text style={[styles.viewToggleLabel, slotsView === 'grid' && styles.viewToggleLabelActive]}>Semaine</Text>
+                        </Pressable>
+                      </View>
                     </View>
+                    {slotsView === 'chrono' ? (
+                      chronoTotal === 0 ? (
+                        <Text style={styles.planEmpty}>Tous les créneaux de cette semaine sont déjà terminés.</Text>
+                      ) : (
+                        [1, 2, 3, 4, 5, 6, 7].map((day) => {
+                          const slots = slotsByDay.get(day) ?? [];
+                          if (slots.length === 0) return null;
+                          const dayDate = addDays(weekStart, day - 1);
+                          return (
+                            <View key={day} style={styles.dayBlock}>
+                              <Text style={styles.dayHeader}>
+                                {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                              </Text>
+                              {slots.map((s, idx) => (
+                                <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
+                              ))}
+                            </View>
+                          );
+                        })
+                      )
+                    ) : (
+                      /* Vue Semaine : passe la map COMPLÈTE, y compris les
+                         créneaux déjà passés dans la semaine, pour offrir
+                         une vue synoptique du planning hebdo. */
+                      <WeekGrid slotsByDay={slotsByDayFull} weekStart={weekStart} />
+                    )}
                   </View>
-                  {slotsView === 'chrono' ? (
-                    [1, 2, 3, 4, 5, 6, 7].map((day) => {
-                      const slots = slotsByDay.get(day) ?? [];
-                      if (slots.length === 0) return null;
-                      const dayDate = addDays(weekStart, day - 1);
-                      return (
-                        <View key={day} style={styles.dayBlock}>
-                          <Text style={styles.dayHeader}>
-                            {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
-                          </Text>
-                          {slots.map((s, idx) => (
-                            <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
-                          ))}
-                        </View>
-                      );
-                    })
-                  ) : (
-                    <WeekGrid slotsByDay={slotsByDay} weekStart={weekStart} />
-                  )}
-                </View>
-              )}
+                );
+              })()}
             </>
           )}
         </ScrollView>

@@ -18,7 +18,11 @@ export default function ProfileScreen() {
   const { user, signOut, refreshMe, charterEverAccepted } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
-  const [togglingNotif, setTogglingNotif] = useState(false);
+  // États de chargement indépendants par toggle : sinon cliquer un
+  // switch masquait l'autre derrière un ActivityIndicator, donnant
+  // l'impression que les deux préférences étaient liées.
+  const [togglingPlan, setTogglingPlan] = useState(false);
+  const [togglingArticle, setTogglingArticle] = useState(false);
   const [charterVersion, setCharterVersion] = useState<string | null>(null);
 
   // Charge la version (saison) de la charte publiée pour titrer le lien
@@ -46,26 +50,26 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   async function toggleTrainingPlanEmail(next: boolean) {
-    setTogglingNotif(true);
+    setTogglingPlan(true);
     try {
       await authApi.updateNotificationPreferences({ notifyTrainingPlanEmail: next });
       await refreshMe(); // resync l'état local depuis /api/me
     } catch (e) {
       Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
     } finally {
-      setTogglingNotif(false);
+      setTogglingPlan(false);
     }
   }
 
   async function toggleArticleEmail(next: boolean) {
-    setTogglingNotif(true);
+    setTogglingArticle(true);
     try {
       await authApi.updateNotificationPreferences({ notifyArticleEmail: next });
       await refreshMe();
     } catch (e) {
       Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
     } finally {
-      setTogglingNotif(false);
+      setTogglingArticle(false);
     }
   }
 
@@ -253,11 +257,11 @@ export default function ProfileScreen() {
               Recevoir un email à chaque nouveau plan publié par les entraîneurs.
             </Text>
           </View>
-          {togglingNotif ? (
+          {togglingPlan ? (
             <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
           ) : (
             <Switch
-              value={user.notifyTrainingPlanEmail}
+              value={user.notifyTrainingPlanEmail === true}
               onValueChange={toggleTrainingPlanEmail}
               trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
@@ -273,11 +277,11 @@ export default function ProfileScreen() {
               Recevoir un email à chaque nouvel article publié dans les actualités du club.
             </Text>
           </View>
-          {togglingNotif ? (
+          {togglingArticle ? (
             <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
           ) : (
             <Switch
-              value={user.notifyArticleEmail}
+              value={user.notifyArticleEmail === true}
               onValueChange={toggleArticleEmail}
               trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
