@@ -47,14 +47,22 @@ class TrainingPlanOpenRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        return array_map(static fn (array $r) => [
-            'planId' => (int) $r['planId'],
-            'title' => (string) $r['title'],
-            'category' => (string) $r['category'],
-            'weekStartsAt' => $r['weekStartsAt'] instanceof \DateTimeInterface
-                ? \DateTimeImmutable::createFromInterface($r['weekStartsAt'])
-                : null,
-            'openCount' => (int) $r['openCount'],
-        ], $rows);
+        return array_map(static function (array $r): array {
+            // `category` sort de DQL comme un BackedEnum (TrainingPlanCategory) —
+            // Doctrine ne le cast pas en scalaire dans un SELECT partiel.
+            $cat = $r['category'];
+            if ($cat instanceof \BackedEnum) {
+                $cat = $cat->value;
+            }
+            return [
+                'planId' => (int) $r['planId'],
+                'title' => (string) $r['title'],
+                'category' => (string) $cat,
+                'weekStartsAt' => $r['weekStartsAt'] instanceof \DateTimeInterface
+                    ? \DateTimeImmutable::createFromInterface($r['weekStartsAt'])
+                    : null,
+                'openCount' => (int) $r['openCount'],
+            ];
+        }, $rows);
     }
 }
