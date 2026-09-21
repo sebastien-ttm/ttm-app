@@ -122,19 +122,19 @@ function EventRow({ event }: { event: EventItem }) {
             ))}
           </View>
         )}
-        {/* Heure (en gras pour visibilité) OU « Toute la journée » + lieu
-            si présent. Multi-jour → uniquement le lieu. */}
+        {/* Heure (en gras pour visibilité) + lieu si présent.
+            « Toute la journée » n'est pas rendu ici — la date-box couvre
+            déjà l'info, on ne veut pas alourdir la ligne. Multi-jour →
+            uniquement le lieu. */}
         {(() => {
           const timeStr = !isMultiDay && !event.isAllDay
             ? start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
             : null;
-          const allDayLabel = !isMultiDay && event.isAllDay ? 'Toute la journée' : null;
-          if (!timeStr && !allDayLabel && !event.location) return null;
+          if (!timeStr && !event.location) return null;
           return (
             <Text style={styles.eventSub} numberOfLines={1}>
               {timeStr ? <Text style={styles.eventTime}>{timeStr}</Text> : null}
-              {allDayLabel ? allDayLabel : null}
-              {event.location ? ((timeStr || allDayLabel) ? ' · ' : '') + event.location : ''}
+              {event.location ? (timeStr ? ' · ' : '') + event.location : ''}
             </Text>
           );
         })()}
