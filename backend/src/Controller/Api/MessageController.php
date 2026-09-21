@@ -58,6 +58,24 @@ class MessageController extends AbstractController
      * Mes messages envoyés. ?archived=1 renvoie les archivés à la
      * place des courants ; sans param, on renvoie les non-archivés.
      */
+    /**
+     * Compteur agrégé des messages « non lus » pour l'user courant.
+     * Utilisé par le badge de l'onglet Contact côté mobile. Réponse :
+     *  { inbox: int, replies: int, total: int }
+     */
+    #[Route('/api/me/messages/unread-count', methods: ['GET'])]
+    public function unreadCount(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $counts = $this->messages->countUnreadFor($user);
+        return new JsonResponse([
+            'inbox' => $counts['inbox'],
+            'replies' => $counts['replies'],
+            'total' => $counts['inbox'] + $counts['replies'],
+        ]);
+    }
+
     #[Route('/api/me/messages', methods: ['GET'])]
     public function listMine(Request $request): JsonResponse
     {

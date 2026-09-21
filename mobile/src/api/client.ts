@@ -327,6 +327,15 @@ export const auth = {
   listMessages: (archived = false) =>
     api.get<{ data: UserMessage[] }>(`/api/me/messages${archived ? '?archived=1' : ''}`),
 
+  /**
+   * Compteur agrégé pour le badge de l'onglet Contact :
+   *  - inbox : messages à répondre (staff uniquement)
+   *  - replies : réponses reçues sur mes envois, non archivées
+   *  - total : somme des deux
+   */
+  unreadMessagesCount: () =>
+    api.get<{ inbox: number; replies: number; total: number }>('/api/me/messages/unread-count'),
+
   sendMessage: (payload: {
     scope: MessageScope;
     /** Requis uniquement pour scope='trainer'. */

@@ -5,12 +5,14 @@ import { Platform, Pressable } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
+import { useUnreadMessages } from '@/lib/useUnreadMessages';
 import { canSeeTrainingTab } from '@/utils/profile';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const router = useRouter();
   const showTraining = canSeeTrainingTab(user);
+  const { total: unreadCount } = useUnreadMessages(user !== null);
 
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.
@@ -98,6 +100,19 @@ export default function TabsLayout() {
         name="contact"
         options={{
           title: 'Contact',
+          // Badge chiffré = messages non lus (réponses reçues non
+          // archivées + inbox à traiter pour les staff). >99 → « 99+ ».
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: COLORS.primary,
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: '700',
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+            paddingHorizontal: 4,
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} size={22} />
           ),

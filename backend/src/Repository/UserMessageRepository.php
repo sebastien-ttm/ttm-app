@@ -125,6 +125,62 @@ class UserMessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Compte les messages « unread » du point de vue du viewer :
+     *  - inbox   : messages qu'il voit dans sa boîte de réception
+     *              (mêmes filtres de scope que findInboxFor) et qui
+     *              n'ont pas encore de réponse → action requise.
+     *  - replies : messages qu'il a envoyés et qui ont reçu une
+     *              réponse sans être archivés côté expéditeur
+     *              → « il y a une réponse nouvelle à lire ».
+     *
+     * @return array{inbox: int, replies: int}
+     */
+    public function countUnreadFor(User $viewer): array
+    {
+        // 1) Répliques reçues sur mes envois (sender = viewer, reply
+        //    présent, senderArchivedAt null).
+        $replies = (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->andWhere('m.sender = :viewer')
+            ->andWhere('m.reply IS NOT NULL')
+            ->andWhere('m.senderArchivedAt IS NULL')
+            ->setParameter('viewer', $viewer)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // 2) Inbox à traiter (reply IS NULL) — scope filtré comme
+        //    dans findInboxFor().
+        $isAdmin = $viewer->isAdmin();
+        $isTrainer = $viewer->isEntraineur();
+        $inbox = 0;
+        if ($isAdmin || $isTrainer) {
+            $qb = $this->createQueryBuilder('m')
+                ->select('COUNT(m.id)')
+                ->andWhere('m.reply IS NULL');
+            $orExpr = $qb->expr()->orX();
+            if ($isAdmin) {
+                $orExpr->add('m.scope = :sClub');
+                $qb->setParameter('sClub', MessageScope::Club);
+            }
+            if ($isTrainer) {
+                $orExpr->add('m.scope = :sAll');
+                $qb->setParameter('sAll', MessageScope::AllTrainers);
+                $orExpr->add('(m.scope = :sTrainer AND m.recipient = :viewer)');
+                $qb->setParameter('sTrainer', MessageScope::Trainer);
+                $qb->setParameter('viewer', $viewer);
+            } else {
+                $orExpr->add('(m.scope = :sTrainer AND m.recipient = :viewer)');
+                $qb->setParameter('sTrainer', MessageScope::Trainer);
+                $qb->setParameter('viewer', $viewer);
+            }
+            $qb->andWhere($orExpr);
+            $inbox = (int) $qb->getQuery()->getSingleScalarResult();
+        }
+
+        return ['inbox' => $inbox, 'replies' => $replies];
+    }
+
+    /**
      * Query builder pour le CRUD admin, scopé selon le rôle du viewer :
      *  - admin : voit TOUS les messages
      *  - entraineur : voit les scope=trainer où il est destinataire + tous
