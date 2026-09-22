@@ -199,6 +199,7 @@
             }
           } else {
             delete field.options;
+            delete field.groupTarget;
           }
           this.state.sync();
           this.render();
@@ -241,9 +242,11 @@
         },
       ));
 
-      // Options pour choix unique / multiple
+      // Options + rattachement à un groupe : uniquement pour choix
+      // unique / multiple (le trigger doit matcher une option existante).
       if (field.type === 'single_choice' || field.type === 'multi_choice') {
         body.appendChild(this.renderOptions(field));
+        body.appendChild(this.renderGroupTarget(field));
       }
 
       card.appendChild(body);
@@ -295,6 +298,60 @@
         this.render();
       });
       box.appendChild(addOpt);
+
+      return box;
+    }
+
+    renderGroupTarget(field) {
+      const box = document.createElement('div');
+      box.className = 'cfb-options';
+
+      box.appendChild(this.rowCheckbox(
+        'Rattacher automatiquement les répondants à un groupe d\'adhérents',
+        !!field.groupTarget,
+        (checked) => {
+          if (checked) {
+            field.groupTarget = {
+              name: (field.groupTarget && field.groupTarget.name) || '',
+              trigger: (field.options && field.options[0]) || '',
+            };
+          } else {
+            delete field.groupTarget;
+          }
+          this.state.sync();
+          this.render();
+        },
+      ));
+
+      if (field.groupTarget) {
+        box.appendChild(this.rowInput(
+          'Nom du groupe',
+          field.groupTarget.name || '',
+          (v) => { field.groupTarget.name = v; },
+          {
+            placeholder: 'Ex : Stage Banyuls',
+            help: 'Créé automatiquement sur la saison en cours s\'il n\'existe pas déjà, ou réutilisé sinon.',
+          },
+        ));
+
+        const opts = Array.isArray(field.options) ? field.options : [];
+        if (opts.length === 0) {
+          const warn = document.createElement('small');
+          warn.className = 'cfb-input-help';
+          warn.textContent = 'Ajoutez au moins une option ci-dessus pour choisir la réponse qui déclenche l\'ajout.';
+          box.appendChild(warn);
+        } else {
+          if (!opts.includes(field.groupTarget.trigger)) {
+            field.groupTarget.trigger = opts[0];
+          }
+          box.appendChild(this.rowSelect(
+            'Réponse qui déclenche l\'ajout au groupe',
+            field.groupTarget.trigger || opts[0],
+            opts.map((o) => ({ value: o, label: o === '' ? '(option vide)' : o })),
+            (v) => { field.groupTarget.trigger = v; this.state.sync(); },
+          ));
+        }
+      }
 
       return box;
     }

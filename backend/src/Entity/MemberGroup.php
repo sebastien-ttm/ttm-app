@@ -14,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  *  - SOURCE_EVENT   : créé automatiquement pour un événement à vote de
  *                     présence — s'auto-remplit avec les votes « yes ».
  *  - SOURCE_SURVEY  : créé/rempli via une réponse de sondage — voir
- *                     le service MemberGroupService::addFromSurveyAnswer.
+ *                     le service MemberGroupService::syncSurveyGroupTargets.
  *
  * L'unicité (season, name) autorise à réutiliser le même nom d'une
  * saison à l'autre — pratique pour un « Stage Banyuls » annuel.

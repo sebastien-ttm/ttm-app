@@ -6,6 +6,7 @@ use App\Entity\Survey;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Repository\SurveyResponseRepository;
+use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Survey\SurveySchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -26,10 +27,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
  * Format d'une question :
  *   { "id": "note_seances", "label": "Note ton ressenti", "type": "single_choice",
  *     "required": true, "help": "1 = pas satisfait, 5 = très satisfait",
- *     "options": ["1", "2", "3", "4", "5"] }
+ *     "options": ["1", "2", "3", "4", "5"],
+ *     "groupTarget": { "name": "Stage Banyuls", "trigger": "Oui" } }
  *
  * Types : short_text, long_text, single_choice, multi_choice.
  * `options` requis pour single_choice et multi_choice.
+ * `groupTarget` (optionnel, choix unique/multiple seulement) : rattache
+ * automatiquement au groupe `name` chaque répondant dont la réponse
+ * matche `trigger` — voir MemberGroupService::syncSurveyGroupTargets.
+ * Éditable via le builder visuel (case « Rattacher automatiquement… »)
+ * sans passer par le JSON brut. Un groupTarget ajouté/modifié sur un
+ * sondage qui a déjà des réponses est rejoué immédiatement sur toutes
+ * les réponses existantes (backfillGroupTargets, appelé à chaque save).
  */
 class SurveyCrudController extends AbstractCrudController
 {
@@ -60,6 +69,7 @@ JSON;
     public function __construct(
         private readonly SurveySchemaValidator $validator,
         private readonly SurveyResponseRepository $responses,
+        private readonly MemberGroupService $memberGroups,
     ) {
     }
 
@@ -164,6 +174,36 @@ JSON;
             $this->validateSchemaOrThrow($entityInstance);
         }
         parent::updateEntity($em, $entityInstance);
+
+        if ($entityInstance instanceof Survey) {
+            $this->backfillGroupTargets($em, $entityInstance);
+        }
+    }
+
+    /**
+     * Rejoue le rattachement groupTarget (voir MemberGroupService::
+     * syncSurveyGroupTargets) sur TOUTES les réponses déjà en base pour
+     * ce sondage — sinon un groupTarget ajouté/modifié après coup ne
+     * s'appliquerait qu'aux futures soumissions, laissant les réponses
+     * existantes hors du groupe. Idempotent, sans effet si aucune
+     * question du schéma courant ne déclare de groupTarget.
+     */
+    private function backfillGroupTargets(EntityManagerInterface $em, Survey $survey): void
+    {
+        $sections = $survey->getSections() ?? [];
+        $hasTarget = false;
+        foreach ($sections as $q) {
+            if (isset($q['groupTarget'])) { $hasTarget = true; break; }
+        }
+        if (!$hasTarget) {
+            return;
+        }
+
+        $responses = $this->responses->findBySurveyWithUser($survey);
+        foreach ($responses as $response) {
+            $this->memberGroups->syncSurveyGroupTargets($sections, $response->getAnswers(), $response->getUser());
+        }
+        $em->flush();
     }
 
     private function validateSchemaOrThrow(Survey $survey): void

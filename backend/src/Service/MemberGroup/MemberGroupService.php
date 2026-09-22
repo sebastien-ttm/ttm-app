@@ -150,6 +150,45 @@ class MemberGroupService
     }
 
     /**
+     * Parcourt le schéma d'un sondage pour toutes les questions déclarant
+     * un bloc `groupTarget` ({name, trigger}) ; si la réponse soumise
+     * matche le trigger, ajoute le user au groupe cible (créé au besoin,
+     * saison courante). Sinon, le retire — un membre qui change sa
+     * réponse sort automatiquement du groupe. Aucun flush ici : l'appelant
+     * flush après (appelé en boucle depuis submit() et depuis le backfill
+     * admin sur toutes les réponses existantes).
+     *
+     * @param list<array<string, mixed>> $sections
+     * @param array<string, mixed>       $answers
+     */
+    public function syncSurveyGroupTargets(array $sections, array $answers, User $user): void
+    {
+        foreach ($sections as $q) {
+            $target = $q['groupTarget'] ?? null;
+            if (!is_array($target)) continue;
+            $qid = $q['id'] ?? null;
+            $name = isset($target['name']) ? trim((string) $target['name']) : '';
+            $trigger = isset($target['trigger']) ? (string) $target['trigger'] : '';
+            if (!is_string($qid) || $name === '' || $trigger === '') continue;
+
+            $answer = $answers[$qid] ?? null;
+            $matches = false;
+            if (is_string($answer)) {
+                $matches = $answer === $trigger;
+            } elseif (is_array($answer)) {
+                $matches = in_array($trigger, $answer, true);
+            }
+
+            $group = $this->ensureGroupForSurvey($name, (string) ($q['label'] ?? $qid));
+            if ($matches) {
+                $this->addMember($group, $user, MemberGroupMember::SOURCE_SURVEY_ANSWER);
+            } else {
+                $this->removeMember($group, $user);
+            }
+        }
+    }
+
+    /**
      * Détermine la saison à utiliser pour rattacher un groupe :
      *  - la saison qui contient $date si elle est configurée,
      *  - sinon la saison courante (findOrCreate côté repo).
