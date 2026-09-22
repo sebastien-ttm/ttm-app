@@ -20,6 +20,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { useUnreadMessages } from '@/lib/useUnreadMessages';
 
 type SectionKey = 'sent' | 'inbox' | 'archived';
 
@@ -37,6 +38,7 @@ type SectionKey = 'sent' | 'inbox' | 'archived';
 export default function ContactScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { refresh: refreshUnread } = useUnreadMessages();
 
   // Tout viewer avec accès à une boîte de réception (entraîneur ou admin).
   const hasInbox = useMemo(() => {
@@ -81,13 +83,27 @@ export default function ContactScreen() {
     }
   }, [hasInbox]);
 
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
-  useRefreshOnResume(() => { void load(); });
+  useFocusEffect(useCallback(() => {
+    void load();
+    // Sync du badge en même temps que les listes — le badge peut avoir
+    // été modifié depuis une autre app (staff qui répond à un message
+    // depuis le backend, par ex.) sans que ce client soit au courant.
+    void refreshUnread();
+  }, [load, refreshUnread]));
+  useRefreshOnResume(() => {
+    void load();
+    void refreshUnread();
+  });
 
+  // Chaque action modifie potentiellement le compteur de messages non
+  // lus (archivage = « je m'en suis occupé », désarchivage = remet
+  // dans la file). On rafraîchit le badge en plus de recharger les
+  // listes locales.
   async function archiveSent(m: UserMessage) {
     try {
       await auth.archiveSentMessage(m.id);
       await load();
+      void refreshUnread();
     } catch (e) {
       showError(e);
     }
@@ -96,6 +112,7 @@ export default function ContactScreen() {
     try {
       await auth.unarchiveSentMessage(m.id);
       await load();
+      void refreshUnread();
     } catch (e) {
       showError(e);
     }
@@ -104,6 +121,7 @@ export default function ContactScreen() {
     try {
       await auth.archiveInbox(m.id);
       await load();
+      void refreshUnread();
     } catch (e) {
       showError(e);
     }
@@ -112,6 +130,7 @@ export default function ContactScreen() {
     try {
       await auth.unarchiveInbox(m.id);
       await load();
+      void refreshUnread();
     } catch (e) {
       showError(e);
     }

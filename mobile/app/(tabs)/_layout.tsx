@@ -5,14 +5,28 @@ import { Platform, Pressable } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
-import { useUnreadMessages } from '@/lib/useUnreadMessages';
+import { UnreadMessagesProvider, useUnreadMessages } from '@/lib/useUnreadMessages';
 import { canSeeTrainingTab } from '@/utils/profile';
 
+/**
+ * Racine des onglets. Fournit le contexte « messages non lus » à
+ * tous les écrans enfants (utile pour rafraîchir le badge après une
+ * action côté Contact — archivage, réponse, etc.).
+ */
 export default function TabsLayout() {
+  const { user } = useAuth();
+  return (
+    <UnreadMessagesProvider enabled={user !== null}>
+      <TabsInner />
+    </UnreadMessagesProvider>
+  );
+}
+
+function TabsInner() {
   const { user } = useAuth();
   const router = useRouter();
   const showTraining = canSeeTrainingTab(user);
-  const { total: unreadCount } = useUnreadMessages(user !== null);
+  const { total: unreadCount } = useUnreadMessages();
 
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.

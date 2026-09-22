@@ -20,6 +20,7 @@ import type { InboxMessage, MessageScope } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
+import { useUnreadMessages } from '@/lib/useUnreadMessages';
 
 /**
  * Détail d'un message reçu : affiche l'expéditeur, la portée
@@ -41,6 +42,7 @@ export default function InboxDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const { refresh: refreshUnread } = useUnreadMessages();
 
   const load = useCallback(async () => {
     if (!id) {
@@ -73,6 +75,8 @@ export default function InboxDetailScreen() {
       const resp = await auth.replyInbox(id, trimmed);
       setMsg(resp.message);
       setReply('');
+      // Le message sort du compteur inbox (reply IS NULL n'est plus vrai).
+      void refreshUnread();
     } catch (e) {
       showError(e);
     } finally {
@@ -90,6 +94,7 @@ export default function InboxDetailScreen() {
         await auth.archiveInbox(msg.id);
       }
       await load();
+      void refreshUnread();
     } catch (e) {
       showError(e);
     } finally {

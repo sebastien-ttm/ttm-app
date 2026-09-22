@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { auth } from '@/api/client';
@@ -7,15 +7,33 @@ import { auth } from '@/api/client';
  * Compteur global des messages « non lus » (inbox à traiter + réponses
  * reçues non archivées) pour l'user connecté.
  *
- * Rafraîchi :
- *  - au montage (une fois),
- *  - à chaque retour de background (AppState → 'active'),
- *  - toutes les 2 minutes en tâche de fond.
+ * Deux entrées :
+ *  - le provider `UnreadMessagesProvider` : monté au niveau des tabs,
+ *    fait le polling et expose la valeur + un `refresh()` déclencheur.
+ *  - le consommateur `useUnreadMessages()` : appelable depuis n'importe
+ *    quel écran enfant pour récupérer la valeur courante ou forcer un
+ *    refresh après une action (archivage, réponse…).
  *
- * Le hook accepte un flag `enabled` : quand l'user n'est pas encore
- * authentifié, on évite les 401 inutiles au boot de l'app.
+ * Rafraîchi :
+ *  - au montage du provider (une fois),
+ *  - toutes les 2 minutes en tâche de fond,
+ *  - à chaque retour de background (AppState → 'active'),
+ *  - à la demande via `refresh()`.
+ *
+ * `enabled` (côté provider) évite les 401 quand l'user n'est pas
+ * encore authentifié au boot.
  */
-export function useUnreadMessages(enabled: boolean = true): { total: number; refresh: () => Promise<void> } {
+type UnreadContextValue = {
+  total: number;
+  refresh: () => Promise<void>;
+};
+
+const UnreadMessagesContext = createContext<UnreadContextValue>({
+  total: 0,
+  refresh: async () => {},
+});
+
+export function UnreadMessagesProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const [total, setTotal] = useState(0);
 
   const refresh = useCallback(async () => {
@@ -30,14 +48,13 @@ export function useUnreadMessages(enabled: boolean = true): { total: number; ref
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setTotal(0);
+      return;
+    }
     void refresh();
 
-    // Polling léger (2 min) pour attraper les réponses arrivées pendant
-    // que l'onglet Contact n'est pas ouvert.
     const interval = setInterval(refresh, 120_000);
-
-    // Rafraîchissement immédiat au retour de background.
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') void refresh();
     });
@@ -48,5 +65,10 @@ export function useUnreadMessages(enabled: boolean = true): { total: number; ref
     };
   }, [enabled, refresh]);
 
-  return { total, refresh };
+  const value = useMemo(() => ({ total, refresh }), [total, refresh]);
+  return createElement(UnreadMessagesContext.Provider, { value }, children);
+}
+
+export function useUnreadMessages(): UnreadContextValue {
+  return useContext(UnreadMessagesContext);
 }
