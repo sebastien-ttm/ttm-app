@@ -23,6 +23,7 @@ import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
+import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 
 /**
  * Formulaire dynamique de sondage — supporte les 4 types définis
@@ -32,6 +33,7 @@ import { useGoBackOrHome } from '@/lib/goBackOrHome';
 export default function SurveyScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
+  const { refresh: refreshUnansweredSurveys } = useUnansweredSurveys();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
 
@@ -90,6 +92,9 @@ export default function SurveyScreen() {
       const resp = await surveysApi.submit(survey.id, answers);
       setSurvey(resp);
       setSubmittedAt(resp.myResponse?.updatedAt ?? resp.myResponse?.submittedAt ?? new Date().toISOString());
+      // Première réponse à ce sondage : le badge « non répondus » doit
+      // décrémenter immédiatement, sans attendre le poll de fond.
+      void refreshUnansweredSurveys();
     } catch (e) {
       if (e instanceof ApiError && e.body && typeof e.body === 'object' && 'details' in (e.body as object)) {
         const list = (e.body as { details?: unknown }).details;

@@ -72,6 +72,24 @@ class SurveyController extends AbstractController
         ]);
     }
 
+    /**
+     * Compteur agrégé pour le badge « sondages non répondus » (titre
+     * « Sondages en cours » + onglet Contact). Même logique que
+     * listOpen(), réduite à un chiffre pour éviter de recharger la
+     * liste complète à chaque poll.
+     */
+    #[Route('/api/me/surveys/unanswered-count', methods: ['GET'])]
+    public function unansweredCount(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $rows = $this->surveys->findOpenFor($user);
+        $ids = array_map(fn (Survey $s) => (int) $s->getId(), $rows);
+        $answered = $this->responses->findAnsweredSurveyIds($user, $ids);
+
+        return new JsonResponse(['count' => count($ids) - count($answered)]);
+    }
+
     #[Route('/api/me/surveys/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function get(int $id): JsonResponse
     {

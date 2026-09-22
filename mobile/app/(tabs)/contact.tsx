@@ -20,6 +20,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
 
 type SectionKey = 'sent' | 'inbox' | 'archived';
@@ -39,6 +40,7 @@ export default function ContactScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { refresh: refreshUnread } = useUnreadMessages();
+  const { refresh: refreshUnansweredSurveys } = useUnansweredSurveys();
 
   // Tout viewer avec accès à une boîte de réception (entraîneur ou admin).
   const hasInbox = useMemo(() => {
@@ -53,6 +55,11 @@ export default function ContactScreen() {
   const [archivedSent, setArchivedSent] = useState<UserMessage[]>([]);
   const [archivedInbox, setArchivedInbox] = useState<InboxMessage[]>([]);
   const [openSurveys, setOpenSurveys] = useState<SurveySummary[]>([]);
+
+  const unansweredSurveysCount = useMemo(
+    () => openSurveys.filter((s) => !s.answered).length,
+    [openSurveys],
+  );
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,14 +92,16 @@ export default function ContactScreen() {
 
   useFocusEffect(useCallback(() => {
     void load();
-    // Sync du badge en même temps que les listes — le badge peut avoir
-    // été modifié depuis une autre app (staff qui répond à un message
+    // Sync des badges en même temps que les listes — ils peuvent avoir
+    // été modifiés depuis une autre app (staff qui répond à un message
     // depuis le backend, par ex.) sans que ce client soit au courant.
     void refreshUnread();
-  }, [load, refreshUnread]));
+    void refreshUnansweredSurveys();
+  }, [load, refreshUnread, refreshUnansweredSurveys]));
   useRefreshOnResume(() => {
     void load();
     void refreshUnread();
+    void refreshUnansweredSurveys();
   });
 
   // Chaque action modifie potentiellement le compteur de messages non
@@ -197,7 +206,14 @@ export default function ContactScreen() {
 
           {openSurveys.length > 0 && (
             <View style={styles.surveysSection}>
-              <Text style={styles.surveysSectionTitle}>📊 Sondages en cours</Text>
+              <View style={styles.surveysSectionTitleRow}>
+                <Text style={styles.surveysSectionTitle}>📊 Sondages en cours</Text>
+                {unansweredSurveysCount > 0 && (
+                  <View style={styles.surveysBadge}>
+                    <Text style={styles.surveysBadgeLabel}>{unansweredSurveysCount}</Text>
+                  </View>
+                )}
+              </View>
               {openSurveys.map((s) => (
                 <Pressable
                   key={s.id}
@@ -513,10 +529,20 @@ const styles = StyleSheet.create({
     textAlign: 'center', lineHeight: 14,
   },
   surveysSection: { gap: 6 },
+  surveysSectionTitleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2,
+  },
   surveysSectionTitle: {
     fontSize: 13, fontWeight: '700', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2, marginLeft: 4,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginLeft: 4,
   },
+  surveysBadge: {
+    backgroundColor: COLORS.warning,
+    minWidth: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  surveysBadgeLabel: { color: '#fff', fontSize: 11, fontWeight: '700' },
   surveyCard: {
     flexDirection: 'row',
     alignItems: 'center',

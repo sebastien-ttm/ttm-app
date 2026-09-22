@@ -1,23 +1,27 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, useRouter } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { COLORS } from '@/config';
+import { UnansweredSurveysProvider, useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { UnreadMessagesProvider, useUnreadMessages } from '@/lib/useUnreadMessages';
 import { canSeeTrainingTab } from '@/utils/profile';
 
 /**
- * Racine des onglets. Fournit le contexte « messages non lus » à
- * tous les écrans enfants (utile pour rafraîchir le badge après une
- * action côté Contact — archivage, réponse, etc.).
+ * Racine des onglets. Fournit les contextes « messages non lus » et
+ * « sondages non répondus » à tous les écrans enfants (utile pour
+ * rafraîchir les badges après une action côté Contact — archivage,
+ * réponse, soumission de sondage, etc.).
  */
 export default function TabsLayout() {
   const { user } = useAuth();
   return (
     <UnreadMessagesProvider enabled={user !== null}>
-      <TabsInner />
+      <UnansweredSurveysProvider enabled={user !== null}>
+        <TabsInner />
+      </UnansweredSurveysProvider>
     </UnreadMessagesProvider>
   );
 }
@@ -27,6 +31,7 @@ function TabsInner() {
   const router = useRouter();
   const showTraining = canSeeTrainingTab(user);
   const { total: unreadCount } = useUnreadMessages();
+  const { count: unansweredSurveys } = useUnansweredSurveys();
 
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.
@@ -114,21 +119,25 @@ function TabsInner() {
         name="contact"
         options={{
           title: 'Contact',
-          // Badge chiffré = messages non lus (réponses reçues non
-          // archivées + inbox à traiter pour les staff). >99 → « 99+ ».
-          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: COLORS.primary,
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: '700',
-            minWidth: 16,
-            height: 16,
-            lineHeight: 16,
-            paddingHorizontal: 4,
-          },
+          // Pas de tabBarBadge natif (un seul badge supporté) : on
+          // superpose 2 badges chiffrés dans tabBarIcon —
+          // messages non lus (rouge, réponses reçues non archivées +
+          // inbox à traiter pour les staff) et sondages non répondus
+          // (ambre, couleur distincte). >99 → « 99+ » sur chacun.
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} size={22} />
+            <View>
+              <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} size={22} />
+              {unreadCount > 0 && (
+                <View style={[styles.badge, styles.badgeMessages]}>
+                  <Text style={styles.badgeLabel}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+              {unansweredSurveys > 0 && (
+                <View style={[styles.badge, styles.badgeSurveys, unreadCount > 0 && styles.badgeSurveysShifted]}>
+                  <Text style={styles.badgeLabel}>{unansweredSurveys > 99 ? '99+' : unansweredSurveys}</Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />
@@ -158,3 +167,25 @@ function TabsInner() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
+  },
+  badgeMessages: { backgroundColor: COLORS.primary },
+  badgeSurveys: { backgroundColor: COLORS.warning },
+  // Décale le badge sondages à gauche du badge messages quand les 2
+  // sont affichés en même temps, pour éviter qu'ils se chevauchent.
+  badgeSurveysShifted: { right: -22 },
+  badgeLabel: { color: '#fff', fontSize: 10, fontWeight: '700', lineHeight: 13 },
+});

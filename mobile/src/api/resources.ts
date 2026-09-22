@@ -196,6 +196,8 @@ export const surveys = {
   /** Soumission ou mise à jour (upsert). */
   submit: (id: number, answers: SurveyAnswers) =>
     api.post<Survey>(`/api/me/surveys/${id}/response`, { answers }),
+  /** Compteur pour le badge « non répondus » (titre + onglet Contact). */
+  unansweredCount: () => api.get<{ count: number }>('/api/me/surveys/unanswered-count'),
 };
 
 export const notices = {
