@@ -19,6 +19,13 @@ class CsvImportResult
     public ?string $seasonLabel = null;
     /** true = simulation (rollback à la fin, aucun email dispatché). */
     public bool $dryRun = false;
+    /**
+     * true = import d'archives (stats uniquement) : nouveaux comptes
+     * créés inactifs sans email, comptes existants non modifiés, aucun
+     * effet de bord "saison courante" (désactivations, liaisons email,
+     * parents externes).
+     */
+    public bool $historicalOnly = false;
     /** Parents externes désactivés (plus aucun enfant actif). */
     public int $externalParentsDeactivated = 0;
     /** Parents externes réactivés (au moins un enfant redevenu actif). */
@@ -54,6 +61,7 @@ class CsvImportResult
             'gracePeriodUntil' => $this->gracePeriodUntil?->format('Y-m-d'),
             'seasonLabel' => $this->seasonLabel,
             'dryRun' => $this->dryRun,
+            'historicalOnly' => $this->historicalOnly,
             'welcomeEmailsSent' => $this->welcomeEmailsSent,
             'externalParentsDeactivated' => $this->externalParentsDeactivated,
             'externalParentsReactivated' => $this->externalParentsReactivated,

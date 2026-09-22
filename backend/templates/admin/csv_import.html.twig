@@ -69,6 +69,22 @@
                     <strong>et</strong> renouvellements)
                 </label>
             </div>
+            <div style="margin-bottom:16px; padding:12px 14px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px;">
+                <label>
+                    <input type="checkbox" name="historical_only" value="1" onchange="document.getElementById('historicalOnlyWarning').style.display = this.checked ? 'block' : 'none';">
+                    <strong>Import historique (statistiques uniquement)</strong> — pour ré-importer une
+                    vieille saison (ex : 2022-2023) sans affecter la saison en cours
+                </label>
+                <div style="font-size:12px; color:#64748b; margin-top:6px;">
+                    Les nouveaux comptes sont créés <strong>inactifs</strong> (jamais connectables) et ne reçoivent
+                    <strong>aucun e-mail</strong>. Les comptes déjà existants ne sont <strong>pas modifiés</strong> —
+                    seule leur adhésion à cette saison est enregistrée. Aucune désactivation des absents, aucune
+                    liaison de profils par e-mail, aucune réconciliation des parents externes.
+                </div>
+                <div id="historicalOnlyWarning" style="display:none; font-size:12px; color:#92400e; margin-top:6px;">
+                    ⚠️ La case « Envoyer un e-mail de bienvenue » ci-dessus sera ignorée dans ce mode.
+                </div>
+            </div>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <button type="submit" name="action" value="dry_run" class="btn btn-secondary">
                     🔍 Simuler d'abord
@@ -98,11 +114,22 @@
                     pour la saison <strong>{{ result.seasonLabel }}</strong>.
                 </p>
             {% endif %}
+            {% if result.historicalOnly %}
+                <p style="font-size:14px; background:#f8fafc; border-left:4px solid #64748b; padding:8px 12px; border-radius:4px;">
+                    🗄️ Import historique — aucun compte connectable créé, aucun e-mail envoyé,
+                    saison en cours non affectée.
+                </p>
+            {% endif %}
             {% set willBe = result.dryRun ? ' seraient' : '' %}
             <ul style="font-size:15px;">
-                <li><strong>{{ result.created }}</strong> compte(s){{ willBe }} créé(s)</li>
-                <li><strong>{{ result.updated }}</strong> compte(s){{ willBe }} mis à jour</li>
-                <li><strong>{{ result.deactivated }}</strong> compte(s){{ willBe }} désactivé(s)</li>
+                {% if result.historicalOnly %}
+                    <li><strong>{{ result.created }}</strong> compte(s) d'archive (inactifs){{ willBe }} créé(s)</li>
+                    <li><strong>{{ result.updated }}</strong> compte(s) existant(s) — adhésion à cette saison{{ willBe }} enregistrée, profil non modifié</li>
+                {% else %}
+                    <li><strong>{{ result.created }}</strong> compte(s){{ willBe }} créé(s)</li>
+                    <li><strong>{{ result.updated }}</strong> compte(s){{ willBe }} mis à jour</li>
+                    <li><strong>{{ result.deactivated }}</strong> compte(s){{ willBe }} désactivé(s)</li>
+                {% endif %}
                 {% if result.externalParentsDeactivated > 0 %}
                     <li>👨‍👧 <strong>{{ result.externalParentsDeactivated }}</strong> parent(s) externe(s){{ willBe }} désactivé(s) (plus aucun enfant actif)</li>
                 {% endif %}

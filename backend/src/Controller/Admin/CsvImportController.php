@@ -62,7 +62,12 @@ class CsvImportController extends AbstractController
             } else {
                 $tmpPath = $file->getRealPath();
                 $delimiter = (string) ($request->request->get('delimiter') ?? ',');
-                $sendWelcome = (bool) $request->request->get('send_welcome', '1');
+                // Défaut '' (absent du POST) plutôt que '1' : une checkbox
+                // décochée n'est PAS envoyée par le navigateur — avec un
+                // défaut '1' elle aurait été interprétée comme cochée quoi
+                // qu'il arrive, rendant la case impossible à décocher.
+                $sendWelcome = (bool) $request->request->get('send_welcome', '');
+                $historicalOnly = (bool) $request->request->get('historical_only', '');
                 // Deux boutons de soumission :
                 //   name=action, value=dry_run  → simulation (rollback DB, aucun email)
                 //   name=action, value=commit   → import réel
@@ -71,7 +76,7 @@ class CsvImportController extends AbstractController
                 $dryRun = $action !== 'commit';
 
                 try {
-                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season, $dryRun);
+                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season, $dryRun, $historicalOnly);
                 } catch (\Throwable $e) {
                     $error = 'Erreur lors de l\'import : '.$e->getMessage();
                 }

@@ -88,16 +88,36 @@ class CsvImportService
     ) {
     }
 
+    /**
+     * @param bool $historicalOnly Import d'archives pour les statistiques
+     *   uniquement (ex : ré-import d'une vieille saison FFTri) :
+     *    - les nouveaux comptes sont créés INACTIFS (jamais connectables)
+     *      et ne reçoivent aucun email de bienvenue ;
+     *    - les comptes déjà existants ne sont PAS touchés (aucun champ
+     *      profil écrasé) — seule la UserSeasonMembership de la saison
+     *      importée est enregistrée/mise à jour pour cet adhérent ;
+     *    - aucun effet de bord « saison courante » : pas de liaison
+     *      email partagé, pas de désactivation des absents, pas de
+     *      réconciliation parents externes. Ces mécanismes supposent que
+     *      le fichier importé reflète l'état ACTUEL du club — faux par
+     *      définition pour un import historique.
+     */
     public function import(
         string $filePath,
         bool $sendWelcomeEmails = true,
         string $delimiter = ',',
         ?TrainingSeason $season = null,
         bool $dryRun = false,
+        bool $historicalOnly = false,
     ): CsvImportResult {
+        if ($historicalOnly) {
+            $sendWelcomeEmails = false;
+        }
+
         $result = new CsvImportResult();
         $result->seasonLabel = $season?->__toString();
         $result->dryRun = $dryRun;
+        $result->historicalOnly = $historicalOnly;
         $importedAt = new \DateTimeImmutable();
 
         // Transaction : en dry-run on rollback tout à la fin ; en réel on
@@ -180,6 +200,12 @@ class CsvImportService
                 $statutRaw = trim($this->resolveCol($record, self::COL_STATUT));
                 $isActive = $statutRaw !== '' ? $this->isStatutActive($statutRaw) : true;
                 $statut = $statutRaw !== '' ? $statutRaw : 'Validé';
+                if ($historicalOnly) {
+                    // Compte d'archive : jamais utilisable, quel que soit
+                    // le Statut du CSV (une vieille licence "Validé" ne
+                    // doit pas redevenir un compte actif aujourd'hui).
+                    $isActive = false;
+                }
 
                 $typeLicenceRaw = $this->resolveCol($record, self::COL_TYPE_LICENCE);
                 // Profil principal calculé depuis la date de naissance
@@ -218,42 +244,51 @@ class CsvImportService
                     $user->setRole('user');
                 }
 
-                // "Nom d'usage" (optionnel FFTri) prime sur "Nom" quand présent :
-                // couvre les cas nom marital, pseudonyme, etc. La colonne peut
-                // être absente des CSV plus anciens — dans ce cas on retombe
-                // silencieusement sur "Nom".
-                $nomLegal = trim($this->resolveCol($record, self::COL_NOM));
-                $nomUsage = trim($this->resolveCol($record, self::COL_NOM_USAGE));
-                $user->setNom($nomUsage !== '' ? $nomUsage : $nomLegal);
-                $user->setPrenom(trim($this->resolveCol($record, self::COL_PRENOM)));
-                // Email : posé UNIQUEMENT à la création. Sur un re-import,
-                // on conserve l'email actuellement en base — les admins le
-                // corrigent souvent en local (alias, domaine personnel, etc.)
-                // et un import ré-écraserait sinon ces ajustements à chaque
-                // sync FFTri.
-                if ($isNew) {
-                    $user->setEmail($email);
+                // Import historique sur un compte déjà existant : on ne
+                // touche AUCUN champ profil (le compte appartient à la
+                // saison courante, pas à l'archive qu'on est en train
+                // d'importer) — seule la UserSeasonMembership ci-dessous
+                // est enregistrée. Un compte tout juste créé passe
+                // toujours par ce bloc, historicalOnly ou non : il lui
+                // faut bien un nom/prénom/etc. pour être un User valide.
+                if ($isNew || !$historicalOnly) {
+                    // "Nom d'usage" (optionnel FFTri) prime sur "Nom" quand présent :
+                    // couvre les cas nom marital, pseudonyme, etc. La colonne peut
+                    // être absente des CSV plus anciens — dans ce cas on retombe
+                    // silencieusement sur "Nom".
+                    $nomLegal = trim($this->resolveCol($record, self::COL_NOM));
+                    $nomUsage = trim($this->resolveCol($record, self::COL_NOM_USAGE));
+                    $user->setNom($nomUsage !== '' ? $nomUsage : $nomLegal);
+                    $user->setPrenom(trim($this->resolveCol($record, self::COL_PRENOM)));
+                    // Email : posé UNIQUEMENT à la création. Sur un re-import,
+                    // on conserve l'email actuellement en base — les admins le
+                    // corrigent souvent en local (alias, domaine personnel, etc.)
+                    // et un import ré-écraserait sinon ces ajustements à chaque
+                    // sync FFTri.
+                    if ($isNew) {
+                        $user->setEmail($email);
+                    }
+                    $user->setTelephone($tel !== '' ? $tel : null);
+                    $user->setStatutLicence($statut);
+                    $user->setIsActive($isActive);
+                    $user->setLastCsvSyncAt($importedAt);
+
+                    // Sync profiles : remplace Jeune/Senior par le bon, garde les
+                    // profils manuels (Parent, Entraîneur, Encadrant) intacts.
+                    $existingProfiles = array_filter(
+                        $user->getProfiles(),
+                        fn (string $p) => !in_array($p, [Profile::Jeune->value, Profile::Senior->value], true),
+                    );
+                    $existingProfiles[] = $principalProfile->value;
+                    $user->setProfiles(array_values($existingProfiles));
+
+                    // Nouveaux champs FFTri
+                    $user->setDateNaissance($dateNaissance);
+                    $user->setSexe($this->cleanSexe($this->resolveCol($record, self::COL_SEXE)));
+                    $user->setAdresse($this->buildAdresse($record));
+                    $user->setTypeLicence(self::normalizeTypeLicence($typeLicenceRaw));
+                    $user->setCategorieAge(trim($this->resolveCol($record, self::COL_CATEGORIE_AGE)) ?: null);
                 }
-                $user->setTelephone($tel !== '' ? $tel : null);
-                $user->setStatutLicence($statut);
-                $user->setIsActive($isActive);
-                $user->setLastCsvSyncAt($importedAt);
-
-                // Sync profiles : remplace Jeune/Senior par le bon, garde les
-                // profils manuels (Parent, Entraîneur, Encadrant) intacts.
-                $existingProfiles = array_filter(
-                    $user->getProfiles(),
-                    fn (string $p) => !in_array($p, [Profile::Jeune->value, Profile::Senior->value], true),
-                );
-                $existingProfiles[] = $principalProfile->value;
-                $user->setProfiles(array_values($existingProfiles));
-
-                // Nouveaux champs FFTri
-                $user->setDateNaissance($dateNaissance);
-                $user->setSexe($this->cleanSexe($this->resolveCol($record, self::COL_SEXE)));
-                $user->setAdresse($this->buildAdresse($record));
-                $user->setTypeLicence(self::normalizeTypeLicence($typeLicenceRaw));
-                $user->setCategorieAge(trim($this->resolveCol($record, self::COL_CATEGORIE_AGE)) ?: null);
 
                 $errors = $this->validator->validate($user);
                 if (count($errors) > 0) {
@@ -282,7 +317,7 @@ class CsvImportService
                 if ($season !== null) {
                     $freshMembership = $this->upsertMembership($user, $season, $importedAt, $record);
                 }
-                if ($isNew || $freshMembership) {
+                if (!$historicalOnly && ($isNew || $freshMembership)) {
                     // isRenewal = compte existant ET nouveau membership pour la saison
                     // (donc adhérent connu qui revient). Un compte fraîchement créé
                     // reste « new » même s'il a une membership à sa création.
@@ -299,58 +334,64 @@ class CsvImportService
 
         $this->em->flush();
 
-        // Lier les profils partageant un même e-mail (parent + enfants).
-        // Pour chaque groupe email avec >1 user, le plus âgé devient primaire,
-        // les autres pointent vers lui via linkedToUser.
-        $this->linkSharedEmailProfiles();
-        $this->em->flush();
+        // Tout ce qui suit suppose que le fichier importé reflète l'état
+        // ACTUEL du club (liaison des emails partagés, désactivation des
+        // absents, réconciliation des parents externes) — faux par
+        // définition pour un import historique : on n'y touche pas.
+        if (!$historicalOnly) {
+            // Lier les profils partageant un même e-mail (parent + enfants).
+            // Pour chaque groupe email avec >1 user, le plus âgé devient primaire,
+            // les autres pointent vers lui via linkedToUser.
+            $this->linkSharedEmailProfiles();
+            $this->em->flush();
 
-        // Désactivation des users absents de cet import.
-        // Si une période de grâce est active (début de saison), on ne désactive
-        // PAS — les anciens adhérents non encore renouvelés restent connectables
-        // jusqu'à la date limite.
-        $settings = $this->membership->findCurrent();
-        $inGrace = $settings !== null && $settings->isInOldMembersGracePeriod();
-        $stale = $this->users->findActiveNotSyncedSince($importedAt);
+            // Désactivation des users absents de cet import.
+            // Si une période de grâce est active (début de saison), on ne désactive
+            // PAS — les anciens adhérents non encore renouvelés restent connectables
+            // jusqu'à la date limite.
+            $settings = $this->membership->findCurrent();
+            $inGrace = $settings !== null && $settings->isInOldMembersGracePeriod();
+            $stale = $this->users->findActiveNotSyncedSince($importedAt);
 
-        if ($inGrace) {
-            $result->deactivationDeferred = count($stale);
-            $result->gracePeriodUntil = $settings->getOldMembersValidUntil();
-            $this->csvImportLogger->info('CSV import : désactivations différées', [
-                'count' => $result->deactivationDeferred,
-                'until' => $result->gracePeriodUntil?->format('Y-m-d'),
-            ]);
-        } else {
-            foreach ($stale as $u) {
-                $u->setIsActive(false);
-                $result->deactivated++;
+            if ($inGrace) {
+                $result->deactivationDeferred = count($stale);
+                $result->gracePeriodUntil = $settings->getOldMembersValidUntil();
+                $this->csvImportLogger->info('CSV import : désactivations différées', [
+                    'count' => $result->deactivationDeferred,
+                    'until' => $result->gracePeriodUntil?->format('Y-m-d'),
+                ]);
+            } else {
+                foreach ($stale as $u) {
+                    $u->setIsActive(false);
+                    $result->deactivated++;
+                }
+                $this->em->flush();
+            }
+
+            // Réconcilie les parents externes selon la présence d'enfants actifs.
+            //  - 0 enfant actif  → parent désactivé (perte d'accès mobile)
+            //  - ≥ 1 actif       → parent réactivé (retour d'un enfant qui
+            //    renouvelle sa licence)
+            // Les parents ADHÉRENTS (avec leur propre licence) sont gérés par
+            // la logique deactivation ci-dessus (findActiveNotSyncedSince) et
+            // pas concernés par ce bloc.
+            foreach ($this->users->findExternalParents() as $parent) {
+                $activeChildren = 0;
+                foreach ($parent->getChildren() as $c) {
+                    if ($c->isActive()) { $activeChildren++; }
+                }
+                $wasActive = $parent->isActive();
+                $shouldBeActive = $activeChildren > 0;
+                if ($wasActive && !$shouldBeActive) {
+                    $parent->setIsActive(false);
+                    $result->externalParentsDeactivated++;
+                } elseif (!$wasActive && $shouldBeActive) {
+                    $parent->setIsActive(true);
+                    $result->externalParentsReactivated++;
+                }
             }
             $this->em->flush();
         }
-
-        // Réconcilie les parents externes selon la présence d'enfants actifs.
-        //  - 0 enfant actif  → parent désactivé (perte d'accès mobile)
-        //  - ≥ 1 actif       → parent réactivé (retour d'un enfant qui
-        //    renouvelle sa licence)
-        // Les parents ADHÉRENTS (avec leur propre licence) sont gérés par
-        // la logique deactivation ci-dessus (findActiveNotSyncedSince) et
-        // pas concernés par ce bloc.
-        foreach ($this->users->findExternalParents() as $parent) {
-            $activeChildren = 0;
-            foreach ($parent->getChildren() as $c) {
-                if ($c->isActive()) { $activeChildren++; }
-            }
-            $wasActive = $parent->isActive();
-            $shouldBeActive = $activeChildren > 0;
-            if ($wasActive && !$shouldBeActive) {
-                $parent->setIsActive(false);
-                $result->externalParentsDeactivated++;
-            } elseif (!$wasActive && $shouldBeActive) {
-                $parent->setIsActive(true);
-                $result->externalParentsReactivated++;
-            }
-        }
-        $this->em->flush();
 
         // Dedup + comptage des candidats bienvenue (dry-run compté, dispatch
         // effectif hors dry-run + case cochée). Fait AVANT rollback pour

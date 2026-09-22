@@ -30,6 +30,7 @@ class CsvImportCommand extends Command
             ->addOption('no-welcome', null, InputOption::VALUE_NONE, 'Ne pas envoyer d\'e-mail de bienvenue aux nouveaux comptes')
             ->addOption('season', 's', InputOption::VALUE_REQUIRED, 'ID de la saison d\'adhésion (par défaut : saison courante)')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Simulation : parse le CSV et affiche les compteurs SANS écrire en base ni envoyer d\'emails')
+            ->addOption('historical-only', null, InputOption::VALUE_NONE, 'Import d\'archives (stats uniquement) : nouveaux comptes inactifs sans email, comptes existants non modifiés, aucun effet de bord saison courante')
         ;
     }
 
@@ -62,12 +63,18 @@ class CsvImportCommand extends Command
             $io->note('MODE DRY-RUN — aucune écriture DB, aucun email dispatché.');
         }
 
+        $historicalOnly = (bool) $input->getOption('historical-only');
+        if ($historicalOnly) {
+            $io->note('MODE HISTORIQUE — nouveaux comptes inactifs sans email, comptes existants non modifiés, saison en cours non affectée.');
+        }
+
         $result = $this->importer->import(
             filePath: $file,
             sendWelcomeEmails: !$input->getOption('no-welcome'),
             delimiter: (string) $input->getOption('delimiter'),
             season: $season,
             dryRun: $dryRun,
+            historicalOnly: $historicalOnly,
         );
 
         $io->definitionList(
