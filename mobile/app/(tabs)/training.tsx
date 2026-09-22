@@ -299,10 +299,85 @@ function TrainingScreenInner() {
 }
 
 /**
+ * Répartit les créneaux d'un jour en sous-colonnes parallèles quand
+ * ils se chevauchent. Renvoie pour chaque slot :
+ *  - colIndex  : sa position horizontale au sein du cluster (0-based)
+ *  - totalCols : le nombre total de colonnes du cluster
+ *
+ * Le WeekGrid utilise ces deux valeurs pour calculer `left` et `width`.
+ *
+ * Algorithme (Google-Calendar-like) :
+ *  1. Regroupe les slots en « clusters » — chaîne transitive de
+ *     chevauchements par ordre chronologique.
+ *  2. À l'intérieur de chaque cluster, on garnit greedy : pour chaque
+ *     slot, on lui donne la 1re sous-colonne libre (celle dont le
+ *     slot précédent termine avant/à son démarrage), sinon on ouvre
+ *     une nouvelle sous-colonne.
+ *  3. Le nombre total de sous-colonnes du cluster est appliqué à tous
+ *     ses slots pour un rendu homogène.
+ */
+function layoutSlotsForDay(slots: TrainingSlot[]): Array<{
+  slot: TrainingSlot;
+  colIndex: number;
+  totalCols: number;
+}> {
+  if (slots.length === 0) return [];
+  // Calcule (startMin, endMin) pour chaque slot et trie par départ.
+  const enriched = slots
+    .map((s) => {
+      const [h, m] = s.startTime.split(':').map(Number);
+      const startMin = h * 60 + m;
+      return { s, startMin, endMin: startMin + s.durationMinutes };
+    })
+    .sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+
+  const out: Array<{ slot: TrainingSlot; colIndex: number; totalCols: number }> = [];
+  let cluster: Array<{ s: TrainingSlot; startMin: number; endMin: number; colIndex: number }> = [];
+  let colEnds: number[] = []; // pour chaque colonne, l'endMin du dernier slot posé
+  let clusterEnd = -1;
+
+  const flush = () => {
+    const total = colEnds.length;
+    for (const item of cluster) {
+      out.push({ slot: item.s, colIndex: item.colIndex, totalCols: Math.max(1, total) });
+    }
+    cluster = [];
+    colEnds = [];
+    clusterEnd = -1;
+  };
+
+  for (const item of enriched) {
+    if (cluster.length > 0 && item.startMin >= clusterEnd) {
+      flush();
+    }
+    // Trouve la 1re sous-colonne dispo.
+    let assigned = -1;
+    for (let i = 0; i < colEnds.length; i++) {
+      if (colEnds[i] <= item.startMin) {
+        assigned = i;
+        break;
+      }
+    }
+    if (assigned === -1) {
+      assigned = colEnds.length;
+      colEnds.push(item.endMin);
+    } else {
+      colEnds[assigned] = item.endMin;
+    }
+    cluster.push({ ...item, colIndex: assigned });
+    if (item.endMin > clusterEnd) clusterEnd = item.endMin;
+  }
+  if (cluster.length > 0) flush();
+  return out;
+}
+
+/**
  * Grille calendrier semaine (Google-Calendar-like, en version compacte).
  *  - 7 colonnes (lun-dim), scroll horizontal si l'écran est trop étroit.
  *  - Axe vertical en heures, hauteur d'une heure fixe (HOUR_HEIGHT).
  *  - Chaque slot est positionné en absolu par startTime / durationMinutes.
+ *  - Les créneaux qui se chevauchent partagent la largeur du jour en
+ *    sous-colonnes parallèles (cf. layoutSlotsForDay).
  *  - Tap → même détail que la vue chrono.
  */
 function WeekGrid({ slotsByDay, weekStart }: {
@@ -372,6 +447,7 @@ function WeekGrid({ slotsByDay, weekStart }: {
           {/* Grille : 7 colonnes de jour */}
           {[1, 2, 3, 4, 5, 6, 7].map((day) => {
             const slots = slotsByDay.get(day) ?? [];
+            const laidOut = layoutSlotsForDay(slots);
             return (
               <View key={day} style={[gridStyles.dayCol, { width: DAY_WIDTH, height: gridHeight }]}>
                 {/* Lignes horaires (fond) */}
@@ -379,20 +455,29 @@ function WeekGrid({ slotsByDay, weekStart }: {
                   <View key={h} style={[gridStyles.hourGridLine, { top: (h - bounds.startHour) * HOUR_HEIGHT }]} />
                 ))}
 
-                {/* Slots positionnés en absolu */}
-                {slots.map((s, idx) => {
+                {/* Slots positionnés en absolu. Les créneaux qui se
+                    chevauchent sont placés dans des sous-colonnes
+                    parallèles (colIndex/totalCols de leur cluster). */}
+                {laidOut.map(({ slot: s, colIndex, totalCols }, idx) => {
                   const [sh, sm] = s.startTime.split(':').map(Number);
                   const startMin = sh * 60 + sm;
                   const top = ((startMin - bounds.startHour * 60) / 60) * HOUR_HEIGHT;
                   const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 2);
                   const bg = s.sportColor + '22'; // couleur sport + alpha
+                  // Répartition horizontale : le container laisse 2 px
+                  // à gauche/droite, le reste est partagé entre totalCols
+                  // sous-colonnes (1 px de gap intra-cluster).
+                  const usable = DAY_WIDTH - 4;
+                  const gap = totalCols > 1 ? 1 : 0;
+                  const subWidth = (usable - gap * (totalCols - 1)) / totalCols;
+                  const left = 2 + colIndex * (subWidth + gap);
                   return (
                     <Pressable
                       key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`}
                       onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(s) } })}
                       style={({ pressed }) => [
                         gridStyles.slotBlock,
-                        { top, height, backgroundColor: bg, borderLeftColor: s.sportColor },
+                        { top, height, left, width: subWidth, backgroundColor: bg, borderLeftColor: s.sportColor },
                         s.isCancelled && gridStyles.slotBlockCancelled,
                         pressed && { opacity: 0.7 },
                       ]}
@@ -755,9 +840,9 @@ const gridStyles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   slotBlock: {
+    // left / width sont posés inline par le layout (partage horizontal
+    // en cas de chevauchement — voir layoutSlotsForDay).
     position: 'absolute',
-    left: 2,
-    right: 2,
     borderRadius: RADIUS.sm,
     padding: 4,
     borderLeftWidth: 3,
