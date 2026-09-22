@@ -2,17 +2,20 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\EventAttendance;
 use App\Entity\User;
 use App\Enum\AttendanceStatus;
 use App\Entity\MemberGroupMember;
+use App\Repository\CommentRepository;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,6 +33,8 @@ class EventController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly AudienceFilter $audienceFilter,
         private readonly MemberGroupService $memberGroups,
+        private readonly CommentRepository $comments,
+        private readonly ValidatorInterface $validator,
     ) {
     }
 
@@ -117,6 +122,66 @@ class EventController extends AbstractController
             'myVote' => $status?->value,
             'voteCounts' => $this->attendances->countsForEvent($event),
         ]);
+    }
+
+    /**
+     * Liste des commentaires (racines + réponses threadées) d'un
+     * événement. Le client reconstruit l'arbre via parentId.
+     */
+    #[Route('/api/events/{id}/comments', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function listEventComments(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $event = $this->findVisibleOr404($id, $viewer);
+        $all = $this->comments->findAllByEvent($event);
+        return new JsonResponse([
+            'data' => array_map(fn (Comment $c) => $this->serializer->comment($c), $all),
+            'total' => count($all),
+        ]);
+    }
+
+    /**
+     * Ajoute un commentaire (top-level si parentId absent, réponse
+     * threadée sinon). Comme pour les articles, les réponses sont
+     * ouvertes à tous les adhérents — la modération se fait a
+     * posteriori si nécessaire.
+     */
+    #[Route('/api/events/{id}/comments', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function addEventComment(int $id, Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $event = $this->findVisibleOr404($id, $user);
+        $payload = json_decode($request->getContent(), true);
+        $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
+        $parentId = is_array($payload) && isset($payload['parentId']) && $payload['parentId'] !== ''
+            ? (int) $payload['parentId']
+            : null;
+
+        if ($content === '' || mb_strlen($content) > 2000) {
+            return new JsonResponse(['error' => 'Le commentaire doit faire entre 1 et 2000 caractères.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($parentId !== null) {
+            $parent = $this->comments->find($parentId);
+            if ($parent === null || $parent->getEvent()?->getId() !== $event->getId()) {
+                return new JsonResponse(['error' => 'Commentaire parent introuvable.'], Response::HTTP_NOT_FOUND);
+            }
+            $comment = Comment::reply($parent, $user, $content);
+        } else {
+            $comment = Comment::forEvent($event, $user, $content);
+        }
+
+        $errors = $this->validator->validate($comment);
+        if (count($errors) > 0) {
+            return new JsonResponse(['error' => (string) $errors], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->em->persist($comment);
+        $this->em->flush();
+
+        return new JsonResponse($this->serializer->comment($comment), Response::HTTP_CREATED);
     }
 
     #[Route('/api/events', methods: ['GET'])]

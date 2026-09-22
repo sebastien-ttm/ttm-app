@@ -49,8 +49,12 @@ export type Paginated<T> = {
 
 export type Comment = {
   id: number;
+  /** Non-null quand le commentaire est une réponse threadée. */
+  parentId: number | null;
   content: string;
   createdAt: string;
+  /** Non-null si l'auteur a modifié son commentaire après publication. */
+  editedAt: string | null;
   user: UserSummary;
 };
 

@@ -118,8 +118,10 @@ class ApiSerializer
     {
         return [
             'id' => $c->getId(),
+            'parentId' => $c->getParent()?->getId(),
             'content' => $c->getContent(),
             'createdAt' => $c->getCreatedAt()->format(\DATE_ATOM),
+            'editedAt' => $c->getEditedAt()?->format(\DATE_ATOM),
             'user' => $this->user($c->getUser()),
         ];
     }

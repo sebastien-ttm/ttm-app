@@ -88,20 +88,19 @@ class ArticleController extends AbstractController
         /** @var User $viewer */
         $viewer = $this->getUser();
         $this->ensureVisible($article, $viewer);
-        $page = max(1, (int) $request->query->get('page', 1));
-        $limit = min(50, max(1, (int) $request->query->get('limit', 20)));
 
-        $paginator = $this->comments->findByArticlePaginated($article, $page, $limit);
-        $total = count($paginator);
-
+        // Nouveau contrat : renvoie l'ensemble des commentaires (racines
+        // + réponses) dans l'ordre chronologique, laisse le client
+        // reconstruire l'arbre via `parentId`. Le paramètre `page` est
+        // ignoré depuis le passage au threading (les threads ne se
+        // paginent pas proprement — un ancien client qui envoie ?page=…
+        // reçoit toujours la liste complète).
+        $all = $this->comments->findAllByArticle($article);
         return new JsonResponse([
-            'data' => array_map(
-                fn (Comment $c) => $this->serializer->comment($c),
-                iterator_to_array($paginator)
-            ),
-            'page' => $page,
-            'limit' => $limit,
-            'total' => $total,
+            'data' => array_map(fn (Comment $c) => $this->serializer->comment($c), $all),
+            'page' => 1,
+            'limit' => count($all),
+            'total' => count($all),
         ]);
     }
 
@@ -113,12 +112,27 @@ class ArticleController extends AbstractController
         $this->ensureVisible($article, $user);
         $payload = json_decode($request->getContent(), true);
         $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
+        $parentId = is_array($payload) && isset($payload['parentId']) && $payload['parentId'] !== ''
+            ? (int) $payload['parentId']
+            : null;
 
         if ($content === '' || mb_strlen($content) > 2000) {
             return new JsonResponse(['error' => 'Le commentaire doit faire entre 1 et 2000 caractères.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $comment = new Comment($article, $user, $content);
+        if ($parentId !== null) {
+            // Réponse : n'importe quel adhérent peut répondre (le
+            // parcours conversationnel entre user et admin doit rester
+            // ouvert — la modération se fait a posteriori si besoin).
+            $parent = $this->comments->find($parentId);
+            if ($parent === null || $parent->getArticle()?->getId() !== $article->getId()) {
+                return new JsonResponse(['error' => 'Commentaire parent introuvable.'], Response::HTTP_NOT_FOUND);
+            }
+            $comment = Comment::reply($parent, $user, $content);
+        } else {
+            $comment = Comment::forArticle($article, $user, $content);
+        }
+
         $errors = $this->validator->validate($comment);
         if (count($errors) > 0) {
             return new JsonResponse(['error' => (string) $errors], Response::HTTP_BAD_REQUEST);

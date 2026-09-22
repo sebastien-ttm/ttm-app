@@ -17,23 +17,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
-import { articles as articlesApi } from '@/api/resources';
+import { articles as articlesApi, comments as commentsApi } from '@/api/resources';
 import type { Article, ArticleAttachment, Comment } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
+import { CommentThread } from '@/components/CommentThread';
 import { ShareButton } from '@/components/ShareButton';
 import { COLORS } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { formatDate, formatRelativeFr, htmlExcerpt } from '@/utils/html';
+import { formatDate, htmlExcerpt } from '@/utils/html';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
   const goBack = useGoBackOrHome();
+  const { user } = useAuth();
   const id = Number(params.id);
 
   const [article, setArticle] = useState<Article | null>(null);
@@ -152,19 +155,26 @@ export default function ArticleScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Commentaires ({comments.length})</Text>
-              {comments.length === 0 ? (
-                <Text style={styles.empty}>Aucun commentaire pour le moment. Soyez le premier !</Text>
-              ) : (
-                <View style={{ gap: 12 }}>
-                  {comments.map((c) => (
-                    <CommentItem key={c.id} comment={c} />
-                  ))}
-                </View>
-              )}
-              <CommentForm
-                articleId={article.id}
-                onPosted={(c) => setComments((prev) => [...prev, c])}
+              <CommentThread
+                comments={comments}
+                currentUserId={user?.id ?? null}
+                onSubmit={async (content, parentId) => {
+                  const created = await articlesApi.addComment(article.id, content, parentId);
+                  setComments((prev) => [...prev, created]);
+                  return created;
+                }}
+                onEdit={async (commentId, content) => {
+                  const updated = await commentsApi.edit(commentId, content);
+                  setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
+                  return updated;
+                }}
               />
+              <View style={{ marginTop: 12 }}>
+                <CommentForm
+                  articleId={article.id}
+                  onPosted={(c) => setComments((prev) => [...prev, c])}
+                />
+              </View>
             </View>
 
             <Pressable onPress={goBack} style={styles.backBtn}>
@@ -190,18 +200,6 @@ function AttachmentLink({ attachment }: { attachment: ArticleAttachment }) {
       <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
       <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
     </Pressable>
-  );
-}
-
-function CommentItem({ comment }: { comment: Comment }) {
-  return (
-    <View style={styles.comment}>
-      <View style={styles.commentHeader}>
-        <Text style={styles.commentAuthor}>{comment.user.fullName}</Text>
-        <Text style={styles.commentTime}>{formatRelativeFr(comment.createdAt)}</Text>
-      </View>
-      <Text style={styles.commentBody}>{comment.content}</Text>
-    </View>
   );
 }
 
@@ -264,18 +262,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 12 },
-  empty: { color: COLORS.textMuted, fontSize: 14 },
-  comment: {
-    backgroundColor: COLORS.surface,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  commentAuthor: { fontWeight: '700', color: COLORS.text, fontSize: 14 },
-  commentTime: { color: COLORS.textMuted, fontSize: 12 },
-  commentBody: { color: COLORS.text, fontSize: 14, lineHeight: 20 },
   form: { marginTop: 16 },
   input: {
     backgroundColor: COLORS.surface,

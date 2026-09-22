@@ -34,8 +34,11 @@ export const articles = {
   get: (id: number) => api.get<Article>(`/api/articles/${id}`),
   comments: (id: number, page = 1) =>
     api.get<Paginated<Comment>>(`/api/articles/${id}/comments?page=${page}`),
-  addComment: (id: number, content: string) =>
-    api.post<Comment>(`/api/articles/${id}/comments`, { content }),
+  addComment: (id: number, content: string, parentId?: number | null) =>
+    api.post<Comment>(`/api/articles/${id}/comments`, {
+      content,
+      ...(parentId ? { parentId } : {}),
+    }),
   toggleReaction: (id: number, emoji: string) =>
     api.put<{
       action: 'added' | 'removed';
@@ -138,6 +141,16 @@ export const menu = {
   list: () => api.get<{ data: MenuItem[] }>('/api/menu'),
 };
 
+/**
+ * Édition d'un commentaire — endpoint transverse (indépendant de
+ * l'hôte article/événement, cf. CommentController côté backend).
+ * Seul l'auteur peut éditer son propre commentaire.
+ */
+export const comments = {
+  edit: (commentId: number, content: string) =>
+    api.patch<Comment>(`/api/comments/${commentId}`, { content }),
+};
+
 export const events = {
   list: (from?: string, to?: string) => {
     const qs = new URLSearchParams();
@@ -152,6 +165,13 @@ export const events = {
       `/api/events/${id}/attendance`,
       { status },
     ),
+  comments: (id: number) =>
+    api.get<{ data: Comment[]; total: number }>(`/api/events/${id}/comments`),
+  addComment: (id: number, content: string, parentId?: number | null) =>
+    api.post<Comment>(`/api/events/${id}/comments`, {
+      content,
+      ...(parentId ? { parentId } : {}),
+    }),
 };
 
 export const carpool = {

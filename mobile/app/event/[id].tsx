@@ -1,12 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
-import { events as api } from '@/api/resources';
-import type { EventItem } from '@/api/types';
+import { comments as commentsApi, events as api } from '@/api/resources';
+import type { Comment, EventItem } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
+import { CommentThread } from '@/components/CommentThread';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
@@ -54,9 +56,11 @@ function formatTime(d: Date): string {
 export default function EventDetailScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
+  const { user } = useAuth();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
   const [event, setEvent] = useState<EventItem | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +69,9 @@ export default function EventDetailScreen() {
     if (!id) { setError('Identifiant d\'événement invalide.'); return; }
     try {
       setError(null);
-      const resp = await api.get(id);
+      const [resp, cmts] = await Promise.all([api.get(id), api.comments(id)]);
       setEvent(resp);
+      setComments(cmts.data);
     } catch (e) {
       // 403 / 404 : soit l'événement n'existe pas, soit l'audience
       // ne correspond pas au profil du user (le backend renvoie 404
@@ -217,11 +222,81 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        <View style={styles.commentsSection}>
+          <Text style={styles.descTitle}>Commentaires ({comments.length})</Text>
+          <CommentThread
+            comments={comments}
+            currentUserId={user?.id ?? null}
+            onSubmit={async (content, parentId) => {
+              const created = await api.addComment(event.id, content, parentId);
+              setComments((prev) => [...prev, created]);
+              return created;
+            }}
+            onEdit={async (commentId, content) => {
+              const updated = await commentsApi.edit(commentId, content);
+              setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
+              return updated;
+            }}
+          />
+          <View style={{ marginTop: SPACING.sm }}>
+            <NewCommentForm
+              onSubmit={async (content) => {
+                const created = await api.addComment(event.id, content);
+                setComments((prev) => [...prev, created]);
+              }}
+            />
+          </View>
+        </View>
+
         <Pressable onPress={goBack} style={styles.backBtn}>
           <Text style={styles.backBtnLabel}>Retour</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function NewCommentForm({ onSubmit }: { onSubmit: (content: string) => Promise<void> }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    const trimmed = text.trim();
+    if (trimmed === '' || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await onSubmit(trimmed);
+      setText('');
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Erreur');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder="Votre commentaire…"
+        placeholderTextColor={COLORS.textSubtle}
+        multiline
+        style={styles.commentInput}
+        editable={!busy}
+        maxLength={2000}
+      />
+      {err && <Text style={styles.commentErr}>{err}</Text>}
+      <Pressable
+        onPress={submit}
+        disabled={busy || text.trim() === ''}
+        style={[styles.calendarBtn, (busy || text.trim() === '') && { opacity: 0.5 }]}
+      >
+        {busy ? <ActivityIndicator color={COLORS.primary} /> : <Text style={styles.calendarBtnLabel}>Publier</Text>}
+      </Pressable>
+    </View>
   );
 }
 
@@ -262,6 +337,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.sm,
   },
   descEmpty: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', textAlign: 'center' },
+  commentsSection: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+  },
+  commentInput: {
+    minHeight: 60,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 8,
+    textAlignVertical: 'top',
+    backgroundColor: COLORS.surface,
+  },
+  commentErr: { color: COLORS.error, fontSize: 12, marginBottom: 6 },
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
