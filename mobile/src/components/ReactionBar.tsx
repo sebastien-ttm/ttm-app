@@ -40,7 +40,8 @@ export function ReactionBar({ articleId, initialMine, onChange }: Props) {
     if (busy) return;
 
     // Optimistic exclusif : on met à jour la sélection AVANT de marquer
-    // busy, pour que le rerender applique immédiatement la surbrillance.
+    // busy, pour que le rerender applique immédiatement la surbrillance
+    // (ou son retrait sur un re-toggle).
     const previous = mineRef.current;
     const nextOptimistic = previous === emoji ? null : emoji;
     setMine(nextOptimistic);
@@ -48,10 +49,21 @@ export function ReactionBar({ articleId, initialMine, onChange }: Props) {
 
     try {
       const resp = await articlesApi.toggleReaction(articleId, emoji);
-      setMine(resp.myReactions[0] ?? null);
-      onChange?.(resp.reactionCounts);
+      // Le backend renvoie myReactions[] depuis c1a145e. Si un ancien
+      // bundle backend est encore en prod, la clé n'existe pas — dans
+      // ce cas on garde l'état optimiste plutôt que d'écraser en null
+      // (autre régression : le clic apparaîtrait sans effet visuel).
+      if (Array.isArray(resp?.myReactions)) {
+        setMine(resp.myReactions[0] ?? null);
+      }
+      // Idem pour reactionCounts, publié par le callback parent.
+      if (onChange && resp?.reactionCounts) {
+        onChange(resp.reactionCounts);
+      }
     } catch {
-      // Revert on failure
+      // Revert on failure — vraie erreur réseau/API, pas juste un
+      // champ optionnel manquant. L'utilisateur retrouve son état
+      // pré-clic pour éviter de le laisser dans un état incohérent.
       setMine(previous);
     } finally {
       setBusy(null);
