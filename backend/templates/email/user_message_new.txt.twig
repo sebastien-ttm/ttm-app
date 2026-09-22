@@ -8,7 +8,7 @@ Vous avez reçu un nouveau message{% if message.recipient is null %} adressé au
 {{ message.body }}
 ---
 
-Répondez depuis le backend (une seule réponse possible) :
+Répondez depuis le backend :
 {{ adminUrl }}
 
 Message envoyé le {{ message.sentAt|date('d/m/Y à H:i') }}.

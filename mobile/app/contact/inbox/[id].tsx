@@ -17,7 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
 import type { InboxMessage, MessageScope } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MessageThread } from '@/components/MessageThread';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
@@ -34,6 +36,7 @@ import { useUnreadMessages } from '@/lib/useUnreadMessages';
 export default function InboxDetailScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
+  const { user } = useAuth();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Number(rawId);
 
@@ -82,6 +85,13 @@ export default function InboxDetailScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitThreadReply(content: string) {
+    const resp = await auth.threadReply(id, content);
+    setMsg((prev) => (prev ? { ...prev, thread: [...prev.thread, resp.entry] } : prev));
+    void refreshUnread();
+    return resp.entry;
   }
 
   async function toggleArchive() {
@@ -161,11 +171,18 @@ export default function InboxDetailScreen() {
               <Text style={styles.replyBody}>{msg.reply}</Text>
               {!msg.canReply && msg.repliedByLabel && (
                 <Text style={styles.replyLockNote}>
-                  Un seul destinataire peut répondre. Vous voyez la réponse en lecture seule.
+                  Un seul destinataire peut poster cette première réponse. Vous voyez la réponse en lecture seule.
                 </Text>
               )}
             </View>
           )}
+
+          <MessageThread
+            thread={msg.thread}
+            currentUserId={user?.id ?? null}
+            canReply={msg.canThreadReply}
+            onSubmit={submitThreadReply}
+          />
 
           {msg.canReply && (
             <View style={styles.replyForm}>
@@ -182,9 +199,10 @@ export default function InboxDetailScreen() {
               />
               <Text style={styles.counter}>{reply.length} / 5000</Text>
               <Text style={styles.notice}>
-                Une seule réponse est possible par message.
+                Vous êtes le premier à répondre.
                 {msg.scope === 'all_trainers' ? ' Vos collègues entraîneurs la verront en lecture seule.' : ''}
                 {msg.scope === 'club' ? ' Les autres admins la verront en lecture seule.' : ''}
+                {' '}La conversation pourra ensuite continuer sans limite.
               </Text>
               <Pressable
                 onPress={submitReply}

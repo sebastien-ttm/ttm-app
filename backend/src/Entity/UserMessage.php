@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Enum\MessageCategory;
 use App\Enum\MessageScope;
 use App\Repository\UserMessageRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -14,11 +16,14 @@ use Symfony\Component\Validator\Constraints as Assert;
  *  - scope=Trainer     : un entraîneur précis         — recipient=User
  *  - scope=AllTrainers : tous les entraîneurs actifs  — recipient=null
  *
- * Le destinataire peut répondre UNE SEULE FOIS ; la réponse + l'auteur
- * sont affichés à l'expéditeur ET aux autres destinataires (pour les
- * scopes multi-destinataires). L'archivage se fait côté expéditeur
- * (senderArchivedAt) et côté destinataire (via UserMessageRecipientState,
- * indépendant par personne).
+ * Échange en 2 temps VERROUILLÉS pour compat ascendante + simplicité
+ * du cas courant : body (expéditeur) → reply (UN destinataire, une
+ * seule fois — setReplyOnce). Au-delà, la conversation continue sans
+ * limite via $threadReplies (MessageReply), ouverte à l'expéditeur ET
+ * à n'importe quel viewer éligible côté destinataire dès que `reply`
+ * est posé. L'archivage se fait côté expéditeur (senderArchivedAt) et
+ * côté destinataire (via UserMessageRecipientState, indépendant par
+ * personne).
  */
 #[ORM\Entity(repositoryClass: UserMessageRepository::class)]
 #[ORM\Table(name: 'user_message')]
@@ -102,9 +107,17 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $senderArchivedAt = null;
 
+    /**
+     * @var Collection<int, MessageReply>
+     */
+    #[ORM\OneToMany(targetEntity: MessageReply::class, mappedBy: 'message', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['createdAt' => 'ASC'])]
+    private Collection $threadReplies;
+
     public function __construct()
     {
         $this->sentAt = new \DateTimeImmutable();
+        $this->threadReplies = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -177,6 +190,31 @@ class UserMessage
     public function getSenderArchivedAt(): ?\DateTimeImmutable { return $this->senderArchivedAt; }
     public function setSenderArchivedAt(?\DateTimeImmutable $d): self { $this->senderArchivedAt = $d; return $this; }
     public function isSenderArchived(): bool { return $this->senderArchivedAt !== null; }
+
+    /** @return Collection<int, MessageReply> */
+    public function getThreadReplies(): Collection { return $this->threadReplies; }
+
+    /**
+     * Résumé texte de la suite de conversation (tours ≥ 3), pour
+     * affichage en lecture seule dans le backend admin — la poursuite
+     * de la conversation se fait depuis l'app mobile.
+     */
+    public function getThreadSummary(): string
+    {
+        if ($this->threadReplies->isEmpty()) {
+            return '';
+        }
+        $lines = [];
+        foreach ($this->threadReplies as $r) {
+            $lines[] = sprintf(
+                '[%s] %s : %s',
+                $r->getCreatedAt()->format('d/m/Y H:i'),
+                $r->getAuthor()->getFullName(),
+                $r->getContent(),
+            );
+        }
+        return implode("\n\n", $lines);
+    }
 
     /**
      * Cible humainement lisible :

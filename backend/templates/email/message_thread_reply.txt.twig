@@ -1,0 +1,13 @@
+Bonjour {{ target.prenom }},
+
+{{ reply.author.fullName }} a répondu dans votre conversation{% if message.subject %} « {{ message.subject }} »{% endif %} :
+
+---
+{{ reply.content }}
+---
+
+Voir toute la conversation et répondre dans l'application :
+{{ threadUrl }}
+
+---
+Triathlon Toulouse Métropole — message automatique, ne pas répondre.

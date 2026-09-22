@@ -2,13 +2,16 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\MessageReply;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Enum\MessageCategory;
 use App\Enum\MessageScope;
 use App\Enum\Profile;
+use App\Message\NotifyMessageThreadReplyMessage;
 use App\Message\NotifyNewUserMessageMessage;
 use App\Message\NotifyUserMessageReplyMessage;
+use App\Repository\MessageReplyRepository;
 use App\Repository\UserMessageRecipientStateRepository;
 use App\Repository\UserMessageRepository;
 use App\Repository\UserRepository;
@@ -28,6 +31,7 @@ class MessageController extends AbstractController
         private readonly UserMessageRepository $messages,
         private readonly UserMessageRecipientStateRepository $states,
         private readonly UserRepository $users,
+        private readonly MessageReplyRepository $threadReplies,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $bus,
     ) {
@@ -280,6 +284,53 @@ class MessageController extends AbstractController
         ]);
     }
 
+    /**
+     * Poursuit la conversation au-delà du 2e échange verrouillé
+     * (body → reply). Accessible aux DEUX parties dès que `reply` a
+     * été posé — l'expéditeur, ou n'importe quel viewer éligible côté
+     * destinataire (pas nécessairement celui qui a posté la 1re
+     * réponse : un collègue peut prendre le relais). Sans limite de
+     * tours.
+     */
+    #[Route('/api/me/messages/{id}/thread-reply', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function threadReply(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->messages->find($id);
+        if ($msg === null) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $isSender = $msg->getSender()->getId() === $viewer->getId();
+        if (!$isSender && !$this->canView($msg, $viewer)) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        if (!$msg->hasReply()) {
+            return new JsonResponse(['error' => 'La conversation s\'ouvre après la 1re réponse.'], Response::HTTP_CONFLICT);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
+        if ($content === '') {
+            return new JsonResponse(['error' => 'Le message ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($content) > 5000) {
+            return new JsonResponse(['error' => 'Message trop long (5000 caractères max).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $entry = new MessageReply($msg, $viewer, $content);
+        $this->em->persist($entry);
+        $this->em->flush();
+
+        $this->bus->dispatch(new NotifyMessageThreadReplyMessage($entry->getId()));
+
+        return new JsonResponse([
+            'ok' => true,
+            'entry' => $this->serializeThreadEntry($entry),
+        ], Response::HTTP_CREATED);
+    }
+
     #[Route('/api/me/inbox/{id}/archive', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function archiveInbox(int $id): JsonResponse
     {
@@ -360,6 +411,11 @@ class MessageController extends AbstractController
             'repliedByLabel' => $m->getRepliedBy()?->getFullName(),
             'hasReply' => $m->hasReply(),
             'senderArchivedAt' => $m->getSenderArchivedAt()?->format(\DATE_ATOM),
+            'thread' => array_map(
+                fn (MessageReply $r) => $this->serializeThreadEntry($r),
+                $m->getThreadReplies()->toArray(),
+            ),
+            'canThreadReply' => $m->hasReply(),
         ];
     }
 
@@ -397,6 +453,25 @@ class MessageController extends AbstractController
             'hasReply' => $m->hasReply(),
             'canReply' => !$m->hasReply(),
             'myArchivedAt' => $myArchivedAt?->format(\DATE_ATOM),
+            'thread' => array_map(
+                fn (MessageReply $r) => $this->serializeThreadEntry($r),
+                $m->getThreadReplies()->toArray(),
+            ),
+            'canThreadReply' => $m->hasReply(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeThreadEntry(MessageReply $r): array
+    {
+        return [
+            'id' => $r->getId(),
+            'authorId' => $r->getAuthor()->getId(),
+            'authorLabel' => $r->getAuthor()->getFullName(),
+            'content' => $r->getContent(),
+            'createdAt' => $r->getCreatedAt()->format(\DATE_ATOM),
         ];
     }
 }

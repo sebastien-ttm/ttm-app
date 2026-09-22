@@ -259,6 +259,7 @@ export default function ContactScreen() {
           <SentCard
             m={item.msg}
             archived={section === 'archived'}
+            onOpen={() => router.push(('/contact/sent/' + item.msg.id) as never)}
             onArchive={() => void archiveSent(item.msg)}
             onUnarchive={() => void unarchiveSent(item.msg)}
           />
@@ -317,12 +318,12 @@ function SectionTabs({
   );
 }
 
-function SentCard({ m, archived, onArchive, onUnarchive }: {
-  m: UserMessage; archived: boolean; onArchive: () => void; onUnarchive: () => void;
+function SentCard({ m, archived, onOpen, onArchive, onUnarchive }: {
+  m: UserMessage; archived: boolean; onOpen: () => void; onArchive: () => void; onUnarchive: () => void;
 }) {
   const sent = new Date(m.sentAt);
   return (
-    <View style={styles.card}>
+    <Pressable onPress={onOpen} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <Text style={styles.toLabel}>
@@ -337,7 +338,7 @@ function SentCard({ m, archived, onArchive, onUnarchive }: {
           {m.category !== 'general' ? m.categoryIcon + ' ' : ''}{m.subject}
         </Text>
       )}
-      <Text style={styles.body}>{m.body}</Text>
+      <Text style={styles.body} numberOfLines={3}>{m.body}</Text>
 
       {m.hasReply && m.reply && (
         <View style={styles.replyBox}>
@@ -346,9 +347,10 @@ function SentCard({ m, archived, onArchive, onUnarchive }: {
             <Text style={styles.replyHeaderLabel}>
               Réponse de {m.repliedByLabel ?? "l'équipe"}
               {m.repliedAt ? ' · ' + formatDateShort(new Date(m.repliedAt)) : ''}
+              {m.thread.length > 0 ? ' · ' + m.thread.length + ' message' + (m.thread.length > 1 ? 's' : '') + ' de plus' : ''}
             </Text>
           </View>
-          <Text style={styles.replyBody}>{m.reply}</Text>
+          <Text style={styles.replyBody} numberOfLines={2}>{m.reply}</Text>
         </View>
       )}
       {!m.hasReply && (
@@ -362,7 +364,7 @@ function SentCard({ m, archived, onArchive, onUnarchive }: {
           <ActionBtn icon="archive-outline" label="Archiver" onPress={onArchive} />
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

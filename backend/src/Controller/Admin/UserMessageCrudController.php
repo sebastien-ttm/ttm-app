@@ -152,8 +152,8 @@ class UserMessageCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setFormTypeOptions(['attr' => $isReplied ? ['readonly' => true, 'disabled' => true] : []])
             ->setHelp($isReplied
-                ? 'La réponse a déjà été envoyée et ne peut plus être modifiée.'
-                : 'Saisissez votre réponse. Elle sera visible par l\'expéditeur dans l\'app mobile. Une seule réponse possible — vous ne pourrez plus la modifier ensuite.');
+                ? 'La réponse a déjà été envoyée et ne peut plus être modifiée depuis le backend. La conversation peut se poursuivre sans limite depuis l\'application mobile (voir « Suite de la conversation » ci-dessous).'
+                : 'Saisissez votre réponse. Elle sera visible par l\'expéditeur dans l\'app mobile. Cette première réponse est définitive depuis le backend — la suite de la conversation se fait ensuite via l\'app mobile.');
 
         yield DateTimeField::new('repliedAt', 'Répondu le')
             ->setFormat('d MMM yyyy HH:mm')
@@ -163,6 +163,13 @@ class UserMessageCrudController extends AbstractCrudController
         yield AssociationField::new('repliedBy', 'Répondu par')
             ->hideOnForm()
             ->setRequired(false);
+
+        if ($isReplied) {
+            yield TextareaField::new('threadSummary', 'Suite de la conversation (app mobile)')
+                ->onlyOnDetail()
+                ->setNumOfRows(8)
+                ->setHelp('Échanges postés depuis l\'application mobile après cette première réponse, en lecture seule.');
+        }
 
         yield DateTimeField::new('recipientsNotifiedAt', 'Email destinataires envoyé le')
             ->setFormat('d MMM yyyy HH:mm')

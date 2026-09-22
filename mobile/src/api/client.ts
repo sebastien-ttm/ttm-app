@@ -1,4 +1,4 @@
-import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageCategory, MessageScope, Trainer, UserMessage } from '@/api/types';
+import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageCategory, MessageScope, ThreadEntry, Trainer, UserMessage } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 
@@ -364,4 +364,12 @@ export const auth = {
     api.post<{ ok: boolean; archivedAt: string | null }>(`/api/me/inbox/${id}/archive`, {}),
   unarchiveInbox: (id: number) =>
     api.post<{ ok: boolean; archivedAt: string | null }>(`/api/me/inbox/${id}/unarchive`, {}),
+
+  /**
+   * Poursuit la conversation au-delà du 2e échange verrouillé (body → reply).
+   * Accessible aux deux parties dès que `hasReply`/`canThreadReply` est vrai,
+   * sans limite de tours. `id` est l'id du UserMessage (envoyé ou reçu).
+   */
+  threadReply: (id: number, content: string) =>
+    api.post<{ ok: boolean; entry: ThreadEntry }>(`/api/me/messages/${id}/thread-reply`, { content }),
 };

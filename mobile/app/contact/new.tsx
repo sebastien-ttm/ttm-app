@@ -166,8 +166,8 @@ export default function ProfileMessagesNewScreen() {
           </Pressable>
 
           <Text style={styles.notice}>
-            Vous recevrez la réponse dans cette même section. Une seule réponse est possible
-            par message.
+            Vous recevrez la réponse dans cette même section, et pourrez ensuite poursuivre
+            la conversation sans limite.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -505,6 +505,19 @@ export type MessageScope = 'club' | 'trainer' | 'all_trainers';
  */
 export type MessageCategory = 'general' | 'bug' | 'improvement' | 'help_offer';
 
+/**
+ * Un tour de conversation au-delà du 2e échange verrouillé (body → reply).
+ * Posté par l'une ou l'autre partie une fois `hasReply`/`canThreadReply` vrai,
+ * sans limite de tours.
+ */
+export type ThreadEntry = {
+  id: number;
+  authorId: number;
+  authorLabel: string;
+  content: string;
+  createdAt: string;
+};
+
 /** Message envoyé depuis l'app (côté expéditeur). */
 export type UserMessage = {
   id: number;
@@ -529,6 +542,10 @@ export type UserMessage = {
   hasReply: boolean;
   /** Horodatage d'archivage côté expéditeur (null = non archivé). */
   senderArchivedAt: string | null;
+  /** Tours de conversation postés après la réponse verrouillée, dans l'ordre chronologique. */
+  thread: ThreadEntry[];
+  /** true dès que `hasReply` — l'expéditeur peut alors poursuivre la conversation sans limite. */
+  canThreadReply: boolean;
 };
 
 /**
@@ -559,4 +576,8 @@ export type InboxMessage = {
   canReply: boolean;
   /** Horodatage d'archivage individuel du viewer (null = non archivé). */
   myArchivedAt: string | null;
+  /** Tours de conversation postés après la réponse verrouillée, dans l'ordre chronologique. */
+  thread: ThreadEntry[];
+  /** true dès que `hasReply` — n'importe quel viewer éligible côté destinataire peut alors poursuivre la conversation sans limite. */
+  canThreadReply: boolean;
 };
