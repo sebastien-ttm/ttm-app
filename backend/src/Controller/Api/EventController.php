@@ -6,9 +6,11 @@ use App\Entity\Event;
 use App\Entity\EventAttendance;
 use App\Entity\User;
 use App\Enum\AttendanceStatus;
+use App\Entity\MemberGroupMember;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
+use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +29,7 @@ class EventController extends AbstractController
         private readonly EventAttendanceRepository $attendances,
         private readonly EntityManagerInterface $em,
         private readonly AudienceFilter $audienceFilter,
+        private readonly MemberGroupService $memberGroups,
     ) {
     }
 
@@ -88,15 +91,26 @@ class EventController extends AbstractController
             // Retire le vote (l'user hésite à nouveau) — supprime la ligne.
             if ($existing !== null) {
                 $this->em->remove($existing);
-                $this->em->flush();
             }
         } elseif ($existing !== null) {
             $existing->setStatus($status);
-            $this->em->flush();
         } else {
             $this->em->persist(new EventAttendance($viewer, $event, $status));
-            $this->em->flush();
         }
+
+        // Synchronise le groupe d'adhérents lié à l'événement :
+        //  - 'yes' → l'user est ajouté au groupe (créé au besoin).
+        //  - 'no' | 'maybe' | null (retrait) → l'user est retiré.
+        // Le groupe est créé à la volée (source=event) — pas besoin
+        // que l'admin le pré-crée. La cascade fait le reste.
+        $group = $this->memberGroups->ensureGroupForEvent($event);
+        if ($status === AttendanceStatus::Yes) {
+            $this->memberGroups->addMember($group, $viewer, MemberGroupMember::SOURCE_EVENT_VOTE);
+        } else {
+            $this->memberGroups->removeMember($group, $viewer);
+        }
+
+        $this->em->flush();
 
         return new JsonResponse([
             'ok' => true,

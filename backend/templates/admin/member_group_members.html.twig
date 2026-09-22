@@ -1,0 +1,114 @@
+{% extends 'admin/_layout_standalone.html.twig' %}
+
+{% block title %}Membres — {{ group.name }}{% endblock %}
+{% block page_title %}Membres du groupe : {{ group.name }}{% endblock %}
+
+{% block main %}
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+        <a href="{{ ea_url().setController('App\\Controller\\Admin\\MemberGroupCrudController').setAction('index') }}"
+           class="btn btn-secondary">← Tous les groupes</a>
+        {% if group.sourceEvent %}
+            <a href="{{ ea_url().setController('App\\Controller\\Admin\\EventCrudController').setAction('detail').setEntityId(group.sourceEvent.id) }}"
+               class="btn btn-secondary">🔗 Événement source</a>
+        {% endif %}
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for msg in messages %}
+            <div style="padding:10px 14px; border-radius:6px; margin-bottom:10px;
+                        background:{{ label == 'success' ? '#dcfce7' : (label == 'warning' ? '#fef3c7' : '#fee2e2') }};
+                        color:{{ label == 'success' ? '#15803d' : (label == 'warning' ? '#92400e' : '#991b1b') }};">
+                {{ msg }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        {# ============================ Liste des membres ============================ #}
+        <div style="flex:2 1 500px; background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            <h3 style="margin-top:0;">
+                Membres ({{ memberships|length }})
+            </h3>
+            {% if memberships|length == 0 %}
+                <p style="color:#999; font-style:italic;">Ce groupe n'a pas encore de membres.</p>
+            {% else %}
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="padding:8px; text-align:left;">Adhérent</th>
+                            <th style="padding:8px; text-align:left;">Ajouté le</th>
+                            <th style="padding:8px; text-align:left;">Origine</th>
+                            <th style="padding:8px; text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in memberships %}
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px;">
+                                    <strong>{{ m.user.fullName }}</strong>
+                                    {% if m.user.email %}
+                                        <div style="color:#888; font-size:12px;">{{ m.user.email }}</div>
+                                    {% endif %}
+                                </td>
+                                <td style="padding:8px; color:#555;">{{ m.joinedAt|date('d/m/Y H:i') }}</td>
+                                <td style="padding:8px;">
+                                    {% set src_label = {
+                                        'manual': 'Admin',
+                                        'event_vote': 'Vote événement',
+                                        'survey_answer': 'Sondage'
+                                    }[m.source]|default(m.source) %}
+                                    {% set src_bg = {
+                                        'manual': '#dbeafe',
+                                        'event_vote': '#dcfce7',
+                                        'survey_answer': '#fef3c7'
+                                    }[m.source]|default('#e5e7eb') %}
+                                    {% set src_color = {
+                                        'manual': '#1e40af',
+                                        'event_vote': '#15803d',
+                                        'survey_answer': '#92400e'
+                                    }[m.source]|default('#374151') %}
+                                    <span style="background:{{ src_bg }}; color:{{ src_color }}; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                                        {{ src_label }}
+                                    </span>
+                                </td>
+                                <td style="padding:8px; text-align:right;">
+                                    <form method="post"
+                                          action="{{ path('admin_member_group_remove_member', {id: group.id, userId: m.user.id}) }}"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('Retirer {{ m.user.fullName|e('js') }} du groupe ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('member_group_remove') }}">
+                                        <button class="btn btn-sm btn-link" style="color:#991b1b;">Retirer</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+
+        {# ============================ Ajout manuel ============================ #}
+        <div style="flex:1 1 260px; background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            <h3 style="margin-top:0;">Ajouter un adhérent</h3>
+            {% if availableUsers|length == 0 %}
+                <p style="color:#999; font-style:italic; font-size:13px;">
+                    Tous les adhérents actifs sont déjà membres.
+                </p>
+            {% else %}
+                <form method="post" action="{{ path('admin_member_group_add_member', {id: group.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('member_group_add') }}">
+                    <label style="display:block; font-size:13px; color:#555; margin-bottom:6px;">
+                        Adhérent
+                    </label>
+                    <select name="userId" required style="width:100%; padding:8px; border-radius:4px; border:1px solid #d4d4d8; margin-bottom:10px;">
+                        <option value="">— Choisir —</option>
+                        {% for u in availableUsers %}
+                            <option value="{{ u.id }}">{{ u.fullName }}{% if u.email %} — {{ u.email }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary btn-sm" style="width:100%;">Ajouter au groupe</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

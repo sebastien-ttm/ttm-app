@@ -9,6 +9,7 @@ use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\EventTag;
+use App\Entity\MemberGroup;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
@@ -146,6 +147,7 @@ class DashboardController extends AbstractDashboardController
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Groupes d\'adhérents', 'fa fa-user-group', MemberGroup::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)],

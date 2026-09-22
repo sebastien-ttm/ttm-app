@@ -5,9 +5,11 @@ namespace App\Controller\Api;
 use App\Entity\Survey;
 use App\Entity\SurveyResponse;
 use App\Entity\User;
+use App\Entity\MemberGroupMember;
 use App\Repository\SurveyRepository;
 use App\Repository\SurveyResponseRepository;
 use App\Service\Audience\AudienceFilter;
+use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Survey\SurveySchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,6 +36,7 @@ class SurveyController extends AbstractController
         private readonly SurveySchemaValidator $validator,
         private readonly EntityManagerInterface $em,
         private readonly AudienceFilter $audienceFilter,
+        private readonly MemberGroupService $memberGroups,
     ) {
     }
 
@@ -106,9 +109,52 @@ class SurveyController extends AbstractController
             $existing->setAnswers($clean);
             $this->em->persist($existing);
         }
+
+        // Rattachement automatique aux groupes : chaque question du
+        // schéma qui déclare un `groupTarget` peut ajouter (ou retirer)
+        // le user d'un groupe selon que la réponse matche le trigger.
+        $this->syncGroupTargets($survey->getSections() ?? [], $clean, $user);
+
         $this->em->flush();
 
         return new JsonResponse($this->serializeFull($survey, $existing));
+    }
+
+    /**
+     * Parcourt le schéma pour toutes les questions déclarant un bloc
+     * `groupTarget` ; si la valeur soumise matche le trigger, ajoute
+     * le user au groupe (créé au besoin, saison courante). Sinon, on
+     * le retire — un membre qui change son vote « Oui → Non » sort du
+     * groupe. Aucun flush ici : l'appelant flush après.
+     *
+     * @param list<array<string, mixed>> $sections
+     * @param array<string, mixed>       $answers
+     */
+    private function syncGroupTargets(array $sections, array $answers, User $user): void
+    {
+        foreach ($sections as $q) {
+            $target = $q['groupTarget'] ?? null;
+            if (!is_array($target)) continue;
+            $qid = $q['id'] ?? null;
+            $name = isset($target['name']) ? trim((string) $target['name']) : '';
+            $trigger = isset($target['trigger']) ? (string) $target['trigger'] : '';
+            if (!is_string($qid) || $name === '' || $trigger === '') continue;
+
+            $answer = $answers[$qid] ?? null;
+            $matches = false;
+            if (is_string($answer)) {
+                $matches = $answer === $trigger;
+            } elseif (is_array($answer)) {
+                $matches = in_array($trigger, $answer, true);
+            }
+
+            $group = $this->memberGroups->ensureGroupForSurvey($name, (string) ($q['label'] ?? $qid));
+            if ($matches) {
+                $this->memberGroups->addMember($group, $user, MemberGroupMember::SOURCE_SURVEY_ANSWER);
+            } else {
+                $this->memberGroups->removeMember($group, $user);
+            }
+        }
     }
 
     /**

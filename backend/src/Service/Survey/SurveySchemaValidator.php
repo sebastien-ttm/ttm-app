@@ -64,6 +64,26 @@ class SurveySchemaValidator
                     $errors[] = "$prefix : un champ « ".$t->label()." » doit avoir au moins une option (tableau de strings).";
                 }
             }
+
+            // Validation optionnelle du bloc groupTarget : quand présent,
+            // il doit contenir un name (nom du groupe cible pour la
+            // saison courante) + un trigger (valeur qui déclenche l'ajout
+            // du répondant au groupe, ex : « Oui »).
+            if (isset($q['groupTarget'])) {
+                $gt = $q['groupTarget'];
+                if (!is_array($gt)) {
+                    $errors[] = "$prefix : groupTarget doit être un objet {name, trigger}.";
+                } else {
+                    if (!isset($gt['name']) || !is_string($gt['name']) || trim($gt['name']) === '') {
+                        $errors[] = "$prefix : groupTarget.name requis (string non vide).";
+                    } elseif (mb_strlen((string) $gt['name']) > 120) {
+                        $errors[] = "$prefix : groupTarget.name trop long (120 caractères max).";
+                    }
+                    if (!isset($gt['trigger']) || !is_string($gt['trigger']) || trim($gt['trigger']) === '') {
+                        $errors[] = "$prefix : groupTarget.trigger requis (string, valeur qui déclenche l'ajout au groupe).";
+                    }
+                }
+            }
         }
         return $errors;
     }
