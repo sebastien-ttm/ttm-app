@@ -221,7 +221,7 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Ma famille</Text>
               <Text style={styles.actionHint}>
-                Déclarer qui est votre enfant ou votre parent parmi vos comptes liés
+                Déclarer qui est votre enfant parmi vos comptes liés
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
