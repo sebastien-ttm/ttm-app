@@ -26,7 +26,7 @@ enum PaymentType: string
             self::Virement => 'Virement',
             self::PassSport => 'Pass\'Sport',
             self::ANCV => 'Chèques vacances (ANCV)',
-            self::Fftri => 'Encaissé par la FFTri (Espace Tri)',
+            self::Fftri => 'CB (encaissé par la FFTri)',
             self::Autre => 'Autre',
         };
     }

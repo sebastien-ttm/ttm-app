@@ -80,14 +80,14 @@
                     <form method="post" action="{{ path('admin_user_membership_payment', {id: user.id, mid: m.id}) }}"
                           style="display:flex; gap:8px; align-items:center;">
                         <input type="hidden" name="_token" value="{{ csrf_token('membership_payment') }}">
-                        <select name="payment_type" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px;">
+                        <select name="payment_type" onchange="this.form.submit()" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px;">
                             {% for pt in paymentChoices %}
                                 <option value="{{ pt.value }}" {{ m.paymentType == pt.value ? 'selected' : '' }}>
                                     {{ pt.label }}
                                 </option>
                             {% endfor %}
                         </select>
-                        <button type="submit" class="btn btn-sm btn-secondary">Enregistrer</button>
+                        <noscript><button type="submit" class="btn btn-sm btn-secondary">Enregistrer</button></noscript>
                     </form>
                 </div>
 
