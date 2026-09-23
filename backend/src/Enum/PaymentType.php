@@ -14,6 +14,7 @@ enum PaymentType: string
     case Virement = 'virement';
     case PassSport = 'pass_sport';
     case ANCV = 'ancv';
+    case Fftri = 'fftri';
     case Autre = 'autre';
 
     public function label(): string
@@ -25,8 +26,20 @@ enum PaymentType: string
             self::Virement => 'Virement',
             self::PassSport => 'Pass\'Sport',
             self::ANCV => 'Chèques vacances (ANCV)',
+            self::Fftri => 'Encaissé par la FFTri (Espace Tri)',
             self::Autre => 'Autre',
         };
+    }
+
+    /**
+     * true = l'argent n'a pas transité par le club (encaissé directement
+     * par la FFTri via l'Espace Tri) : le document généré doit être une
+     * attestation de paiement, pas une facture (le club n'a rien encaissé
+     * et ne peut pas légalement le prétendre).
+     */
+    public function isCollectedByFftri(): bool
+    {
+        return $this === self::Fftri;
     }
 
     /** @return array<string, self> */

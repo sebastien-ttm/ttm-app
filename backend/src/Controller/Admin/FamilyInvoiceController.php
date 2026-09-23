@@ -123,7 +123,8 @@ class FamilyInvoiceController extends AbstractController
                     return new Response('<pre style="padding:20px;font-family:monospace;color:#991b1b;">'
                         .htmlspecialchars($e->getMessage()).'</pre>', 500);
                 }
-                $filename = $this->invoiceService->suggestedFamilyFilename($primary, $season);
+                $filename = $this->invoiceService->suggestedFamilyFilename($primary, $season, $paymentType);
+                $isAttestation = $paymentType->isCollectedByFftri();
 
                 if ($action === 'email') {
                     if (!$primary->getEmail()) {
@@ -131,17 +132,20 @@ class FamilyInvoiceController extends AbstractController
                     } else {
                         $mail = (new TemplatedEmail())
                             ->to($primary->getEmail())
-                            ->subject(sprintf('Votre facture d\'adhésion famille — Saison %s', (string) $season))
+                            ->subject($isAttestation
+                                ? sprintf('Votre attestation de paiement famille — Saison %s', (string) $season)
+                                : sprintf('Votre facture d\'adhésion famille — Saison %s', (string) $season))
                             ->htmlTemplate('email/invoice.html.twig')
                             ->textTemplate('email/invoice.txt.twig')
                             ->context([
                                 'user' => $primary,
                                 'season' => $season,
+                                'isAttestation' => $isAttestation,
                             ])
                             ->attach($pdf, $filename, 'application/pdf');
                         $this->mailer->send($mail);
                         $this->addFlash('success', sprintf(
-                            'Facture famille envoyée à %s.', $primary->getEmail(),
+                            '%s envoyée à %s.', $isAttestation ? 'Attestation famille' : 'Facture famille', $primary->getEmail(),
                         ));
                         return $this->redirectToRoute('admin_invoice_family_pick');
                     }

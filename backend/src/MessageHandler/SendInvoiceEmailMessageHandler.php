@@ -2,6 +2,7 @@
 
 namespace App\MessageHandler;
 
+use App\Enum\PaymentType;
 use App\Message\SendInvoiceEmailMessage;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
@@ -53,14 +54,19 @@ class SendInvoiceEmailMessageHandler
             return;
         }
 
+        $isAttestation = (PaymentType::tryFrom($membership->getPaymentType()) ?? PaymentType::CB)->isCollectedByFftri();
+
         $mail = (new TemplatedEmail())
             ->to($email)
-            ->subject(sprintf('Votre facture d\'adhésion %s', (string) $season))
+            ->subject($isAttestation
+                ? sprintf('Votre attestation de paiement %s', (string) $season)
+                : sprintf('Votre facture d\'adhésion %s', (string) $season))
             ->htmlTemplate('email/invoice.html.twig')
             ->textTemplate('email/invoice.txt.twig')
             ->context([
                 'user' => $user,
                 'season' => $season,
+                'isAttestation' => $isAttestation,
             ])
             ->attach($pdf, $this->invoiceService->suggestedFilename($user, $season), 'application/pdf');
 

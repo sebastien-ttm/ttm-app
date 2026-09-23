@@ -140,6 +140,7 @@ class InvoiceService
         }
         $seasonLabel = $this->seasonLabel($season);
         $invoiceNumber = sprintf('TTM-%s-%02d', $seasonLabel, $membership->getInvoiceSequence());
+        $isAttestation = $paymentType->isCollectedByFftri();
 
         $html = $this->twig->render('invoice/adherent.html.twig', [
             'settings' => $settings,
@@ -153,6 +154,7 @@ class InvoiceService
             'profile' => $resolved['profile'],
             'typeLicence' => $resolved['typeLicence'],
             'paymentTypeLabel' => $paymentType->label(),
+            'isAttestation' => $isAttestation,
             'invoiceNumber' => $invoiceNumber,
             'issuedAt' => new \DateTimeImmutable(),
         ]);
@@ -168,12 +170,17 @@ class InvoiceService
     }
 
     /**
-     * Nom de fichier suggéré pour un téléchargement.
+     * Nom de fichier suggéré pour un téléchargement. Préfixe adapté au
+     * type de document réellement généré (attestation si la cotisation a
+     * été encaissée par la FFTri, facture sinon — voir renderPdf()).
      */
     public function suggestedFilename(User $user, TrainingSeason $season): string
     {
+        $membership = $this->memberships->findOneByUserAndSeason($user, $season);
+        $paymentType = PaymentType::tryFrom($membership?->getPaymentType() ?? '') ?? PaymentType::CB;
+        $prefix = $paymentType->isCollectedByFftri() ? 'attestation-paiement-' : 'facture-adhesion-';
         $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $user->getFullName().'-'.$this->seasonLabel($season));
-        return 'facture-adhesion-'.trim((string) $slug, '-').'.pdf';
+        return $prefix.trim((string) $slug, '-').'.pdf';
     }
 
     /**
@@ -215,6 +222,7 @@ class InvoiceService
         }
 
         $seasonLabel = $this->seasonLabel($season);
+        $isAttestation = $paymentType?->isCollectedByFftri() ?? false;
         $totalCents = 0;
         $serializedLines = [];
         foreach ($lines as $l) {
@@ -247,6 +255,7 @@ class InvoiceService
             'invoiceNumber' => $invoiceNumber,
             'issuedAt' => new \DateTimeImmutable(),
             'paymentTypeLabel' => $paymentType?->label(),
+            'isAttestation' => $isAttestation,
         ]);
 
         $options = new Options();
@@ -259,10 +268,11 @@ class InvoiceService
         return (string) $dompdf->output();
     }
 
-    public function suggestedFamilyFilename(User $primary, TrainingSeason $season): string
+    public function suggestedFamilyFilename(User $primary, TrainingSeason $season, ?PaymentType $paymentType = null): string
     {
+        $prefix = ($paymentType?->isCollectedByFftri() ?? false) ? 'attestation-paiement-famille-' : 'facture-famille-';
         $slug = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $primary->getFullName().'-'.$this->seasonLabel($season));
-        return 'facture-famille-'.trim((string) $slug, '-').'.pdf';
+        return $prefix.trim((string) $slug, '-').'.pdf';
     }
 
     /**

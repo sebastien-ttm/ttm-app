@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Votre facture d'adhésion</title>
+    <title>{{ isAttestation ? 'Votre attestation de paiement' : 'Votre facture d\'adhésion' }}</title>
     <style>
         @media only screen and (max-width: 620px) {
             .ttm-container { width: 100% !important; }
@@ -24,9 +24,16 @@
             <tr>
                 <td class="ttm-body-cell" style="padding:24px; line-height:1.5;">
                     <p>Bonjour <strong>{{ user.prenom }}</strong>,</p>
-                    <p>Vous trouverez ci-joint votre <strong>facture d'adhésion</strong> pour la saison
-                       <strong>{{ season.name ?: season.id }}</strong>{% if season.startsAt and season.endsAt %}
-                       ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }}){% endif %}.</p>
+                    {% if isAttestation %}
+                        <p>Vous trouverez ci-joint votre <strong>attestation de paiement</strong> pour la saison
+                           <strong>{{ season.name ?: season.id }}</strong>{% if season.startsAt and season.endsAt %}
+                           ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }}){% endif %},
+                           votre cotisation ayant été réglée directement auprès de la FFTri (Espace Tri).</p>
+                    {% else %}
+                        <p>Vous trouverez ci-joint votre <strong>facture d'adhésion</strong> pour la saison
+                           <strong>{{ season.name ?: season.id }}</strong>{% if season.startsAt and season.endsAt %}
+                           ({{ season.startsAt|date('d/m/Y') }} → {{ season.endsAt|date('d/m/Y') }}){% endif %}.</p>
+                    {% endif %}
                     <p>Conservez-la pour vos remboursements employeur / mutuelle si concerné.</p>
                     <p style="margin-top:24px;">Sportivement,<br><em>L'équipe TTM</em></p>
                 </td>
