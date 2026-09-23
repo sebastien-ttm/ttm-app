@@ -42,9 +42,16 @@ trait EnsureAdminContextTrait
             return null;
         }
         $params = ['routeName' => $routeName];
-        $queryParams = $request->query->all();
-        if ($queryParams !== []) {
-            $params['routeParams'] = $queryParams;
+        // Les paramètres de route (ex : {id} dans /admin/adherents/{id}/memberships)
+        // vivent dans les attributs de la requête après matching, PAS dans
+        // la query string — un accès direct (bookmark, F5) à une URL avec
+        // un tel paramètre n'a pas de ?id=… en query. Sans ça, le forward
+        // vers /admin perd le paramètre et EasyAdmin plante en tentant de
+        // regénérer l'URL de $routeName (MissingMandatoryParametersException).
+        $routeParams = (array) $request->attributes->get('_route_params', []);
+        $mergedParams = array_merge($routeParams, $request->query->all());
+        if ($mergedParams !== []) {
+            $params['routeParams'] = $mergedParams;
         }
         return $this->redirect($this->generateUrl('admin_dashboard', $params));
     }
