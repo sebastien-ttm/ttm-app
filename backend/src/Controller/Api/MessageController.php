@@ -321,6 +321,16 @@ class MessageController extends AbstractController
 
         $entry = new MessageReply($msg, $viewer, $content);
         $this->em->persist($entry);
+
+        // Un nouveau tour de fil doit faire ressortir la conversation
+        // pour tout le monde, même chez ceux qui l'avaient archivée
+        // après le 1er échange — sinon elle reste invisible en dehors
+        // de « Archivés » pour eux, alors qu'il y a une activité neuve.
+        $msg->setSenderArchivedAt(null);
+        foreach ($this->states->findAllByMessage($msg) as $state) {
+            $state->setArchivedAt(null);
+        }
+
         $this->em->flush();
 
         $this->bus->dispatch(new NotifyMessageThreadReplyMessage($entry->getId()));

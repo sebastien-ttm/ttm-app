@@ -66,7 +66,12 @@ class NotifyMessageThreadReplyMessageHandler
             return;
         }
 
-        $threadUrl = rtrim($this->publicUrl, '/').($isFromSender ? '/admin' : '/profile/messages');
+        // Deep-link direct vers l'écran mobile de la conversation — la
+        // suite d'un fil ne peut être poursuivie que depuis l'app (le
+        // backend ne gère que la 1re réponse), donc même le staff est
+        // renvoyé vers le mobile, pas vers /admin (jamais un vrai écran
+        // « /profile/messages » côté mobile non plus).
+        $threadUrl = rtrim($this->publicUrl, '/').($isFromSender ? '/contact/inbox/' : '/contact/sent/').$msg->getId();
 
         $sent = 0;
         $failed = 0;

@@ -34,6 +34,24 @@ class UserMessageRecipientStateRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tous les états destinataire d'un message, tous users confondus —
+     * utilisé pour désarchiver en masse quand la conversation reprend
+     * (un nouveau tour de fil doit faire ressortir le message chez
+     * TOUS les collègues qui l'avaient archivé, pas seulement chez
+     * celui qui répond).
+     *
+     * @return list<UserMessageRecipientState>
+     */
+    public function findAllByMessage(UserMessage $message): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.message = :m')
+            ->setParameter('m', $message)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Renvoie les états d'un user indexés par message-id, pour joindre
      * l'info « archivé ? » dans la liste inbox sans requête par ligne.
      *

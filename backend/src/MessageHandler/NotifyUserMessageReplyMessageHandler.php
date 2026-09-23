@@ -48,8 +48,10 @@ class NotifyUserMessageReplyMessageHandler
             return;
         }
 
-        // Le sender consulte la réponse dans l'app mobile (auth requise).
-        $messagesUrl = rtrim($this->publicUrl, '/').'/profile/messages';
+        // Le sender consulte la réponse dans l'app mobile (auth requise) —
+        // deep-link direct vers le détail de SON message envoyé, pas une
+        // route « /profile/messages » qui n'a jamais existé côté mobile.
+        $messagesUrl = rtrim($this->publicUrl, '/').'/contact/sent/'.$msg->getId();
 
         $email = (new TemplatedEmail())
             ->to($sender->getEmail())
