@@ -4,6 +4,7 @@ namespace App\Service\Marketplace;
 
 use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceListingPhoto;
+use App\Service\ImageResizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
