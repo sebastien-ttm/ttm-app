@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { marketplace as marketplaceApi, pages as pagesApi } from '@/api/resources';
+import { pages as pagesApi } from '@/api/resources';
 import type { StaticPageNode } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
@@ -23,18 +23,6 @@ export default function PracticalScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Bourse aux équipements : phase de test, entrée visible uniquement si le
-  // serveur autorise ce compte (voir MarketplaceAccess côté backend).
-  const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setMarketplaceEnabled(false);
-    marketplaceApi.access()
-      .then((r) => { if (!cancelled) setMarketplaceEnabled(r.enabled); })
-      .catch(() => { /* pas d'entrée si on ne peut pas vérifier */ });
-    return () => { cancelled = true; };
-  }, [user?.id]);
 
   const load = useCallback(async () => {
     try {
@@ -103,23 +91,6 @@ export default function PracticalScreen() {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>
 
-          {marketplaceEnabled && (
-            <>
-              <Text style={styles.sectionTitle}>🎽 Bourse aux équipements</Text>
-              <Pressable
-                onPress={() => router.push('/marketplace' as never)}
-                style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
-              >
-                <View style={styles.committeeIcon}>
-                  <Ionicons name="pricetags" size={24} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.committeeTitle}>Matériel & affaires d'occasion</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </Pressable>
-            </>
-          )}
           {tree.length > 0 && <Text style={styles.sectionTitle}>📚 Informations</Text>}
         </View>
       }

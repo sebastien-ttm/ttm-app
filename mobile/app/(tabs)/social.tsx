@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { ApiError, auth } from '@/api/client';
-import { surveys as surveysApi } from '@/api/resources';
+import { marketplace as marketplaceApi, surveys as surveysApi } from '@/api/resources';
 import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
@@ -55,6 +55,18 @@ export default function ContactScreen() {
   const [archivedSent, setArchivedSent] = useState<UserMessage[]>([]);
   const [archivedInbox, setArchivedInbox] = useState<InboxMessage[]>([]);
   const [openSurveys, setOpenSurveys] = useState<SurveySummary[]>([]);
+
+  // Bourse aux équipements : phase de test, entrée visible uniquement si le
+  // serveur autorise ce compte (voir MarketplaceAccess côté backend).
+  const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setMarketplaceEnabled(false);
+    marketplaceApi.access()
+      .then((r) => { if (!cancelled) setMarketplaceEnabled(r.enabled); })
+      .catch(() => { /* pas d'entrée si on ne peut pas vérifier */ });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const unansweredSurveysCount = useMemo(
     () => openSurveys.filter((s) => !s.answered).length,
@@ -234,6 +246,25 @@ export default function ContactScreen() {
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
                 </Pressable>
               ))}
+            </View>
+          )}
+
+          {marketplaceEnabled && (
+            <View style={styles.surveysSection}>
+              <Text style={styles.surveysSectionTitle}>🎽 Bourse aux équipements</Text>
+              <Pressable
+                onPress={() => router.push('/marketplace' as never)}
+                style={({ pressed }) => [styles.marketCard, pressed && { opacity: 0.75 }]}
+              >
+                <View style={styles.marketIconWrap}>
+                  <Ionicons name="pricetags" size={20} color="#0f766e" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.surveyCardTitle}>Matériel & affaires d'occasion</Text>
+                  <Text style={styles.surveyCardMeta}>Annonces entre adhérents · publier · discuter</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
             </View>
           )}
 
@@ -554,6 +585,21 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   surveyCardDone: { borderLeftColor: '#16a34a', opacity: 0.85 },
+  marketCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0f766e',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+  },
+  marketIconWrap: {
+    width: 36, height: 36, borderRadius: 8,
+    backgroundColor: '#ccfbf1',
+    alignItems: 'center', justifyContent: 'center',
+  },
   surveyIconWrap: {
     width: 36, height: 36, borderRadius: 8,
     backgroundColor: '#ede9fe',
