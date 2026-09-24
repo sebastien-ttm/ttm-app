@@ -83,7 +83,7 @@ services:
 
     App\Service\Marketplace\MarketplaceAccess:
         arguments:
-            $testerEmails: '%env(default:app.marketplace_testers_fallback:MARKETPLACE_TESTER_EMAILS)%'
+            $envTesterEmails: '%env(default:app.marketplace_testers_fallback:MARKETPLACE_TESTER_EMAILS)%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

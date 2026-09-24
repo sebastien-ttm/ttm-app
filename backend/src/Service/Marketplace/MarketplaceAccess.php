@@ -2,34 +2,31 @@
 
 namespace App\Service\Marketplace;
 
+use App\Entity\MarketplaceSettings;
 use App\Entity\User;
+use App\Repository\MarketplaceSettingsRepository;
 
 /**
- * Accès à la bourse aux équipements pendant la phase de test : réservé
- * à une liste d'adresses e-mail (variable d'environnement
- * MARKETPLACE_TESTER_EMAILS, séparées par des virgules).
+ * Qui a accès à la bourse aux équipements.
  *
- *  - liste vide   → personne (fonctionnalité totalement fermée)
- *  - « * »        → tout le monde (mise en service générale)
- *  - sinon        → uniquement les comptes dont l'e-mail figure dans la liste
+ * Source de vérité : la page « Réglages de la bourse » du backend
+ * (MarketplaceSettings) — fermée / testeurs uniquement / tout le club.
+ * Tant que cette page n'a jamais été enregistrée, on retombe sur la
+ * variable d'environnement MARKETPLACE_TESTER_EMAILS (liste séparée par
+ * des virgules ; vide = personne ; « * » = tout le monde).
  *
- * Comparé en minuscules. Un profil dépendant qui partage l'adresse d'un
- * testeur y a donc accès aussi (même boîte mail).
+ * E-mails comparés en minuscules. Un profil dépendant qui partage
+ * l'adresse d'un testeur y a donc accès aussi (même boîte mail).
  */
 class MarketplaceAccess
 {
-    /** @var list<string> */
-    private readonly array $testerEmails;
-    private readonly bool $everyone;
+    private ?MarketplaceSettings $settings = null;
+    private bool $settingsLoaded = false;
 
-    public function __construct(string $testerEmails)
-    {
-        $emails = array_values(array_filter(
-            array_map(static fn (string $e) => mb_strtolower(trim($e), 'UTF-8'), explode(',', $testerEmails)),
-            static fn (string $e) => $e !== '',
-        ));
-        $this->everyone = in_array('*', $emails, true);
-        $this->testerEmails = $emails;
+    public function __construct(
+        private readonly MarketplaceSettingsRepository $settingsRepo,
+        private readonly string $envTesterEmails,
+    ) {
     }
 
     public function isEnabledFor(?User $user): bool
@@ -37,9 +34,33 @@ class MarketplaceAccess
         if ($user === null) {
             return false;
         }
-        if ($this->everyone) {
-            return true;
+
+        $settings = $this->settings();
+        if ($settings !== null) {
+            return match ($settings->getMode()) {
+                MarketplaceSettings::MODE_EVERYONE => true,
+                MarketplaceSettings::MODE_TESTERS => $this->isListed($user, $settings->getTesterEmailList()),
+                default => false,
+            };
         }
-        return in_array(mb_strtolower($user->getEmail(), 'UTF-8'), $this->testerEmails, true);
+
+        $envList = MarketplaceSettings::parseEmailList($this->envTesterEmails);
+        return in_array('*', $envList, true) || $this->isListed($user, $envList);
+    }
+
+    /** @param list<string> $emails */
+    private function isListed(User $user, array $emails): bool
+    {
+        return in_array(mb_strtolower($user->getEmail(), 'UTF-8'), $emails, true);
+    }
+
+    /** Lu une seule fois par requête (le voter et l'endpoint d'accès l'appellent tous les deux). */
+    private function settings(): ?MarketplaceSettings
+    {
+        if (!$this->settingsLoaded) {
+            $this->settings = $this->settingsRepo->findCurrent();
+            $this->settingsLoaded = true;
+        }
+        return $this->settings;
     }
 }
