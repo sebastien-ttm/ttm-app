@@ -83,7 +83,7 @@ export default function ProfileMessagesNewScreen() {
       // replace plutôt que back() : robuste contre un deep link direct
       // sur /contact/new (back() retomberait sur la home plutôt que sur
       // la liste des messages).
-      router.replace('/(tabs)/contact' as never);
+      router.replace('/(tabs)/social' as never);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
     } finally {

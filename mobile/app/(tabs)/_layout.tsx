@@ -116,7 +116,7 @@ function TabsInner() {
         }}
       />
       <Tabs.Screen
-        name="contact"
+        name="social"
         options={{
           title: 'Social',
           // Pas de tabBarBadge natif (un seul badge supporté) : on

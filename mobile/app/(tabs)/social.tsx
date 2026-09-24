@@ -190,14 +190,14 @@ export default function ContactScreen() {
           <View style={styles.quickRow}>
             <Pressable
               style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => router.push('/contact/quick?kind=feedback' as never)}
+              onPress={() => router.push('/social/quick?kind=feedback' as never)}
             >
               <Text style={styles.quickBtnIcon}>🐞</Text>
               <Text style={styles.quickBtnLabel}>Bug / Idée amélioration appli</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => router.push('/contact/quick?kind=help' as never)}
+              onPress={() => router.push('/social/quick?kind=help' as never)}
             >
               <Text style={styles.quickBtnIcon}>💡</Text>
               <Text style={styles.quickBtnLabel}>Idée vie du club</Text>
@@ -245,7 +245,7 @@ export default function ContactScreen() {
 
             <Pressable
               style={styles.newButton}
-              onPress={() => router.push('/contact/new' as never)}
+              onPress={() => router.push('/social/new' as never)}
             >
               <Ionicons name="create-outline" size={20} color="#fff" />
               <Text style={styles.newButtonLabel}>Nouveau message</Text>
@@ -275,7 +275,7 @@ export default function ContactScreen() {
           <SentCard
             m={item.msg}
             archived={section === 'archived'}
-            onOpen={() => router.push(('/contact/sent/' + item.msg.id) as never)}
+            onOpen={() => router.push(('/social/sent/' + item.msg.id) as never)}
             onArchive={() => void archiveSent(item.msg)}
             onUnarchive={() => void unarchiveSent(item.msg)}
           />
@@ -283,7 +283,7 @@ export default function ContactScreen() {
           <InboxCard
             m={item.msg}
             archived={section === 'archived'}
-            onOpen={() => router.push(('/contact/inbox/' + item.msg.id) as never)}
+            onOpen={() => router.push(('/social/inbox/' + item.msg.id) as never)}
             onArchive={() => void archiveInboxMsg(item.msg)}
             onUnarchive={() => void unarchiveInboxMsg(item.msg)}
           />

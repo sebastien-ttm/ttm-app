@@ -71,7 +71,7 @@ class NotifyMessageThreadReplyMessageHandler
         // backend ne gère que la 1re réponse), donc même le staff est
         // renvoyé vers le mobile, pas vers /admin (jamais un vrai écran
         // « /profile/messages » côté mobile non plus).
-        $threadUrl = rtrim($this->publicUrl, '/').($isFromSender ? '/contact/inbox/' : '/contact/sent/').$msg->getId();
+        $threadUrl = rtrim($this->publicUrl, '/').($isFromSender ? '/social/inbox/' : '/social/sent/').$msg->getId();
 
         $sent = 0;
         $failed = 0;

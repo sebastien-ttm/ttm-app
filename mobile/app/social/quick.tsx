@@ -67,7 +67,7 @@ export default function ContactQuickScreen() {
         body: trimmed,
         category,
       });
-      router.replace('/(tabs)/contact' as never);
+      router.replace('/(tabs)/social' as never);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
     } finally {
