@@ -118,7 +118,7 @@ function TabsInner() {
       <Tabs.Screen
         name="contact"
         options={{
-          title: 'Contact',
+          title: 'Social',
           // Pas de tabBarBadge natif (un seul badge supporté) : on
           // superpose 2 badges chiffrés dans tabBarIcon —
           // messages non lus (rouge, réponses reçues non archivées +
