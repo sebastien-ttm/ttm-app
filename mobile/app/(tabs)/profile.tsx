@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ApiError, auth as authApi } from '@/api/client';
@@ -24,6 +24,24 @@ export default function ProfileScreen() {
   const [togglingPlan, setTogglingPlan] = useState(false);
   const [togglingArticle, setTogglingArticle] = useState(false);
   const [charterVersion, setCharterVersion] = useState<string | null>(null);
+  // Reste-t-il des comptes liés non encore attribués (ni enfant ni parent
+  // déclaré) ? Détermine le libellé de la ligne « Ma famille » : on ne
+  // propose de « déclarer » que s'il y a effectivement quelque chose à
+  // déclarer. null = pas encore chargé (aucun libellé affiché, pour éviter
+  // un texte qui changerait aussitôt).
+  const [hasAssignable, setHasAssignable] = useState<boolean | null>(null);
+  const userId = user?.id ?? null;
+
+  // Rechargé à chaque retour sur l'onglet : déclarer un enfant depuis
+  // l'écran « Ma famille » change la réponse.
+  useFocusEffect(useCallback(() => {
+    if (userId === null) return;
+    let cancelled = false;
+    authApi.family()
+      .then((f) => { if (!cancelled) setHasAssignable(f.assignable.length > 0); })
+      .catch(() => { if (!cancelled) setHasAssignable(false); });
+    return () => { cancelled = true; };
+  }, [userId]));
 
   // Charge la version (saison) de la charte publiée pour titrer le lien
   // « Mon adhésion {saison} ». On ne le fait qu'une fois si l'user a
@@ -231,9 +249,13 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Ma famille</Text>
-              <Text style={styles.actionHint}>
-                Déclarer qui est votre enfant parmi vos comptes liés
-              </Text>
+              {hasAssignable !== null && (
+                <Text style={styles.actionHint}>
+                  {hasAssignable
+                    ? 'Déclarer qui est votre enfant parmi vos comptes liés'
+                    : 'Voir mes comptes liés'}
+                </Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>
