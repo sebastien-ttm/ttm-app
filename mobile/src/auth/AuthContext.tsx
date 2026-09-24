@@ -16,14 +16,30 @@ import { registerForPushNotifications } from '@/notifications/registerForPush';
  * pendant le formulaire de login). Module-level en fallback native.
  *
  * Seules les URLs qui ont du sens comme deep link sont acceptées :
- * pas /(auth), pas /charter-acceptance.
+ * pas les écrans du flow d'auth (voir AUTH_FLOW_PATHS ci-dessous),
+ * pas /charter-acceptance.
  */
 const INTENDED_PATH_KEY = 'ttm.intendedPath';
 let intendedPathMemory: string | null = null;
 
+/**
+ * Chemins réels (tels qu'exposés dans la barre d'adresse) des écrans du
+ * flow d'auth. `(auth)` est un groupe Expo Router — les parenthèses ne
+ * font JAMAIS partie de l'URL réelle, donc un ancien check du type
+ * `path.startsWith('/(auth)')` ne matche jamais rien et laissait passer
+ * ces routes comme « intended path ». Conséquence concrète : atterrir
+ * directement sur /login (onglet neuf, URL tapée) capturait '/login'
+ * comme intended path au chargement du module (voir plus bas) ; après
+ * connexion réussie, l'AuthGate renvoyait donc l'user... sur /login,
+ * qui semblait alors « ne rien faire » bien que l'auth ait réussi.
+ */
+const AUTH_FLOW_PATHS = ['/login', '/magic-link-request', '/magic-link', '/register-member', '/register-parent'];
+
 function isValidIntendedPath(path: string): boolean {
   if (!path || path === '/' || path === '') return false;
-  if (path.startsWith('/(auth)') || path.startsWith('/auth/')) return false;
+  const pathname = path.split('?')[0];
+  if (AUTH_FLOW_PATHS.includes(pathname)) return false;
+  if (path.startsWith('/auth/')) return false;
   if (path === '/charter-acceptance') return false;
   if (path === '/access-denied' || path.startsWith('/access-denied?')) return false;
   return true;
