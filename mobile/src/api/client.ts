@@ -275,6 +275,19 @@ export const auth = {
   setPassword: (newPassword: string) =>
     api.post<{ ok: boolean }>('/api/me/password', { new_password: newPassword }),
 
+  // ---- Changement d'e-mail en libre-service ----
+  /** Envoie un lien de confirmation à l'adresse ACTUELLE (`sentTo` = version masquée). */
+  requestEmailChange: (newEmail: string) =>
+    api.post<{ ok: boolean; sentTo: string }>('/api/me/email-change', { newEmail }),
+  /** Publics : le lien est ouvert depuis la boîte mail, session ou non. */
+  previewEmailChange: (token: string) =>
+    api.get<{ currentEmail: string; newEmail: string }>(
+      `/api/auth/email-change/preview?token=${encodeURIComponent(token)}`,
+      { public: true },
+    ),
+  confirmEmailChange: (token: string) =>
+    api.post<{ ok: boolean; newEmail: string }>('/api/auth/email-change/confirm', { token }, { public: true }),
+
   /** Mise à jour partielle des préférences de notification. */
   updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean }) =>
     api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean; notifyArticleEmail: boolean }>(

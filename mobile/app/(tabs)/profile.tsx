@@ -195,6 +195,17 @@ export default function ProfileScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          onPress={() => router.push('/profile/email' as never)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Adresse e-mail</Text>
+            <Text style={styles.actionHint}>{user.email} · cliquez pour modifier</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
           onPress={() => router.push('/profile/password' as never)}
         >
           <View style={{ flex: 1 }}>

@@ -19,6 +19,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === 'loading') return;
 
+    // Route publique : lien de confirmation de changement d'e-mail, ouvert
+    // depuis une boîte mail avec ou sans session. Ni renvoyée vers le login
+    // (non connecté), ni vers la home (connecté).
+    if (segments[0] === 'confirm-email-change') return;
+
     // Routes "auth flow" : on n'y redirige pas le user déjà connecté,
     // et le user non-connecté a le droit d'y rester.
     // Inclut le groupe (auth) ET la route littérale /auth/magic-link

@@ -33,7 +33,7 @@ let intendedPathMemory: string | null = null;
  * connexion réussie, l'AuthGate renvoyait donc l'user... sur /login,
  * qui semblait alors « ne rien faire » bien que l'auth ait réussi.
  */
-const AUTH_FLOW_PATHS = ['/login', '/magic-link-request', '/magic-link', '/register-member', '/register-parent'];
+const AUTH_FLOW_PATHS = ['/login', '/magic-link-request', '/magic-link', '/register-member', '/register-parent', '/confirm-email-change'];
 
 function isValidIntendedPath(path: string): boolean {
   if (!path || path === '/' || path === '') return false;

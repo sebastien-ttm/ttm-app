@@ -1,0 +1,13 @@
+Bonjour {{ user.prenom }},
+
+Une demande de changement d'adresse e-mail a été faite sur votre compte de l'application TTM :
+
+  Adresse actuelle : {{ user.email }}
+  Nouvelle adresse : {{ newEmail }}
+
+Pour confirmer que vous en êtes bien à l'origine, ouvrez ce lien (valable {{ validHours }} h, utilisable une seule fois) :
+{{ confirmUrl }}
+
+Vous n'êtes pas à l'origine de cette demande ? Ignorez simplement cet e-mail : tant que vous ne cliquez pas, votre adresse ne change pas. Par précaution, pensez à modifier votre mot de passe.
+
+— Triathlon Toulouse Métropole

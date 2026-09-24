@@ -1,0 +1,10 @@
+Bonjour {{ user.prenom }},
+
+{% if isNewAddress %}Cette adresse ({{ newEmail }}) est désormais l'adresse e-mail de votre compte de l'application TTM. Vous pouvez vous connecter avec elle dès maintenant.{% else %}L'adresse e-mail de votre compte de l'application TTM a été modifiée :
+
+  Ancienne adresse : {{ oldEmail }}
+  Nouvelle adresse : {{ newEmail }}
+
+Vous n'êtes pas à l'origine de ce changement ? Contactez le club sans attendre pour sécuriser votre compte.{% endif %}
+
+— Triathlon Toulouse Métropole

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Adresse e-mail modifiée</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+        <tr>
+            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:30px;">
+                <p>Bonjour <strong>{{ user.prenom }}</strong>,</p>
+
+                {% if isNewAddress %}
+                    <p>Cette adresse (<strong>{{ newEmail }}</strong>) est désormais l'adresse e-mail de votre compte de l'application TTM. Vous pouvez vous connecter avec elle dès maintenant.</p>
+                {% else %}
+                    <p>L'adresse e-mail de votre compte de l'application TTM a été modifiée :</p>
+                    <p style="margin:18px 0; padding:14px; background:#f4f6fa; border-left:4px solid #0d2148; border-radius:4px; font-size:14px; line-height:1.7;">
+                        Ancienne adresse : <strong>{{ oldEmail }}</strong><br>
+                        Nouvelle adresse : <strong>{{ newEmail }}</strong>
+                    </p>
+                    <p style="font-size:13px; color:#b91c1c;">
+                        <strong>Vous n'êtes pas à l'origine de ce changement ?</strong> Contactez le club sans attendre
+                        pour sécuriser votre compte.
+                    </p>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="background:#222; color:#aaa; padding:15px; text-align:center; font-size:12px;">
+                Triathlon Toulouse Métropole — message automatique, ne pas répondre
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

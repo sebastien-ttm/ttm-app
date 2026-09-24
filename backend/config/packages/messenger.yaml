@@ -19,3 +19,5 @@ framework:
             App\Message\SendInvoiceEmailMessage: async
             App\Message\NotifyNewUserMessageMessage: async
             App\Message\NotifyUserMessageReplyMessage: async
+            App\Message\SendEmailChangeConfirmationMessage: async
+            App\Message\NotifyEmailChangedMessage: async
