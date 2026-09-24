@@ -16,6 +16,8 @@ import type {
   StaffResponse,
   EventItem,
   GouterPlanning,
+  MarketplaceListing,
+  MarketplaceListingSummary,
   MenuItem,
   Paginated,
   PoolBadge,
@@ -225,6 +227,59 @@ export const charter = {
 
 export const committee = {
   get: () => api.get<CommitteeResponse>('/api/committee'),
+};
+
+/**
+ * Bourse aux équipements (onglet Club). Les uploads de photos suivent
+ * le même idiome multipart que `auth.uploadAvatar` dans client.ts :
+ * URI native RN → { uri, type, name } ; blob/data URI web → fetch+blob.
+ * Champ `photos[]` (convention PHP pour que Symfony les reçoive comme
+ * un tableau côté `$request->files->all('photos')`).
+ */
+type MarketplacePhotoInput = { uri: string; mimeType: string; name: string };
+
+async function appendMarketplacePhoto(form: FormData, photo: MarketplacePhotoInput): Promise<void> {
+  const { uri, mimeType, name } = photo;
+  if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+    const blob = await (await fetch(uri)).blob();
+    form.append('photos[]', blob, name);
+  } else {
+    // @ts-expect-error - React Native gère cette forme spéciale pour FormData
+    form.append('photos[]', { uri, type: mimeType, name });
+  }
+}
+
+export const marketplace = {
+  /** Annonces publiées, plus récentes d'abord. */
+  list: () => api.get<{ data: MarketplaceListingSummary[] }>('/api/marketplace/listings'),
+  /** Mes annonces (publiées + en pause). */
+  mine: () => api.get<{ data: MarketplaceListing[] }>('/api/marketplace/mine'),
+  get: (id: number) => api.get<MarketplaceListing>(`/api/marketplace/listings/${id}`),
+
+  /** Création (multipart) — jusqu'à 5 photos. */
+  create: async (title: string, description: string, photos: MarketplacePhotoInput[]) => {
+    const form = new FormData();
+    form.append('title', title);
+    form.append('description', description);
+    for (const p of photos) await appendMarketplacePhoto(form, p);
+    return api.post<MarketplaceListing>('/api/marketplace/listings', form);
+  },
+
+  /** Édition titre/texte seul — les photos passent par les endpoints dédiés. */
+  update: (id: number, patch: { title?: string; description?: string }) =>
+    api.patch<MarketplaceListing>(`/api/marketplace/listings/${id}`, patch),
+
+  addPhotos: async (id: number, photos: MarketplacePhotoInput[]) => {
+    const form = new FormData();
+    for (const p of photos) await appendMarketplacePhoto(form, p);
+    return api.post<MarketplaceListing>(`/api/marketplace/listings/${id}/photos`, form);
+  },
+  removePhoto: (id: number, photoId: number) =>
+    api.delete<MarketplaceListing>(`/api/marketplace/listings/${id}/photos/${photoId}`),
+
+  pause: (id: number) => api.post<MarketplaceListing>(`/api/marketplace/listings/${id}/pause`, {}),
+  publish: (id: number) => api.post<MarketplaceListing>(`/api/marketplace/listings/${id}/publish`, {}),
+  remove: (id: number) => api.delete<void>(`/api/marketplace/listings/${id}`),
 };
 
 export const staff = {

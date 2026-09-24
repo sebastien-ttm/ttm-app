@@ -14,6 +14,7 @@ parameters:
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
     app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
     app.uploads.invoice_signatures_dir: '%kernel.project_dir%/var/uploads/invoice-signatures'
+    app.uploads.marketplace_dir: '%kernel.project_dir%/public/uploads/marketplace'
 
 services:
     _defaults:
@@ -70,6 +71,11 @@ services:
     App\Service\AvatarService:
         arguments:
             $avatarsDir: '%app.uploads.avatars_dir%'
+            $publicUrl: '%app.public_url%'
+
+    App\Service\Marketplace\MarketplaceListingPhotoService:
+        arguments:
+            $listingsDir: '%app.uploads.marketplace_dir%'
             $publicUrl: '%app.public_url%'
 
     App\Controller\Admin\InlineUploadController:

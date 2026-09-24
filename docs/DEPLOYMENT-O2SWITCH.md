@@ -29,12 +29,14 @@
 
 ```ini
 upload_max_filesize = 16M
-post_max_size = 20M
+post_max_size = 45M
 memory_limit = 256M
 max_execution_time = 60
 opcache.memory_consumption = 128
 opcache.preload = /home/USER/ttm-app/backend/config/preload.php
 ```
+
+`post_max_size` couvre la bourse aux équipements (jusqu'à 5 photos × 8 Mo max chacune, cf. `MarketplaceListingPhotoService::MAX_BYTES`) — remonter cette valeur si le plafond par photo change côté code.
 
 ## Variables d'environnement (`.env.local`)
 

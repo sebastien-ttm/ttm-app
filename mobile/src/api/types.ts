@@ -581,3 +581,38 @@ export type InboxMessage = {
   /** true dès que `hasReply` — n'importe quel viewer éligible côté destinataire peut alors poursuivre la conversation sans limite. */
   canThreadReply: boolean;
 };
+
+/**
+ * Bourse aux équipements (onglet Club) — annonce d'occasion entre
+ * adhérents. Résumé pour la liste : titre + 1re photo + prénom auteur.
+ */
+export type MarketplaceListingSummary = {
+  id: number;
+  title: string;
+  authorFirstName: string;
+  createdAt: string;
+  /** null si l'annonce n'a aucune photo. */
+  photoUrl: string | null;
+  photoCount: number;
+};
+
+export type MarketplaceListingPhoto = {
+  id: number;
+  url: string;
+};
+
+/** Détail complet — inclut le téléphone de l'auteur pour le bouton WhatsApp. */
+export type MarketplaceListing = {
+  id: number;
+  title: string;
+  description: string;
+  authorId: number;
+  authorFirstName: string;
+  authorFullName: string;
+  /** Format tel que saisi en base (ex : "0612345678") — null si non renseigné, auquel cas masquer le bouton WhatsApp. */
+  authorPhone: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  paused: boolean;
+  photos: MarketplaceListingPhoto[];
+};

@@ -9,6 +9,7 @@ use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\EventTag;
+use App\Entity\MarketplaceListing;
 use App\Entity\MemberGroup;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
@@ -126,6 +127,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux équipements', 'fa fa-shirt', MarketplaceListing::class)],
             ],
             'Entraînements' => [
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],

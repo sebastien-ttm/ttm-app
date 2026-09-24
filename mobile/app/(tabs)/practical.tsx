@@ -90,6 +90,20 @@ export default function PracticalScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>
+
+          <Text style={styles.sectionTitle}>🎽 Bourse aux équipements</Text>
+          <Pressable
+            onPress={() => router.push('/marketplace' as never)}
+            style={({ pressed }) => [styles.committeeCard, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.committeeIcon}>
+              <Ionicons name="pricetags" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.committeeTitle}>Matériel & affaires d'occasion</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
           {tree.length > 0 && <Text style={styles.sectionTitle}>📚 Informations</Text>}
         </View>
       }
