@@ -15,6 +15,9 @@ parameters:
     app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
     app.uploads.invoice_signatures_dir: '%kernel.project_dir%/var/uploads/invoice-signatures'
     app.uploads.marketplace_dir: '%kernel.project_dir%/public/uploads/marketplace'
+    # Valeur de repli si MARKETPLACE_TESTER_EMAILS n'existe dans aucun .env
+    # (ex : .env.local.php généré avant l'ajout de la variable) : bourse fermée.
+    app.marketplace_testers_fallback: ''
 
 services:
     _defaults:
@@ -77,6 +80,10 @@ services:
         arguments:
             $listingsDir: '%app.uploads.marketplace_dir%'
             $publicUrl: '%app.public_url%'
+
+    App\Service\Marketplace\MarketplaceAccess:
+        arguments:
+            $testerEmails: '%env(default:app.marketplace_testers_fallback:MARKETPLACE_TESTER_EMAILS)%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

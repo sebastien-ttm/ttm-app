@@ -9,12 +9,13 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Gère le stockage des photos d'annonces de la bourse aux équipements :
- *  - upload dans public/uploads/marketplace/{listingId}/{hash}.{ext}
+ *  - upload dans public/uploads/marketplace/{listingId}/{hash}.jpg
  *    (URL publique — mêmes photos que celles montrées dans l'app,
  *    aucune raison de les protéger derrière l'auth)
- *  - redimensionnement (largeur max 1600px) via ImageResizer, sans
- *    crop — contrairement à l'avatar, on veut garder le cadrage choisi
- *    par le vendeur.
+ *  - réduction systématique via ImageResizer::compressToJpeg : plus
+ *    grand côté 1280px, JPEG qualité 78, orientation EXIF appliquée.
+ *    Sans crop — contrairement à l'avatar, on garde le cadrage choisi
+ *    par le vendeur. Seule la version réduite est conservée.
  *
  * Un dossier par annonce (mêmes principes que AttachmentService pour
  * les pièces jointes de créneau) plutôt qu'un dossier plat — plus
@@ -24,7 +25,9 @@ class MarketplaceListingPhotoService
 {
     private const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
     private const MAX_BYTES = 8_000_000;
-    private const MAX_WIDTH = 1600;
+    /** Plus grand côté après réduction (px) et qualité JPEG — ~150-350 Ko par photo. */
+    private const MAX_SIDE = 1280;
+    private const JPEG_QUALITY = 78;
 
     /** Nombre max de photos par annonce — appliqué côté MarketplaceController. */
     public const MAX_PHOTOS = 5;
@@ -60,16 +63,32 @@ class MarketplaceListingPhotoService
             throw new \RuntimeException('Impossible de créer le dossier photos.');
         }
 
-        $ext = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg';
-        $filename = bin2hex(random_bytes(8)).'.'.strtolower($ext);
+        // Le fichier reçu (potentiellement plusieurs Mo) est déposé sous un
+        // nom temporaire, réduit dans un .jpg définitif, puis supprimé :
+        // seule la version réduite reste sur le disque.
+        $base = bin2hex(random_bytes(8));
+        $tmpName = $base.'.upload';
+        $filename = $base.'.jpg';
 
         try {
-            $file->move($dir, $filename);
+            $file->move($dir, $tmpName);
         } catch (\Throwable $e) {
             throw new \RuntimeException('Échec du déplacement : '.$e->getMessage(), 0, $e);
         }
 
-        $this->resizer->resizeInPlace($dir.\DIRECTORY_SEPARATOR.$filename, $mime, self::MAX_WIDTH);
+        $tmpPath = $dir.\DIRECTORY_SEPARATOR.$tmpName;
+        $ok = $this->resizer->compressToJpeg(
+            $tmpPath,
+            $dir.\DIRECTORY_SEPARATOR.$filename,
+            $mime,
+            self::MAX_SIDE,
+            self::JPEG_QUALITY,
+        );
+        @unlink($tmpPath);
+        if (!$ok) {
+            @unlink($dir.\DIRECTORY_SEPARATOR.$filename);
+            throw new \RuntimeException('Impossible de traiter cette photo (fichier illisible ou trop grand).');
+        }
 
         $photo = new MarketplaceListingPhoto($listing, $filename, $position);
         $this->em->persist($photo);

@@ -142,6 +142,84 @@ class ImageResizer
         return true;
     }
 
+    /**
+     * Réduit une photo pour l'affichage écran et l'écrit en JPEG dans
+     * $destPath (fichier différent de la source) :
+     *  - plus grand côté ≤ $maxSide (jamais d'agrandissement) ;
+     *  - orientation EXIF appliquée AVANT réencodage — GD ne la lit pas
+     *    et le réencodage supprime la métadonnée, donc sans ça les
+     *    photos de téléphone en portrait ressortiraient couchées ;
+     *  - transparence aplatie sur fond blanc (PNG/WebP → JPEG).
+     *
+     * Renvoie false si l'image est illisible ou trop grande pour être
+     * traitée sans risquer de dépasser memory_limit (GD décompresse tout
+     * en mémoire : ~5 octets par pixel).
+     */
+    public function compressToJpeg(string $srcPath, string $destPath, ?string $mime = null, int $maxSide = 1280, int $quality = 78): bool
+    {
+        if (!is_file($srcPath) || !is_readable($srcPath)) {
+            return false;
+        }
+        $info = @getimagesize($srcPath);
+        if ($info === false) {
+            return false;
+        }
+        [$width, $height] = $info;
+        $mime = $mime ?? ($info['mime'] ?? '');
+        if ($width * $height > 36_000_000) {
+            return false;
+        }
+
+        $src = $this->loadImage($srcPath, $mime);
+        if ($src === null) {
+            return false;
+        }
+
+        if ($mime === 'image/jpeg' && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($srcPath);
+            $angle = match ((int) ($exif['Orientation'] ?? 1)) {
+                3 => 180,
+                6 => -90,
+                8 => 90,
+                default => 0,
+            };
+            if ($angle !== 0) {
+                $rotated = imagerotate($src, $angle, 0);
+                if ($rotated !== false) {
+                    imagedestroy($src);
+                    $src = $rotated;
+                    $width = imagesx($src);
+                    $height = imagesy($src);
+                }
+            }
+        }
+
+        $scale = min(1.0, $maxSide / max($width, $height));
+        $newWidth = max(1, (int) round($width * $scale));
+        $newHeight = max(1, (int) round($height * $scale));
+
+        $dst = imagecreatetruecolor($newWidth, $newHeight);
+        if ($dst === false) {
+            imagedestroy($src);
+            return false;
+        }
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        if ($white !== false) {
+            imagefill($dst, 0, 0, $white);
+        }
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+        $ok = imagejpeg($dst, $destPath, $quality);
+
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        if (!$ok) {
+            $this->logger->warning('Image compress: save failed', ['dest' => $destPath]);
+        }
+        return $ok;
+    }
+
     private function loadImage(string $path, string $mime): \GdImage|null
     {
         try {

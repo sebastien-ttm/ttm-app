@@ -7,6 +7,7 @@ use App\Entity\MarketplaceListingPhoto;
 use App\Entity\User;
 use App\Repository\MarketplaceListingPhotoRepository;
 use App\Repository\MarketplaceListingRepository;
+use App\Security\MarketplaceAccessVoter;
 use App\Service\Marketplace\MarketplaceListingPhotoService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,8 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Bourse aux équipements (onglet Club) : annonces d'adhérents pour du
  * matériel/des affaires d'occasion. Contact entre adhérents géré hors
  * app (WhatsApp, via le téléphone de l'auteur exposé dans le détail).
+ *
+ * Phase de test : réservée aux comptes listés dans
+ * MARKETPLACE_TESTER_EMAILS (voir MarketplaceAccess) — 403 pour les autres.
  */
-#[IsGranted('ROLE_USER')]
+#[IsGranted(MarketplaceAccessVoter::ATTRIBUTE)]
 class MarketplaceController extends AbstractController
 {
     public function __construct(

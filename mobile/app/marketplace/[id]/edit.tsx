@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -23,10 +22,9 @@ import type { MarketplaceListing } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
+import { pickReducedPhotos, type PickedPhoto } from '@/lib/marketplacePhotos';
 
 const MAX_PHOTOS = 5;
-
-type PickedPhoto = { uri: string; mimeType: string; name: string };
 
 /**
  * Édition d'une annonce : titre/texte (enregistrés au clic sur
@@ -45,6 +43,8 @@ export default function MarketplaceEditScreen() {
   const [newPhotos, setNewPhotos] = useState<PickedPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  /** Réduction des photos en cours (quelques secondes pour 5 photos). */
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removingPhotoId, setRemovingPhotoId] = useState<number | null>(null);
 
@@ -72,27 +72,16 @@ export default function MarketplaceEditScreen() {
   const totalPhotos = (listing?.photos.length ?? 0) + newPhotos.length;
 
   async function pickPhotos() {
-    if (totalPhotos >= MAX_PHOTOS) return;
-    if (Platform.OS !== 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission refusée', 'Autorise l\'accès aux photos dans les réglages.');
-        return;
+    if (totalPhotos >= MAX_PHOTOS || preparing) return;
+    setPreparing(true);
+    try {
+      const picked = await pickReducedPhotos(MAX_PHOTOS - totalPhotos);
+      if (picked.length > 0) {
+        setNewPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS - (listing?.photos.length ?? 0)));
       }
+    } finally {
+      setPreparing(false);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_PHOTOS - totalPhotos,
-      quality: 0.8,
-    });
-    if (result.canceled || result.assets.length === 0) return;
-    const picked: PickedPhoto[] = result.assets.map((a, i) => {
-      const mime = a.mimeType ?? 'image/jpeg';
-      const ext = mime.split('/')[1] ?? 'jpg';
-      return { uri: a.uri, mimeType: mime, name: `photo-${Date.now()}-${i}.${ext}` };
-    });
-    setNewPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS - (listing?.photos.length ?? 0)));
   }
 
   function removeNewPhoto(index: number) {
@@ -211,8 +200,10 @@ export default function MarketplaceEditScreen() {
               </View>
             ))}
             {totalPhotos < MAX_PHOTOS && (
-              <Pressable onPress={pickPhotos} disabled={busy} style={styles.photoAdd}>
-                <Ionicons name="camera-outline" size={24} color={COLORS.textMuted} />
+              <Pressable onPress={pickPhotos} disabled={busy || preparing} style={styles.photoAdd}>
+                {preparing
+                  ? <ActivityIndicator color={COLORS.textMuted} />
+                  : <Ionicons name="camera-outline" size={24} color={COLORS.textMuted} />}
               </Pressable>
             )}
           </View>

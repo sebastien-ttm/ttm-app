@@ -250,6 +250,8 @@ async function appendMarketplacePhoto(form: FormData, photo: MarketplacePhotoInp
 }
 
 export const marketplace = {
+  /** true si le compte courant a accès à la bourse (phase de test réservée à quelques comptes). */
+  access: () => api.get<{ enabled: boolean }>('/api/marketplace/access'),
   /** Annonces publiées, plus récentes d'abord. */
   list: () => api.get<{ data: MarketplaceListingSummary[] }>('/api/marketplace/listings'),
   /** Mes annonces (publiées + en pause). */

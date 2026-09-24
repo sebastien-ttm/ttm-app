@@ -1,11 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,10 +19,9 @@ import { ApiError } from '@/api/client';
 import { marketplace as marketplaceApi } from '@/api/resources';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
+import { pickReducedPhotos, type PickedPhoto } from '@/lib/marketplacePhotos';
 
 const MAX_PHOTOS = 5;
-
-type PickedPhoto = { uri: string; mimeType: string; name: string };
 
 /** Création d'une annonce : titre, texte, jusqu'à 5 photos. */
 export default function MarketplaceNewScreen() {
@@ -34,30 +31,19 @@ export default function MarketplaceNewScreen() {
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Réduction des photos en cours (quelques secondes pour 5 photos). */
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function pickPhotos() {
-    if (photos.length >= MAX_PHOTOS) return;
-    if (Platform.OS !== 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission refusée', 'Autorise l\'accès aux photos dans les réglages.');
-        return;
-      }
+    if (photos.length >= MAX_PHOTOS || preparing) return;
+    setPreparing(true);
+    try {
+      const picked = await pickReducedPhotos(MAX_PHOTOS - photos.length);
+      if (picked.length > 0) setPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
+    } finally {
+      setPreparing(false);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_PHOTOS - photos.length,
-      quality: 0.8,
-    });
-    if (result.canceled || result.assets.length === 0) return;
-    const picked: PickedPhoto[] = result.assets.map((a, i) => {
-      const mime = a.mimeType ?? 'image/jpeg';
-      const ext = mime.split('/')[1] ?? 'jpg';
-      return { uri: a.uri, mimeType: mime, name: `photo-${Date.now()}-${i}.${ext}` };
-    });
-    setPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
   }
 
   function removePhoto(index: number) {
@@ -128,8 +114,10 @@ export default function MarketplaceNewScreen() {
               </View>
             ))}
             {photos.length < MAX_PHOTOS && (
-              <Pressable onPress={pickPhotos} disabled={busy} style={styles.photoAdd}>
-                <Ionicons name="camera-outline" size={24} color={COLORS.textMuted} />
+              <Pressable onPress={pickPhotos} disabled={busy || preparing} style={styles.photoAdd}>
+                {preparing
+                  ? <ActivityIndicator color={COLORS.textMuted} />
+                  : <Ionicons name="camera-outline" size={24} color={COLORS.textMuted} />}
               </Pressable>
             )}
           </View>
