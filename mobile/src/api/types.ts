@@ -601,7 +601,7 @@ export type MarketplaceListingPhoto = {
   url: string;
 };
 
-/** Détail complet — inclut le téléphone de l'auteur pour le bouton WhatsApp. */
+/** Détail complet d'une annonce. */
 export type MarketplaceListing = {
   id: number;
   title: string;
@@ -609,10 +609,46 @@ export type MarketplaceListing = {
   authorId: number;
   authorFirstName: string;
   authorFullName: string;
-  /** Format tel que saisi en base (ex : "0612345678") — null si non renseigné, auquel cas masquer le bouton WhatsApp. */
-  authorPhone: string | null;
   createdAt: string;
   updatedAt: string | null;
   paused: boolean;
   photos: MarketplaceListingPhoto[];
+  /**
+   * Discussion déjà ouverte par le viewer avec le vendeur — renseigné
+   * uniquement par GET /listings/{id} (null pour l'auteur ou s'il n'a
+   * encore jamais écrit).
+   */
+  myConversationId?: number | null;
+};
+
+/** Ligne de la liste « Messages » de la bourse (acheteur ou vendeur). */
+export type MarketplaceConversationSummary = {
+  id: number;
+  listingId: number;
+  listingTitle: string;
+  listingPhotoUrl: string | null;
+  /** true si je suis l'auteur de l'annonce (l'autre est alors un acheteur potentiel). */
+  iAmSeller: boolean;
+  otherFirstName: string;
+  lastMessage: { content: string; mine: boolean; createdAt: string } | null;
+  lastMessageAt: string;
+};
+
+export type MarketplaceMessage = {
+  id: number;
+  mine: boolean;
+  authorFirstName: string;
+  content: string;
+  createdAt: string;
+};
+
+export type MarketplaceConversation = {
+  id: number;
+  listingId: number;
+  listingTitle: string;
+  listingPaused: boolean;
+  iAmSeller: boolean;
+  otherFirstName: string;
+  otherFullName: string;
+  messages: MarketplaceMessage[];
 };

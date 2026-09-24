@@ -2,7 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -31,6 +42,9 @@ export default function MarketplaceDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Brouillon du premier message à l'auteur + envoi en cours. */
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -82,13 +96,21 @@ export default function MarketplaceDetailScreen() {
     }
   }
 
-  function openWhatsApp() {
-    if (!listing?.authorPhone) return;
-    const url = toWhatsAppLink(
-      listing.authorPhone,
-      `Bonjour, je suis intéressé(e) par votre annonce « ${listing.title} » sur l'app TTM.`,
-    );
-    Linking.openURL(url).catch(() => showError(new Error('Impossible d\'ouvrir WhatsApp.')));
+  async function startConversation() {
+    if (!listing) return;
+    const content = draft.trim();
+    if (content === '') return;
+    setSending(true);
+    try {
+      const conversation = await marketplaceApi.startConversation(listing.id, content);
+      setDraft('');
+      setListing({ ...listing, myConversationId: conversation.id });
+      router.push(('/marketplace/conversation/' + conversation.id) as never);
+    } catch (e) {
+      showError(e);
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) {
@@ -140,20 +162,51 @@ export default function MarketplaceDetailScreen() {
           </Text>
           <Text style={styles.description}>{listing.description}</Text>
 
-          {!isMine && (
-            listing.authorPhone ? (
-              <Pressable onPress={openWhatsApp} style={styles.whatsappBtn}>
-                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-                <Text style={styles.whatsappBtnLabel}>
-                  Contacter {listing.authorFirstName} sur WhatsApp
-                </Text>
+          {!isMine && listing.myConversationId != null && (
+            <View style={styles.contactBox}>
+              <Text style={styles.contactTitle}>Discussion en cours avec {listing.authorFirstName}</Text>
+              <Pressable
+                onPress={() => router.push(('/marketplace/conversation/' + listing.myConversationId) as never)}
+                style={styles.contactBtn}
+              >
+                <Ionicons name="chatbubbles-outline" size={18} color="#fff" />
+                <Text style={styles.contactBtnLabel}>Voir la discussion</Text>
               </Pressable>
-            ) : (
-              <Text style={styles.noPhone}>
-                {listing.authorFirstName} n'a pas renseigné de numéro de téléphone —
-                contact WhatsApp indisponible.
+            </View>
+          )}
+
+          {!isMine && listing.myConversationId == null && (
+            <View style={styles.contactBox}>
+              <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {listing.authorFirstName}</Text>
+              <Text style={styles.contactHint}>
+                {listing.authorFirstName} reçoit votre message dans l'application et par e-mail,
+                et pourra vous répondre ici.
               </Text>
-            )
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Bonjour, votre annonce m'intéresse…"
+                placeholderTextColor={COLORS.textSubtle}
+                multiline
+                maxLength={2000}
+                style={styles.contactInput}
+                editable={!sending}
+              />
+              <Pressable
+                onPress={() => void startConversation()}
+                disabled={sending || draft.trim() === ''}
+                style={[styles.contactBtn, (sending || draft.trim() === '') && { opacity: 0.4 }]}
+              >
+                {sending
+                  ? <ActivityIndicator color="#fff" />
+                  : (
+                    <>
+                      <Ionicons name="send" size={16} color="#fff" />
+                      <Text style={styles.contactBtnLabel}>Envoyer le message</Text>
+                    </>
+                  )}
+              </Pressable>
+            </View>
           )}
 
           {isMine && (
@@ -211,20 +264,6 @@ function OwnerBtn({ icon, label, onPress, disabled, danger }: {
   );
 }
 
-/**
- * Convertit un numéro français local (« 0612345678 ») en lien wa.me.
- * Les numéros déjà en international (+33…) sont laissés tels quels.
- */
-function toWhatsAppLink(phone: string, message: string): string {
-  const digits = phone.replace(/[^\d+]/g, '');
-  const intl = digits.startsWith('+')
-    ? digits.slice(1)
-    : digits.startsWith('0')
-      ? '33' + digits.slice(1)
-      : digits;
-  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
-}
-
 function showError(e: unknown) {
   const msg = e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Erreur inattendue.');
   if (Platform.OS === 'web') {
@@ -260,16 +299,25 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   author: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: SPACING.md },
   description: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
-  whatsappBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: '#25D366', borderRadius: RADIUS.md,
-    paddingVertical: 14, marginTop: SPACING.lg,
+  contactBox: {
+    marginTop: SPACING.lg, backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md, padding: SPACING.md,
   },
-  whatsappBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  noPhone: {
-    marginTop: SPACING.lg, fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic',
-    backgroundColor: COLORS.surface, padding: 12, borderRadius: RADIUS.sm,
+  contactTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  contactHint: { fontSize: 12, color: COLORS.textMuted, marginBottom: SPACING.sm },
+  contactInput: {
+    backgroundColor: COLORS.background, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: COLORS.text,
+    minHeight: 90, textAlignVertical: 'top',
   },
+  contactBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
+    paddingVertical: 13, marginTop: SPACING.sm,
+  },
+  contactBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
   ownerActions: {
     marginTop: SPACING.lg, backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md, padding: SPACING.md,

@@ -16,8 +16,11 @@ import type {
   StaffResponse,
   EventItem,
   GouterPlanning,
+  MarketplaceConversation,
+  MarketplaceConversationSummary,
   MarketplaceListing,
   MarketplaceListingSummary,
+  MarketplaceMessage,
   MenuItem,
   Paginated,
   PoolBadge,
@@ -282,6 +285,19 @@ export const marketplace = {
   pause: (id: number) => api.post<MarketplaceListing>(`/api/marketplace/listings/${id}/pause`, {}),
   publish: (id: number) => api.post<MarketplaceListing>(`/api/marketplace/listings/${id}/publish`, {}),
   remove: (id: number) => api.delete<void>(`/api/marketplace/listings/${id}`),
+
+  // ---- Discussions (contact acheteur ↔ vendeur, dans l'app) ----
+  /** Mes discussions (acheteur ou vendeur), la plus récente d'abord. */
+  conversations: () => api.get<{ data: MarketplaceConversationSummary[] }>('/api/marketplace/conversations'),
+  conversation: (id: number) => api.get<MarketplaceConversation>(`/api/marketplace/conversations/${id}`),
+  /** Premier message au vendeur : ouvre (ou reprend) la discussion pour cette annonce. */
+  startConversation: (listingId: number, content: string) =>
+    api.post<MarketplaceConversation>(`/api/marketplace/listings/${listingId}/conversation`, { content }),
+  sendMessage: (conversationId: number, content: string) =>
+    api.post<{ ok: boolean; message: MarketplaceMessage }>(
+      `/api/marketplace/conversations/${conversationId}/messages`,
+      { content },
+    ),
 };
 
 export const staff = {

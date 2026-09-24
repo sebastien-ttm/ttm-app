@@ -6,13 +6,13 @@ import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text,
 
 import { ApiError } from '@/api/client';
 import { marketplace as marketplaceApi } from '@/api/resources';
-import type { MarketplaceListing, MarketplaceListingSummary } from '@/api/types';
+import type { MarketplaceConversationSummary, MarketplaceListing, MarketplaceListingSummary } from '@/api/types';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { formatRelativeFr } from '@/utils/html';
 
-type Tab = 'browse' | 'mine';
+type Tab = 'browse' | 'mine' | 'messages';
 
 /**
  * Bourse aux équipements : onglet « Annonces » (toutes les annonces
@@ -25,6 +25,7 @@ export default function MarketplaceScreen() {
   const [tab, setTab] = useState<Tab>('browse');
   const [listings, setListings] = useState<MarketplaceListingSummary[]>([]);
   const [mine, setMine] = useState<MarketplaceListing[]>([]);
+  const [conversations, setConversations] = useState<MarketplaceConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +34,14 @@ export default function MarketplaceScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [b, m] = await Promise.all([marketplaceApi.list(), marketplaceApi.mine()]);
+      const [b, m, c] = await Promise.all([
+        marketplaceApi.list(),
+        marketplaceApi.mine(),
+        marketplaceApi.conversations(),
+      ]);
       setListings(b.data);
       setMine(m.data);
+      setConversations(c.data);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
@@ -98,6 +104,14 @@ export default function MarketplaceScreen() {
             Mes annonces{mine.length > 0 ? ' · ' + mine.length : ''}
           </Text>
         </Pressable>
+        <Pressable
+          onPress={() => setTab('messages')}
+          style={[styles.tab, tab === 'messages' && styles.tabActive]}
+        >
+          <Text style={[styles.tabLabel, tab === 'messages' && styles.tabLabelActive]}>
+            Messages{conversations.length > 0 ? ' · ' + conversations.length : ''}
+          </Text>
+        </Pressable>
       </View>
 
       <Pressable
@@ -142,6 +156,52 @@ export default function MarketplaceScreen() {
               <View style={styles.emptyCard}>
                 <Ionicons name="pricetags-outline" size={32} color={COLORS.textMuted} />
                 <Text style={styles.emptyLabel}>Aucune annonce pour le moment.</Text>
+              </View>
+            ) : null
+          }
+        />
+      ) : tab === 'messages' ? (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => 'c-' + item.id}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => router.push(('/marketplace/conversation/' + item.id) as never)}
+              style={({ pressed }) => [styles.card, styles.cardRow, pressed && { opacity: 0.85 }]}
+            >
+              {item.listingPhotoUrl ? (
+                <Image source={{ uri: item.listingPhotoUrl }} style={styles.cardPhoto} contentFit="cover" />
+              ) : (
+                <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
+                  <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {item.otherFirstName}
+                  <Text style={styles.cardMeta}>
+                    {item.iAmSeller ? ' · intéressé(e) par votre annonce' : ' · vendeur'}
+                  </Text>
+                </Text>
+                <Text style={styles.cardMeta} numberOfLines={1}>« {item.listingTitle} »</Text>
+                {item.lastMessage && (
+                  <Text style={styles.convPreview} numberOfLines={2}>
+                    {item.lastMessage.mine ? 'Vous : ' : ''}{item.lastMessage.content}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.convTime}>{formatRelativeFr(item.lastMessageAt)}</Text>
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="chatbubbles-outline" size={32} color={COLORS.textMuted} />
+                <Text style={styles.emptyLabel}>
+                  Aucune discussion pour le moment. Ouvrez une annonce pour écrire à son auteur.
+                </Text>
               </View>
             ) : null
           }
@@ -285,6 +345,8 @@ const styles = StyleSheet.create({
   cardPhotoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   cardMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  convPreview: { fontSize: 13, color: COLORS.text, marginTop: 4 },
+  convTime: { fontSize: 11, color: COLORS.textMuted, alignSelf: 'flex-start' },
   statusBadge: {
     alignSelf: 'flex-start', marginTop: 6,
     backgroundColor: '#ecfdf5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,

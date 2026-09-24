@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceListingPhoto;
 use App\Entity\User;
+use App\Repository\MarketplaceConversationRepository;
 use App\Repository\MarketplaceListingPhotoRepository;
 use App\Repository\MarketplaceListingRepository;
 use App\Security\MarketplaceAccessVoter;
@@ -19,8 +20,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Bourse aux équipements (onglet Club) : annonces d'adhérents pour du
- * matériel/des affaires d'occasion. Contact entre adhérents géré hors
- * app (WhatsApp, via le téléphone de l'auteur exposé dans le détail).
+ * matériel/des affaires d'occasion. Le contact se fait par messages dans
+ * l'application (voir MarketplaceConversationController) — aucun numéro
+ * de téléphone n'est exposé.
  *
  * Phase de test : réservée aux comptes listés dans
  * MARKETPLACE_TESTER_EMAILS (voir MarketplaceAccess) — 403 pour les autres.
@@ -31,6 +33,7 @@ class MarketplaceController extends AbstractController
     public function __construct(
         private readonly MarketplaceListingRepository $listings,
         private readonly MarketplaceListingPhotoRepository $photosRepo,
+        private readonly MarketplaceConversationRepository $conversations,
         private readonly MarketplaceListingPhotoService $photoService,
         private readonly EntityManagerInterface $em,
     ) {
@@ -77,7 +80,14 @@ class MarketplaceController extends AbstractController
         if ($listing->isPaused() && $listing->getAuthor()->getId() !== $user->getId()) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
-        return new JsonResponse($this->serializeDetail($listing));
+
+        $data = $this->serializeDetail($listing);
+        // Discussion déjà ouverte par le viewer avec le vendeur (null pour
+        // l'auteur lui-même, qui passe par sa liste de discussions).
+        $data['myConversationId'] = $listing->getAuthor()->getId() === $user->getId()
+            ? null
+            : $this->conversations->findOneByListingAndBuyer($listing, $user)?->getId();
+        return new JsonResponse($data);
     }
 
     /**
@@ -315,7 +325,6 @@ class MarketplaceController extends AbstractController
             'authorId' => $author->getId(),
             'authorFirstName' => $author->getPrenom(),
             'authorFullName' => $author->getFullName(),
-            'authorPhone' => $author->getTelephone(),
             'createdAt' => $l->getCreatedAt()->format(\DATE_ATOM),
             'updatedAt' => $l->getUpdatedAt()?->format(\DATE_ATOM),
             'paused' => $l->isPaused(),

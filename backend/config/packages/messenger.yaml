@@ -21,3 +21,4 @@ framework:
             App\Message\NotifyUserMessageReplyMessage: async
             App\Message\SendEmailChangeConfirmationMessage: async
             App\Message\NotifyEmailChangedMessage: async
+            App\Message\NotifyMarketplaceMessageMessage: async

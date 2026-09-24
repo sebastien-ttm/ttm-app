@@ -1,0 +1,14 @@
+Bonjour {{ recipient.prenom }},
+
+{% if recipientIsSeller %}{{ author.fullName }} vous a écrit à propos de votre annonce « {{ listing.title }} » dans la bourse aux équipements :{% else %}{{ author.fullName }} vous a répondu à propos de l'annonce « {{ listing.title }} » :{% endif %}
+
+---
+{{ message.content }}
+---
+
+Voir la discussion et répondre dans l'application :
+{{ conversationUrl }}
+
+Envoyé le {{ message.createdAt|date('d/m/Y à H:i') }}. Répondez depuis l'application : ne répondez pas à cet e-mail.
+
+— Triathlon Toulouse Métropole
