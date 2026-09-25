@@ -121,7 +121,9 @@ export default function MarketplaceConversationScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Stack.Screen options={{ title: conversation.otherFirstName }} />
+      <Stack.Screen
+        options={{ title: `Discussion avec ${conversation.otherFirstName} pour l'annonce ${conversation.listingTitle}` }}
+      />
 
       <Pressable
         disabled={!canOpenListing}
