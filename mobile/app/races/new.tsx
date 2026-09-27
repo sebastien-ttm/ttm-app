@@ -7,7 +7,7 @@ import { RaceForm } from '@/components/RaceForm';
 import { COLORS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
-/** Proposer une course : nom, date, site, type, « je suis capitaine ». */
+/** Proposer une course : nom, date, site, type, « je me propose d'être capitaine ». */
 export default function RaceNewScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();

@@ -120,8 +120,8 @@ export default function RaceDetailScreen() {
             <View style={styles.captainBox}>
               <Text style={styles.captainEmoji}>🧢</Text>
               <Text style={styles.captainText}>
-                <Text style={{ fontWeight: '700' }}>{race.authorFirstName} est capitaine</Text>
-                {' '}: il/elle prend contact avec l'organisateur et propose une inscription groupée.
+                <Text style={{ fontWeight: '700' }}>{race.authorFirstName} se propose d'être capitaine</Text>
+                {' '}: il/elle prend contact avec l'organisateur pour pouvoir proposer une inscription groupée.
               </Text>
             </View>
           )}

@@ -32,7 +32,7 @@ export const formatRaceDate = formatIsoDate;
 
 /**
  * Formulaire commun création / édition d'une course proposée : nom,
- * date, site Internet, type, case « Je suis capitaine ».
+ * date, site Internet, type, case « Je me propose d'être capitaine ».
  */
 export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   initial?: RaceProposalInput;
@@ -130,9 +130,9 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
           color={captain ? COLORS.primary : COLORS.textMuted}
         />
         <View style={{ flex: 1 }}>
-          <Text style={styles.captainTitle}>Je suis capitaine</Text>
+          <Text style={styles.captainTitle}>Je me propose d'être capitaine</Text>
           <Text style={styles.captainHint}>
-            Je prends contact avec l'organisateur et je propose une inscription groupée.
+            Je prends contact avec l'organisateur pour pouvoir proposer une inscription groupée.
           </Text>
         </View>
       </Pressable>
