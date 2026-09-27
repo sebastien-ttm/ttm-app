@@ -9,7 +9,9 @@ import { marketplace as marketplaceApi } from '@/api/resources';
 import type { MarketplaceConversationSummary, MarketplaceListing, MarketplaceListingSummary } from '@/api/types';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useAuth } from '@/auth/AuthContext';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { markSeen } from '@/lib/seenListings';
 import { formatRelativeFr } from '@/utils/html';
 
 type Tab = 'browse' | 'mine' | 'messages';
@@ -22,6 +24,7 @@ type Tab = 'browse' | 'mine' | 'messages';
  */
 export default function MarketplaceScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('browse');
   const [listings, setListings] = useState<MarketplaceListingSummary[]>([]);
   const [mine, setMine] = useState<MarketplaceListing[]>([]);
@@ -40,6 +43,8 @@ export default function MarketplaceScreen() {
         marketplaceApi.conversations(),
       ]);
       setListings(b.data);
+      // Liste affichée → plus de pastille « nouveautés » dans Social.
+      if (user) void markSeen('marketplace', user.id, b.data.map((l) => l.id));
       setMine(m.data);
       // Les discussions sur des dossards vivent dans la bourse aux dossards.
       setConversations(c.data.filter((conv) => conv.kind !== 'bib'));
@@ -49,7 +54,7 @@ export default function MarketplaceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useRefreshOnResume(() => { void load(); });

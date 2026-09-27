@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/Loading';
 import { formatRaceDate, raceTypeMeta } from '@/components/RaceForm';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { markSeen } from '@/lib/seenListings';
 
 type Tab = 'browse' | 'mine';
 
@@ -35,13 +36,15 @@ export default function RacesScreen() {
       setError(null);
       const resp = await racesApi.list();
       setItems(resp.data);
+      // Liste affichée → plus de pastille « nouveautés » dans Social.
+      if (user) void markSeen('races', user.id, resp.data.map((r) => r.id));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useRefreshOnResume(() => { void load(); });

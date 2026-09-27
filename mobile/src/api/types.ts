@@ -594,6 +594,8 @@ export type InboxMessage = {
 export type MarketplaceListingSummary = {
   id: number;
   title: string;
+  /** Absent sur un backend antérieur à l'ajout du champ. */
+  authorId?: number;
   authorFirstName: string;
   createdAt: string;
   /** null si l'annonce n'a aucune photo. */

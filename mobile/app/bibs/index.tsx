@@ -10,7 +10,9 @@ import { bibPriceLabel } from '@/components/BibForm';
 import { formatIsoDate } from '@/components/DateField';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useAuth } from '@/auth/AuthContext';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { markSeen } from '@/lib/seenListings';
 import { formatRelativeFr } from '@/utils/html';
 
 type Tab = 'browse' | 'mine' | 'messages';
@@ -23,6 +25,7 @@ type Tab = 'browse' | 'mine' | 'messages';
  */
 export default function BibsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('browse');
   const [offers, setOffers] = useState<BibOffer[]>([]);
   const [mine, setMine] = useState<BibOffer[]>([]);
@@ -37,6 +40,8 @@ export default function BibsScreen() {
       setError(null);
       const [b, m, c] = await Promise.all([bibsApi.list(), bibsApi.mine(), marketplaceApi.conversations()]);
       setOffers(b.data);
+      // Liste affichée → plus de pastille « nouveautés » dans Social.
+      if (user) void markSeen('bibs', user.id, b.data.map((o) => o.id));
       setMine(m.data);
       setConversations(c.data.filter((conv) => conv.kind === 'bib'));
     } catch (e) {
@@ -45,7 +50,7 @@ export default function BibsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useRefreshOnResume(() => { void load(); });

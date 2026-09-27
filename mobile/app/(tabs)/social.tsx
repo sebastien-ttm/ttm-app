@@ -14,12 +14,18 @@ import {
 } from 'react-native';
 
 import { ApiError, auth } from '@/api/client';
-import { marketplace as marketplaceApi, surveys as surveysApi } from '@/api/resources';
+import {
+  bibs as bibsApi,
+  marketplace as marketplaceApi,
+  races as racesApi,
+  surveys as surveysApi,
+} from '@/api/resources';
 import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { countUnseen, getLastSeenId, type SeenList } from '@/lib/seenListings';
 import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
 
@@ -67,6 +73,31 @@ export default function ContactScreen() {
       .catch(() => { /* pas d'entrée si on ne peut pas vérifier */ });
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  // Pastilles « nouveautés non vues » sur les cartes Courses / Bourse /
+  // Dossards (voir lib/seenListings). Silencieux en cas d'échec.
+  const [newCounts, setNewCounts] = useState({ races: 0, marketplace: 0, bibs: 0 });
+  const loadNewCounts = useCallback(async () => {
+    if (!user) return;
+    const uid = user.id;
+    const count = async (list: SeenList, fetchItems: () => Promise<{ id: number; authorId?: number }[]>) => {
+      try {
+        const [items, lastSeen] = await Promise.all([fetchItems(), getLastSeenId(list, uid)]);
+        return countUnseen(items, lastSeen, uid);
+      } catch {
+        return 0;
+      }
+    };
+    const [races, marketplace, bibs] = await Promise.all([
+      count('races', () => racesApi.list().then((r) => r.data)),
+      marketplaceEnabled ? count('marketplace', () => marketplaceApi.list().then((r) => r.data)) : Promise.resolve(0),
+      marketplaceEnabled ? count('bibs', () => bibsApi.list().then((r) => r.data)) : Promise.resolve(0),
+    ]);
+    setNewCounts({ races, marketplace, bibs });
+  }, [user, marketplaceEnabled]);
+
+  useFocusEffect(useCallback(() => { void loadNewCounts(); }, [loadNewCounts]));
+  useRefreshOnResume(() => { void loadNewCounts(); });
 
   const unansweredSurveysCount = useMemo(
     () => openSurveys.filter((s) => !s.answered).length,
@@ -257,6 +288,7 @@ export default function ContactScreen() {
             >
               <View style={[styles.marketIconWrap, styles.raceIconWrap]}>
                 <Ionicons name="flag" size={20} color="#c2410c" />
+                <NewBadge count={newCounts.races} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.surveyCardTitle}>Courses à faire ensemble</Text>
@@ -275,6 +307,7 @@ export default function ContactScreen() {
               >
                 <View style={styles.marketIconWrap}>
                   <Ionicons name="pricetags" size={20} color="#0f766e" />
+                  <NewBadge count={newCounts.marketplace} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.surveyCardTitle}>Matériel & affaires d'occasion</Text>
@@ -294,6 +327,7 @@ export default function ContactScreen() {
               >
                 <View style={[styles.marketIconWrap, styles.bibIconWrap]}>
                   <Ionicons name="ticket" size={20} color="#1d4ed8" />
+                  <NewBadge count={newCounts.bibs} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.surveyCardTitle}>Dossards à céder</Text>
@@ -358,6 +392,19 @@ export default function ContactScreen() {
       }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
     />
+  );
+}
+
+/** Pastille rouge « n nouveautés » en coin d'icône (masquée à 0). */
+function NewBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <View
+      style={styles.newBadge}
+      accessibilityLabel={`${count} nouveauté${count > 1 ? 's' : ''} non vue${count > 1 ? 's' : ''}`}
+    >
+      <Text style={styles.newBadgeLabel}>{count > 99 ? '99+' : count}</Text>
+    </View>
   );
 }
 
@@ -636,6 +683,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccfbf1',
     alignItems: 'center', justifyContent: 'center',
   },
+  newBadge: {
+    position: 'absolute', top: -6, right: -8,
+    minWidth: 20, height: 20, borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2, borderColor: COLORS.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  newBadgeLabel: { color: '#fff', fontSize: 11, fontWeight: '800', lineHeight: 13 },
   raceCard: { borderLeftColor: '#c2410c' },
   bibCard: { borderLeftColor: '#1d4ed8' },
   bibIconWrap: { backgroundColor: '#dbeafe' },
