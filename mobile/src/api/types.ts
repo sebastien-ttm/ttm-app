@@ -37,6 +37,11 @@ export type Article = {
   reactionCounts: Record<string, number>;
   myReactions: string[];
   commentCount: number;
+  /**
+   * Événements du calendrier intégrés à l'article (déjà filtrés par
+   * audience). Présent uniquement sur GET /api/articles/{id}.
+   */
+  events?: EventItem[];
 };
 
 export type Paginated<T> = {
@@ -624,7 +629,11 @@ export type MarketplaceListing = {
 /** Ligne de la liste « Messages » de la bourse (acheteur ou vendeur). */
 export type MarketplaceConversationSummary = {
   id: number;
-  listingId: number;
+  /** 'listing' = annonce de la bourse aux équipements, 'bib' = offre de dossards. */
+  kind: 'listing' | 'bib';
+  listingId: number | null;
+  bibOfferId: number | null;
+  /** Titre du sujet (annonce ou « Dossard <course> »). */
   listingTitle: string;
   listingPhotoUrl: string | null;
   /** true si je suis l'auteur de l'annonce (l'autre est alors un acheteur potentiel). */
@@ -644,11 +653,89 @@ export type MarketplaceMessage = {
 
 export type MarketplaceConversation = {
   id: number;
-  listingId: number;
+  kind: 'listing' | 'bib';
+  listingId: number | null;
+  bibOfferId: number | null;
   listingTitle: string;
   listingPaused: boolean;
   iAmSeller: boolean;
   otherFirstName: string;
   otherFullName: string;
   messages: MarketplaceMessage[];
+};
+
+// ---- Courses proposées (onglet Social) ----
+
+export type RaceType = 'triathlon' | 'trail' | 'route' | 'cyclosportive' | 'eau_libre' | 'autre';
+export type RaceTypeOption = { value: RaceType; label: string };
+/** Intérêt d'un adhérent pour une course proposée (pas de vote = null). */
+export type RaceVote = 'interested' | 'maybe';
+
+export type RaceProposal = {
+  id: number;
+  name: string;
+  /** AAAA-MM-JJ */
+  raceDate: string;
+  url: string | null;
+  /** L'auteur contacte l'organisateur et propose une inscription groupée. */
+  captain: boolean;
+  type: RaceType;
+  typeLabel: string;
+  authorId: number;
+  authorFirstName: string;
+  authorFullName: string;
+  createdAt: string;
+  updatedAt: string | null;
+  myVote: RaceVote | null;
+  interestedCount: number;
+  maybeCount: number;
+  interested: { id: number; fullName: string }[];
+  maybe: { id: number; fullName: string }[];
+};
+
+export type RaceProposalInput = {
+  name: string;
+  raceDate: string;
+  url: string;
+  captain: boolean;
+  type: RaceType;
+};
+
+// ---- Bourse aux dossards (onglet Social) ----
+
+export type BibExchangeType = 'don' | 'revente';
+
+export type BibOffer = {
+  id: number;
+  raceName: string;
+  /** AAAA-MM-JJ */
+  raceDate: string;
+  quantity: number;
+  exchangeType: BibExchangeType;
+  /** Prix unitaire en centimes (revente uniquement), null si non fixé. */
+  unitPriceCents: number | null;
+  /** Revente : prix à négocier. */
+  negotiable: boolean;
+  description: string | null;
+  authorId: number;
+  authorFirstName: string;
+  authorFullName: string;
+  createdAt: string;
+  updatedAt: string | null;
+  paused: boolean;
+  /** Course déjà passée (n'apparaît plus que dans « Mes dossards »). */
+  past: boolean;
+  /** Détail uniquement : discussion déjà ouverte avec l'auteur. */
+  myConversationId?: number | null;
+};
+
+export type BibOfferInput = {
+  raceName: string;
+  raceDate: string;
+  quantity: number;
+  exchangeType: BibExchangeType;
+  /** Euros, ex. « 25 » ou « 25,50 » — vide si non fixé. */
+  unitPrice: string;
+  negotiable: boolean;
+  description: string;
 };

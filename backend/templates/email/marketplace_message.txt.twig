@@ -1,6 +1,6 @@
 Bonjour {{ recipient.prenom }},
 
-{% if recipientIsSeller %}{{ author.fullName }} vous a écrit à propos de votre annonce « {{ listing.title }} » dans la bourse aux équipements :{% else %}{{ author.fullName }} vous a répondu à propos de l'annonce « {{ listing.title }} » :{% endif %}
+{% if recipientIsSeller %}{{ author.fullName }} vous a écrit à propos de votre {{ subjectNoun|default('annonce') }} « {{ listing.title }} » dans {{ bourseLabel|default('la bourse aux équipements') }} :{% else %}{{ author.fullName }} vous a répondu à propos de l'{{ subjectNoun|default('annonce') }} « {{ listing.title }} » :{% endif %}
 
 ---
 {{ message.content }}

@@ -15,10 +15,14 @@ use Doctrine\ORM\Mapping as ORM;
  * personne intéressée.
  *
  * Supprimer l'annonce supprime ses conversations (FK en cascade).
+ *
+ * Le sujet est SOIT une annonce (`listing`) SOIT une offre de la bourse
+ * aux dossards (`bibOffer`) — exactement l'un des deux est renseigné.
  */
 #[ORM\Entity(repositoryClass: MarketplaceConversationRepository::class)]
 #[ORM\Table(name: 'marketplace_conversation')]
 #[ORM\UniqueConstraint(name: 'uniq_mp_conversation_listing_buyer', columns: ['listing_id', 'buyer_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_mp_conversation_bib_buyer', columns: ['bib_offer_id', 'buyer_id'])]
 #[ORM\Index(name: 'idx_mp_conversation_buyer', columns: ['buyer_id'])]
 class MarketplaceConversation
 {
@@ -28,8 +32,12 @@ class MarketplaceConversation
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: MarketplaceListing::class)]
-    #[ORM\JoinColumn(name: 'listing_id', nullable: false, onDelete: 'CASCADE')]
-    private MarketplaceListing $listing;
+    #[ORM\JoinColumn(name: 'listing_id', nullable: true, onDelete: 'CASCADE')]
+    private ?MarketplaceListing $listing = null;
+
+    #[ORM\ManyToOne(targetEntity: BibOffer::class)]
+    #[ORM\JoinColumn(name: 'bib_offer_id', nullable: true, onDelete: 'CASCADE')]
+    private ?BibOffer $bibOffer = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name: 'buyer_id', nullable: false, onDelete: 'CASCADE')]
@@ -49,9 +57,13 @@ class MarketplaceConversation
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $messages;
 
-    public function __construct(MarketplaceListing $listing, User $buyer)
+    public function __construct(MarketplaceListing|BibOffer $subject, User $buyer)
     {
-        $this->listing = $listing;
+        if ($subject instanceof MarketplaceListing) {
+            $this->listing = $subject;
+        } else {
+            $this->bibOffer = $subject;
+        }
         $this->buyer = $buyer;
         $this->createdAt = new \DateTimeImmutable();
         $this->lastMessageAt = $this->createdAt;
@@ -59,9 +71,32 @@ class MarketplaceConversation
     }
 
     public function getId(): ?int { return $this->id; }
-    public function getListing(): MarketplaceListing { return $this->listing; }
+    public function getListing(): ?MarketplaceListing { return $this->listing; }
+    public function getBibOffer(): ?BibOffer { return $this->bibOffer; }
     public function getBuyer(): User { return $this->buyer; }
-    public function getSeller(): User { return $this->listing->getAuthor(); }
+
+    public function getSeller(): User
+    {
+        return $this->listing !== null ? $this->listing->getAuthor() : $this->bibOffer->getAuthor();
+    }
+
+    /** 'listing' (bourse aux équipements) ou 'bib' (bourse aux dossards). */
+    public function getSubjectKind(): string
+    {
+        return $this->listing !== null ? 'listing' : 'bib';
+    }
+
+    /** Titre affiché du sujet : titre de l'annonce ou « Dossard <course> ». */
+    public function getSubjectTitle(): string
+    {
+        return $this->listing !== null ? $this->listing->getTitle() : (string) $this->bibOffer;
+    }
+
+    /** Sujet masqué (mis en pause par son auteur). */
+    public function isSubjectPaused(): bool
+    {
+        return $this->listing !== null ? $this->listing->isPaused() : $this->bibOffer->isPaused();
+    }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getLastMessageAt(): \DateTimeImmutable { return $this->lastMessageAt; }
     public function touchLastMessageAt(): self { $this->lastMessageAt = new \DateTimeImmutable(); return $this; }

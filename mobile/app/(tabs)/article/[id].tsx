@@ -26,6 +26,7 @@ import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
 import { CommentThread } from '@/components/CommentThread';
 import { ShareButton } from '@/components/ShareButton';
+import { EventRow } from '@/components/UpcomingEvents';
 import { COLORS } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
@@ -133,6 +134,17 @@ export default function ArticleScreen() {
             </View>
 
             <RichContent html={article.content} style={styles.body} />
+
+            {article.events && article.events.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {article.events.length > 1 ? 'Événements' : 'Événement'}
+                </Text>
+                {article.events.map((e) => (
+                  <EventRow key={e.id} event={e} inset={false} />
+                ))}
+              </View>
+            )}
 
             {article.attachments.length > 0 && (
               <View style={styles.section}>

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Nouveau message — Bourse aux équipements</title>
+    <title>Nouveau message — {{ bourseLabel|default('la bourse aux équipements')|capitalize }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
     <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
@@ -16,10 +16,10 @@
                 <p>Bonjour <strong>{{ recipient.prenom }}</strong>,</p>
 
                 {% if recipientIsSeller %}
-                    <p><strong>{{ author.fullName }}</strong> vous a écrit à propos de votre annonce
-                       <strong>« {{ listing.title }} »</strong> dans la bourse aux équipements :</p>
+                    <p><strong>{{ author.fullName }}</strong> vous a écrit à propos de votre {{ subjectNoun|default('annonce') }}
+                       <strong>« {{ listing.title }} »</strong> dans {{ bourseLabel|default('la bourse aux équipements') }} :</p>
                 {% else %}
-                    <p><strong>{{ author.fullName }}</strong> vous a répondu à propos de l'annonce
+                    <p><strong>{{ author.fullName }}</strong> vous a répondu à propos de l'{{ subjectNoun|default('annonce') }}
                        <strong>« {{ listing.title }} »</strong> :</p>
                 {% endif %}
 

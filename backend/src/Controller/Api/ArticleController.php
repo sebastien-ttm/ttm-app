@@ -4,11 +4,13 @@ namespace App\Controller\Api;
 
 use App\Entity\Article;
 use App\Entity\Comment;
+use App\Entity\Event;
 use App\Entity\Reaction;
 use App\Entity\User;
 use App\Repository\ArticleAttachmentRepository;
 use App\Repository\ArticleRepository;
 use App\Repository\CommentRepository;
+use App\Repository\EventAttendanceRepository;
 use App\Repository\ReactionRepository;
 use App\Service\Article\ArticleAttachmentService;
 use App\Service\Audience\AudienceFilter;
@@ -38,6 +40,7 @@ class ArticleController extends AbstractController
         private readonly AudienceFilter $audienceFilter,
         private readonly ArticleAttachmentRepository $attachmentsRepo,
         private readonly ArticleAttachmentService $attachmentsService,
+        private readonly EventAttendanceRepository $attendances,
     ) {
     }
 
@@ -79,7 +82,43 @@ class ArticleController extends AbstractController
         /** @var User $viewer */
         $viewer = $this->getUser();
         $this->ensureVisible($article, $viewer);
-        return new JsonResponse($this->serializer->article($article, $viewer));
+        $data = $this->serializer->article($article, $viewer);
+        $data['events'] = $this->serializeEmbeddedEvents($article, $viewer);
+        return new JsonResponse($data);
+    }
+
+    /**
+     * Événements intégrés à l'article, sérialisés comme dans GET /api/events
+     * (vote du viewer + compteurs) pour réutiliser le rendu « Prochainement ».
+     * Mêmes filtres d'audience que la liste du calendrier : un événement
+     * invisible pour le viewer est simplement omis.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function serializeEmbeddedEvents(Article $article, User $viewer): array
+    {
+        $visible = array_values(array_filter(
+            $article->getEvents()->toArray(),
+            fn (Event $e) => $this->audienceFilter->isVisible($e->getAudience(), $viewer)
+                && $this->audienceFilter->isContentVisibleForDirigeant($e->getContentAudience(), $viewer),
+        ));
+        if ($visible === []) {
+            return [];
+        }
+
+        $votedIds = array_values(array_map(
+            fn (Event $e) => $e->getId(),
+            array_filter($visible, fn (Event $e) => $e->isVoteEnabled()),
+        ));
+        $myVotes = $this->attendances->votesForUserAndEvents($viewer, $votedIds);
+        $counts = $this->attendances->countsForEvents($votedIds);
+
+        return array_map(function (Event $e) use ($myVotes, $counts) {
+            $eid = $e->getId();
+            $myVote = isset($myVotes[$eid]) ? $myVotes[$eid]->value : null;
+            $c = $e->isVoteEnabled() ? ($counts[$eid] ?? ['yes' => 0, 'no' => 0, 'maybe' => 0]) : null;
+            return $this->serializer->event($e, $myVote, $c);
+        }, $visible);
     }
 
     #[Route('/{id}/comments', methods: ['GET'], requirements: ['id' => '\d+'])]

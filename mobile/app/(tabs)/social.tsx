@@ -249,6 +249,23 @@ export default function ContactScreen() {
             </View>
           )}
 
+          <View style={styles.surveysSection}>
+            <Text style={styles.surveysSectionTitle}>🏁 Courses proposées</Text>
+            <Pressable
+              onPress={() => router.push('/races' as never)}
+              style={({ pressed }) => [styles.marketCard, styles.raceCard, pressed && { opacity: 0.75 }]}
+            >
+              <View style={[styles.marketIconWrap, styles.raceIconWrap]}>
+                <Ionicons name="flag" size={20} color="#c2410c" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.surveyCardTitle}>Courses à faire ensemble</Text>
+                <Text style={styles.surveyCardMeta}>Proposer une course · voter · inscription groupée</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
+
           {marketplaceEnabled && (
             <View style={styles.surveysSection}>
               <Text style={styles.surveysSectionTitle}>🎽 Bourse aux équipements</Text>
@@ -262,6 +279,25 @@ export default function ContactScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.surveyCardTitle}>Matériel & affaires d'occasion</Text>
                   <Text style={styles.surveyCardMeta}>Annonces entre adhérents · publier · discuter</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            </View>
+          )}
+
+          {marketplaceEnabled && (
+            <View style={styles.surveysSection}>
+              <Text style={styles.surveysSectionTitle}>🎫 Bourse aux dossards</Text>
+              <Pressable
+                onPress={() => router.push('/bibs' as never)}
+                style={({ pressed }) => [styles.marketCard, styles.bibCard, pressed && { opacity: 0.75 }]}
+              >
+                <View style={[styles.marketIconWrap, styles.bibIconWrap]}>
+                  <Ionicons name="ticket" size={20} color="#1d4ed8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.surveyCardTitle}>Dossards à céder</Text>
+                  <Text style={styles.surveyCardMeta}>Vous ne pouvez plus courir ? Donnez ou revendez votre dossard</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
@@ -600,6 +636,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccfbf1',
     alignItems: 'center', justifyContent: 'center',
   },
+  raceCard: { borderLeftColor: '#c2410c' },
+  bibCard: { borderLeftColor: '#1d4ed8' },
+  bibIconWrap: { backgroundColor: '#dbeafe' },
+  raceIconWrap: { backgroundColor: '#ffedd5' },
   surveyIconWrap: {
     width: 36, height: 36, borderRadius: 8,
     backgroundColor: '#ede9fe',

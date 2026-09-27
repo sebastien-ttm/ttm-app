@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Article;
+use App\Entity\Event;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
@@ -117,6 +118,23 @@ class ArticleCrudController extends AbstractCrudController
                 .'Tag « École de Triathlon » : reste visible par tous, mais devient '
                 .'l\'unique catégorie visible pour les comptes Dirigeant.'
             );
+        // Événements du calendrier intégrés en fin d'article (même rendu
+        // que « Prochainement » côté mobile). Sélection parmi les
+        // événements existants, les plus récents en tête ; le widget
+        // EasyAdmin (TomSelect) permet la recherche par titre.
+        yield AssociationField::new('events', '📅 Événements intégrés')
+            ->setRequired(false)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'choice_label' => fn (Event $e) => sprintf(
+                    '%s — %s',
+                    $e->getStartsAt()->format('d/m/Y'),
+                    $e->getTitle(),
+                ),
+            ])
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsAt', 'DESC'))
+            ->setHelp('Sélectionnez un ou plusieurs événements déjà créés dans le calendrier. Ils s\'afficheront dans l\'article comme dans la section « Prochainement ».')
+            ->onlyOnForms();
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnIndex();
 
         // Upload multi-fichiers, non persisté sur l'entité : le contrôleur

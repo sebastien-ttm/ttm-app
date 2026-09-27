@@ -116,21 +116,25 @@ export default function MarketplaceConversationScreen() {
     );
   }
 
-  // Une annonce en pause n'est visible que par son vendeur : pas de lien pour l'acheteur.
+  // Une annonce / offre en pause n'est visible que par son vendeur : pas de lien pour l'acheteur.
   const canOpenListing = !conversation.listingPaused || conversation.iAmSeller;
+  const isBib = conversation.kind === 'bib';
+  const subjectPath = isBib ? '/bibs/' + conversation.bibOfferId : '/marketplace/' + conversation.listingId;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen
-        options={{ title: `Discussion avec ${conversation.otherFirstName} pour l'annonce ${conversation.listingTitle}` }}
+        options={{
+          title: `Discussion avec ${conversation.otherFirstName} pour ${isBib ? "l'offre" : "l'annonce"} ${conversation.listingTitle}`,
+        }}
       />
 
       <Pressable
         disabled={!canOpenListing}
-        onPress={() => router.push(('/marketplace/' + conversation.listingId) as never)}
+        onPress={() => router.push(subjectPath as never)}
         style={styles.listingBar}
       >
-        <Ionicons name="pricetag-outline" size={16} color={COLORS.textMuted} />
+        <Ionicons name={isBib ? 'ticket-outline' : 'pricetag-outline'} size={16} color={COLORS.textMuted} />
         <Text style={styles.listingBarLabel} numberOfLines={1}>
           {conversation.iAmSeller
             ? `${conversation.otherFirstName} vous écrit à propos de « ${conversation.listingTitle} »`

@@ -97,6 +97,20 @@ class Article
     private Collection $attachments;
 
     /**
+     * Événements du calendrier intégrés à l'article (rendus comme dans
+     * « Prochainement » côté mobile). Sélection parmi les événements
+     * existants — la suppression d'un événement retire juste le lien.
+     *
+     * @var Collection<int, Event>
+     */
+    #[ORM\ManyToMany(targetEntity: Event::class)]
+    #[ORM\JoinTable(name: 'article_event')]
+    #[ORM\JoinColumn(name: 'article_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'event_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\OrderBy(['startsAt' => 'ASC'])]
+    private Collection $events;
+
+    /**
      * Uploads transitoires depuis le formulaire admin. Non persisté.
      * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
      */
@@ -110,10 +124,28 @@ class Article
         $this->comments = new ArrayCollection();
         $this->reactions = new ArrayCollection();
         $this->attachments = new ArrayCollection();
+        $this->events = new ArrayCollection();
     }
 
     /** @return Collection<int, ArticleAttachment> */
     public function getAttachments(): Collection { return $this->attachments; }
+
+    /** @return Collection<int, Event> */
+    public function getEvents(): Collection { return $this->events; }
+
+    public function addEvent(Event $event): self
+    {
+        if (!$this->events->contains($event)) {
+            $this->events->add($event);
+        }
+        return $this;
+    }
+
+    public function removeEvent(Event $event): self
+    {
+        $this->events->removeElement($event);
+        return $this;
+    }
 
     /** @return array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null */
     public function getNewAttachments(): ?array { return $this->newAttachments; }

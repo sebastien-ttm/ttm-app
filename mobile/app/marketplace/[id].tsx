@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -135,11 +137,7 @@ export default function MarketplaceDetailScreen() {
       <Stack.Screen options={{ title: listing.title }} />
       <ScrollView contentContainerStyle={{ paddingBottom: SPACING.xl }}>
         {listing.photos.length > 0 ? (
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width }}>
-            {listing.photos.map((p) => (
-              <Image key={p.id} source={{ uri: p.url }} style={[styles.galleryImage, { width }]} contentFit="cover" />
-            ))}
-          </ScrollView>
+          <PhotoGallery photos={listing.photos} width={width} />
         ) : (
           <View style={[styles.galleryImage, styles.galleryPlaceholder, { width }]}>
             <Ionicons name="image-outline" size={48} color={COLORS.textMuted} />
@@ -245,6 +243,78 @@ export default function MarketplaceDetailScreen() {
   );
 }
 
+/**
+ * Galerie paginée : photos affichées entières (contentFit="contain",
+ * ni rognées ni déformées) sur fond neutre. Flèches gauche/droite en
+ * surimpression dès qu'il y a une photo précédente/suivante, plus un
+ * compteur « 2 / 5 » — le swipe reste possible.
+ */
+function PhotoGallery({ photos, width }: { photos: MarketplaceListing['photos']; width: number }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [index, setIndex] = useState(0);
+  const count = photos.length;
+
+  function goTo(next: number) {
+    const clamped = Math.max(0, Math.min(count - 1, next));
+    scrollRef.current?.scrollTo({ x: clamped * width, animated: true });
+    setIndex(clamped);
+  }
+
+  // onScroll (et non onMomentumScrollEnd, absent sur le web) pour garder
+  // l'index synchronisé avec le swipe manuel.
+  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const i = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (i !== index && i >= 0 && i < count) setIndex(i);
+  }
+
+  return (
+    <View style={[styles.gallery, { width }]}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {photos.map((p) => (
+          <Image key={p.id} source={{ uri: p.url }} style={[styles.galleryImage, { width }]} contentFit="contain" />
+        ))}
+      </ScrollView>
+
+      {index > 0 && (
+        <Pressable
+          onPress={() => goTo(index - 1)}
+          style={({ pressed }) => [styles.galleryArrow, styles.galleryArrowLeft, pressed && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Photo précédente"
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
+      )}
+      {index < count - 1 && (
+        <Pressable
+          onPress={() => goTo(index + 1)}
+          style={({ pressed }) => [styles.galleryArrow, styles.galleryArrowRight, pressed && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Photo suivante"
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-forward" size={24} color="#fff" />
+        </Pressable>
+      )}
+      {count > 1 && (
+        <View style={styles.galleryCounterWrap} pointerEvents="none">
+          <View style={styles.galleryCounter}>
+            <Text style={styles.galleryCounterLabel}>{index + 1} / {count}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function OwnerBtn({ icon, label, onPress, disabled, danger }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -287,7 +357,22 @@ function confirmAsync(title: string, message: string): Promise<boolean> {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  galleryImage: { height: 280, backgroundColor: COLORS.surface },
+  gallery: { position: 'relative' },
+  galleryImage: { height: 320, backgroundColor: COLORS.surface },
+  galleryArrow: {
+    position: 'absolute', top: '50%', marginTop: -20,
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  galleryArrowLeft: { left: SPACING.sm },
+  galleryArrowRight: { right: SPACING.sm },
+  galleryCounterWrap: { position: 'absolute', left: 0, right: 0, bottom: SPACING.sm, alignItems: 'center' },
+  galleryCounter: {
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  galleryCounterLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
   galleryPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   body: { padding: SPACING.md, maxWidth: 560, width: '100%', alignSelf: 'center' },
   pausedBanner: {

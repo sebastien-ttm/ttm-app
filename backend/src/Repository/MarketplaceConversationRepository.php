@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\BibOffer;
 use App\Entity\MarketplaceConversation;
 use App\Entity\MarketplaceListing;
 use App\Entity\User;
@@ -23,20 +24,27 @@ class MarketplaceConversationRepository extends ServiceEntityRepository
         return $this->findOneBy(['listing' => $listing, 'buyer' => $buyer]);
     }
 
+    public function findOneByBibOfferAndBuyer(BibOffer $offer, User $buyer): ?MarketplaceConversation
+    {
+        return $this->findOneBy(['bibOffer' => $offer, 'buyer' => $buyer]);
+    }
+
     /**
      * Toutes les discussions d'un user, qu'il soit acheteur ou vendeur,
-     * la plus récemment active d'abord.
+     * annonces comme dossards, la plus récemment active d'abord.
      *
      * @return list<MarketplaceConversation>
      */
     public function findForUser(User $user): array
     {
         return $this->createQueryBuilder('c')
-            ->innerJoin('c.listing', 'l')->addSelect('l')
-            ->innerJoin('l.author', 'seller')->addSelect('seller')
-            ->innerJoin('c.buyer', 'buyer')->addSelect('buyer')
+            ->leftJoin('c.listing', 'l')->addSelect('l')
+            ->leftJoin('l.author', 'seller')->addSelect('seller')
             ->leftJoin('l.photos', 'p')->addSelect('p')
-            ->where('c.buyer = :user OR l.author = :user')
+            ->leftJoin('c.bibOffer', 'b')->addSelect('b')
+            ->leftJoin('b.author', 'bibSeller')->addSelect('bibSeller')
+            ->innerJoin('c.buyer', 'buyer')->addSelect('buyer')
+            ->where('c.buyer = :user OR l.author = :user OR b.author = :user')
             ->setParameter('user', $user)
             ->orderBy('c.lastMessageAt', 'DESC')
             ->getQuery()

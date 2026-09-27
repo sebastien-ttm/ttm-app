@@ -3,6 +3,8 @@ import type {
   AdminNotice,
   Article,
   Banner,
+  BibOffer,
+  BibOfferInput,
   Survey,
   SurveyAnswers,
   SurveySummary,
@@ -24,6 +26,10 @@ import type {
   MenuItem,
   Paginated,
   PoolBadge,
+  RaceProposal,
+  RaceProposalInput,
+  RaceTypeOption,
+  RaceVote,
   StaffPresence,
   StaffPresenceStatus,
   StaffPresenceWeek,
@@ -298,6 +304,35 @@ export const marketplace = {
       `/api/marketplace/conversations/${conversationId}/messages`,
       { content },
     ),
+};
+
+/** Bourse aux dossards (même accès que la bourse aux équipements). */
+export const bibs = {
+  /** Offres publiées pour des courses à venir, la plus proche d'abord. */
+  list: () => api.get<{ data: BibOffer[] }>('/api/bibs'),
+  /** Mes offres (publiées, en pause, passées). */
+  mine: () => api.get<{ data: BibOffer[] }>('/api/bibs/mine'),
+  get: (id: number) => api.get<BibOffer>(`/api/bibs/${id}`),
+  create: (input: BibOfferInput) => api.post<BibOffer>('/api/bibs', input),
+  update: (id: number, patch: Partial<BibOfferInput>) => api.patch<BibOffer>(`/api/bibs/${id}`, patch),
+  pause: (id: number) => api.post<BibOffer>(`/api/bibs/${id}/pause`, {}),
+  publish: (id: number) => api.post<BibOffer>(`/api/bibs/${id}/publish`, {}),
+  remove: (id: number) => api.delete<void>(`/api/bibs/${id}`),
+  /** Premier message à l'auteur : ouvre (ou reprend) la discussion. */
+  startConversation: (id: number, content: string) =>
+    api.post<MarketplaceConversation>(`/api/bibs/${id}/conversation`, { content }),
+};
+
+/** Courses proposées par les adhérents (onglet Social) + votes d'intérêt. */
+export const races = {
+  /** Courses à venir, la plus proche d'abord, + liste des types disponibles. */
+  list: () => api.get<{ data: RaceProposal[]; types: RaceTypeOption[] }>('/api/races'),
+  get: (id: number) => api.get<RaceProposal>(`/api/races/${id}`),
+  create: (input: RaceProposalInput) => api.post<RaceProposal>('/api/races', input),
+  update: (id: number, patch: Partial<RaceProposalInput>) => api.patch<RaceProposal>(`/api/races/${id}`, patch),
+  remove: (id: number) => api.delete<void>(`/api/races/${id}`),
+  /** null = retire le vote. */
+  vote: (id: number, status: RaceVote | null) => api.post<RaceProposal>(`/api/races/${id}/vote`, { status }),
 };
 
 export const staff = {

@@ -52,18 +52,23 @@ class NotifyMarketplaceMessageMessageHandler
             return;
         }
 
-        $listing = $conversation->getListing();
+        $subjectTitle = $conversation->getSubjectTitle();
         $email = (new TemplatedEmail())
             ->to($recipient->getEmail())
-            ->subject(sprintf('%s vous a écrit à propos de « %s »', $author->getPrenom(), $listing->getTitle()))
+            ->subject(sprintf('%s vous a écrit à propos de « %s »', $author->getPrenom(), $subjectTitle))
             ->htmlTemplate('email/marketplace_message.html.twig')
             ->textTemplate('email/marketplace_message.txt.twig')
             ->context([
                 'recipient' => $recipient,
                 'author' => $author,
-                'listing' => $listing,
+                // Annonce ou offre de dossards : les templates n'utilisent que le titre.
+                'listing' => ['title' => $subjectTitle],
+                'bourseLabel' => $conversation->getSubjectKind() === 'bib'
+                    ? 'la bourse aux dossards'
+                    : 'la bourse aux équipements',
+                'subjectNoun' => $conversation->getSubjectKind() === 'bib' ? 'offre' : 'annonce',
                 'message' => $message,
-                'recipientIsSeller' => $recipient->getId() === $listing->getAuthor()->getId(),
+                'recipientIsSeller' => $recipient->getId() === $conversation->getSeller()->getId(),
                 'conversationUrl' => rtrim($this->publicUrl, '/').'/marketplace/conversation/'.$conversation->getId(),
             ]);
 

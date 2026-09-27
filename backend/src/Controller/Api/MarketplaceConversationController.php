@@ -7,6 +7,7 @@ use App\Entity\MarketplaceListingPhoto;
 use App\Entity\MarketplaceMessage;
 use App\Entity\User;
 use App\Message\NotifyMarketplaceMessageMessage;
+use App\Repository\BibOfferRepository;
 use App\Repository\MarketplaceConversationRepository;
 use App\Repository\MarketplaceListingRepository;
 use App\Repository\MarketplaceMessageRepository;
@@ -40,6 +41,7 @@ class MarketplaceConversationController extends AbstractController
         private readonly MarketplaceConversationRepository $conversations,
         private readonly MarketplaceMessageRepository $messages,
         private readonly MarketplaceListingRepository $listings,
+        private readonly BibOfferRepository $bibOffers,
         private readonly MarketplaceListingPhotoService $photoService,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $bus,
@@ -101,6 +103,39 @@ class MarketplaceConversationController extends AbstractController
         $conversation = $this->conversations->findOneByListingAndBuyer($listing, $user);
         if ($conversation === null) {
             $conversation = new MarketplaceConversation($listing, $user);
+            $this->em->persist($conversation);
+        }
+        $this->appendMessage($conversation, $user, $content);
+
+        return new JsonResponse($this->serializeDetail($conversation, $user), Response::HTTP_CREATED);
+    }
+
+    /**
+     * Premier message à l'auteur d'une offre de dossards (même logique que
+     * pour une annonce). Body : { content }.
+     */
+    #[Route('/api/bibs/{id}/conversation', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function startForBib(int $id, Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $offer = $this->bibOffers->find($id);
+        if ($offer === null || ($offer->isPaused() && $offer->getAuthor()->getId() !== $user->getId())) {
+            throw $this->createNotFoundException('Offre introuvable.');
+        }
+        if ($offer->getAuthor()->getId() === $user->getId()) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas vous écrire à propos de votre propre offre.'], Response::HTTP_CONFLICT);
+        }
+
+        $content = $this->readContent($request, $user);
+        if ($content instanceof JsonResponse) {
+            return $content;
+        }
+
+        $conversation = $this->conversations->findOneByBibOfferAndBuyer($offer, $user);
+        if ($conversation === null) {
+            $conversation = new MarketplaceConversation($offer, $user);
             $this->em->persist($conversation);
         }
         $this->appendMessage($conversation, $user, $content);
@@ -184,11 +219,15 @@ class MarketplaceConversationController extends AbstractController
     {
         $listing = $c->getListing();
         $other = $c->getOtherParticipant($viewer);
-        $first = $listing->getPhotos()->isEmpty() ? null : $listing->getPhotos()->first();
+        $first = $listing === null || $listing->getPhotos()->isEmpty() ? null : $listing->getPhotos()->first();
         return [
             'id' => $c->getId(),
-            'listingId' => $listing->getId(),
-            'listingTitle' => $listing->getTitle(),
+            // 'listing' (annonce) ou 'bib' (offre de dossards) : listingId
+            // ou bibOfferId est renseigné selon le cas.
+            'kind' => $c->getSubjectKind(),
+            'listingId' => $listing?->getId(),
+            'bibOfferId' => $c->getBibOffer()?->getId(),
+            'listingTitle' => $c->getSubjectTitle(),
             'listingPhotoUrl' => $first instanceof MarketplaceListingPhoto ? $this->photoService->urlFor($first) : null,
             'iAmSeller' => $c->getSeller()->getId() === $viewer->getId(),
             'otherFirstName' => $other->getPrenom(),
@@ -206,13 +245,14 @@ class MarketplaceConversationController extends AbstractController
      */
     private function serializeDetail(MarketplaceConversation $c, User $viewer): array
     {
-        $listing = $c->getListing();
         $other = $c->getOtherParticipant($viewer);
         return [
             'id' => $c->getId(),
-            'listingId' => $listing->getId(),
-            'listingTitle' => $listing->getTitle(),
-            'listingPaused' => $listing->isPaused(),
+            'kind' => $c->getSubjectKind(),
+            'listingId' => $c->getListing()?->getId(),
+            'bibOfferId' => $c->getBibOffer()?->getId(),
+            'listingTitle' => $c->getSubjectTitle(),
+            'listingPaused' => $c->isSubjectPaused(),
             'iAmSeller' => $c->getSeller()->getId() === $viewer->getId(),
             'otherFirstName' => $other->getPrenom(),
             'otherFullName' => $other->getFullName(),

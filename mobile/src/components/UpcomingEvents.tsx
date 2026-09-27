@@ -87,7 +87,12 @@ export function UpcomingEvents() {
   );
 }
 
-function EventRow({ event }: { event: EventItem }) {
+/**
+ * Ligne d'événement « Prochainement ». Réutilisée telle quelle dans le
+ * détail d'un article (événements intégrés) — `inset={false}` retire la
+ * marge horizontale quand le conteneur parent a déjà son propre padding.
+ */
+export function EventRow({ event, inset = true }: { event: EventItem; inset?: boolean }) {
   const router = useRouter();
   const start = new Date(event.startsAt);
   const end = event.endsAt ? new Date(event.endsAt) : null;
@@ -95,7 +100,7 @@ function EventRow({ event }: { event: EventItem }) {
   const isMultiDay = end !== null && !sameDay(start, end);
 
   return (
-    <View style={styles.rowContainer}>
+    <View style={[styles.rowContainer, !inset && { marginHorizontal: 0 }]}>
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: String(event.id) } } as never)}

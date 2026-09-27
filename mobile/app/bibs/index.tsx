@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { marketplace as marketplaceApi } from '@/api/resources';
-import type { MarketplaceConversationSummary, MarketplaceListing, MarketplaceListingSummary } from '@/api/types';
+import { bibs as bibsApi, marketplace as marketplaceApi } from '@/api/resources';
+import type { BibOffer, MarketplaceConversationSummary } from '@/api/types';
+import { bibPriceLabel } from '@/components/BibForm';
+import { formatIsoDate } from '@/components/DateField';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
@@ -15,16 +16,16 @@ import { formatRelativeFr } from '@/utils/html';
 type Tab = 'browse' | 'mine' | 'messages';
 
 /**
- * Bourse aux équipements : onglet « Annonces » (toutes les annonces
- * publiées, plus récentes d'abord) + onglet « Mes annonces » (gestion
- * perso — modifier / mettre en pause-publier / supprimer directement
- * depuis la carte, sans entrer dans le détail).
+ * Bourse aux dossards : onglet « Dossards » (offres publiées pour des
+ * courses à venir, la plus proche d'abord), « Mes dossards » (gestion :
+ * modifier / pause-publier / supprimer) et « Messages » (discussions
+ * portant sur des dossards). Calquée sur la bourse aux équipements.
  */
-export default function MarketplaceScreen() {
+export default function BibsScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('browse');
-  const [listings, setListings] = useState<MarketplaceListingSummary[]>([]);
-  const [mine, setMine] = useState<MarketplaceListing[]>([]);
+  const [offers, setOffers] = useState<BibOffer[]>([]);
+  const [mine, setMine] = useState<BibOffer[]>([]);
   const [conversations, setConversations] = useState<MarketplaceConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,15 +35,10 @@ export default function MarketplaceScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [b, m, c] = await Promise.all([
-        marketplaceApi.list(),
-        marketplaceApi.mine(),
-        marketplaceApi.conversations(),
-      ]);
-      setListings(b.data);
+      const [b, m, c] = await Promise.all([bibsApi.list(), bibsApi.mine(), marketplaceApi.conversations()]);
+      setOffers(b.data);
       setMine(m.data);
-      // Les discussions sur des dossards vivent dans la bourse aux dossards.
-      setConversations(c.data.filter((conv) => conv.kind !== 'bib'));
+      setConversations(c.data.filter((conv) => conv.kind === 'bib'));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
@@ -54,11 +50,11 @@ export default function MarketplaceScreen() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useRefreshOnResume(() => { void load(); });
 
-  async function togglePause(item: MarketplaceListing) {
+  async function togglePause(item: BibOffer) {
     setBusyId(item.id);
     try {
-      if (item.paused) await marketplaceApi.publish(item.id);
-      else await marketplaceApi.pause(item.id);
+      if (item.paused) await bibsApi.publish(item.id);
+      else await bibsApi.pause(item.id);
       await load();
     } catch (e) {
       showError(e);
@@ -67,15 +63,15 @@ export default function MarketplaceScreen() {
     }
   }
 
-  async function remove(item: MarketplaceListing) {
+  async function remove(item: BibOffer) {
     const confirmed = await confirmAsync(
-      'Supprimer cette annonce ?',
-      `« ${item.title} » sera définitivement supprimée, avec ses photos.`,
+      'Supprimer cette offre ?',
+      `L'offre de dossards pour « ${item.raceName} » et ses discussions seront définitivement supprimées.`,
     );
     if (!confirmed) return;
     setBusyId(item.id);
     try {
-      await marketplaceApi.remove(item.id);
+      await bibsApi.remove(item.id);
       await load();
     } catch (e) {
       showError(e);
@@ -84,80 +80,51 @@ export default function MarketplaceScreen() {
     }
   }
 
+  const refreshControl = (
+    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />
+  );
+
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Bourse aux équipements' }} />
+      <Stack.Screen options={{ title: 'Bourse aux dossards' }} />
 
       <View style={styles.tabs}>
-        <Pressable
-          onPress={() => setTab('browse')}
-          style={[styles.tab, tab === 'browse' && styles.tabActive]}
-        >
-          <Text style={[styles.tabLabel, tab === 'browse' && styles.tabLabelActive]}>
-            Annonces{listings.length > 0 ? ' · ' + listings.length : ''}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setTab('mine')}
-          style={[styles.tab, tab === 'mine' && styles.tabActive]}
-        >
-          <Text style={[styles.tabLabel, tab === 'mine' && styles.tabLabelActive]}>
-            Mes annonces{mine.length > 0 ? ' · ' + mine.length : ''}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setTab('messages')}
-          style={[styles.tab, tab === 'messages' && styles.tabActive]}
-        >
-          <Text style={[styles.tabLabel, tab === 'messages' && styles.tabLabelActive]}>
-            Messages{conversations.length > 0 ? ' · ' + conversations.length : ''}
-          </Text>
-        </Pressable>
+        <TabBtn label="Dossards" count={offers.length} active={tab === 'browse'} onPress={() => setTab('browse')} />
+        <TabBtn label="Mes dossards" count={mine.length} active={tab === 'mine'} onPress={() => setTab('mine')} />
+        <TabBtn label="Messages" count={conversations.length} active={tab === 'messages'} onPress={() => setTab('messages')} />
       </View>
 
-      <Pressable
-        style={styles.newButton}
-        onPress={() => router.push('/marketplace/new' as never)}
-      >
+      <Pressable style={styles.newButton} onPress={() => router.push('/bibs/new' as never)}>
         <Ionicons name="add-circle" size={20} color="#fff" />
-        <Text style={styles.newButtonLabel}>Nouvelle annonce</Text>
+        <Text style={styles.newButtonLabel}>Proposer des dossards</Text>
       </Pressable>
 
       {error ? (
         <ErrorState message={error} onRetry={load} />
       ) : tab === 'browse' ? (
         <FlatList
-          data={listings}
-          keyExtractor={(item) => 's-' + item.id}
+          data={offers}
+          keyExtractor={(item) => 'b-' + item.id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+          refreshControl={refreshControl}
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => router.push(('/marketplace/' + item.id) as never)}
-              style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push(('/bibs/' + item.id) as never)}
+              style={({ pressed }) => [styles.card, styles.cardRow, pressed && { opacity: 0.85 }]}
             >
-              {item.photoUrl ? (
-                <Image source={{ uri: item.photoUrl }} style={styles.cardPhoto} contentFit="cover" />
-              ) : (
-                <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
-                  <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
-                </View>
-              )}
+              <BibThumb offer={item} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.cardMeta}>
-                  par {item.authorFirstName} · {formatRelativeFr(item.createdAt)}
-                </Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.raceName}</Text>
+                <Text style={styles.cardDate}>{formatIsoDate(item.raceDate)}</Text>
+                <PriceBadge offer={item} />
+                <Text style={styles.cardMeta}>par {item.authorFirstName} · {formatRelativeFr(item.createdAt)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </Pressable>
           )}
           ListEmptyComponent={
             !loading ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="pricetags-outline" size={32} color={COLORS.textMuted} />
-                <Text style={styles.emptyLabel}>Aucune annonce pour le moment.</Text>
-              </View>
+              <EmptyCard icon="ticket-outline" label="Aucun dossard proposé pour le moment." />
             ) : null
           }
         />
@@ -166,24 +133,20 @@ export default function MarketplaceScreen() {
           data={conversations}
           keyExtractor={(item) => 'c-' + item.id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+          refreshControl={refreshControl}
           renderItem={({ item }) => (
             <Pressable
               onPress={() => router.push(('/marketplace/conversation/' + item.id) as never)}
               style={({ pressed }) => [styles.card, styles.cardRow, pressed && { opacity: 0.85 }]}
             >
-              {item.listingPhotoUrl ? (
-                <Image source={{ uri: item.listingPhotoUrl }} style={styles.cardPhoto} contentFit="cover" />
-              ) : (
-                <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
-                  <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
-                </View>
-              )}
+              <View style={[styles.thumb, styles.thumbNeutral]}>
+                <Text style={styles.thumbEmoji}>🎫</Text>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle} numberOfLines={1}>
                   {item.otherFirstName}
                   <Text style={styles.cardMeta}>
-                    {item.iAmSeller ? ' · intéressé(e) par votre annonce' : ' · vendeur'}
+                    {item.iAmSeller ? ' · intéressé(e) par vos dossards' : ' · vendeur'}
                   </Text>
                 </Text>
                 <Text style={styles.cardMeta} numberOfLines={1}>« {item.listingTitle} »</Text>
@@ -198,12 +161,10 @@ export default function MarketplaceScreen() {
           )}
           ListEmptyComponent={
             !loading ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="chatbubbles-outline" size={32} color={COLORS.textMuted} />
-                <Text style={styles.emptyLabel}>
-                  Aucune discussion pour le moment. Ouvrez une annonce pour écrire à son auteur.
-                </Text>
-              </View>
+              <EmptyCard
+                icon="chatbubbles-outline"
+                label="Aucune discussion pour le moment. Ouvrez une offre pour écrire à son auteur."
+              />
             ) : null
           }
         />
@@ -212,42 +173,41 @@ export default function MarketplaceScreen() {
           data={mine}
           keyExtractor={(item) => 'm-' + item.id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+          refreshControl={refreshControl}
           renderItem={({ item }) => (
-            <View style={[styles.card, styles.cardColumn]}>
+            <View style={[styles.card, { opacity: item.past ? 0.6 : 1 }]}>
               <Pressable
-                onPress={() => router.push(('/marketplace/' + item.id) as never)}
+                onPress={() => router.push(('/bibs/' + item.id) as never)}
                 style={({ pressed }) => [styles.cardRow, pressed && { opacity: 0.85 }]}
               >
-                {item.photos[0] ? (
-                  <Image source={{ uri: item.photos[0].url }} style={styles.cardPhoto} contentFit="cover" />
-                ) : (
-                  <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
-                    <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
-                  </View>
-                )}
+                <BibThumb offer={item} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                  <View style={[styles.statusBadge, item.paused && styles.statusBadgePaused]}>
-                    <Text style={[styles.statusBadgeLabel, item.paused && styles.statusBadgeLabelPaused]}>
-                      {item.paused ? 'En pause' : 'Publiée'}
+                  <Text style={styles.cardTitle} numberOfLines={2}>{item.raceName}</Text>
+                  <Text style={styles.cardDate}>{formatIsoDate(item.raceDate)}</Text>
+                  <View style={[styles.statusBadge, (item.paused || item.past) && styles.statusBadgePaused]}>
+                    <Text style={[styles.statusBadgeLabel, (item.paused || item.past) && styles.statusBadgeLabelPaused]}>
+                      {item.past ? 'Course passée' : item.paused ? 'En pause' : 'Publiée'}
                     </Text>
                   </View>
                 </View>
               </Pressable>
               <View style={styles.cardActions}>
-                <ActionBtn
-                  icon="create-outline"
-                  label="Modifier"
-                  onPress={() => router.push(('/marketplace/' + item.id + '/edit') as never)}
-                  disabled={busyId === item.id}
-                />
-                <ActionBtn
-                  icon={item.paused ? 'play-outline' : 'pause-outline'}
-                  label={item.paused ? 'Publier' : 'Mettre en pause'}
-                  onPress={() => void togglePause(item)}
-                  disabled={busyId === item.id}
-                />
+                {!item.past && (
+                  <ActionBtn
+                    icon="create-outline"
+                    label="Modifier"
+                    onPress={() => router.push(('/bibs/' + item.id + '/edit') as never)}
+                    disabled={busyId === item.id}
+                  />
+                )}
+                {!item.past && (
+                  <ActionBtn
+                    icon={item.paused ? 'play-outline' : 'pause-outline'}
+                    label={item.paused ? 'Publier' : 'Mettre en pause'}
+                    onPress={() => void togglePause(item)}
+                    disabled={busyId === item.id}
+                  />
+                )}
                 <ActionBtn
                   icon="trash-outline"
                   label="Supprimer"
@@ -260,14 +220,52 @@ export default function MarketplaceScreen() {
           )}
           ListEmptyComponent={
             !loading ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="pricetags-outline" size={32} color={COLORS.textMuted} />
-                <Text style={styles.emptyLabel}>Vous n'avez pas encore publié d'annonce.</Text>
-              </View>
+              <EmptyCard icon="ticket-outline" label="Vous n'avez pas encore proposé de dossard." />
             ) : null
           }
         />
       )}
+    </View>
+  );
+}
+
+/** Vignette : nombre de dossards sur fond vert (don) ou bleu (revente). */
+function BibThumb({ offer, size = 64 }: { offer: BibOffer; size?: number }) {
+  const bg = offer.exchangeType === 'don' ? '#16a34a' : '#1d4ed8';
+  return (
+    <View style={[styles.thumb, { backgroundColor: bg, width: size, height: size }]}>
+      <Text style={styles.thumbEmoji}>🎫</Text>
+      <Text style={styles.thumbCount}>× {offer.quantity}</Text>
+    </View>
+  );
+}
+
+function PriceBadge({ offer }: { offer: BibOffer }) {
+  const isDon = offer.exchangeType === 'don';
+  return (
+    <View style={[styles.priceBadge, isDon ? styles.priceBadgeDon : styles.priceBadgeSale]}>
+      <Text style={[styles.priceBadgeLabel, isDon ? styles.priceBadgeLabelDon : styles.priceBadgeLabelSale]}>
+        {bibPriceLabel(offer)}
+      </Text>
+    </View>
+  );
+}
+
+function TabBtn({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.tab, active && styles.tabActive]}>
+      <Text style={[styles.tabLabel, active && styles.tabLabelActive]} numberOfLines={1}>
+        {label}{count > 0 ? ' · ' + count : ''}
+      </Text>
+    </Pressable>
+  );
+}
+
+function EmptyCard({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View style={styles.emptyCard}>
+      <Ionicons name={icon} size={32} color={COLORS.textMuted} />
+      <Text style={styles.emptyLabel}>{label}</Text>
     </View>
   );
 }
@@ -319,7 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingTop: SPACING.sm,
   },
   tab: {
-    flex: 1, paddingVertical: 10, borderRadius: RADIUS.md,
+    flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: RADIUS.md,
     alignItems: 'center', backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border,
   },
@@ -338,14 +336,23 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
     marginBottom: SPACING.sm,
   },
-  cardColumn: { flexDirection: 'column' },
-  cardRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.sm,
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.sm },
+  thumb: {
+    width: 64, height: 64, borderRadius: RADIUS.sm,
+    alignItems: 'center', justifyContent: 'center',
   },
-  cardPhoto: { width: 64, height: 64, borderRadius: RADIUS.sm, backgroundColor: COLORS.background },
-  cardPhotoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  thumbNeutral: { backgroundColor: COLORS.background },
+  thumbEmoji: { fontSize: 24 },
+  thumbCount: { color: '#fff', fontSize: 13, fontWeight: '800', marginTop: 1 },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  cardDate: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginTop: 2 },
   cardMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  priceBadge: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  priceBadgeDon: { backgroundColor: '#dcfce7' },
+  priceBadgeSale: { backgroundColor: '#dbeafe' },
+  priceBadgeLabel: { fontSize: 11, fontWeight: '700' },
+  priceBadgeLabelDon: { color: '#15803d' },
+  priceBadgeLabelSale: { color: '#1e40af' },
   convPreview: { fontSize: 13, color: COLORS.text, marginTop: 4 },
   convTime: { fontSize: 11, color: COLORS.textMuted, alignSelf: 'flex-start' },
   statusBadge: {
@@ -355,9 +362,7 @@ const styles = StyleSheet.create({
   statusBadgePaused: { backgroundColor: '#fef3c7' },
   statusBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#047857' },
   statusBadgeLabelPaused: { color: '#92400e' },
-  cardActions: {
-    flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border,
-  },
+  cardActions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10,

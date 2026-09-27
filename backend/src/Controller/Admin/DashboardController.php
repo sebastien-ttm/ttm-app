@@ -11,7 +11,9 @@ use App\Entity\Event;
 use App\Entity\EventTag;
 use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
+use App\Entity\BibOffer;
 use App\Entity\MemberGroup;
+use App\Entity\RaceProposal;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
@@ -130,6 +132,8 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux équipements', 'fa fa-shirt', MarketplaceListing::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Courses proposées', 'fa fa-flag-checkered', RaceProposal::class)],
             ],
             'Entraînements' => [
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],
