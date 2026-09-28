@@ -741,3 +741,35 @@ export type BibOfferInput = {
   negotiable: boolean;
   description: string;
 };
+
+// ---- Photos du club (galerie Piwigo, onglet Social) ----
+
+export type PhotoAlbum = {
+  id: number;
+  name: string;
+  comment: string | null;
+  nbImages: number;
+  /** Date de la dernière photo ajoutée (format Piwigo « AAAA-MM-JJ hh:mm:ss »). */
+  dateLast: string | null;
+  /** Photo de couverture (id Piwigo), null si album vide. */
+  coverImageId: number | null;
+};
+
+export type PhotoImage = {
+  id: number;
+  width?: number;
+  height?: number;
+  dateAvailable?: string | null;
+  /** Auteur si la photo a été postée depuis l'appli, sinon null. */
+  authorName: string | null;
+  mine: boolean;
+  canDelete: boolean;
+};
+
+export type PhotoAlbumPage = {
+  album: PhotoAlbum;
+  images: PhotoImage[];
+  page: number;
+  perPage: number;
+  total: number;
+};

@@ -18,6 +18,11 @@ parameters:
     # Valeur de repli si MARKETPLACE_TESTER_EMAILS n'existe dans aucun .env
     # (ex : .env.local.php généré avant l'ajout de la variable) : bourse fermée.
     app.marketplace_testers_fallback: ''
+    # Galerie Piwigo : replis si les variables PIWIGO_* manquent (ex :
+    # .env.local.php généré avant leur ajout) → galerie désactivée.
+    app.piwigo_empty_fallback: ''
+    app.piwigo_url_fallback: 'https://photos.triathlontoulousemetropole.com'
+    app.piwigo_cache_dir: '%kernel.project_dir%/var/piwigo-cache'
 
 services:
     _defaults:
@@ -84,6 +89,15 @@ services:
     App\Service\Marketplace\MarketplaceAccess:
         arguments:
             $envTesterEmails: '%env(default:app.marketplace_testers_fallback:MARKETPLACE_TESTER_EMAILS)%'
+
+    App\Service\Piwigo\PiwigoClient:
+        arguments:
+            $baseUrl: '%env(default:app.piwigo_url_fallback:PIWIGO_URL)%'
+            $username: '%env(default:app.piwigo_empty_fallback:PIWIGO_USERNAME)%'
+            $password: '%env(default:app.piwigo_empty_fallback:PIWIGO_PASSWORD)%'
+            $rootAlbumId: '%env(default:app.piwigo_empty_fallback:PIWIGO_ROOT_ALBUM_ID)%'
+            $membersGroupId: '%env(default:app.piwigo_empty_fallback:PIWIGO_MEMBERS_GROUP_ID)%'
+            $cacheDir: '%app.piwigo_cache_dir%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

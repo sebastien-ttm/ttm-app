@@ -10,7 +10,7 @@ import { storage } from '@/auth/storage';
  * entrée d'id supérieur, publiée par quelqu'un d'autre. Stockage local
  * à l'appareil (localStorage / SecureStore).
  */
-export type SeenList = 'races' | 'marketplace' | 'bibs';
+export type SeenList = 'races' | 'marketplace' | 'bibs' | 'photos';
 
 function key(list: SeenList, userId: number): string {
   return `ttm.seen.${list}.${userId}`;

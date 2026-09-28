@@ -13,6 +13,7 @@ use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
 use App\Entity\BibOffer;
 use App\Entity\MemberGroup;
+use App\Entity\PhotoUpload;
 use App\Entity\RaceProposal;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
@@ -134,6 +135,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Courses proposées', 'fa fa-flag-checkered', RaceProposal::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Photos du club', 'fa fa-camera', PhotoUpload::class)],
             ],
             'Entraînements' => [
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],

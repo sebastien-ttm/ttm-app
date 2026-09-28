@@ -25,6 +25,9 @@ import type {
   MarketplaceMessage,
   MenuItem,
   Paginated,
+  PhotoAlbum,
+  PhotoAlbumPage,
+  PhotoImage,
   PoolBadge,
   RaceProposal,
   RaceProposalInput,
@@ -304,6 +307,28 @@ export const marketplace = {
       `/api/marketplace/conversations/${conversationId}/messages`,
       { content },
     ),
+};
+
+/** Photos du club : albums de la galerie Piwigo, via le backend. */
+export const photos = {
+  /** enabled=false tant que la galerie n'est pas configurée côté serveur. */
+  albums: () => api.get<{ enabled: boolean; data: PhotoAlbum[] }>('/api/photos/albums'),
+  album: (id: number, page = 0) => api.get<PhotoAlbumPage>(`/api/photos/albums/${id}?page=${page}`),
+  createAlbum: (name: string, comment: string) => api.post<PhotoAlbum>('/api/photos/albums', { name, comment }),
+  /** Envoie UNE photo (déjà réduite) — l'appelant boucle pour la progression. */
+  upload: async (albumId: number, photo: MarketplacePhotoInput) => {
+    const form = new FormData();
+    form.append('consent', '1');
+    const { uri, mimeType, name } = photo;
+    if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+      form.append('photo', await (await fetch(uri)).blob(), name);
+    } else {
+      // @ts-expect-error - React Native gère cette forme spéciale pour FormData
+      form.append('photo', { uri, type: mimeType, name });
+    }
+    return api.post<PhotoImage>(`/api/photos/albums/${albumId}/images`, form);
+  },
+  remove: (imageId: number) => api.delete<void>(`/api/photos/images/${imageId}`),
 };
 
 /** Bourse aux dossards (même accès que la bourse aux équipements). */

@@ -17,6 +17,7 @@ import { ApiError, auth } from '@/api/client';
 import {
   bibs as bibsApi,
   marketplace as marketplaceApi,
+  photos as photosApi,
   races as racesApi,
   surveys as surveysApi,
 } from '@/api/resources';
@@ -76,7 +77,7 @@ export default function ContactScreen() {
 
   // Pastilles « nouveautés non vues » sur les cartes Courses / Bourse /
   // Dossards (voir lib/seenListings). Silencieux en cas d'échec.
-  const [newCounts, setNewCounts] = useState({ races: 0, marketplace: 0, bibs: 0 });
+  const [newCounts, setNewCounts] = useState({ photos: 0, races: 0, marketplace: 0, bibs: 0 });
   const loadNewCounts = useCallback(async () => {
     if (!user) return;
     const uid = user.id;
@@ -88,12 +89,13 @@ export default function ContactScreen() {
         return 0;
       }
     };
-    const [races, marketplace, bibs] = await Promise.all([
+    const [photos, races, marketplace, bibs] = await Promise.all([
+      count('photos', () => photosApi.albums().then((r) => r.data)),
       count('races', () => racesApi.list().then((r) => r.data)),
       marketplaceEnabled ? count('marketplace', () => marketplaceApi.list().then((r) => r.data)) : Promise.resolve(0),
       marketplaceEnabled ? count('bibs', () => bibsApi.list().then((r) => r.data)) : Promise.resolve(0),
     ]);
-    setNewCounts({ races, marketplace, bibs });
+    setNewCounts({ photos, races, marketplace, bibs });
   }, [user, marketplaceEnabled]);
 
   useFocusEffect(useCallback(() => { void loadNewCounts(); }, [loadNewCounts]));
@@ -279,6 +281,24 @@ export default function ContactScreen() {
               ))}
             </View>
           )}
+
+          <View style={styles.surveysSection}>
+            <Text style={styles.surveysSectionTitle}>📸 Photos du club</Text>
+            <Pressable
+              onPress={() => router.push('/photos' as never)}
+              style={({ pressed }) => [styles.marketCard, styles.photoCard, pressed && { opacity: 0.75 }]}
+            >
+              <View style={[styles.marketIconWrap, styles.photoIconWrap]}>
+                <Ionicons name="images" size={20} color="#be185d" />
+                <NewBadge count={newCounts.photos} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.surveyCardTitle}>Compétitions & sorties en images</Text>
+                <Text style={styles.surveyCardMeta}>Voir les albums · créer un album · ajouter vos photos</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
 
           <View style={styles.surveysSection}>
             <Text style={styles.surveysSectionTitle}>🏁 Courses proposées</Text>
@@ -692,6 +712,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   newBadgeLabel: { color: '#fff', fontSize: 11, fontWeight: '800', lineHeight: 13 },
+  photoCard: { borderLeftColor: '#be185d' },
+  photoIconWrap: { backgroundColor: '#fce7f3' },
   raceCard: { borderLeftColor: '#c2410c' },
   bibCard: { borderLeftColor: '#1d4ed8' },
   bibIconWrap: { backgroundColor: '#dbeafe' },

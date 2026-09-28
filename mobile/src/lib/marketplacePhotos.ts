@@ -18,7 +18,7 @@ const JPEG_QUALITY = 0.8;
  * son côté (voir ImageResizer::compressToJpeg) — cette étape sert
  * surtout à ne pas envoyer des dizaines de Mo inutiles.
  */
-export async function pickReducedPhotos(limit: number): Promise<PickedPhoto[]> {
+export async function pickReducedPhotos(limit: number, maxSide: number = MAX_SIDE): Promise<PickedPhoto[]> {
   if (limit <= 0) return [];
   if (Platform.OS !== 'web') {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -39,15 +39,15 @@ export async function pickReducedPhotos(limit: number): Promise<PickedPhoto[]> {
   const out: PickedPhoto[] = [];
   const stamp = Date.now();
   for (const [i, asset] of result.assets.slice(0, limit).entries()) {
-    out.push(await reduce(asset, `photo-${stamp}-${i}`));
+    out.push(await reduce(asset, `photo-${stamp}-${i}`, maxSide));
   }
   return out;
 }
 
-async function reduce(asset: ImagePicker.ImagePickerAsset, baseName: string): Promise<PickedPhoto> {
+async function reduce(asset: ImagePicker.ImagePickerAsset, baseName: string, maxSide: number): Promise<PickedPhoto> {
   const longest = Math.max(asset.width || 0, asset.height || 0);
-  const actions: ImageManipulator.Action[] = longest > MAX_SIDE
-    ? [{ resize: asset.width >= asset.height ? { width: MAX_SIDE } : { height: MAX_SIDE } }]
+  const actions: ImageManipulator.Action[] = longest > maxSide
+    ? [{ resize: asset.width >= asset.height ? { width: maxSide } : { height: maxSide } }]
     : [];
   try {
     const r = await ImageManipulator.manipulateAsync(asset.uri, actions, {
