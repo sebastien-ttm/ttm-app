@@ -127,7 +127,7 @@ class DashboardController extends AbstractDashboardController
             'Communication' => [
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],

@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * - detail (`/admin/event-attendance/{id}`) : 3 listes nominatives
  *   (présents / peut-être / absents) + export CSV.
  */
-#[IsGranted('ROLE_ENTRAINEUR')]
+#[IsGranted('ROLE_EDITEUR')]
 class EventAttendanceReportController extends AbstractController
 {
     public function __construct(
