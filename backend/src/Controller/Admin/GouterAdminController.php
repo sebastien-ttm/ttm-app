@@ -23,7 +23,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Vue chronologique + ajout manuel + suppression, sur le modèle des
  * autres pages de supervision (encadrants).
  */
-#[IsGranted('ROLE_EDITEUR')]
+#[IsGranted('ROLE_ENTRAINEUR')]
 class GouterAdminController extends AbstractController
 {
     use EnsureAdminContextTrait;

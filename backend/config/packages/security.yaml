@@ -81,6 +81,13 @@ security:
         - { path: ^/admin, roles: ROLE_EDITEUR }
         - { path: ^/api/auth, roles: PUBLIC_ACCESS }
         - { path: ^/api/banner/active, roles: PUBLIC_ACCESS }
+        # Doc/entrypoint API Platform (Swagger UI, OpenAPI JSON, contexts
+        # JSON-LD) : aucune ressource n'y est mappée (src/Entity n'a aucun
+        # #[ApiResource]), mais ça reste de la tuyauterie interne à ne pas
+        # laisser naviguer par n'importe quel compte connecté — réservé
+        # admin. Les vraies routes API (auth, me, events...) ont toujours
+        # un segment après /api et ne matchent pas cette règle.
+        - { path: ^/api(/docs|/contexts)?(\.[\w+-]+)?$, roles: ROLE_ADMIN }
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:
