@@ -54,6 +54,7 @@ export default function RaceEditScreen() {
               raceDate: race.raceDate,
               url: race.url ?? '',
               captain: race.captain,
+              carpoolingEnabled: race.carpoolingEnabled,
               type: race.type,
             }}
             submitLabel="Enregistrer"

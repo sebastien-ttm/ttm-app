@@ -2,10 +2,13 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Event;
 use App\Entity\EventCarpoolOffer;
+use App\Entity\RaceProposal;
 use App\Entity\User;
 use App\Repository\EventCarpoolOfferRepository;
 use App\Repository\EventRepository;
+use App\Repository\RaceProposalRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,23 +18,25 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Covoiturage sur événement : chaque adhérent peut se déclarer
- * conducteur (places + vélos, éventuellement voiture pleine) ou
- * passager (juste une demande). WhatsApp est l'unique canal de mise
- * en relation — pas de messagerie interne.
+ * Covoiturage sur événement DU CALENDRIER ou proposition de course :
+ * chaque adhérent peut se déclarer conducteur (places + vélos,
+ * éventuellement voiture pleine) ou passager (juste une demande).
+ * WhatsApp est l'unique canal de mise en relation — pas de messagerie
+ * interne.
  */
 #[IsGranted('ROLE_USER')]
 class CarpoolController extends AbstractController
 {
     public function __construct(
         private readonly EventRepository $events,
+        private readonly RaceProposalRepository $races,
         private readonly EventCarpoolOfferRepository $offers,
         private readonly EntityManagerInterface $em,
     ) {
     }
 
     #[Route('/api/events/{id}/carpool', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function list(int $id): JsonResponse
+    public function listForEvent(int $id): JsonResponse
     {
         $event = $this->events->find($id);
         if ($event === null) {
@@ -40,31 +45,20 @@ class CarpoolController extends AbstractController
         if (!$event->isCarpoolingEnabled()) {
             return new JsonResponse(['error' => 'Covoiturage non activé pour cet événement.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        /** @var User $viewer */
-        $viewer = $this->getUser();
-        $rows = $this->offers->findByEvent($event);
+        return new JsonResponse($this->buildBoard($event));
+    }
 
-        $drivers = [];
-        $passengers = [];
-        foreach ($rows as $o) {
-            $entry = $this->serialize($o);
-            if ($o->isDriver()) $drivers[] = $entry;
-            else $passengers[] = $entry;
+    #[Route('/api/races/{id}/carpool', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function listForRace(int $id): JsonResponse
+    {
+        $race = $this->races->find($id);
+        if ($race === null) {
+            return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
         }
-
-        $mine = null;
-        foreach ($rows as $o) {
-            if ($o->getUser()->getId() === $viewer->getId()) {
-                $mine = $this->serialize($o);
-                break;
-            }
+        if (!$race->isCarpoolingEnabled()) {
+            return new JsonResponse(['error' => 'Covoiturage non activé pour cette proposition.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        return new JsonResponse([
-            'drivers' => $drivers,
-            'passengers' => $passengers,
-            'myOffer' => $mine,
-        ]);
+        return new JsonResponse($this->buildBoard($race));
     }
 
     /**
@@ -72,11 +66,11 @@ class CarpoolController extends AbstractController
      *          "seatsAvailable"?: int, "bikeSlots"?: int, "isFull"?: bool }
      *
      * seatsAvailable / bikeSlots / isFull ignorés pour un passenger.
-     * Upsert : remplace la proposition existante du même user pour
-     * l'événement (ou la crée si absente).
+     * Upsert : remplace la proposition existante du même user pour le
+     * sujet (ou la crée si absente).
      */
     #[Route('/api/events/{id}/carpool', methods: ['POST', 'PATCH'], requirements: ['id' => '\d+'])]
-    public function upsert(int $id, Request $request): JsonResponse
+    public function upsertForEvent(int $id, Request $request): JsonResponse
     {
         $event = $this->events->find($id);
         if ($event === null) {
@@ -85,6 +79,70 @@ class CarpoolController extends AbstractController
         if (!$event->isCarpoolingEnabled()) {
             return new JsonResponse(['error' => 'Covoiturage non activé pour cet événement.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+        return $this->upsertFor($event, $request);
+    }
+
+    #[Route('/api/races/{id}/carpool', methods: ['POST', 'PATCH'], requirements: ['id' => '\d+'])]
+    public function upsertForRace(int $id, Request $request): JsonResponse
+    {
+        $race = $this->races->find($id);
+        if ($race === null) {
+            return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        if (!$race->isCarpoolingEnabled()) {
+            return new JsonResponse(['error' => 'Covoiturage non activé pour cette proposition.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        return $this->upsertFor($race, $request);
+    }
+
+    #[Route('/api/events/{id}/carpool', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function deleteForEvent(int $id): JsonResponse
+    {
+        $event = $this->events->find($id);
+        if ($event === null) {
+            return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        return $this->removeFor($event);
+    }
+
+    #[Route('/api/races/{id}/carpool', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function deleteForRace(int $id): JsonResponse
+    {
+        $race = $this->races->find($id);
+        if ($race === null) {
+            return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        return $this->removeFor($race);
+    }
+
+    /** @return array<string, mixed> */
+    private function buildBoard(Event|RaceProposal $subject): array
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $rows = $this->offers->findBySubject($subject);
+
+        $drivers = [];
+        $passengers = [];
+        $mine = null;
+        foreach ($rows as $o) {
+            $entry = $this->serialize($o);
+            if ($o->isDriver()) $drivers[] = $entry;
+            else $passengers[] = $entry;
+            if ($o->getUser()->getId() === $viewer->getId()) {
+                $mine = $entry;
+            }
+        }
+
+        return [
+            'drivers' => $drivers,
+            'passengers' => $passengers,
+            'myOffer' => $mine,
+        ];
+    }
+
+    private function upsertFor(Event|RaceProposal $subject, Request $request): JsonResponse
+    {
         /** @var User $viewer */
         $viewer = $this->getUser();
 
@@ -94,9 +152,9 @@ class CarpoolController extends AbstractController
             return new JsonResponse(['error' => 'role invalide (driver|passenger).'], Response::HTTP_BAD_REQUEST);
         }
 
-        $offer = $this->offers->findOneByUserAndEvent($viewer, $event);
+        $offer = $this->offers->findOneByUserAndSubject($viewer, $subject);
         if ($offer === null) {
-            $offer = new EventCarpoolOffer($viewer, $event, $role);
+            $offer = new EventCarpoolOffer($viewer, $subject, $role);
             $this->em->persist($offer);
         } else {
             $offer->setRole($role);
@@ -125,16 +183,11 @@ class CarpoolController extends AbstractController
         ]);
     }
 
-    #[Route('/api/events/{id}/carpool', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    public function delete(int $id): JsonResponse
+    private function removeFor(Event|RaceProposal $subject): JsonResponse
     {
-        $event = $this->events->find($id);
-        if ($event === null) {
-            return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
-        }
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $offer = $this->offers->findOneByUserAndEvent($viewer, $event);
+        $offer = $this->offers->findOneByUserAndSubject($viewer, $subject);
         if ($offer !== null) {
             $this->em->remove($offer);
             $this->em->flush();

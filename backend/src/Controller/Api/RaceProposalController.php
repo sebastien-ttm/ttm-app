@@ -192,6 +192,10 @@ class RaceProposalController extends AbstractController
             $proposal->setCaptain((bool) $payload['captain']);
         }
 
+        if (array_key_exists('carpoolingEnabled', $payload)) {
+            $proposal->setCarpoolingEnabled((bool) $payload['carpoolingEnabled']);
+        }
+
         if ($creating || array_key_exists('type', $payload)) {
             $type = RaceType::tryFrom((string) ($payload['type'] ?? ''));
             if ($type === null) {
@@ -255,6 +259,7 @@ class RaceProposalController extends AbstractController
             'raceDate' => $r->getRaceDate()->format('Y-m-d'),
             'url' => $r->getUrl(),
             'captain' => $r->isCaptain(),
+            'carpoolingEnabled' => $r->isCarpoolingEnabled(),
             'type' => $r->getType()->value,
             'typeLabel' => $r->getType()->label(),
             'authorId' => $author->getId(),

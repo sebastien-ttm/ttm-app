@@ -126,6 +126,18 @@ export default function RaceDetailScreen() {
             </View>
           )}
 
+          {race.carpoolingEnabled && (
+            <Pressable
+              onPress={() => router.push({ pathname: '/races/[id]/carpool', params: { id: String(race.id) } })}
+              style={({ pressed }) => [styles.carpoolBtn, pressed && { opacity: 0.75 }]}
+              accessibilityLabel="Ouvrir la page covoiturage"
+            >
+              <Ionicons name="car" size={20} color="#fff" />
+              <Text style={styles.carpoolBtnLabel}>Covoiturage</Text>
+              <Ionicons name="chevron-forward" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
+            </Pressable>
+          )}
+
           {race.url && (
             <Pressable
               onPress={() => void WebBrowser.openBrowserAsync(race.url as string)}
@@ -283,6 +295,17 @@ const styles = StyleSheet.create({
   },
   captainEmoji: { fontSize: 20 },
   captainText: { flex: 1, color: '#92400e', fontSize: 13, lineHeight: 19 },
+  carpoolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.brandNavy,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.md,
+  },
+  carpoolBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
   linkBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: SPACING.md, padding: SPACING.md,

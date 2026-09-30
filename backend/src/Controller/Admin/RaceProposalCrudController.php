@@ -47,6 +47,9 @@ class RaceProposalCrudController extends AbstractCrudController
         yield AssociationField::new('author', 'Proposée par');
         yield BooleanField::new('captain', 'Capitaine')
             ->renderAsSwitch(false);
+        yield BooleanField::new('carpoolingEnabled', 'Covoiturage activé')
+            ->renderAsSwitch(false)
+            ->hideOnIndex();
         yield IntegerField::new('interestedCount', 'Intéressés')
             ->setSortable(false);
         yield UrlField::new('url', 'Site')

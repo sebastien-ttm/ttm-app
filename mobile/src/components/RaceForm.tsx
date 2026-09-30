@@ -45,6 +45,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   const [url, setUrl] = useState(initial?.url ?? '');
   const [type, setType] = useState<RaceType | null>(initial?.type ?? null);
   const [captain, setCaptain] = useState(initial?.captain ?? false);
+  const [carpoolingEnabled, setCarpoolingEnabled] = useState(initial?.carpoolingEnabled ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +58,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
     if (type === null) { setError('Choisissez le type de course.'); return; }
     setBusy(true);
     try {
-      await onSubmit({ name: name.trim(), raceDate: isoDate, url: url.trim(), captain, type });
+      await onSubmit({ name: name.trim(), raceDate: isoDate, url: url.trim(), captain, carpoolingEnabled, type });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
     } finally {
@@ -133,6 +134,26 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
           <Text style={styles.captainTitle}>Je me propose d'être capitaine</Text>
           <Text style={styles.captainHint}>
             Je prends contact avec l'organisateur pour pouvoir proposer une inscription groupée.
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        onPress={() => setCarpoolingEnabled((c) => !c)}
+        disabled={busy}
+        style={({ pressed }) => [styles.captainBox, carpoolingEnabled && styles.captainBoxActive, pressed && { opacity: 0.8 }]}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: carpoolingEnabled }}
+      >
+        <Ionicons
+          name={carpoolingEnabled ? 'checkbox' : 'square-outline'}
+          size={24}
+          color={carpoolingEnabled ? COLORS.primary : COLORS.textMuted}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.captainTitle}>Activer le covoiturage</Text>
+          <Text style={styles.captainHint}>
+            Les adhérents intéressés pourront proposer des places (conducteur) ou en chercher une (passager).
           </Text>
         </View>
       </Pressable>

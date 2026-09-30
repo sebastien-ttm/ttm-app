@@ -8,6 +8,7 @@ use App\Entity\Banner;
 use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
+use App\Entity\EventCarpoolOffer;
 use App\Entity\EventTag;
 use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
@@ -135,6 +136,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Courses proposées', 'fa fa-flag-checkered', RaceProposal::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Covoiturages', 'fa fa-car', EventCarpoolOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Photos du club', 'fa fa-camera', PhotoUpload::class)],
             ],
             'Entraînements' => [
@@ -147,12 +149,12 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')],
-                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
             ],
             'Configuration' => [
-                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)],
-                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)],
-                ['ROLE_EDITEUR', fn () => AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)],
             ],
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],

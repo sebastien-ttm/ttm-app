@@ -12,6 +12,7 @@ import type {
   CharterStatus,
   Comment,
   CarpoolBoard,
+  CarpoolKind,
   CarpoolOffer,
   CarpoolRole,
   CommitteeResponse,
@@ -215,15 +216,19 @@ export const events = {
     }),
 };
 
+function carpoolPath(kind: CarpoolKind, id: number): string {
+  return `/api/${kind === 'event' ? 'events' : 'races'}/${id}/carpool`;
+}
+
 export const carpool = {
-  get: (eventId: number) => api.get<CarpoolBoard>(`/api/events/${eventId}/carpool`),
-  upsert: (eventId: number, payload: {
+  get: (kind: CarpoolKind, id: number) => api.get<CarpoolBoard>(carpoolPath(kind, id)),
+  upsert: (kind: CarpoolKind, id: number, payload: {
     role: CarpoolRole;
     seatsAvailable?: number | null;
     bikeSlots?: number | null;
     isFull?: boolean;
-  }) => api.post<{ ok: boolean; offer: CarpoolOffer }>(`/api/events/${eventId}/carpool`, payload),
-  remove: (eventId: number) => api.delete<{ ok: boolean }>(`/api/events/${eventId}/carpool`),
+  }) => api.post<{ ok: boolean; offer: CarpoolOffer }>(carpoolPath(kind, id), payload),
+  remove: (kind: CarpoolKind, id: number) => api.delete<{ ok: boolean }>(carpoolPath(kind, id)),
 };
 
 export const banner = {

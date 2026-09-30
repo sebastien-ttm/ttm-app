@@ -45,6 +45,15 @@ class RaceProposal
     #[ORM\Column]
     private bool $captain = false;
 
+    /**
+     * Covoiturage activé : les adhérents peuvent proposer des places
+     * (conducteur) ou demander à en réserver (passager). Défaut FALSE —
+     * activation par l'auteur à la création / édition. Même principe
+     * que Event::$carpoolingEnabled.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $carpoolingEnabled = false;
+
     #[ORM\Column(length: 20, enumType: RaceType::class)]
     private RaceType $type = RaceType::Autre;
 
@@ -88,6 +97,9 @@ class RaceProposal
 
     public function isCaptain(): bool { return $this->captain; }
     public function setCaptain(bool $captain): self { $this->captain = $captain; return $this; }
+
+    public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
+    public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }
 
     public function getType(): RaceType { return $this->type; }
     public function setType(RaceType $type): self { $this->type = $type; return $this; }

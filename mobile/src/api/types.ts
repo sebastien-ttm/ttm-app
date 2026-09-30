@@ -181,6 +181,9 @@ export type EventItem = {
 
 export type CarpoolRole = 'driver' | 'passenger';
 
+/** Sujet d'une page covoiturage : un événement du calendrier ou une proposition de course. */
+export type CarpoolKind = 'event' | 'race';
+
 export type CarpoolOffer = {
   id: number;
   userId: number;
@@ -707,6 +710,8 @@ export type RaceProposal = {
   url: string | null;
   /** L'auteur contacte l'organisateur et propose une inscription groupée. */
   captain: boolean;
+  /** Covoiturage activé par l'auteur (conducteur/passager, mise en relation WhatsApp). */
+  carpoolingEnabled: boolean;
   type: RaceType;
   typeLabel: string;
   authorId: number;
@@ -726,6 +731,7 @@ export type RaceProposalInput = {
   raceDate: string;
   url: string;
   captain: boolean;
+  carpoolingEnabled: boolean;
   type: RaceType;
 };
 
