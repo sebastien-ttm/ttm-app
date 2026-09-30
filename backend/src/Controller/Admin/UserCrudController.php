@@ -367,6 +367,7 @@ class UserCrudController extends AbstractCrudController
             if ($plain !== '') {
                 $entityInstance->setPassword($this->hasher->hashPassword($entityInstance, $plain));
             }
+            $this->reconcileLinkedToUser($entityInstance);
         }
         parent::persistEntity($entityManager, $entityInstance);
     }
@@ -379,7 +380,39 @@ class UserCrudController extends AbstractCrudController
             if ($plain !== '') {
                 $entityInstance->setPassword($this->hasher->hashPassword($entityInstance, $plain));
             }
+            $this->reconcileLinkedToUser($entityInstance);
         }
         parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    /**
+     * Un compte "Rattaché à" (linkedToUser) n'est censé exister QUE tant
+     * qu'il partage réellement l'e-mail de son compte principal — c'est
+     * cette adresse commune qui justifie de le masquer de la recherche
+     * par e-mail (findOneByEmail() filtre linkedToUser IS NULL).
+     *
+     * Si l'e-mail a été changé (ici ou via le changement d'e-mail en
+     * libre-service, qui ne s'applique qu'aux comptes principaux) au
+     * point de ne plus correspondre à celui du principal, le lien
+     * devient un piège silencieux : le compte a sa propre adresse mais
+     * reste introuvable au login, avec ou sans mot de passe configuré.
+     * On le détache automatiquement pour qu'il redevienne un compte
+     * principal connectable.
+     */
+    private function reconcileLinkedToUser(User $user): void
+    {
+        $primary = $user->getLinkedToUser();
+        if ($primary === null) {
+            return;
+        }
+        if (mb_strtolower($user->getEmail(), 'UTF-8') !== mb_strtolower($primary->getEmail(), 'UTF-8')) {
+            $user->setLinkedToUser(null);
+            $this->addFlash('info', sprintf(
+                '« %s » a désormais une adresse e-mail différente de « %s » — détaché automatiquement '
+                .'pour redevenir un compte principal (sinon il resterait introuvable au login).',
+                $user->getFullName(),
+                $primary->getFullName(),
+            ));
+        }
     }
 }
