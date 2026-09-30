@@ -201,14 +201,6 @@ class AuthController extends AbstractController
             return new JsonResponse(['error' => 'Formulaire invalide.', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // E-mail déjà utilisé ?
-        if ($this->users->findOneByEmail($email) !== null) {
-            return new JsonResponse(
-                ['error' => 'Cet e-mail est déjà associé à un compte. Si vous êtes déjà adhérent, demandez à l\'administration de vous ajouter le profil Parent.'],
-                Response::HTTP_CONFLICT,
-            );
-        }
-
         // Vérifier chaque licence d'enfant
         $children = [];
         $invalidLicences = [];
@@ -226,6 +218,29 @@ class AuthController extends AbstractController
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // E-mail déjà utilisé ? Cas particulier : l'e-mail correspond au
+        // compte PRIMAIRE d'un des enfants déclarés ci-dessus (ex : le
+        // club avait enregistré l'e-mail du parent comme contact de
+        // l'enfant à l'adhésion). La licence valide sert de preuve de
+        // filiation (même garde-fou anti-spam que le reste de cette
+        // route) : dans ce cas précis, le nouveau compte parent devient
+        // le primaire de cet e-mail, et le compte enfant passe en
+        // dépendant (linkedToUser) — toujours accessible via le
+        // sélecteur de profils liés, mais son propre mot de passe (s'il
+        // en avait un) n'est plus jamais consulté au login, remplacé de
+        // fait par celui que le parent vient de saisir.
+        $existingPrimary = $this->users->findOneByEmail($email);
+        $takeOverChild = null;
+        if ($existingPrimary !== null) {
+            $takeOverChild = $children[$existingPrimary->getId()] ?? null;
+            if ($takeOverChild === null) {
+                return new JsonResponse(
+                    ['error' => 'Cet e-mail est déjà associé à un compte. Si vous êtes déjà adhérent, demandez à l\'administration de vous ajouter le profil Parent.'],
+                    Response::HTTP_CONFLICT,
+                );
+            }
+        }
+
         // Création du compte parent
         $parent = new User();
         $parent->setEmail($email);
@@ -241,6 +256,11 @@ class AuthController extends AbstractController
 
         foreach ($children as $child) {
             $parent->addChild($child);
+        }
+
+        if ($takeOverChild !== null) {
+            $takeOverChild->setLinkedToUser($parent);
+            $takeOverChild->setPassword(null);
         }
 
         $this->em->persist($parent);
