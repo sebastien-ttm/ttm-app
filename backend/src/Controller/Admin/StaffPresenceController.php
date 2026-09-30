@@ -9,6 +9,7 @@ use App\Enum\Profile;
 use App\Enum\Sport;
 use App\Entity\StaffWeekUnavailability;
 use App\Repository\StaffPresenceRepository;
+use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
@@ -43,6 +44,7 @@ class StaffPresenceController extends AbstractController
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
+        private readonly StaffPresenceTemplateRepository $presenceTemplates,
     ) {
     }
 
@@ -221,12 +223,29 @@ class StaffPresenceController extends AbstractController
 
         // Pour chaque encadrant, calcule les créneaux où il n'est PAS
         // encore positionné — permet de proposer une dropdown « ajouter
-        // une présence » sans inclure les doublons.
+        // une présence » sans inclure les doublons. On annote chaque
+        // créneau disponible avec sa présence (ou non) dans la semaine
+        // type PERSONNELLE de ce membre : ça permet à l'admin de
+        // distinguer, dans la liste de pré-positionnement comme dans un
+        // encart dédié, un créneau qu'il couvre habituellement (juste
+        // pas encore confirmé cette semaine) d'un créneau hors de sa
+        // semaine type (probablement à confier à quelqu'un d'autre).
         $availableByUser = [];
+        $templateConfiguredByUser = [];
         foreach ($staff as $member) {
-            $availableByUser[$member->getId()] = $this->computeAvailableSlots(
+            $templatePresent = $this->presenceTemplates->findPresentTemplateIds($member);
+            $templateConfiguredByUser[$member->getId()] = $templatePresent !== [];
+
+            $available = $this->computeAvailableSlots(
                 $slotRows,
                 $presencesByUser[$member->getId()] ?? [],
+            );
+            $availableByUser[$member->getId()] = array_map(
+                static function (array $row) use ($templatePresent) {
+                    $row['inTemplate'] = $row['templateId'] !== null && isset($templatePresent[$row['templateId']]);
+                    return $row;
+                },
+                $available,
             );
         }
 
@@ -242,7 +261,44 @@ class StaffPresenceController extends AbstractController
             'presencesByUser' => $presencesByUser,
             'availableByUser' => $availableByUser,
             'unavailableByUser' => $unavailableByUser,
+            'templateConfiguredByUser' => $templateConfiguredByUser,
         ]);
+    }
+
+    /**
+     * Applique la semaine type personnelle d'un membre du staff à la
+     * semaine affichée (même logique que le bouton « Appliquer ma
+     * semaine type » côté mobile), mais déclenchée par un admin pour un
+     * membre qui ne s'est pas positionné lui-même. Écrase toute présence
+     * déjà posée sur la semaine pour ce membre.
+     */
+    #[Route('/admin/staff/supervision/apply-template', name: 'admin_staff_supervision_apply_template', methods: ['POST'])]
+    public function supervisionApplyTemplate(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'staff_presence');
+
+        $userId = (int) $request->request->get('userId');
+        $week = $this->parseWeek($request->request->get('week'));
+        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
+
+        $user = $this->users->find($userId);
+        if ($user === null || !$user->isActive()) {
+            throw $this->createNotFoundException();
+        }
+
+        try {
+            $result = $this->service->applyTemplateToWeek($user, $week);
+            $this->addFlash('success', sprintf(
+                'Semaine type appliquée pour %s (%d présent(s), %d non-dispo).',
+                $user->getFullName(),
+                $result['scheduledCount'],
+                $result['unavailableCount'],
+            ));
+        } catch (\DomainException) {
+            $this->addFlash('error', sprintf('%s n\'a pas encore configuré sa semaine type.', $user->getFullName()));
+        }
+
+        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
     }
 
     /**

@@ -614,54 +614,20 @@ class StaffPresenceController extends AbstractController
         } catch (\Exception) {
             return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
         }
-        $monday = WeeklyScheduleService::snapToMonday($week);
-
-        $present = $this->presenceTemplates->findPresentTemplateIds($user);
-        if ($present === []) {
+        try {
+            $result = $this->service->applyTemplateToWeek($user, $week);
+        } catch (\DomainException) {
             return new JsonResponse(
                 ['error' => 'Configurez d\'abord votre semaine type (Ma semaine type).'],
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
 
-        $existingUnav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
-        if ($existingUnav !== null) {
-            $this->em->remove($existingUnav);
-        }
-
-        $scheduledCount = 0;
-        $unavailableCount = 0;
-        foreach ($this->schedule->buildWeek($monday) as $slotRow) {
-            if (!empty($slotRow['isCancelled'])) continue;
-            $templateId = $slotRow['templateId'] ?? null;
-            // Créneau occasionnel (sans template) : hors périmètre de la
-            // semaine type, on n'y touche pas.
-            if ($templateId === null) continue;
-
-            $status = isset($present[$templateId]) ? StaffPresence::STATUS_SCHEDULED : StaffPresence::STATUS_UNAVAILABLE;
-            $slotId = $slotRow['id'] ?? null;
-            if ($slotId !== null) {
-                $slot = $this->slots->find($slotId);
-                if ($slot !== null) {
-                    $this->service->setForSlot($user, $slot, $status);
-                }
-            } else {
-                $template = $this->templates->find($templateId);
-                if ($template !== null) {
-                    $this->service->setForTemplate($user, $template, $monday, $status);
-                }
-            }
-            if ($status === StaffPresence::STATUS_SCHEDULED) $scheduledCount++;
-            else $unavailableCount++;
-        }
-
-        $this->em->flush();
-
         return new JsonResponse([
             'ok' => true,
-            'week' => $monday->format('Y-m-d'),
-            'scheduledCount' => $scheduledCount,
-            'unavailableCount' => $unavailableCount,
+            'week' => WeeklyScheduleService::snapToMonday($week)->format('Y-m-d'),
+            'scheduledCount' => $result['scheduledCount'],
+            'unavailableCount' => $result['unavailableCount'],
         ]);
     }
 

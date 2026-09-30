@@ -7,6 +7,10 @@ use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
 use App\Repository\StaffPresenceRepository;
+use App\Repository\StaffPresenceTemplateRepository;
+use App\Repository\StaffWeekUnavailabilityRepository;
+use App\Repository\TrainingSlotRepository;
+use App\Repository\TrainingSlotTemplateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -24,6 +28,10 @@ class StaffPresenceService
         private readonly StaffPresenceRepository $presences,
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
+        private readonly StaffPresenceTemplateRepository $presenceTemplates,
+        private readonly StaffWeekUnavailabilityRepository $unavailabilities,
+        private readonly TrainingSlotRepository $slots,
+        private readonly TrainingSlotTemplateRepository $templates,
     ) {
     }
 
@@ -74,5 +82,65 @@ class StaffPresenceService
         if ($presence !== null) {
             $this->em->remove($presence);
         }
+    }
+
+    /**
+     * Positionne la présence d'un user sur une semaine précise d'après sa
+     * semaine type personnelle : pour chaque créneau actif (non annulé)
+     * de la semaine, force 'scheduled' si marqué présent dans le
+     * template, 'unavailable' sinon — écrasant tout choix déjà posé sur
+     * ce créneau (y compris une indisponibilité explicite) et retirant
+     * le marqueur d'indisponibilité globale de la semaine.
+     *
+     * Partagé entre l'API mobile (l'user applique sa propre semaine
+     * type) et le backend admin (un admin l'applique pour un membre du
+     * staff qui ne s'est pas positionné lui-même).
+     *
+     * @return array{scheduledCount:int, unavailableCount:int}
+     * @throws \DomainException si le user n'a aucun créneau configuré dans sa semaine type
+     */
+    public function applyTemplateToWeek(User $user, \DateTimeImmutable $weekStartsAt): array
+    {
+        $monday = WeeklyScheduleService::snapToMonday($weekStartsAt);
+
+        $present = $this->presenceTemplates->findPresentTemplateIds($user);
+        if ($present === []) {
+            throw new \DomainException('Aucune semaine type configurée pour cet utilisateur.');
+        }
+
+        $existingUnav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+        if ($existingUnav !== null) {
+            $this->em->remove($existingUnav);
+        }
+
+        $scheduledCount = 0;
+        $unavailableCount = 0;
+        foreach ($this->schedule->buildWeek($monday) as $slotRow) {
+            if (!empty($slotRow['isCancelled'])) continue;
+            $templateId = $slotRow['templateId'] ?? null;
+            // Créneau occasionnel (sans template) : hors périmètre de la
+            // semaine type, on n'y touche pas.
+            if ($templateId === null) continue;
+
+            $status = isset($present[$templateId]) ? StaffPresence::STATUS_SCHEDULED : StaffPresence::STATUS_UNAVAILABLE;
+            $slotId = $slotRow['id'] ?? null;
+            if ($slotId !== null) {
+                $slot = $this->slots->find($slotId);
+                if ($slot !== null) {
+                    $this->setForSlot($user, $slot, $status);
+                }
+            } else {
+                $template = $this->templates->find($templateId);
+                if ($template !== null) {
+                    $this->setForTemplate($user, $template, $monday, $status);
+                }
+            }
+            if ($status === StaffPresence::STATUS_SCHEDULED) $scheduledCount++;
+            else $unavailableCount++;
+        }
+
+        $this->em->flush();
+
+        return ['scheduledCount' => $scheduledCount, 'unavailableCount' => $unavailableCount];
     }
 }

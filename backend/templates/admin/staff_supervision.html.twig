@@ -58,8 +58,18 @@
                         </span>
                     {% endif %}
 
-                    {# Toggle non-dispo par l'admin #}
-                    <span style="margin-left:auto;">
+                    {# Toggle non-dispo par l'admin + application de la semaine type #}
+                    <span style="margin-left:auto; display:flex; gap:6px; align-items:center;">
+                        {% if templateConfiguredByUser[staffMember.id]|default(false) %}
+                            <form method="post" action="{{ path('admin_staff_supervision_apply_template') }}" style="display:inline;"
+                                  onsubmit="return confirm('Appliquer la semaine type de {{ staffMember.fullName }} à cette semaine ? Cela écrase ses présences déjà posées.');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                <input type="hidden" name="back" value="{{ back_route }}">
+                                <button class="btn btn-sm btn-outline-primary" title="Positionner cette semaine d'après sa semaine type habituelle">🔁 Appliquer sa semaine type</button>
+                            </form>
+                        {% endif %}
                         {% if unav %}
                             <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline;">
                                 <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
@@ -93,6 +103,27 @@
                 {% if unav and positive_presences|length > 0 %}
                     <div style="background:#fef3c7; color:#92400e; padding:10px 12px; border-radius:4px; margin-bottom:12px; font-size:13px;">
                         ⚠️ Contradiction : cet encadrant est déclaré non-dispo mais a {{ positive_presences|length }} présence(s) positive(s). Décidez laquelle prime.
+                    </div>
+                {% endif %}
+
+                {# Créneaux récurrents non encore répondus cette semaine ET
+                   absents de la semaine type personnelle de ce membre —
+                   c'est-à-dire des créneaux qu'il ne couvre pas d'habitude
+                   (désélectionnés dans « Ma semaine type », ou jamais
+                   configurés puisque le modèle ne distingue pas les deux).
+                   Mis en avant distinctement pour signaler qu'il faut
+                   trouver quelqu'un d'autre. #}
+                {% set notUsual = templateConfiguredByUser[staffMember.id]|default(false)
+                    ? available|filter(r => r.templateId is not null and not r.inTemplate)
+                    : [] %}
+                {% if notUsual|length > 0 %}
+                    <div style="background:#fff7ed; border:1px solid #fdba74; color:#9a3412; padding:10px 12px; border-radius:4px; margin-bottom:12px; font-size:13px;">
+                        <strong>⚠️ Hors de sa semaine type — à confier à quelqu'un d'autre :</strong>
+                        <ul style="margin:6px 0 0; padding-left:18px;">
+                            {% for row in notUsual %}
+                                <li>{{ ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][row.dayOfWeek - 1] }} {{ row.startTime }} · {{ row.title }} ({{ row.sportLabel }})</li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 {% endif %}
 
@@ -194,6 +225,7 @@
                                 {# Encode soit s:slotId (créneau déjà persisté en BDD)
                                    soit t:templateId (créneau virtuel à matérialiser) — parsé côté serveur #}
                                 <option value="{{ row.id ? 's:' ~ row.id : 't:' ~ row.templateId }}">
+                                    {%- if templateConfiguredByUser[staffMember.id]|default(false) and row.templateId is not null %}{{ row.inTemplate ? '✓ ' : '⚠ ' }}{% endif -%}
                                     {{ ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][row.dayOfWeek - 1] }}
                                     {{ row.startTime }} · {{ row.title }} ({{ row.sportLabel }}) — 📍 {{ row.location }}
                                 </option>
