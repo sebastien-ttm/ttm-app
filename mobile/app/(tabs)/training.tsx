@@ -200,6 +200,20 @@ function TrainingScreenInner() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [stylesStaff.card, stylesStaff.cardMuted, pressed && { opacity: 0.7 }]}
+                onPress={() => router.push('/staff-presence-template' as never)}
+              >
+                <View style={[stylesStaff.iconWrap, stylesStaff.iconWrapMuted]}>
+                  <Ionicons name="settings" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={stylesStaff.title}>Ma semaine type</Text>
+                  <Text style={stylesStaff.sub}>Créneaux où vous êtes présent(e) habituellement</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
             </View>
           )}
 
@@ -744,6 +758,7 @@ const stylesStaff = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primary,
   },
+  cardMuted: { borderLeftColor: COLORS.textMuted, marginBottom: 0 },
   iconWrap: {
     width: 40,
     height: 40,
@@ -752,6 +767,7 @@ const stylesStaff = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconWrapMuted: { backgroundColor: COLORS.textMuted },
   title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });

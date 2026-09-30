@@ -349,6 +349,24 @@ export type StaffPresenceWeek = {
   unavailableNotes: string | null;
 };
 
+/**
+ * Un créneau de la semaine type du club, avec mon marqueur personnel
+ * « présent en temps normal » — indépendant de toute semaine précise.
+ */
+export type StaffPresenceTemplateSlot = {
+  slotTemplateId: number;
+  dayOfWeek: number; // 1 = lundi, 7 = dimanche
+  startTime: string; // "HH:MM"
+  durationMinutes: number;
+  sport: SportKey;
+  sportLabel: string;
+  sportIcon: string;
+  sportColor: string;
+  title: string;
+  location: string;
+  present: boolean;
+};
+
 /** Un staff positionné sur un créneau. */
 export type AssignedStaff = {
   userId: number;

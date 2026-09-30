@@ -3,10 +3,12 @@
 namespace App\Controller\Api;
 
 use App\Entity\StaffPresence;
+use App\Entity\StaffPresenceTemplate;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Entity\StaffWeekUnavailability;
 use App\Repository\StaffPresenceRepository;
+use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
@@ -36,6 +38,7 @@ class StaffPresenceController extends AbstractController
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
+        private readonly StaffPresenceTemplateRepository $presenceTemplates,
     ) {
     }
 
@@ -496,6 +499,150 @@ class StaffPresenceController extends AbstractController
         $this->em->remove($presence);
         $this->em->flush();
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Semaine type personnelle : tous les créneaux actifs de la semaine
+     * type du club, avec un booléen « je suis présent ici en temps
+     * normal ». Indépendant de toute semaine précise — configurable une
+     * fois pour la saison (voir applyTemplate() pour l'appliquer à une
+     * semaine réelle).
+     */
+    #[Route('/api/me/staff-presence/template', name: 'api_staff_presence_template_get', methods: ['GET'])]
+    public function getTemplate(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $present = $this->presenceTemplates->findPresentTemplateIds($user);
+
+        $slots = array_map(function ($tpl) use ($present) {
+            return [
+                'slotTemplateId' => $tpl->getId(),
+                'dayOfWeek' => $tpl->getDayOfWeek(),
+                'startTime' => $tpl->getStartTime()->format('H:i'),
+                'durationMinutes' => $tpl->getDurationMinutes(),
+                'sport' => $tpl->getSport()->value,
+                'sportLabel' => $tpl->getSport()->label(),
+                'sportIcon' => $tpl->getSport()->icon(),
+                'sportColor' => $tpl->getSport()->color(),
+                'title' => $tpl->getTitle(),
+                'location' => $tpl->getLocation(),
+                'present' => isset($present[$tpl->getId()]),
+            ];
+        }, $this->templates->findActiveOrdered());
+
+        return new JsonResponse(['slots' => $slots]);
+    }
+
+    /**
+     * Coche/décoche un créneau de ma semaine type.
+     * Body : { slotTemplateId: int, present: bool }
+     */
+    #[Route('/api/me/staff-presence/template', name: 'api_staff_presence_template_set', methods: ['POST'])]
+    public function setTemplateSlot(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $templateId = isset($payload['slotTemplateId']) ? (int) $payload['slotTemplateId'] : 0;
+        $present = !empty($payload['present']);
+
+        $template = $templateId > 0 ? $this->templates->find($templateId) : null;
+        if ($template === null) {
+            throw $this->createNotFoundException('Créneau introuvable.');
+        }
+
+        $existing = $this->presenceTemplates->findOneByUserAndSlotTemplate($user, $template);
+        if ($present && $existing === null) {
+            $this->em->persist(new StaffPresenceTemplate($user, $template));
+        } elseif (!$present && $existing !== null) {
+            $this->em->remove($existing);
+        }
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true, 'slotTemplateId' => $templateId, 'present' => $present]);
+    }
+
+    /**
+     * Positionne la présence du user sur une semaine précise d'après sa
+     * semaine type : pour chaque créneau actif (non annulé) de la
+     * semaine, force 'scheduled' si marqué présent dans le template,
+     * 'unavailable' sinon — écrasant systématiquement tout choix déjà
+     * posé sur ce créneau (y compris une indisponibilité explicite) et
+     * retirant le marqueur d'indisponibilité globale de la semaine.
+     *
+     * Body : { week: "YYYY-MM-DD" }
+     */
+    #[Route('/api/me/staff-presence/apply-template', name: 'api_staff_presence_apply_template', methods: ['POST'])]
+    public function applyTemplate(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $weekRaw = is_array($payload) ? (string) ($payload['week'] ?? '') : '';
+        try {
+            $week = $weekRaw !== '' ? new \DateTimeImmutable($weekRaw) : new \DateTimeImmutable('today');
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $monday = WeeklyScheduleService::snapToMonday($week);
+
+        $present = $this->presenceTemplates->findPresentTemplateIds($user);
+        if ($present === []) {
+            return new JsonResponse(
+                ['error' => 'Configurez d\'abord votre semaine type (Ma semaine type).'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        $existingUnav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+        if ($existingUnav !== null) {
+            $this->em->remove($existingUnav);
+        }
+
+        $scheduledCount = 0;
+        $unavailableCount = 0;
+        foreach ($this->schedule->buildWeek($monday) as $slotRow) {
+            if (!empty($slotRow['isCancelled'])) continue;
+            $templateId = $slotRow['templateId'] ?? null;
+            // Créneau occasionnel (sans template) : hors périmètre de la
+            // semaine type, on n'y touche pas.
+            if ($templateId === null) continue;
+
+            $status = isset($present[$templateId]) ? StaffPresence::STATUS_SCHEDULED : StaffPresence::STATUS_UNAVAILABLE;
+            $slotId = $slotRow['id'] ?? null;
+            if ($slotId !== null) {
+                $slot = $this->slots->find($slotId);
+                if ($slot !== null) {
+                    $this->service->setForSlot($user, $slot, $status);
+                }
+            } else {
+                $template = $this->templates->find($templateId);
+                if ($template !== null) {
+                    $this->service->setForTemplate($user, $template, $monday, $status);
+                }
+            }
+            if ($status === StaffPresence::STATUS_SCHEDULED) $scheduledCount++;
+            else $unavailableCount++;
+        }
+
+        $this->em->flush();
+
+        return new JsonResponse([
+            'ok' => true,
+            'week' => $monday->format('Y-m-d'),
+            'scheduledCount' => $scheduledCount,
+            'unavailableCount' => $unavailableCount,
+        ]);
     }
 
     /**

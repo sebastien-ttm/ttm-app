@@ -2,6 +2,8 @@ import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -114,6 +116,33 @@ export default function StaffPresenceScreen() {
     (s) => s.myPresence?.status === 'scheduled' || s.myPresence?.status === 'attended',
   );
 
+  function confirmApplyTemplate(): Promise<boolean> {
+    const message = 'Applique votre semaine type à la semaine affichée : tout choix déjà posé sur ses créneaux (présence ou indisponibilité) sera remplacé.';
+    if (Platform.OS === 'web') {
+      return Promise.resolve(typeof window !== 'undefined' ? window.confirm(message) : false);
+    }
+    return new Promise((resolve) => {
+      Alert.alert('Appliquer ma semaine type ?', message, [
+        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Appliquer', style: 'destructive', onPress: () => resolve(true) },
+      ]);
+    });
+  }
+
+  async function applyTemplate() {
+    if (!(await confirmApplyTemplate())) return;
+    const iso = toIsoDate(weekStart);
+    setUpdatingKey('apply-template');
+    try {
+      await api.applyTemplate(iso);
+      await load(iso);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Erreur mise à jour');
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   async function toggleUnavailable() {
     const iso = toIsoDate(weekStart);
     setUpdatingKey('unavail');
@@ -173,8 +202,17 @@ export default function StaffPresenceScreen() {
     <SafeAreaView style={styles.root} edges={['bottom']}>
       <Stack.Screen options={{ title: 'Mes encadrements' }} />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Indiquer / Confirmer</Text>
-        <Text style={styles.headerSub}>sur les créneaux de la semaine</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Indiquer / Confirmer</Text>
+          <Text style={styles.headerSub}>sur les créneaux de la semaine</Text>
+        </View>
+        <Pressable
+          onPress={() => router.push('/staff-presence-template' as never)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.templateLink, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.templateLinkLabel}>⚙️ Ma semaine type</Text>
+        </Pressable>
       </View>
 
       <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
@@ -183,6 +221,23 @@ export default function StaffPresenceScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Applique la semaine type au clic — écrase les choix déjà posés
+            sur les créneaux couverts par le modèle. */}
+        <Pressable
+          onPress={applyTemplate}
+          disabled={updatingKey === 'apply-template'}
+          style={[stylesUnav.card, stylesUnav.templateCard]}
+        >
+          {updatingKey === 'apply-template' ? (
+            <ActivityIndicator color={COLORS.secondary} />
+          ) : (
+            <>
+              <Text style={stylesUnav.templateTitle}>📋 Appliquer ma semaine type</Text>
+              <Text style={stylesUnav.sub}>Positionne cette semaine d'après « Ma semaine type »</Text>
+            </>
+          )}
+        </Pressable>
+
         {/* Bouton non-dispo cette semaine */}
         <Pressable
           onPress={toggleUnavailable}
@@ -387,6 +442,9 @@ function StaffLine({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
     backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
@@ -395,6 +453,15 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   headerSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  templateLink: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  templateLinkLabel: { fontSize: 12, fontWeight: '700', color: COLORS.secondaryDark },
   scrollContent: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.md },
   filterChip: {
@@ -525,6 +592,15 @@ const stylesUnav = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     alignItems: 'center',
+  },
+  templateCard: {
+    backgroundColor: COLORS.secondarySoft,
+    borderColor: COLORS.secondary,
+  },
+  templateTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.secondaryDark,
   },
   cardActive: {
     backgroundColor: '#fee2e2',

@@ -35,6 +35,7 @@ import type {
   RaceVote,
   StaffPresence,
   StaffPresenceStatus,
+  StaffPresenceTemplateSlot,
   StaffPresenceWeek,
   StaticPage,
   StaticPageNode,
@@ -128,6 +129,20 @@ export const staffPresence = {
   setUnavailableMissing: (week: string) =>
     api.post<{ ok: boolean; week: string; markedCount: number }>(
       '/api/me/staff-presence/unavailable-missing',
+      { week },
+    ),
+
+  // ---- Semaine de présence type (configurable une fois pour la saison) ----
+  getTemplate: () => api.get<{ slots: StaffPresenceTemplateSlot[] }>('/api/me/staff-presence/template'),
+  setTemplateSlot: (slotTemplateId: number, present: boolean) =>
+    api.post<{ ok: boolean; slotTemplateId: number; present: boolean }>(
+      '/api/me/staff-presence/template',
+      { slotTemplateId, present },
+    ),
+  /** Positionne ma présence de la semaine cible d'après ma semaine type — écrase les choix déjà posés. */
+  applyTemplate: (week: string) =>
+    api.post<{ ok: boolean; week: string; scheduledCount: number; unavailableCount: number }>(
+      '/api/me/staff-presence/apply-template',
       { week },
     ),
 };
