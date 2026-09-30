@@ -2,12 +2,15 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\StaffDayUnavailability;
 use App\Entity\StaffPresence;
 use App\Entity\TrainingSlot;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Enum\Sport;
+use App\Enum\StaffAbsenceReason;
 use App\Entity\StaffWeekUnavailability;
+use App\Repository\StaffDayUnavailabilityRepository;
 use App\Repository\StaffPresenceRepository;
 use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
@@ -45,6 +48,7 @@ class StaffPresenceController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
         private readonly StaffPresenceTemplateRepository $presenceTemplates,
+        private readonly StaffDayUnavailabilityRepository $dayUnavailabilities,
     ) {
     }
 
@@ -221,6 +225,13 @@ class StaffPresenceController extends AbstractController
             $unavailableByUser[$u->getUser()->getId()] = $u;
         }
 
+        // Indexe les absences journalières déclarées par user_id → date ISO
+        // → StaffDayUnavailability, pour cette semaine.
+        $dayUnavailableByUser = [];
+        foreach ($this->dayUnavailabilities->findForWeek($week) as $d) {
+            $dayUnavailableByUser[$d->getUser()->getId()][$d->getDate()->format('Y-m-d')] = $d;
+        }
+
         // Pour chaque encadrant, calcule les créneaux où il n'est PAS
         // encore positionné — permet de proposer une dropdown « ajouter
         // une présence » sans inclure les doublons. On annote chaque
@@ -262,6 +273,12 @@ class StaffPresenceController extends AbstractController
             'availableByUser' => $availableByUser,
             'unavailableByUser' => $unavailableByUser,
             'templateConfiguredByUser' => $templateConfiguredByUser,
+            'dayUnavailableByUser' => $dayUnavailableByUser,
+            'weekDates' => array_map(
+                static fn (int $d) => $week->modify(sprintf('+%d days', $d - 1)),
+                [1, 2, 3, 4, 5, 6, 7],
+            ),
+            'absenceReasons' => StaffAbsenceReason::cases(),
         ]);
     }
 
@@ -329,11 +346,61 @@ class StaffPresenceController extends AbstractController
             }
         } else {
             if ($existing === null) {
+                $reason = StaffAbsenceReason::tryFrom((string) $request->request->get('reason', ''));
+                if ($reason === null) {
+                    $this->addFlash('error', 'Motif requis (maladie, vacances ou déplacement).');
+                    return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+                }
                 $notes = trim((string) $request->request->get('notes', '')) ?: null;
-                $this->em->persist(new StaffWeekUnavailability($user, $week, $notes));
+                $this->em->persist(new StaffWeekUnavailability($user, $week, $reason, $notes));
                 $this->em->flush();
-                $this->addFlash('success', sprintf('%s marqué non-dispo cette semaine.', $user->getFullName()));
+                $this->addFlash('success', sprintf('%s marqué non-dispo cette semaine (%s).', $user->getFullName(), $reason->label()));
             }
+        }
+
+        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+    }
+
+    /**
+     * Admin toggle : marque un membre du staff comme (non-)disponible pour
+     * UNE journée précise (plutôt que la semaine entière), avec motif
+     * obligatoire à la pose.
+     */
+    #[Route('/admin/staff/supervision/day-unavailable', name: 'admin_staff_supervision_day_unavailable', methods: ['POST'])]
+    public function toggleDayUnavailable(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'staff_presence');
+        $userId = (int) $request->request->get('userId');
+        $week = $this->parseWeek($request->request->get('week'));
+        $dateRaw = (string) $request->request->get('date', '');
+        $action = (string) $request->request->get('action', 'set');
+        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
+
+        $user = $this->users->find($userId);
+        if ($user === null || !$user->isActive()) {
+            throw $this->createNotFoundException();
+        }
+        try {
+            $date = $dateRaw !== '' ? new \DateTimeImmutable($dateRaw) : null;
+        } catch (\Exception) {
+            $date = null;
+        }
+        if ($date === null) {
+            throw $this->createNotFoundException('Date invalide.');
+        }
+
+        if ($action === 'unset') {
+            $this->service->unsetDayUnavailable($user, $date);
+            $this->addFlash('success', sprintf('%s marqué à nouveau disponible le %s.', $user->getFullName(), $date->format('d/m')));
+        } else {
+            $reason = StaffAbsenceReason::tryFrom((string) $request->request->get('reason', ''));
+            if ($reason === null) {
+                $this->addFlash('error', 'Motif requis (maladie, vacances ou déplacement).');
+                return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+            }
+            $notes = trim((string) $request->request->get('notes', '')) ?: null;
+            $this->service->setDayUnavailable($user, $date, $reason, $notes);
+            $this->addFlash('success', sprintf('%s marqué non-dispo le %s (%s).', $user->getFullName(), $date->format('d/m'), $reason->label()));
         }
 
         return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);

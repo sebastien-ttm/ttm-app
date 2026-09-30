@@ -3,27 +3,26 @@
 namespace App\Entity;
 
 use App\Enum\StaffAbsenceReason;
-use App\Repository\StaffWeekUnavailabilityRepository;
+use App\Repository\StaffDayUnavailabilityRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Déclaration explicite d'indisponibilité d'un membre du staff (encadrant
- * ou entraîneur) sur une semaine entière. Sert à distinguer trois états
- * dans la supervision :
+ * ou entraîneur) sur une SEULE journée, avec un motif obligatoire
+ * (maladie / vacances / déplacement) — contrairement à
+ * StaffWeekUnavailability (semaine entière), plus adapté à une absence
+ * ponctuelle d'un jour.
  *
- *   - Positionné sur au moins un créneau → présent, dispo
- *   - StaffWeekUnavailability posé      → non dispo (déclaré)
- *   - Ni l'un ni l'autre                → aucune réponse (silence)
- *
- * Ne supprime PAS automatiquement les StaffPresence existantes — si un
- * encadrant se marque non-dispo alors qu'il avait déjà réservé un
- * créneau, l'UI le signale comme conflit à l'admin.
+ * Comme pour StaffWeekUnavailability, ne supprime pas automatiquement
+ * les StaffPresence existantes en cas de conflit : voir
+ * StaffPresenceService::setDayUnavailable() pour la cascade appliquée
+ * (pose 'unavailable' sur les créneaux non annulés de la journée).
  */
-#[ORM\Entity(repositoryClass: StaffWeekUnavailabilityRepository::class)]
-#[ORM\Table(name: 'staff_week_unavailability')]
-#[ORM\UniqueConstraint(name: 'uniq_staff_week_unav_user_week', columns: ['user_id', 'week_starts_at'])]
-#[ORM\Index(name: 'idx_staff_week_unav_week', columns: ['week_starts_at'])]
-class StaffWeekUnavailability
+#[ORM\Entity(repositoryClass: StaffDayUnavailabilityRepository::class)]
+#[ORM\Table(name: 'staff_day_unavailability')]
+#[ORM\UniqueConstraint(name: 'uniq_staff_day_unav_user_date', columns: ['user_id', 'date'])]
+#[ORM\Index(name: 'idx_staff_day_unav_date', columns: ['date'])]
+class StaffDayUnavailability
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -34,15 +33,9 @@ class StaffWeekUnavailability
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
-    /** Lundi de la semaine ciblée (toujours snappé au lundi). */
     #[ORM\Column(type: 'date_immutable')]
-    private \DateTimeImmutable $weekStartsAt;
+    private \DateTimeImmutable $date;
 
-    /**
-     * Motif structuré (maladie / vacances / déplacement). Nullable pour
-     * les déclarations créées avant l'introduction de ce champ — mais
-     * exigé par les contrôleurs pour toute nouvelle déclaration.
-     */
     #[ORM\Column(length: 20, nullable: true, enumType: StaffAbsenceReason::class)]
     private ?StaffAbsenceReason $reason = null;
 
@@ -55,12 +48,12 @@ class StaffWeekUnavailability
 
     public function __construct(
         User $user,
-        \DateTimeImmutable $weekStartsAt,
+        \DateTimeImmutable $date,
         ?StaffAbsenceReason $reason = null,
         ?string $notes = null,
     ) {
         $this->user = $user;
-        $this->weekStartsAt = $weekStartsAt->modify('monday this week')->setTime(0, 0, 0);
+        $this->date = $date->setTime(0, 0, 0);
         $this->reason = $reason;
         $this->notes = $notes !== null ? (trim($notes) ?: null) : null;
         $this->createdAt = new \DateTimeImmutable();
@@ -68,7 +61,7 @@ class StaffWeekUnavailability
 
     public function getId(): ?int { return $this->id; }
     public function getUser(): User { return $this->user; }
-    public function getWeekStartsAt(): \DateTimeImmutable { return $this->weekStartsAt; }
+    public function getDate(): \DateTimeImmutable { return $this->date; }
     public function getReason(): ?StaffAbsenceReason { return $this->reason; }
     public function setReason(?StaffAbsenceReason $r): self { $this->reason = $r; return $this; }
     public function getNotes(): ?string { return $this->notes; }

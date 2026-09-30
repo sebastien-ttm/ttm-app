@@ -316,6 +316,8 @@ export type WeeklySchedule = {
 
 export type StaffPresenceStatus = 'scheduled' | 'attended' | 'unavailable';
 
+export type StaffAbsenceReason = 'maladie' | 'vacances' | 'deplacement';
+
 export type StaffPresence = {
   id: number;
   /** null si c'est une tâche custom (hors créneau). */
@@ -347,8 +349,12 @@ export type StaffPresenceWeek = {
   customTasks: StaffPresence[];
   /** True si le user a déclaré être non-dispo cette semaine (marqueur global). */
   unavailable: boolean;
-  /** Note libre associée à l'indisponibilité (« vacances », « déplacement pro »). */
+  /** Motif structuré de l'indisponibilité hebdomadaire. */
+  unavailableReason: StaffAbsenceReason | null;
+  /** Note libre associée à l'indisponibilité, en complément du motif. */
   unavailableNotes: string | null;
+  /** Absences déclarées journée par journée pour cette semaine, indexées par date ISO (YYYY-MM-DD). */
+  dayUnavailabilities: Record<string, { reason: StaffAbsenceReason | null; notes: string | null }>;
 };
 
 /**

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -17,6 +18,7 @@ import { ApiError } from '@/api/client';
 import { staffPresence as api } from '@/api/resources';
 import type {
   SportKey,
+  StaffAbsenceReason,
   StaffPresenceSlot,
   StaffPresenceStatus,
   StaffPresenceWeek,
@@ -37,6 +39,19 @@ const SPORT_FILTERS: { key: SportKey | 'all'; label: string }[] = [
   { key: 'autre', label: 'Autre' },
 ];
 
+const ABSENCE_REASONS: { key: StaffAbsenceReason; icon: string; label: string }[] = [
+  { key: 'maladie', icon: '🤒', label: 'Maladie' },
+  { key: 'vacances', icon: '🏖️', label: 'Vacances' },
+  { key: 'deplacement', icon: '🚗', label: 'Déplacement' },
+];
+
+/** Cible d'une déclaration d'absence en attente de motif (semaine ou journée). */
+type ReasonPickerTarget = { kind: 'week' } | { kind: 'day'; date: string; label: string };
+
+function reasonInfo(key: StaffAbsenceReason | null | undefined) {
+  return ABSENCE_REASONS.find((r) => r.key === key) ?? null;
+}
+
 export default function StaffPresenceScreen() {
   const { user } = useAuth();
   const router = useRouter();
@@ -48,6 +63,7 @@ export default function StaffPresenceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sportFilter, setSportFilter] = useState<SportKey | 'all'>('all');
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+  const [reasonPickerFor, setReasonPickerFor] = useState<ReasonPickerTarget | null>(null);
 
   // Garde-fou : accès staff uniquement
   if (user && !user.profiles.includes('encadrant') && !user.profiles.includes('entraineur')) {
@@ -115,6 +131,7 @@ export default function StaffPresenceScreen() {
   const hasScheduledSlots = (data?.slots ?? []).some(
     (s) => s.myPresence?.status === 'scheduled' || s.myPresence?.status === 'attended',
   );
+  const weekReasonInfo = reasonInfo(data?.unavailableReason);
 
   function confirmApplyTemplate(): Promise<boolean> {
     const message = 'Applique votre semaine type à la semaine affichée : tout choix déjà posé sur ses créneaux (présence ou indisponibilité) sera remplacé.';
@@ -145,20 +162,71 @@ export default function StaffPresenceScreen() {
 
   async function toggleUnavailable() {
     const iso = toIsoDate(weekStart);
+    // Déclarer non-dispo toute la semaine exige un motif : ouvre le
+    // sélecteur plutôt que d'appeler l'API directement. Les deux autres
+    // cas (retirer le marqueur, ou ne marquer que les créneaux restants)
+    // ne créent pas de déclaration formelle et n'ont pas besoin de motif.
+    if (!data?.unavailable && !hasScheduledSlots) {
+      setReasonPickerFor({ kind: 'week' });
+      return;
+    }
     setUpdatingKey('unavail');
     try {
       if (data?.unavailable) {
         await api.unsetUnavailable(iso);
-      } else if (hasScheduledSlots) {
-        await api.setUnavailableMissing(iso);
       } else {
-        await api.setUnavailable(iso);
+        await api.setUnavailableMissing(iso);
       }
       await load(iso);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur mise à jour');
     } finally {
       setUpdatingKey(null);
+    }
+  }
+
+  async function toggleDayUnavailable(dateIso: string, dayLbl: string) {
+    const existing = data?.dayUnavailabilities?.[dateIso];
+    if (existing) {
+      setUpdatingKey(`day-${dateIso}`);
+      try {
+        await api.unsetDayUnavailable(dateIso);
+        await load(toIsoDate(weekStart));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erreur mise à jour');
+      } finally {
+        setUpdatingKey(null);
+      }
+      return;
+    }
+    setReasonPickerFor({ kind: 'day', date: dateIso, label: dayLbl });
+  }
+
+  async function confirmReason(reason: StaffAbsenceReason) {
+    const target = reasonPickerFor;
+    if (!target) return;
+    setReasonPickerFor(null);
+    const iso = toIsoDate(weekStart);
+    if (target.kind === 'week') {
+      setUpdatingKey('unavail');
+      try {
+        await api.setUnavailable(iso, reason);
+        await load(iso);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'Erreur mise à jour');
+      } finally {
+        setUpdatingKey(null);
+      }
+    } else {
+      setUpdatingKey(`day-${target.date}`);
+      try {
+        await api.setDayUnavailable(target.date, reason);
+        await load(iso);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'Erreur mise à jour');
+      } finally {
+        setUpdatingKey(null);
+      }
     }
   }
 
@@ -250,7 +318,7 @@ export default function StaffPresenceScreen() {
             <>
               <Text style={[stylesUnav.title, data?.unavailable && stylesUnav.titleActive]}>
                 {data?.unavailable
-                  ? '❌ Non dispo cette semaine'
+                  ? `❌ Non dispo cette semaine${weekReasonInfo ? ` · ${weekReasonInfo.icon} ${weekReasonInfo.label}` : ''}`
                   : hasScheduledSlots
                     ? 'Je ne suis pas dispo sur les créneaux manquants'
                     : 'Je ne suis pas dispo cette semaine'}
@@ -296,11 +364,36 @@ export default function StaffPresenceScreen() {
             const slots = slotsByDay.get(day) ?? [];
             if (slots.length === 0) return null;
             const dayDate = addDays(weekStart, day - 1);
+            const dayIso = toIsoDate(dayDate);
+            const dayAbsence = data?.dayUnavailabilities?.[dayIso];
+            const dayAbsenceReason = reasonInfo(dayAbsence?.reason);
+            const dayBusy = updatingKey === `day-${dayIso}`;
             return (
               <View key={day} style={styles.dayBlock}>
-                <Text style={styles.dayHeader}>
-                  {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
-                </Text>
+                <View style={styles.dayHeaderRow}>
+                  <Text style={styles.dayHeader}>
+                    {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                  </Text>
+                  {dayBusy ? (
+                    <ActivityIndicator color={COLORS.secondary} />
+                  ) : dayAbsence ? (
+                    <Pressable
+                      onPress={() => void toggleDayUnavailable(dayIso, dayLabel(day))}
+                      style={styles.dayAbsenceBadge}
+                    >
+                      <Text style={styles.dayAbsenceBadgeLabel}>
+                        {dayAbsenceReason ? `${dayAbsenceReason.icon} ${dayAbsenceReason.label}` : 'Non dispo'} · Annuler
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={() => void toggleDayUnavailable(dayIso, dayLabel(day))}
+                      style={styles.dayAbsenceLink}
+                    >
+                      <Text style={styles.dayAbsenceLinkLabel}>Absent ce jour</Text>
+                    </Pressable>
+                  )}
+                </View>
                 {slots.map((s, idx) => {
                   const key = `slot-${s.id ?? `tpl${s.templateId}`}`;
                   return (
@@ -331,6 +424,35 @@ export default function StaffPresenceScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={reasonPickerFor !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReasonPickerFor(null)}
+      >
+        <Pressable style={stylesReason.backdrop} onPress={() => setReasonPickerFor(null)}>
+          <Pressable style={stylesReason.sheet} onPress={() => {}}>
+            <Text style={stylesReason.title}>
+              {reasonPickerFor?.kind === 'day'
+                ? `Absent(e) ${reasonPickerFor.label} — motif`
+                : 'Non dispo cette semaine — motif'}
+            </Text>
+            {ABSENCE_REASONS.map((r) => (
+              <Pressable
+                key={r.key}
+                onPress={() => void confirmReason(r.key)}
+                style={({ pressed }) => [stylesReason.option, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={stylesReason.optionLabel}>{r.icon} {r.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={() => setReasonPickerFor(null)} style={stylesReason.cancel}>
+              <Text style={stylesReason.cancelLabel}>Annuler</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -485,14 +607,37 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
   },
   dayBlock: { marginBottom: SPACING.md },
+  dayHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
   dayHeader: {
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.secondaryDark,
-    marginBottom: 6,
-    paddingHorizontal: 4,
   },
   daySub: { color: COLORS.textMuted, fontWeight: '500', fontSize: 13 },
+  dayAbsenceLink: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dayAbsenceLinkLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
+  dayAbsenceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: COLORS.error,
+  },
+  dayAbsenceBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#991b1b' },
   section: { marginTop: SPACING.lg },
   sectionTitle: {
     fontSize: 14,
@@ -624,4 +769,41 @@ const stylesUnav = StyleSheet.create({
   subActive: {
     color: '#991b1b',
   },
+});
+
+const stylesReason = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    gap: 8,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  option: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  optionLabel: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  cancel: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cancelLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
 });

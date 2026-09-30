@@ -33,6 +33,7 @@ import type {
   RaceProposalInput,
   RaceTypeOption,
   RaceVote,
+  StaffAbsenceReason,
   StaffPresence,
   StaffPresenceStatus,
   StaffPresenceTemplateSlot,
@@ -110,16 +111,27 @@ export const staffPresence = {
   }>) => api.patch<StaffPresence>(`/api/me/staff-presence/${id}`, patch),
   remove: (id: number) => api.delete<void>(`/api/me/staff-presence/${id}`),
 
-  /** Marque le user comme non-dispo pour la semaine cible. */
-  setUnavailable: (week: string, notes?: string) =>
-    api.post<{ ok: boolean; unavailable: boolean; unavailableNotes: string | null }>(
+  /** Marque le user comme non-dispo pour la semaine cible (motif obligatoire). */
+  setUnavailable: (week: string, reason: StaffAbsenceReason, notes?: string) =>
+    api.post<{ ok: boolean; unavailable: boolean; unavailableReason: StaffAbsenceReason; unavailableNotes: string | null }>(
       '/api/me/staff-presence/unavailable',
-      { week, notes },
+      { week, reason, notes },
     ),
   /** Retire le marqueur non-dispo. */
   unsetUnavailable: (week: string) =>
     api.delete<{ ok: boolean; unavailable: false }>(
       `/api/me/staff-presence/unavailable?week=${encodeURIComponent(week)}`,
+    ),
+  /** Marque le user comme non-dispo sur UNE journée précise (motif obligatoire). */
+  setDayUnavailable: (date: string, reason: StaffAbsenceReason, notes?: string) =>
+    api.post<{ ok: boolean; date: string; reason: StaffAbsenceReason; notes: string | null }>(
+      '/api/me/staff-presence/day-unavailable',
+      { date, reason, notes },
+    ),
+  /** Retire la déclaration d'absence d'une journée. */
+  unsetDayUnavailable: (date: string) =>
+    api.delete<{ ok: boolean; date: string }>(
+      `/api/me/staff-presence/day-unavailable?date=${encodeURIComponent(date)}`,
     ),
   /**
    * Pose 'unavailable' UNIQUEMENT sur les slots où l'user n'a pas

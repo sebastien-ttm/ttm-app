@@ -2,10 +2,13 @@
 
 namespace App\Service\Training;
 
+use App\Entity\StaffDayUnavailability;
 use App\Entity\StaffPresence;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
+use App\Enum\StaffAbsenceReason;
+use App\Repository\StaffDayUnavailabilityRepository;
 use App\Repository\StaffPresenceRepository;
 use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
@@ -32,6 +35,7 @@ class StaffPresenceService
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
         private readonly TrainingSlotRepository $slots,
         private readonly TrainingSlotTemplateRepository $templates,
+        private readonly StaffDayUnavailabilityRepository $dayUnavailabilities,
     ) {
     }
 
@@ -142,5 +146,81 @@ class StaffPresenceService
         $this->em->flush();
 
         return ['scheduledCount' => $scheduledCount, 'unavailableCount' => $unavailableCount];
+    }
+
+    /**
+     * Déclare une journée entière indisponible pour un motif donné :
+     * pose 'unavailable' sur tous les créneaux non annulés de cette
+     * journée (matérialisant les templates virtuels au besoin), et
+     * enregistre/met à jour le motif structuré affiché à l'équipe.
+     * Idempotent : ré-appeler avec un motif différent met juste à jour
+     * la déclaration existante.
+     */
+    public function setDayUnavailable(
+        User $user,
+        \DateTimeImmutable $date,
+        StaffAbsenceReason $reason,
+        ?string $notes = null,
+    ): StaffDayUnavailability {
+        $day = $date->setTime(0, 0, 0);
+
+        $existing = $this->dayUnavailabilities->findOneByUserAndDate($user, $day);
+        if ($existing === null) {
+            $existing = new StaffDayUnavailability($user, $day, $reason, $notes);
+            $this->em->persist($existing);
+        } else {
+            $existing->setReason($reason);
+            $existing->setNotes($notes);
+        }
+
+        $monday = WeeklyScheduleService::snapToMonday($day);
+        $dayOfWeek = (int) $day->format('N');
+        foreach ($this->schedule->buildWeek($monday) as $slotRow) {
+            if (!empty($slotRow['isCancelled'])) continue;
+            if ((int) $slotRow['dayOfWeek'] !== $dayOfWeek) continue;
+
+            $slotId = $slotRow['id'] ?? null;
+            $templateId = $slotRow['templateId'] ?? null;
+            if ($slotId !== null) {
+                $slot = $this->slots->find($slotId);
+                if ($slot !== null) {
+                    $this->setForSlot($user, $slot, StaffPresence::STATUS_UNAVAILABLE);
+                }
+            } elseif ($templateId !== null) {
+                $template = $this->templates->find($templateId);
+                if ($template !== null) {
+                    $this->setForTemplate($user, $template, $monday, StaffPresence::STATUS_UNAVAILABLE);
+                }
+            }
+        }
+
+        $this->em->flush();
+
+        return $existing;
+    }
+
+    /**
+     * Retire la déclaration d'absence d'une journée et les StaffPresence
+     * 'unavailable' de cette même journée qui en découlaient. Les choix
+     * positifs (scheduled/attended) posés manuellement sur cette journée
+     * ne sont pas concernés.
+     */
+    public function unsetDayUnavailable(User $user, \DateTimeImmutable $date): void
+    {
+        $day = $date->setTime(0, 0, 0);
+
+        $existing = $this->dayUnavailabilities->findOneByUserAndDate($user, $day);
+        if ($existing !== null) {
+            $this->em->remove($existing);
+        }
+
+        $monday = WeeklyScheduleService::snapToMonday($day);
+        foreach ($this->presences->findByUserAndWeek($user, $monday) as $p) {
+            if ($p->getStatus() === StaffPresence::STATUS_UNAVAILABLE && $p->getDate()->format('Y-m-d') === $day->format('Y-m-d')) {
+                $this->em->remove($p);
+            }
+        }
+
+        $this->em->flush();
     }
 }

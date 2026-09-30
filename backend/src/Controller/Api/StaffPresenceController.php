@@ -6,7 +6,9 @@ use App\Entity\StaffPresence;
 use App\Entity\StaffPresenceTemplate;
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Enum\StaffAbsenceReason;
 use App\Entity\StaffWeekUnavailability;
+use App\Repository\StaffDayUnavailabilityRepository;
 use App\Repository\StaffPresenceRepository;
 use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
@@ -40,6 +42,7 @@ class StaffPresenceController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
         private readonly StaffPresenceTemplateRepository $presenceTemplates,
+        private readonly StaffDayUnavailabilityRepository $dayUnavailabilities,
     ) {
     }
 
@@ -130,19 +133,32 @@ class StaffPresenceController extends AbstractController
         // 3) Statut d'indisponibilité déclarée pour cette semaine
         $unav = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
 
+        // 4) Absences déclarées journée par journée pour cette semaine,
+        //    indexées par date ISO — permet à l'écran de signaler
+        //    distinctement chaque jour concerné et son motif.
+        $dayUnav = [];
+        foreach ($this->dayUnavailabilities->findByUserAndWeek($user, $monday) as $d) {
+            $dayUnav[$d->getDate()->format('Y-m-d')] = [
+                'reason' => $d->getReason()?->value,
+                'notes' => $d->getNotes(),
+            ];
+        }
+
         return new JsonResponse([
             'week' => $monday->format('Y-m-d'),
             'slots' => $slotsWithPresence,
             'customTasks' => $customTasks,
             'unavailable' => $unav !== null,
+            'unavailableReason' => $unav?->getReason()?->value,
             'unavailableNotes' => $unav?->getNotes(),
+            'dayUnavailabilities' => $dayUnav,
         ]);
     }
 
     /**
      * Marque le user comme non-disponible sur cette semaine.
-     * Body : { week: "YYYY-MM-DD", notes?: string }
-     * Idempotent (met à jour la note si déjà posé).
+     * Body : { week: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement", notes?: string }
+     * Idempotent (met à jour le motif/la note si déjà posé).
      */
     #[Route('/api/me/staff-presence/unavailable', name: 'api_staff_presence_set_unavailable', methods: ['POST'])]
     public function setUnavailable(Request $request): JsonResponse
@@ -161,14 +177,19 @@ class StaffPresenceController extends AbstractController
         } catch (\Exception) {
             return new JsonResponse(['error' => 'week invalide'], Response::HTTP_BAD_REQUEST);
         }
+        $reason = StaffAbsenceReason::tryFrom((string) ($payload['reason'] ?? ''));
+        if ($reason === null) {
+            return new JsonResponse(['error' => 'Motif requis (maladie, vacances ou déplacement).'], Response::HTTP_BAD_REQUEST);
+        }
         $monday = WeeklyScheduleService::snapToMonday($week);
         $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
 
         $existing = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
         if ($existing !== null) {
+            $existing->setReason($reason);
             $existing->setNotes($notes);
         } else {
-            $this->em->persist(new StaffWeekUnavailability($user, $monday, $notes));
+            $this->em->persist(new StaffWeekUnavailability($user, $monday, $reason, $notes));
         }
 
         // Répercute l'indisponibilité par créneau : pose une StaffPresence
@@ -199,6 +220,7 @@ class StaffPresenceController extends AbstractController
             'ok' => true,
             'week' => $monday->format('Y-m-d'),
             'unavailable' => true,
+            'unavailableReason' => $reason->value,
             'unavailableNotes' => $notes,
         ]);
     }
@@ -319,6 +341,74 @@ class StaffPresenceController extends AbstractController
             'week' => $monday->format('Y-m-d'),
             'unavailable' => false,
         ]);
+    }
+
+    /**
+     * Marque le user comme non-disponible sur UNE journée précise, avec
+     * motif obligatoire. Pose 'unavailable' sur les créneaux non annulés
+     * de cette journée (voir StaffPresenceService::setDayUnavailable).
+     * Body : { date: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement", notes?: string }
+     */
+    #[Route('/api/me/staff-presence/day-unavailable', name: 'api_staff_presence_set_day_unavailable', methods: ['POST'])]
+    public function setDayUnavailable(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Payload invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $dateRaw = (string) ($payload['date'] ?? '');
+        try {
+            $date = $dateRaw !== '' ? new \DateTimeImmutable($dateRaw) : null;
+        } catch (\Exception) {
+            $date = null;
+        }
+        if ($date === null) {
+            return new JsonResponse(['error' => 'date invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $reason = StaffAbsenceReason::tryFrom((string) ($payload['reason'] ?? ''));
+        if ($reason === null) {
+            return new JsonResponse(['error' => 'Motif requis (maladie, vacances ou déplacement).'], Response::HTTP_BAD_REQUEST);
+        }
+        $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
+
+        $this->service->setDayUnavailable($user, $date, $reason, $notes);
+
+        return new JsonResponse([
+            'ok' => true,
+            'date' => $date->format('Y-m-d'),
+            'reason' => $reason->value,
+            'notes' => $notes,
+        ]);
+    }
+
+    /**
+     * Retire la déclaration d'absence d'une journée.
+     * Query : ?date=YYYY-MM-DD
+     */
+    #[Route('/api/me/staff-presence/day-unavailable', name: 'api_staff_presence_unset_day_unavailable', methods: ['DELETE'])]
+    public function unsetDayUnavailable(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $this->ensureStaff($user);
+
+        $dateRaw = (string) $request->query->get('date', '');
+        try {
+            $date = $dateRaw !== '' ? new \DateTimeImmutable($dateRaw) : null;
+        } catch (\Exception) {
+            $date = null;
+        }
+        if ($date === null) {
+            return new JsonResponse(['error' => 'date invalide'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->service->unsetDayUnavailable($user, $date);
+
+        return new JsonResponse(['ok' => true, 'date' => $date->format('Y-m-d')]);
     }
 
     /**
