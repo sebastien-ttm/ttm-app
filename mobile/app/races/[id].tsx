@@ -149,11 +149,11 @@ export default function RaceDetailScreen() {
             </Pressable>
           )}
 
-          <Text style={styles.sectionTitle}>Ça vous intéresse ?</Text>
+          <Text style={styles.sectionTitle}>{race.captain ? 'Ça vous intéresse ?' : 'Vous participez ?'}</Text>
           <View style={styles.voteRow}>
             <VoteBtn
               icon="thumbs-up"
-              label="Intéressé(e)"
+              label={race.captain ? 'Intéressé(e)' : 'Je suis inscrit(e)'}
               count={race.interestedCount}
               active={race.myVote === 'interested'}
               onPress={() => void vote('interested')}
@@ -169,7 +169,7 @@ export default function RaceDetailScreen() {
             />
           </View>
 
-          <PeopleList title="Intéressés" people={race.interested} />
+          <PeopleList title={race.captain ? 'Intéressés' : 'Inscrits'} people={race.interested} />
           <PeopleList title="Peut-être" people={race.maybe} />
 
           {isMine && (

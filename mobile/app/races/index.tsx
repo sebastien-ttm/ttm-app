@@ -122,7 +122,7 @@ export default function RacesScreen() {
                 <>
                   <ActionBtn
                     icon={item.myVote === 'interested' ? 'thumbs-up' : 'thumbs-up-outline'}
-                    label={'Intéressé(e) · ' + item.interestedCount}
+                    label={(item.captain ? 'Intéressé(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
                     active={item.myVote === 'interested'}
                     onPress={() => void vote(item, 'interested')}
                     disabled={busyId === item.id}
