@@ -59,9 +59,12 @@
                         </span>
                     {% endif %}
 
-                    {# Toggle non-dispo par l'admin + application de la semaine type #}
+                    {# Toggle non-dispo par l'admin + application de la semaine type.
+                       La semaine type (bouton + encart « hors de sa semaine type » +
+                       annotations ✓/⚠ dans le dropdown) est réservée à la vue Emploi
+                       du temps entraîneurs — pas de sens équivalent côté encadrants. #}
                     <span style="margin-left:auto; display:flex; gap:6px; align-items:center;">
-                        {% if templateConfiguredByUser[staffMember.id]|default(false) %}
+                        {% if profile == 'entraineur' and templateConfiguredByUser[staffMember.id]|default(false) %}
                             <form method="post" action="{{ path('admin_staff_supervision_apply_template') }}" style="display:inline;"
                                   onsubmit="return confirm('Appliquer la semaine type de {{ staffMember.fullName }} à cette semaine ? Cela écrase ses présences déjà posées.');">
                                 <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
@@ -80,7 +83,8 @@
                                 <input type="hidden" name="back" value="{{ back_route }}">
                                 <button class="btn btn-sm btn-secondary" title="Retirer le marqueur non-dispo">Marquer dispo</button>
                             </form>
-                        {% else %}
+                        {% elseif profile == 'entraineur' %}
+                            {# Motif obligatoire : réservé à la vue entraîneurs. #}
                             <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline-flex; gap:4px; align-items:center;">
                                 <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
                                 <input type="hidden" name="userId" value="{{ staffMember.id }}">
@@ -93,6 +97,16 @@
                                         <option value="{{ r.value }}">{{ r.icon }} {{ r.label }}</option>
                                     {% endfor %}
                                 </select>
+                                <button class="btn btn-sm btn-link" style="color:#991b1b;">Marquer non-dispo</button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline;"
+                                  onsubmit="return confirm('Marquer {{ staffMember.fullName }} comme non-dispo cette semaine ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                                <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                                <input type="hidden" name="action" value="set">
+                                <input type="hidden" name="back" value="{{ back_route }}">
                                 <button class="btn btn-sm btn-link" style="color:#991b1b;">Marquer non-dispo</button>
                             </form>
                         {% endif %}
@@ -119,7 +133,7 @@
                    configurés puisque le modèle ne distingue pas les deux).
                    Mis en avant distinctement pour signaler qu'il faut
                    trouver quelqu'un d'autre. #}
-                {% set notUsual = templateConfiguredByUser[staffMember.id]|default(false)
+                {% set notUsual = (profile == 'entraineur' and templateConfiguredByUser[staffMember.id]|default(false))
                     ? available|filter(r => r.templateId is not null and not r.inTemplate)
                     : [] %}
                 {% if notUsual|length > 0 %}
@@ -135,8 +149,9 @@
 
                 {# Absences déclarées journée par journée (motif obligatoire à la
                    pose) — indépendant du marqueur « non-dispo cette semaine » :
-                   permet de signaler une seule journée sans bloquer le reste. #}
-                {% set dayUnavail = dayUnavailableByUser[staffMember.id]|default({}) %}
+                   permet de signaler une seule journée sans bloquer le reste.
+                   Réservé à la vue Emploi du temps entraîneurs. #}
+                {% set dayUnavail = profile == 'entraineur' ? dayUnavailableByUser[staffMember.id]|default({}) : {} %}
                 {% if dayUnavail|length > 0 %}
                     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
                         {% for dateIso, d in dayUnavail %}
@@ -158,7 +173,7 @@
                 {% endif %}
 
                 {% set daysLeft = weekDates|filter(d => dayUnavail[d|date('Y-m-d')] is not defined) %}
-                {% if daysLeft|length > 0 %}
+                {% if profile == 'entraineur' and daysLeft|length > 0 %}
                     <form method="post" action="{{ path('admin_staff_supervision_day_unavailable') }}"
                           style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; padding:8px 12px; background:#fff7ed; border-radius:6px; border:1px dashed #fdba74;">
                         <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
@@ -284,7 +299,7 @@
                                 {# Encode soit s:slotId (créneau déjà persisté en BDD)
                                    soit t:templateId (créneau virtuel à matérialiser) — parsé côté serveur #}
                                 <option value="{{ row.id ? 's:' ~ row.id : 't:' ~ row.templateId }}">
-                                    {%- if templateConfiguredByUser[staffMember.id]|default(false) and row.templateId is not null %}{{ row.inTemplate ? '✓ ' : '⚠ ' }}{% endif -%}
+                                    {%- if profile == 'entraineur' and templateConfiguredByUser[staffMember.id]|default(false) and row.templateId is not null %}{{ row.inTemplate ? '✓ ' : '⚠ ' }}{% endif -%}
                                     {{ ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][row.dayOfWeek - 1] }}
                                     {{ row.startTime }} · {{ row.title }} ({{ row.sportLabel }}) — 📍 {{ row.location }}
                                 </option>

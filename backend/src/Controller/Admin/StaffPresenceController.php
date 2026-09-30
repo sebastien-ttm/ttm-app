@@ -346,15 +346,23 @@ class StaffPresenceController extends AbstractController
             }
         } else {
             if ($existing === null) {
+                // Motif obligatoire uniquement depuis la vue entraîneurs — le
+                // formulaire encadrants n'affiche pas ce champ (voir
+                // staff_supervision.html.twig).
+                $requiresReason = $back === 'admin_staff_supervision_entraineurs';
                 $reason = StaffAbsenceReason::tryFrom((string) $request->request->get('reason', ''));
-                if ($reason === null) {
+                if ($requiresReason && $reason === null) {
                     $this->addFlash('error', 'Motif requis (maladie, vacances ou déplacement).');
                     return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
                 }
                 $notes = trim((string) $request->request->get('notes', '')) ?: null;
                 $this->em->persist(new StaffWeekUnavailability($user, $week, $reason, $notes));
                 $this->em->flush();
-                $this->addFlash('success', sprintf('%s marqué non-dispo cette semaine (%s).', $user->getFullName(), $reason->label()));
+                $this->addFlash('success', sprintf(
+                    '%s marqué non-dispo cette semaine%s.',
+                    $user->getFullName(),
+                    $reason !== null ? ' ('.$reason->label().')' : '',
+                ));
             }
         }
 
