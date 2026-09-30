@@ -62,7 +62,10 @@
                     {# Toggle non-dispo par l'admin + application de la semaine type.
                        La semaine type (bouton + encart « hors de sa semaine type » +
                        annotations ✓/⚠ dans le dropdown) est réservée à la vue Emploi
-                       du temps entraîneurs — pas de sens équivalent côté encadrants. #}
+                       du temps entraîneurs — pas de sens équivalent côté encadrants.
+                       Le formulaire « Marquer non-dispo » AVEC motif (entraîneurs)
+                       est affiché plus bas, dans un encart au même style que
+                       « Absent une journée » — voir après le </h3>. #}
                     <span style="margin-left:auto; display:flex; gap:6px; align-items:center;">
                         {% if profile == 'entraineur' and templateConfiguredByUser[staffMember.id]|default(false) %}
                             <form method="post" action="{{ path('admin_staff_supervision_apply_template') }}" style="display:inline;"
@@ -83,23 +86,7 @@
                                 <input type="hidden" name="back" value="{{ back_route }}">
                                 <button class="btn btn-sm btn-secondary" title="Retirer le marqueur non-dispo">Marquer dispo</button>
                             </form>
-                        {% elseif profile == 'entraineur' %}
-                            {# Motif obligatoire : réservé à la vue entraîneurs. #}
-                            <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline-flex; gap:4px; align-items:center;">
-                                <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
-                                <input type="hidden" name="userId" value="{{ staffMember.id }}">
-                                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
-                                <input type="hidden" name="action" value="set">
-                                <input type="hidden" name="back" value="{{ back_route }}">
-                                <select name="reason" required style="padding:4px 6px; border-radius:4px; border:1px solid #d4d4d8; font-size:12px;">
-                                    <option value="">— Motif —</option>
-                                    {% for r in absenceReasons %}
-                                        <option value="{{ r.value }}">{{ r.icon }} {{ r.label }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button class="btn btn-sm btn-link" style="color:#991b1b;">Marquer non-dispo</button>
-                            </form>
-                        {% else %}
+                        {% elseif profile != 'entraineur' %}
                             <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}" style="display:inline;"
                                   onsubmit="return confirm('Marquer {{ staffMember.fullName }} comme non-dispo cette semaine ?');">
                                 <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
@@ -145,6 +132,29 @@
                             {% endfor %}
                         </ul>
                     </div>
+                {% endif %}
+
+                {# Déclarer non-dispo TOUTE la semaine (motif obligatoire) — réservé
+                   à la vue entraîneurs, même style que « Absent une journée »
+                   juste en dessous pour bien regrouper les deux déclarations. #}
+                {% if profile == 'entraineur' and not unav %}
+                    <form method="post" action="{{ path('admin_staff_supervision_unavailable') }}"
+                          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; padding:8px 12px; background:#fff7ed; border-radius:6px; border:1px dashed #fdba74;">
+                        <input type="hidden" name="_token" value="{{ csrf_token('staff_presence') }}">
+                        <input type="hidden" name="userId" value="{{ staffMember.id }}">
+                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}">
+                        <input type="hidden" name="action" value="set">
+                        <input type="hidden" name="back" value="{{ back_route }}">
+
+                        <strong style="font-size:13px; color:#9a3412;">+ Non dispo cette semaine</strong>
+                        <select name="reason" required style="padding:6px 8px; border-radius:4px; border:1px solid #d4d4d8; font-size:13px;">
+                            <option value="">— Motif —</option>
+                            {% for r in absenceReasons %}
+                                <option value="{{ r.value }}">{{ r.icon }} {{ r.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-warning">Marquer non-dispo</button>
+                    </form>
                 {% endif %}
 
                 {# Absences déclarées journée par journée (motif obligatoire à la

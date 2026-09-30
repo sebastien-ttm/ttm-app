@@ -28,6 +28,7 @@ use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Entity\WelcomeEmailTemplate;
+use App\Security\StaffScheduleSupervisionVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Asset;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -148,7 +149,7 @@ class DashboardController extends AbstractDashboardController
             'Présences staff' => [
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')],
+                [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
             ],
             'Configuration' => [

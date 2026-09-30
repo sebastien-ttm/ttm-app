@@ -17,6 +17,7 @@ use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Repository\UserRepository;
+use App\Security\StaffScheduleSupervisionVoter;
 use App\Service\Training\StaffPresenceService;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -206,6 +207,13 @@ class StaffPresenceController extends AbstractController
         return $this->renderSupervision($request, Profile::Encadrant, 'Présences encadrants');
     }
 
+    /**
+     * Restreint cette seule page : un compte ROLE_ENTRAINEUR ordinaire
+     * (qui passe déjà le #[IsGranted] de classe) n'y a PAS accès sauf
+     * s'il est explicitement désigné gestionnaire (ou admin) — voir
+     * StaffScheduleSupervisionVoter.
+     */
+    #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
     #[Route('/admin/staff/supervision/entraineurs', name: 'admin_staff_supervision_entraineurs')]
     public function supervisionEntraineurs(Request $request): Response
     {
@@ -289,6 +297,7 @@ class StaffPresenceController extends AbstractController
      * membre qui ne s'est pas positionné lui-même. Écrase toute présence
      * déjà posée sur la semaine pour ce membre.
      */
+    #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
     #[Route('/admin/staff/supervision/apply-template', name: 'admin_staff_supervision_apply_template', methods: ['POST'])]
     public function supervisionApplyTemplate(Request $request): RedirectResponse
     {
@@ -374,6 +383,7 @@ class StaffPresenceController extends AbstractController
      * UNE journée précise (plutôt que la semaine entière), avec motif
      * obligatoire à la pose.
      */
+    #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
     #[Route('/admin/staff/supervision/day-unavailable', name: 'admin_staff_supervision_day_unavailable', methods: ['POST'])]
     public function toggleDayUnavailable(Request $request): RedirectResponse
     {

@@ -168,6 +168,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 120, nullable: true)]
     private ?string $clubFunction = null;
 
+    /**
+     * Accès à la page backend « Emploi du temps entraîneurs » (semaine
+     * type des entraîneurs, motifs d'absence). Indépendant du rôle
+     * ROLE_ENTRAINEUR : un entraîneur "normal" ne voit que « Présences
+     * encadrants » — seul un entraîneur explicitement coché ici (ou un
+     * Administrateur) gère l'emploi du temps de ses collègues. Voir
+     * StaffScheduleSupervisionVoter.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $canManageTrainerSchedule = false;
+
     /** Date de la dernière connexion réussie (mobile JWT ou admin form). */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
@@ -705,6 +716,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->clubFunction = ($trimmed === '' ? null : $trimmed);
         return $this;
     }
+
+    public function canManageTrainerSchedule(): bool { return $this->canManageTrainerSchedule; }
+    public function setCanManageTrainerSchedule(bool $v): self { $this->canManageTrainerSchedule = $v; return $this; }
 
     public function getLastLoginAt(): ?\DateTimeImmutable { return $this->lastLoginAt; }
     public function getLoginCount(): int { return $this->loginCount; }
