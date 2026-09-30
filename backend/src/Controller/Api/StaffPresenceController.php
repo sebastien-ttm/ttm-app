@@ -14,6 +14,7 @@ use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\StaffPresenceService;
 use App\Service\Training\WeeklyScheduleService;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -573,10 +574,18 @@ class StaffPresenceController extends AbstractController
         $existing = $this->presenceTemplates->findOneByUserAndSlotTemplate($user, $template);
         if ($present && $existing === null) {
             $this->em->persist(new StaffPresenceTemplate($user, $template));
+            try {
+                $this->em->flush();
+            } catch (UniqueConstraintViolationException) {
+                // Race entre 2 requêtes concurrentes pour le même créneau
+                // (ex : double-tap côté mobile) — l'index unique rejette la
+                // seconde. Pas une erreur : le premier enregistrement a
+                // déjà posé l'état demandé.
+            }
         } elseif (!$present && $existing !== null) {
             $this->em->remove($existing);
+            $this->em->flush();
         }
-        $this->em->flush();
 
         return new JsonResponse(['ok' => true, 'slotTemplateId' => $templateId, 'present' => $present]);
     }

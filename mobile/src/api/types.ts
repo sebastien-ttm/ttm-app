@@ -1,3 +1,5 @@
+import type { LinkedProfile } from '@/api/client';
+
 export type UserSummary = {
   id: number;
   fullName: string;

@@ -144,11 +144,18 @@ export default function StaffPresenceTemplateScreen() {
                     {togglingId === s.slotTemplateId ? (
                       <ActivityIndicator color={COLORS.secondary} />
                     ) : (
-                      <Switch
-                        value={s.present}
-                        onValueChange={() => void toggle(s)}
-                        trackColor={{ true: COLORS.secondary }}
-                      />
+                      // pointerEvents="none" : le Switch est purement visuel
+                      // ici, seul le Pressable parent gère le tap — sinon un
+                      // appui sur le Switch déclenche AUSSI le onPress du
+                      // Pressable (bulles sur web), doublant l'appel à
+                      // toggle() et provoquant une 2e requête concurrente
+                      // (violation de contrainte d'unicité côté serveur).
+                      <View pointerEvents="none">
+                        <Switch
+                          value={s.present}
+                          trackColor={{ true: COLORS.secondary }}
+                        />
+                      </View>
                     )}
                   </Pressable>
                 ))}
