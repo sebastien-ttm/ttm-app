@@ -507,6 +507,13 @@ class StaffPresenceController extends AbstractController
      * normal ». Indépendant de toute semaine précise — configurable une
      * fois pour la saison (voir applyTemplate() pour l'appliquer à une
      * semaine réelle).
+     *
+     * findActiveOrdered() renvoie TOUS les templates actifs, y compris
+     * ceux d'anciennes saisons clonées vers la saison suivante
+     * (TrainingSlotTemplate::duplicateForSeason) — sans filtre, un même
+     * créneau apparaîtrait en double (l'ancien ET le nouveau). On ne
+     * garde que ceux applicables à la semaine courante, exactement comme
+     * WeeklyScheduleService::buildWeek() pour la vue hebdo normale.
      */
     #[Route('/api/me/staff-presence/template', name: 'api_staff_presence_template_get', methods: ['GET'])]
     public function getTemplate(): JsonResponse
@@ -516,8 +523,9 @@ class StaffPresenceController extends AbstractController
         $this->ensureStaff($user);
 
         $present = $this->presenceTemplates->findPresentTemplateIds($user);
+        $thisWeek = WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'));
 
-        $slots = array_map(function ($tpl) use ($present) {
+        $slots = array_values(array_map(function ($tpl) use ($present) {
             return [
                 'slotTemplateId' => $tpl->getId(),
                 'dayOfWeek' => $tpl->getDayOfWeek(),
@@ -531,7 +539,10 @@ class StaffPresenceController extends AbstractController
                 'location' => $tpl->getLocation(),
                 'present' => isset($present[$tpl->getId()]),
             ];
-        }, $this->templates->findActiveOrdered());
+        }, array_filter(
+            $this->templates->findActiveOrdered(),
+            fn ($tpl) => $tpl->appliesOn($thisWeek),
+        )));
 
         return new JsonResponse(['slots' => $slots]);
     }
