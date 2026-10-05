@@ -25,7 +25,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: SurveyRepository::class)]
 #[ORM\Table(name: 'survey')]
 #[ORM\Index(name: 'idx_survey_published', columns: ['published_at'])]
-class Survey
+class Survey implements OwnedContentInterface
 {
     use AudienceAwareTrait;
 
@@ -125,6 +125,7 @@ class Survey
     public function getClosesAt(): ?\DateTimeImmutable { return $this->closesAt; }
     public function setClosesAt(?\DateTimeImmutable $d): self { $this->closesAt = $d; return $this; }
 
+    public function getOwner(): ?User { return $this->createdBy; }
     public function getCreatedBy(): ?User { return $this->createdBy; }
     public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
 

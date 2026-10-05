@@ -3,9 +3,13 @@
 namespace App\Controller\Admin;
 
 use App\Entity\StaticPage;
+use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Security\ContentDeleteVoter;
 use Doctrine\ORM\EntityRepository;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -31,6 +35,22 @@ class StaticPageCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Pages')
             ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['parent' => 'ASC', 'position' => 'ASC', 'title' => 'ASC']);
+    }
+
+    public function configureActions(Actions $actions): Actions
+    {
+        return parent::configureActions($actions)
+            ->setPermission(Action::DELETE, ContentDeleteVoter::ATTRIBUTE);
+    }
+
+    public function createEntity(string $entityFqcn): StaticPage
+    {
+        $page = new StaticPage();
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            $page->setCreatedBy($user);
+        }
+        return $page;
     }
 
     /**

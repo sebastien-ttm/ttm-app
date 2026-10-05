@@ -13,8 +13,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: StaticPageRepository::class)]
 #[ORM\Table(name: 'static_page')]
 #[ORM\UniqueConstraint(name: 'uniq_static_page_slug', columns: ['slug'])]
+#[ORM\Index(name: 'idx_static_page_created_by', columns: ['created_by_id'])]
 #[ORM\HasLifecycleCallbacks]
-class StaticPage
+class StaticPage implements OwnedContentInterface
 {
     use AudienceAwareTrait;
     use ContentAudienceAwareTrait;
@@ -53,6 +54,11 @@ class StaticPage
     #[ORM\OrderBy(['position' => 'ASC', 'title' => 'ASC'])]
     private Collection $children;
 
+    /** Créateur dans le backend — voir ContentDeleteVoter. NULL = antérieur à cette règle. */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $createdBy = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
@@ -78,6 +84,10 @@ class StaticPage
     public function isPublished(): bool { return $this->isPublished; }
     public function setIsPublished(bool $b): self { $this->isPublished = $b; return $this; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+
+    public function getOwner(): ?User { return $this->createdBy; }
+    public function getCreatedBy(): ?User { return $this->createdBy; }
+    public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
 
     public function getPosition(): int { return $this->position; }
     public function setPosition(int $p): self { $this->position = $p; return $this; }

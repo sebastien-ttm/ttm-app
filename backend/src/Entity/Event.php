@@ -13,7 +13,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: EventRepository::class)]
 #[ORM\Table(name: 'event')]
 #[ORM\Index(name: 'idx_event_starts_at', columns: ['starts_at'])]
-class Event
+#[ORM\Index(name: 'idx_event_created_by', columns: ['created_by_id'])]
+class Event implements OwnedContentInterface
 {
     use AudienceAwareTrait;
     use ContentAudienceAwareTrait;
@@ -79,6 +80,11 @@ class Event
     #[ORM\Column(name: 'carpooling_enabled', options: ['default' => false])]
     private bool $carpoolingEnabled = false;
 
+    /** Créateur dans le backend — voir ContentDeleteVoter. NULL = antérieur à cette règle. */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $createdBy = null;
+
     /**
      * URL d'inscription externe (compétition avec plateforme tierce
      * type Njuko, klikego, HelloAsso…). Quand renseignée ET que
@@ -129,6 +135,10 @@ class Event
     public function setVoteEnabled(bool $v): self { $this->voteEnabled = $v; return $this; }
     public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
     public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }
+
+    public function getOwner(): ?User { return $this->createdBy; }
+    public function getCreatedBy(): ?User { return $this->createdBy; }
+    public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
 
     public function getExternalRegistrationUrl(): ?string { return $this->externalRegistrationUrl; }
     public function setExternalRegistrationUrl(?string $u): self

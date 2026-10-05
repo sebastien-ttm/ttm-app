@@ -7,6 +7,7 @@ use App\Entity\Event;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Security\ContentDeleteVoter;
 use App\Service\Article\ArticleAttachmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -61,7 +62,8 @@ class ArticleCrudController extends AbstractCrudController
         return parent::configureActions($actions)
             ->add(Crud::PAGE_INDEX, $manageAttachments)
             ->add(Crud::PAGE_DETAIL, $manageAttachments)
-            ->add(Crud::PAGE_EDIT, $manageAttachments);
+            ->add(Crud::PAGE_EDIT, $manageAttachments)
+            ->setPermission(Action::DELETE, ContentDeleteVoter::ATTRIBUTE);
     }
 
     public function configureFields(string $pageName): iterable

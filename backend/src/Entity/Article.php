@@ -14,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: ArticleRepository::class)]
 #[ORM\Table(name: 'article')]
 #[ORM\HasLifecycleCallbacks]
-class Article
+class Article implements OwnedContentInterface
 {
     use AudienceAwareTrait;
     use ContentAudienceAwareTrait;
@@ -198,6 +198,12 @@ class Article
     }
 
     public function getAuthor(): User
+    {
+        return $this->author;
+    }
+
+    /** Propriétaire au sens de ContentDeleteVoter : l'auteur de l'article. */
+    public function getOwner(): ?User
     {
         return $this->author;
     }

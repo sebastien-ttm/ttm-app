@@ -6,6 +6,7 @@ use App\Entity\Survey;
 use App\Entity\User;
 use App\Enum\Profile;
 use App\Repository\SurveyResponseRepository;
+use App\Security\ContentDeleteVoter;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Survey\SurveySchemaValidator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -97,7 +98,8 @@ JSON;
         return parent::configureActions($actions)
             ->add(Crud::PAGE_INDEX, $viewResults)
             ->add(Crud::PAGE_DETAIL, $viewResults)
-            ->add(Crud::PAGE_EDIT, $viewResults);
+            ->add(Crud::PAGE_EDIT, $viewResults)
+            ->setPermission(Action::DELETE, ContentDeleteVoter::ATTRIBUTE);
     }
 
     public function configureFields(string $pageName): iterable

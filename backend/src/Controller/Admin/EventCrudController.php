@@ -4,9 +4,11 @@ namespace App\Controller\Admin;
 
 use App\Entity\Event;
 use App\Entity\EventTag;
+use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use App\Repository\EventTagRepository;
+use App\Security\ContentDeleteVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -50,7 +52,18 @@ class EventCrudController extends AbstractCrudController
         return parent::configureActions($actions)
             ->add(Crud::PAGE_INDEX, $viewVotes)
             ->add(Crud::PAGE_DETAIL, $viewVotes)
-            ->add(Crud::PAGE_EDIT, $viewVotes);
+            ->add(Crud::PAGE_EDIT, $viewVotes)
+            ->setPermission(Action::DELETE, ContentDeleteVoter::ATTRIBUTE);
+    }
+
+    public function createEntity(string $entityFqcn): Event
+    {
+        $event = new Event();
+        $user = $this->getUser();
+        if ($user instanceof User) {
+            $event->setCreatedBy($user);
+        }
+        return $event;
     }
 
     public function configureFields(string $pageName): iterable
