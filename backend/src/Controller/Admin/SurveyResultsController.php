@@ -20,7 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - choix unique : histogramme (count par option)
  *  - choix multiple : idem, chaque option comptée indépendamment
  */
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted('ROLE_EDITEUR')]
 class SurveyResultsController extends AbstractController
 {
     public function __construct(

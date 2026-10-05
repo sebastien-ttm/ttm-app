@@ -83,7 +83,7 @@ JSON;
         return $crud
             ->setEntityLabelInSingular('Sondage')
             ->setEntityLabelInPlural('Sondages')
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_EDITEUR')
             ->setDefaultSort(['publishedAt' => 'DESC', 'createdAt' => 'DESC'])
             ->setPaginatorPageSize(25)
             ->setSearchFields(['title', 'description']);

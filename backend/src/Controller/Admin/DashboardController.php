@@ -130,6 +130,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Articles', 'fa fa-newspaper', Article::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Commentaires', 'fa fa-comments', Comment::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
@@ -174,7 +175,6 @@ class DashboardController extends AbstractDashboardController
             'Acceptation' => [
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Messages de bienvenue', 'fa fa-file-signature', ClubCharter::class)],
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Messages ponctuels', 'fa fa-bullhorn', AdminNotice::class)],
-                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToRoute('Suivi des acceptations', 'fa fa-square-check', 'admin_charter_tracking')],
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToRoute('Réponses au formulaire', 'fa fa-clipboard-list', 'admin_charter_responses')],
             ],
@@ -189,10 +189,13 @@ class DashboardController extends AbstractDashboardController
             }
         }
 
-        // Séparateur final + lien API (toujours visible pour toute personne
-        // autorisée à voir le backend).
-        yield AdminMenuItem::section();
-        yield AdminMenuItem::linkToRoute('Voir l\'API', 'fa fa-book', 'api_doc');
+        // Séparateur final + lien API : la doc API Platform est réservée aux
+        // admins (voir access_control dans security.yaml) — inutile de
+        // proposer un lien qui renverrait un 403 aux autres.
+        if ($this->isGranted('ROLE_ADMIN')) {
+            yield AdminMenuItem::section();
+            yield AdminMenuItem::linkToRoute('Voir l\'API', 'fa fa-book', 'api_doc');
+        }
     }
 
     public function configureUserMenu(UserInterface $user): UserMenu
