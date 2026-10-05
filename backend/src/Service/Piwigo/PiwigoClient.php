@@ -217,6 +217,12 @@ class PiwigoClient
         }
         $path = $this->cachePath($imageId, $variant);
         if (is_file($path)) {
+            // Date de dernière consultation (à la journée près) : c'est
+            // elle que purgeCache() compare, pour ne supprimer que les
+            // photos délaissées.
+            if (time() - (int) @filemtime($path) > 86400) {
+                @touch($path);
+            }
             return $path;
         }
 
@@ -267,6 +273,46 @@ class PiwigoClient
             $this->logger->warning('Piwigo : téléchargement image impossible', ['imageId' => $imageId, 'error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Supprime du cache disque les images non consultées depuis plus de
+     * $olderThanDays jours, ainsi que les téléchargements interrompus
+     * (.tmp de plus d'une heure). Sans risque : une image purgée est
+     * simplement re-téléchargée depuis Piwigo à sa prochaine consultation.
+     *
+     * @return array{files: int, bytes: int}
+     */
+    public function purgeCache(int $olderThanDays): array
+    {
+        $files = 0;
+        $bytes = 0;
+        if (!is_dir($this->cacheDir)) {
+            return ['files' => 0, 'bytes' => 0];
+        }
+
+        $now = time();
+        foreach (new \FilesystemIterator($this->cacheDir, \FilesystemIterator::SKIP_DOTS) as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+            $name = $file->getFilename();
+            $maxAge = match (true) {
+                str_ends_with($name, '.tmp') => 3600,
+                str_ends_with($name, '.jpg') => $olderThanDays * 86400,
+                default => null,
+            };
+            if ($maxAge === null || $now - $file->getMTime() <= $maxAge) {
+                continue;
+            }
+            $size = $file->getSize();
+            if (@unlink($file->getPathname())) {
+                $files++;
+                $bytes += $size;
+            }
+        }
+
+        return ['files' => $files, 'bytes' => $bytes];
     }
 
     // ------------------------------------------------------------------
