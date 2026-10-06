@@ -1,0 +1,159 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Émargement — {{ event.title }}{% endblock %}
+{% block content_title %}✍️ Émargement — {{ event.title }}{% endblock %}
+
+{% block main %}
+    <style>
+        .ci-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; margin-bottom:16px; padding:12px 16px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+        .ci-stat-n { font-size:24px; font-weight:700; line-height:1; color:#16a34a; }
+        .ci-stat-l { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+        .ci-search { flex:1 1 240px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:16px; }
+        .ci-filters { display:flex; flex-wrap:wrap; gap:6px; }
+        .ci-filters button { padding:6px 12px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; font-size:13px; }
+        .ci-filters button.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .ci-list { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden; }
+        .ci-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f1f5f9; }
+        .ci-row[hidden] { display:none; }
+        .ci-row.done { background:#f0fdf4; }
+        .ci-name { flex:1; min-width:0; }
+        .ci-name strong { color:#0d2148; }
+        .ci-vote { display:inline-block; font-size:11px; font-weight:600; padding:1px 7px; border-radius:999px; margin-left:6px; }
+        .ci-vote-yes { background:#E8F5E9; color:#2E7D32; }
+        .ci-vote-maybe { background:#FFF8E1; color:#b45309; }
+        .ci-vote-no { background:#FFEBEE; color:#C62828; }
+        .ci-vote-none { background:#f1f5f9; color:#64748b; }
+        .ci-status { font-size:12px; color:#15803d; }
+        .ci-btn { flex-shrink:0; min-width:120px; padding:10px 14px; font-size:15px; font-weight:600; }
+        .ci-empty { padding:20px; text-align:center; color:#94a3b8; }
+    </style>
+
+    <div class="ci-bar">
+        <div>
+            <div style="color:#555;">
+                <strong>{{ event.startsAt|date('d/m/Y') }}</strong>
+                {% if not event.isAllDay %}· {{ event.startsAt|date('H:i') }}{% endif %}
+                {% if event.location %}<span style="color:#888;"> · 📍 {{ event.location }}</span>{% endif %}
+            </div>
+            <div style="margin-top:6px;">
+                <span class="ci-stat-n" id="ci-count">{{ checkedCount }}</span>
+                <span class="ci-stat-l">présent(s) émargé(s)</span>
+            </div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{{ csvUrl }}" class="btn btn-secondary"><i class="fa fa-file-csv"></i> CSV</a>
+            <a href="{{ detailUrl }}" class="btn btn-secondary">← Votes</a>
+        </div>
+    </div>
+
+    <div class="ci-bar">
+        <input type="search" id="ci-search" class="ci-search" placeholder="🔎 Nom ou prénom (y compris sans vote)…" autocomplete="off">
+        <div class="ci-filters" id="ci-filters">
+            <button type="button" data-filter="voters" class="active">Votants</button>
+            <button type="button" data-filter="yes">Votés présents</button>
+            <button type="button" data-filter="todo">Pas encore émargés</button>
+            <button type="button" data-filter="done">Émargés</button>
+        </div>
+    </div>
+
+    <div class="ci-list" id="ci-list">
+        {% set voteLabels = {yes: '✓ Présent', maybe: '? Peut-être', no: '✗ Absent', none: 'Sans vote'} %}
+        {% for r in rows %}
+            <div class="ci-row" data-id="{{ r.id }}" data-vote="{{ r.vote }}"
+                 data-search="{{ (r.prenom ~ ' ' ~ r.nom)|lower }}"
+                 data-state="{{ r.state|json_encode }}">
+                <div class="ci-name">
+                    <strong>{{ r.prenom }} {{ r.nom|upper }}</strong>
+                    <span class="ci-vote ci-vote-{{ r.vote }}">{{ voteLabels[r.vote] }}</span>
+                    <div class="ci-status"></div>
+                </div>
+                <button type="button" class="btn ci-btn"></button>
+            </div>
+        {% endfor %}
+        <div class="ci-empty" id="ci-noresult" hidden>Personne à afficher. Tapez un nom pour émarger un adhérent qui n'a pas voté.</div>
+    </div>
+
+    <script>
+    (function () {
+        const token = {{ csrf_token('event_check_in')|json_encode|raw }};
+        const toggleUrl = {{ path('admin_event_check_in_toggle', {id: event.id, userId: 0})|json_encode|raw }};
+        const rows = Array.from(document.querySelectorAll('.ci-row'));
+        const search = document.getElementById('ci-search');
+        const count = document.getElementById('ci-count');
+        let filter = 'voters';
+
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const stateOf = row => JSON.parse(row.dataset.state);
+        rows.forEach(row => { row.dataset.search = normalize(row.dataset.search); });
+
+        function render(row) {
+            const s = stateOf(row);
+            row.classList.toggle('done', s.checked);
+            row.querySelector('.ci-status').textContent = s.checked
+                ? '✓ Émargé à ' + s.at + (s.by ? ' par ' + s.by : '')
+                : '';
+            const btn = row.querySelector('.ci-btn');
+            btn.textContent = s.checked ? '✓ Présent' : 'Émarger';
+            btn.className = 'btn ci-btn ' + (s.checked ? 'btn-success' : 'btn-outline-primary');
+            btn.title = s.checked ? 'Appuyer pour retirer la présence' : '';
+        }
+
+        function applyFilter() {
+            const q = normalize(search.value.trim());
+            let visible = 0;
+            rows.forEach(row => {
+                const s = stateOf(row);
+                const vote = row.dataset.vote;
+                let show;
+                if (q) {
+                    // En recherche : tout le monde, votants ou non.
+                    show = q.split(/\s+/).every(w => row.dataset.search.includes(w));
+                } else {
+                    show = {
+                        voters: vote !== 'none' || s.checked,
+                        yes: vote === 'yes',
+                        todo: vote !== 'none' && !s.checked,
+                        done: s.checked,
+                    }[filter];
+                }
+                row.hidden = !show;
+                if (show) visible++;
+            });
+            document.getElementById('ci-noresult').hidden = visible > 0;
+        }
+
+        rows.forEach(row => {
+            render(row);
+            row.querySelector('.ci-btn').addEventListener('click', async e => {
+                const btn = e.currentTarget;
+                const s = stateOf(row);
+                const name = row.querySelector('strong').textContent;
+                if (s.checked && !confirm('Retirer la présence de ' + name + ' ?')) return;
+                btn.disabled = true;
+                try {
+                    const body = new URLSearchParams({ _token: token, checked: s.checked ? '0' : '1' });
+                    const res = await fetch(toggleUrl.replace(/\/0$/, '/' + row.dataset.id), { method: 'POST', body });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    row.dataset.state = JSON.stringify(await res.json());
+                    render(row);
+                    count.textContent = rows.filter(r => stateOf(r).checked).length;
+                } catch (err) {
+                    alert('Enregistrement impossible pour ' + name + ' (' + err.message + '). Rechargez la page et réessayez.');
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+
+        search.addEventListener('input', applyFilter);
+        document.getElementById('ci-filters').addEventListener('click', e => {
+            const b = e.target.closest('button[data-filter]');
+            if (!b) return;
+            filter = b.dataset.filter;
+            document.querySelectorAll('#ci-filters button').forEach(x => x.classList.toggle('active', x === b));
+            applyFilter();
+        });
+        applyFilter();
+    })();
+    </script>
+{% endblock %}

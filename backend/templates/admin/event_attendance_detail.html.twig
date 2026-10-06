@@ -20,7 +20,10 @@
                     <strong>{{ total }}</strong> votant{{ total > 1 ? 's' : '' }} au total
                 </div>
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <a href="{{ checkInUrl }}" class="btn btn-success">
+                    ✍️ Émarger ({{ checkedCount }} présent{{ checkedCount > 1 ? 's' : '' }})
+                </a>
                 <a href="{{ csvUrl }}"
                    class="btn btn-primary"
                    style="background:#1d4ed8; border-color:#1d4ed8;">

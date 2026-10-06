@@ -6,6 +6,7 @@ use App\Entity\Event;
 use App\Entity\EventAttendance;
 use App\Enum\AttendanceStatus;
 use App\Repository\EventAttendanceRepository;
+use App\Repository\EventCheckInRepository;
 use App\Repository\EventRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,6 +29,7 @@ class EventAttendanceReportController extends AbstractController
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventAttendanceRepository $attendances,
+        private readonly EventCheckInRepository $checkIns,
         private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
@@ -56,6 +58,7 @@ class EventAttendanceReportController extends AbstractController
 
         $eventIds = array_map(fn (Event $e) => (int) $e->getId(), $events);
         $counts = $this->attendances->countsForEvents($eventIds);
+        $checkedCounts = $this->checkIns->countsForEvents($eventIds);
 
         // Enrichit chaque event de ses compteurs + « total votes »
         $rows = [];
@@ -67,6 +70,8 @@ class EventAttendanceReportController extends AbstractController
                 'no' => $c['no'],
                 'maybe' => $c['maybe'],
                 'total' => $c['yes'] + $c['no'] + $c['maybe'],
+                'checked' => $checkedCounts[$e->getId()] ?? 0,
+                'checkInUrl' => $this->adminRoute('admin_event_check_in', ['id' => $e->getId()]),
                 'detailUrl' => $this->adminRoute('admin_event_attendance_detail', ['id' => $e->getId()]),
             ];
         }
@@ -102,6 +107,8 @@ class EventAttendanceReportController extends AbstractController
             'total' => count($all),
             'indexUrl' => $this->adminRoute('admin_event_attendance_index'),
             'csvUrl' => $this->adminRoute('admin_event_attendance_detail_csv', ['id' => $event->getId()]),
+            'checkInUrl' => $this->adminRoute('admin_event_check_in', ['id' => $event->getId()]),
+            'checkedCount' => count($this->checkIns->findByEventIndexedByUser($event)),
         ]);
     }
 
@@ -113,14 +120,15 @@ class EventAttendanceReportController extends AbstractController
             throw $this->createNotFoundException('Événement introuvable.');
         }
         $all = $this->attendances->findByEventWithUser($event);
+        $checkIns = $this->checkIns->findByEventIndexedByUser($event);
 
-        $response = new StreamedResponse(function () use ($event, $all): void {
+        $response = new StreamedResponse(function () use ($event, $all, $checkIns): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Événement', $event->getTitle()], ';');
             fputcsv($out, ['Date', $event->getStartsAt()->format('d/m/Y H:i')], ';');
             fputcsv($out, [], ';');
-            fputcsv($out, ['Statut', 'Nom', 'Prénom', 'N° licence', 'Email', 'Voté le'], ';');
+            fputcsv($out, ['Statut', 'Nom', 'Prénom', 'N° licence', 'Email', 'Voté le', 'Émargé'], ';');
             $order = [
                 AttendanceStatus::Yes->value => 'Présent',
                 AttendanceStatus::Maybe->value => 'Peut-être',
@@ -142,7 +150,14 @@ class EventAttendanceReportController extends AbstractController
                     $u->getNumLicence(),
                     $u->getEmail(),
                     $a->getUpdatedAt()->format('d/m/Y H:i'),
+                    isset($checkIns[$u->getId()]) ? 'oui' : '',
                 ], ';');
+                unset($checkIns[$u->getId()]);
+            }
+            // Émargés sans avoir voté.
+            foreach ($checkIns as $c) {
+                $u = $c->getUser();
+                fputcsv($out, ['Sans vote', $u->getNom(), $u->getPrenom(), $u->getNumLicence(), $u->getEmail(), '', 'oui'], ';');
             }
             fclose($out);
         });

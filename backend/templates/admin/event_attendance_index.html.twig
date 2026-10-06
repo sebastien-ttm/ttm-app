@@ -26,6 +26,7 @@
                         <th style="padding:10px; text-align:center; white-space:nowrap; color:#f59e0b;">? Peut-être</th>
                         <th style="padding:10px; text-align:center; white-space:nowrap; color:#C62828;">✗ Absents</th>
                         <th style="padding:10px; text-align:center; white-space:nowrap;">Total votes</th>
+                        <th style="padding:10px; text-align:center; white-space:nowrap; color:#0d2148;">✍️ Émargés</th>
                         <th style="padding:10px; text-align:right;"></th>
                     </tr>
                 </thead>
@@ -49,7 +50,11 @@
                             <td style="padding:10px; text-align:center; font-weight:700; color:#f59e0b;">{{ row.maybe }}</td>
                             <td style="padding:10px; text-align:center; font-weight:700; color:#C62828;">{{ row.no }}</td>
                             <td style="padding:10px; text-align:center;">{{ row.total }}</td>
+                            <td style="padding:10px; text-align:center; font-weight:700; color:#0d2148;">{{ row.checked ?: '—' }}</td>
                             <td style="padding:10px; text-align:right; white-space:nowrap;">
+                                <a href="{{ row.checkInUrl }}" class="btn btn-sm btn-success">
+                                    Émarger
+                                </a>
                                 <a href="{{ row.detailUrl }}"
                                    class="btn btn-sm btn-primary"
                                    style="background:#1d4ed8; border-color:#1d4ed8;">
