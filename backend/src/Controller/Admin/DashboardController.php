@@ -140,6 +140,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Courses proposées', 'fa fa-flag-checkered', RaceProposal::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Covoiturages', 'fa fa-car', EventCarpoolOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Photos du club', 'fa fa-camera', PhotoUpload::class)],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Albums photos', 'fa fa-images', 'admin_photo_albums')],
             ],
             'Entraînements' => [
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],

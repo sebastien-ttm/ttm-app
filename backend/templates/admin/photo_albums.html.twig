@@ -1,0 +1,61 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Albums photos{% endblock %}
+{% block content_title %}📷 Albums photos{% endblock %}
+
+{% block main %}
+    <p style="color:#64748b; margin-bottom:16px;">
+        Albums de la galerie Piwigo affichés dans l'onglet Social de l'appli.
+        Supprimer un album supprime aussi <strong>toutes ses photos</strong> dans Piwigo
+        (sauf celles rangées aussi dans un autre album). Action irréversible.
+    </p>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead>
+                <tr style="background:#f8fafc; text-align:left;">
+                    <th style="padding:10px 14px;">Album</th>
+                    <th style="padding:10px 14px; text-align:right;">Photos</th>
+                    <th style="padding:10px 14px; text-align:right;">Dont envoyées par l'appli</th>
+                    <th style="padding:10px 14px;">Dernière photo</th>
+                    <th style="padding:10px 14px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for album in albums %}
+                    <tr style="border-top:1px solid #f1f5f9;">
+                        <td style="padding:12px 14px; vertical-align:top;">
+                            <div style="font-weight:600;">{{ album.name }}</div>
+                            {% if album.comment %}
+                                <div style="font-size:12px; color:#64748b; white-space:pre-line; max-width:480px;">{{ album.comment }}</div>
+                            {% endif %}
+                            <div style="font-size:11px; color:#94a3b8;">N° Piwigo {{ album.id }}</div>
+                        </td>
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">{{ album.nbImages }}</td>
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">{{ appCounts[album.id] ?? 0 }}</td>
+                        <td style="padding:12px 14px; vertical-align:top; white-space:nowrap;">
+                            {{ album.dateLast ? album.dateLast|date('d/m/Y') : '—' }}
+                        </td>
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">
+                            <form method="post" action="{{ path('admin_photo_albums_delete', {id: album.id}) }}"
+                                  onsubmit="return confirm({{ ('Supprimer l\'album « ' ~ album.name ~ ' » et ses ' ~ album.nbImages ~ ' photo(s) ? Action irréversible.')|json_encode }});">
+                                <input type="hidden" name="_token" value="{{ csrf_token('photo_album_admin') }}">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fa fa-trash"></i> Supprimer
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    {% if not error %}
+                        <tr><td colspan="5" style="padding:20px; text-align:center; color:#94a3b8;">Aucun album.</td></tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

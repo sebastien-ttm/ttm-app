@@ -47,6 +47,36 @@ class PhotoUploadRepository extends ServiceEntityRepository
         return $out;
     }
 
+    /**
+     * Nombre de photos envoyées depuis l'appli, par album Piwigo.
+     *
+     * @return array<int, int> id album => nombre
+     */
+    public function countByAlbum(): array
+    {
+        $rows = $this->createQueryBuilder('p')
+            ->select('p.piwigoAlbumId AS albumId, COUNT(p.id) AS n')
+            ->groupBy('p.piwigoAlbumId')
+            ->getQuery()
+            ->getArrayResult();
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['albumId']] = (int) $row['n'];
+        }
+        return $out;
+    }
+
+    /** Supprime les traces d'envoi d'un album (après sa suppression dans Piwigo). */
+    public function deleteByAlbum(int $albumId): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->delete()
+            ->where('p.piwigoAlbumId = :album')
+            ->setParameter('album', $albumId)
+            ->getQuery()
+            ->execute();
+    }
+
     public function countByUserSince(User $user, \DateTimeImmutable $since): int
     {
         return (int) $this->createQueryBuilder('p')

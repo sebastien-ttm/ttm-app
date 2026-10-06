@@ -198,10 +198,47 @@ class PiwigoClient
     public function deleteImage(int $imageId): void
     {
         $this->call('pwg.images.delete', ['image_id' => $imageId, 'pwg_token' => $this->pwgToken()], true);
-        $this->cache->delete('piwigo.img.'.$imageId);
-        foreach (array_keys(self::VARIANTS) as $variant) {
-            @unlink($this->cachePath($imageId, $variant));
+        $this->forgetImage($imageId);
+    }
+
+    /**
+     * Supprime un album enfant de l'album racine et ses photos. Une photo
+     * également rangée dans un autre album Piwigo est conservée (mode
+     * « delete_orphans »). L'album racine ne peut pas être supprimé.
+     *
+     * @return list<int> ids des photos qui étaient dans l'album
+     */
+    public function deleteAlbum(int $albumId): array
+    {
+        if ($albumId === $this->getRootAlbumId() || !$this->isAllowedAlbum($albumId)) {
+            throw new PiwigoException('Album '.$albumId.' hors du périmètre de l\'appli.');
         }
+
+        // Ids relevés avant suppression, pour vider le cache disque : sans
+        // ça, les photos déjà consultées resteraient servies par le backend.
+        $imageIds = [];
+        for ($page = 0; ; $page++) {
+            $result = $this->getAlbumImages($albumId, $page, 500);
+            foreach ($result['images'] as $img) {
+                $imageIds[] = $img['id'];
+            }
+            if ($result['images'] === [] || count($imageIds) >= $result['total']) {
+                break;
+            }
+        }
+
+        $this->call('pwg.categories.delete', [
+            'category_id' => $albumId,
+            'photo_deletion_mode' => 'delete_orphans',
+            'pwg_token' => $this->pwgToken(),
+        ], true);
+
+        foreach ($imageIds as $imageId) {
+            $this->forgetImage($imageId);
+        }
+        $this->cache->delete(self::ALLOWED_ALBUMS_CACHE_KEY);
+
+        return $imageIds;
     }
 
     /**
@@ -382,6 +419,15 @@ class PiwigoClient
             'derivatives' => $derivatives,
             'element' => $img['element_url'] ?? null,
         ];
+    }
+
+    /** Oublie les métadonnées et les fichiers en cache disque d'une photo. */
+    private function forgetImage(int $imageId): void
+    {
+        $this->cache->delete('piwigo.img.'.$imageId);
+        foreach (array_keys(self::VARIANTS) as $variant) {
+            @unlink($this->cachePath($imageId, $variant));
+        }
     }
 
     private function cachePath(int $imageId, string $variant): string
