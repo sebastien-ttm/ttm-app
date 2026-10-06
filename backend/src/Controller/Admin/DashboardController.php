@@ -164,6 +164,7 @@ class DashboardController extends AbstractDashboardController
             ],
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Licences en attente', 'fa fa-hourglass-half', 'admin_pending_licence')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')],
                 [CapDistributionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Bonnets du club', 'fa fa-person-swimming', 'admin_cap_distribution')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Groupes d\'adhérents', 'fa fa-user-group', MemberGroup::class)],

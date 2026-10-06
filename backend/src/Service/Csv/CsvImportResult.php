@@ -35,6 +35,13 @@ class CsvImportResult
      * comptes + adhérents renouvelant après une saison manquée).
      */
     public int $welcomeEmailsSent = 0;
+    /**
+     * Comptes temporaires (licence en attente) retrouvés dans le CSV et
+     * complétés : « Prénom Nom (licence X) ».
+     *
+     * @var list<string>
+     */
+    public array $pendingMatched = [];
     /** @var list<array{line: int, error: string, raw?: array<string, string>}> */
     public array $errors = [];
 
@@ -63,6 +70,7 @@ class CsvImportResult
             'dryRun' => $this->dryRun,
             'historicalOnly' => $this->historicalOnly,
             'welcomeEmailsSent' => $this->welcomeEmailsSent,
+            'pendingMatched' => $this->pendingMatched,
             'externalParentsDeactivated' => $this->externalParentsDeactivated,
             'externalParentsReactivated' => $this->externalParentsReactivated,
             'skipped' => $this->skipped,

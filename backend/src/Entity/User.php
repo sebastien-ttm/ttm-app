@@ -148,6 +148,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastCsvSyncAt = null;
 
+    /**
+     * Compte temporaire créé par un admin pour un adhérent dont la
+     * licence n'est pas encore validée par la ligue (absent du CSV FFTri) :
+     * date de création, NULL pour un compte normal. Un tel compte n'est
+     * pas désactivé par l'import CSV ; il est rapproché de sa ligne CSV
+     * (nom, prénom, date de naissance) dès qu'elle apparaît, puis repasse
+     * à NULL.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $pendingLicenceSince = null;
+
     /** Nom de fichier de l'avatar (sous public/uploads/avatars/), null = aucun. */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $avatarFilename = null;
@@ -745,6 +756,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setLastCsvSyncAt(?\DateTimeImmutable $at): self
     {
         $this->lastCsvSyncAt = $at;
+        return $this;
+    }
+
+    public function getPendingLicenceSince(): ?\DateTimeImmutable { return $this->pendingLicenceSince; }
+    public function isPendingLicence(): bool { return $this->pendingLicenceSince !== null; }
+    public function setPendingLicenceSince(?\DateTimeImmutable $at): self
+    {
+        $this->pendingLicenceSince = $at;
         return $this;
     }
 

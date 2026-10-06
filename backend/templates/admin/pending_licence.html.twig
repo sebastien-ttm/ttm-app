@@ -1,0 +1,84 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Licences en attente{% endblock %}
+{% block content_title %}⏳ Licences en attente{% endblock %}
+
+{% block main %}
+    <style>
+        .pl-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 18px; margin-bottom:20px; }
+        .pl-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; }
+        .pl-grid label { display:block; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .pl-grid input { width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:15px; }
+        .pl-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .pl-table th { background:#f8fafc; text-align:left; padding:10px 14px; }
+        .pl-table td { padding:10px 14px; border-top:1px solid #f1f5f9; vertical-align:top; }
+    </style>
+
+    <div class="pl-card">
+        <p style="margin:0 0 14px; color:#475569;">
+            Pour un adhérent dont la licence n'est pas encore validée par la ligue (absent du CSV FFTri).
+            Le compte est utilisable tout de suite dans l'appli. Au prochain import CSV où il apparaît,
+            il est retrouvé par <strong>nom, prénom et date de naissance</strong> (ou email + date de naissance)
+            et complété automatiquement : n° de licence, adresse, téléphone, catégorie…
+            Il n'est jamais désactivé par l'import tant qu'il est en attente.
+        </p>
+        <form method="post" action="{{ path('admin_pending_licence_create') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('pending_licence') }}">
+            <div class="pl-grid">
+                <div><label for="pl-prenom">Prénom</label><input id="pl-prenom" name="prenom" required value="{{ form.prenom ?? '' }}"></div>
+                <div><label for="pl-nom">Nom</label><input id="pl-nom" name="nom" required value="{{ form.nom ?? '' }}"></div>
+                <div><label for="pl-date">Date de naissance</label><input id="pl-date" type="date" name="dateNaissance" required value="{{ form.dateRaw ?? '' }}"></div>
+                <div><label for="pl-email">Email</label><input id="pl-email" type="email" name="email" required value="{{ form.email ?? '' }}"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:14px;">
+                <label style="display:flex; align-items:center; gap:6px; margin:0;">
+                    <input type="checkbox" name="sendWelcome" value="1" {{ (form.sendWelcome ?? true) ? 'checked' }}>
+                    Envoyer l'email de bienvenue (lien de connexion à l'appli)
+                </label>
+                <button type="submit" class="btn btn-primary" style="margin-left:auto;">
+                    <i class="fa fa-user-plus"></i> Créer le compte temporaire
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="pl-card" style="padding:0; overflow:auto;">
+        <table class="pl-table">
+            <thead>
+                <tr>
+                    <th>Adhérent</th>
+                    <th>Date de naissance</th>
+                    <th>Email</th>
+                    <th>En attente depuis</th>
+                    <th>Dernière connexion</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    {% set u = row.user %}
+                    {% set days = (date('now').timestamp - u.pendingLicenceSince.timestamp) // 86400 %}
+                    <tr style="{{ not u.isActive ? 'opacity:0.5;' }}">
+                        <td><strong>{{ u.prenom }} {{ u.nom|upper }}</strong>{% if not u.isActive %} <span style="font-size:12px; color:#991b1b;">(désactivé)</span>{% endif %}</td>
+                        <td>{{ u.dateNaissance ? u.dateNaissance|date('d/m/Y') : '—' }}</td>
+                        <td>{{ u.email }}</td>
+                        <td style="white-space:nowrap; {{ days > 45 ? 'color:#b45309; font-weight:600;' }}">
+                            {{ u.pendingLicenceSince|date('d/m/Y') }} ({{ days }} j)
+                        </td>
+                        <td>{{ u.lastLoginAt ? u.lastLoginAt|date('d/m/Y') : 'jamais' }}</td>
+                        <td style="text-align:right;"><a href="{{ row.editUrl }}" class="btn btn-sm btn-secondary">Fiche</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6" style="padding:20px; text-align:center; color:#94a3b8;">Aucun compte en attente de licence.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p style="font-size:12px; color:#64748b;">
+        Au-delà de 45 jours la date passe en orange : vérifiez auprès de la ligue. Un compte qui ne doit plus exister
+        se désactive ou se supprime depuis sa fiche.
+        Si un adhérent n'est pas retrouvé automatiquement (nom très différent dans le CSV), saisissez son
+        n° de licence sur sa fiche (ou corrigez nom / date de naissance) puis relancez l'import —
+        faites d'abord une simulation pour vérifier qu'aucun doublon ne serait créé.
+    </p>
+{% endblock %}

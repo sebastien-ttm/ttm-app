@@ -177,9 +177,70 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->andWhere('u.lastCsvSyncAt IS NULL OR u.lastCsvSyncAt < :cutoff')
             ->andWhere("u.role <> 'admin'")
             ->andWhere("u.type = 'adherent'")
+            // Comptes temporaires (licence en attente) : absents du CSV
+            // par définition, ils ne doivent pas être désactivés.
+            ->andWhere('u.pendingLicenceSince IS NULL')
             ->setParameter('cutoff', $cutoff)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Comptes temporaires en attente de licence, le plus ancien d'abord.
+     *
+     * @return list<User>
+     */
+    public function findPendingLicence(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.pendingLicenceSince IS NOT NULL')
+            ->orderBy('u.pendingLicenceSince', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Compte temporaire correspondant à une ligne du CSV FFTri : même
+     * date de naissance, et même nom + prénom (sans tenir compte des
+     * accents, de la casse, des tirets ni des espaces) ou, à défaut, même
+     * email (nom mal orthographié à la saisie). null si aucun ou si
+     * plusieurs comptes correspondent (cas ambigu laissé à l'admin).
+     *
+     * @param list<string> $noms nom de naissance et nom d'usage
+     */
+    public function findPendingLicenceMatch(array $noms, string $prenom, \DateTimeImmutable $dateNaissance, string $email): ?User
+    {
+        $candidates = $this->createQueryBuilder('u')
+            ->where('u.pendingLicenceSince IS NOT NULL')
+            ->andWhere('u.dateNaissance = :d')
+            ->setParameter('d', $dateNaissance->format('Y-m-d'))
+            ->getQuery()
+            ->getResult();
+
+        $wantedNoms = array_filter(array_map([self::class, 'normalizeName'], $noms));
+        $wantedPrenom = self::normalizeName($prenom);
+        $byName = array_values(array_filter($candidates, fn (User $u) => self::normalizeName($u->getPrenom()) === $wantedPrenom
+            && in_array(self::normalizeName($u->getNom()), $wantedNoms, true)));
+        if (count($byName) === 1) {
+            return $byName[0];
+        }
+        if ($byName !== [] || $email === '') {
+            return null;
+        }
+
+        $byEmail = array_values(array_filter($candidates, fn (User $u) => mb_strtolower($u->getEmail()) === mb_strtolower($email)));
+        return count($byEmail) === 1 ? $byEmail[0] : null;
+    }
+
+    /** « Jean-Pierre  D'ÉTÉ » → « jeanpierredete ». */
+    public static function normalizeName(string $s): string
+    {
+        $s = mb_strtolower(trim($s), 'UTF-8');
+        $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+        if ($translit !== false && $translit !== '') {
+            $s = $translit;
+        }
+        return (string) preg_replace('/[^a-z]/', '', $s);
     }
 
     /**

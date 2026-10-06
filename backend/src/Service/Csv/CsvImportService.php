@@ -228,6 +228,32 @@ class CsvImportService
                 }
 
                 $user = $this->users->findOneByNumLicence($numLicence);
+
+                // Licence inconnue : c'est peut-être un compte temporaire
+                // créé en attendant la validation de la ligue (même nom,
+                // prénom et date de naissance). On le complète au lieu de
+                // créer un doublon ; il garde son email et son historique.
+                $promoted = false;
+                if ($user === null && !$historicalOnly && $dateNaissance !== null) {
+                    $pending = $this->users->findPendingLicenceMatch(
+                        [trim($this->resolveCol($record, self::COL_NOM)), trim($this->resolveCol($record, self::COL_NOM_USAGE))],
+                        trim($this->resolveCol($record, self::COL_PRENOM)),
+                        $dateNaissance,
+                        $emailValid ? $email : '',
+                    );
+                    if ($pending !== null) {
+                        $pending->setNumLicence($numLicence);
+                        $user = $pending;
+                    }
+                }
+                // Compte temporaire retrouvé (par nom/date de naissance, ou
+                // par le n° de licence qu'un admin a saisi sur sa fiche) :
+                // il redevient un compte normal, synchronisé par le CSV.
+                if ($user !== null && $user->isPendingLicence() && !$historicalOnly) {
+                    $user->setPendingLicenceSince(null);
+                    $promoted = true;
+                    $result->pendingMatched[] = $user->getFullName().' (licence '.$numLicence.')';
+                }
                 $isNew = $user === null;
 
                 if ($isNew) {
@@ -317,7 +343,9 @@ class CsvImportService
                 if ($season !== null) {
                     $freshMembership = $this->upsertMembership($user, $season, $importedAt, $record);
                 }
-                if (!$historicalOnly && ($isNew || $freshMembership)) {
+                // Compte temporaire tout juste rapproché : l'adhérent a déjà
+                // son accès, pas de second email de bienvenue.
+                if (!$historicalOnly && !$promoted && ($isNew || $freshMembership)) {
                     // isRenewal = compte existant ET nouveau membership pour la saison
                     // (donc adhérent connu qui revient). Un compte fraîchement créé
                     // reste « new » même s'il a une membership à sa création.
