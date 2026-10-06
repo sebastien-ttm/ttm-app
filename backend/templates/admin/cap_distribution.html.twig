@@ -1,0 +1,152 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Bonnets du club{% endblock %}
+{% block content_title %}🏊 Bonnets du club{% endblock %}
+
+{% block main %}
+    <style>
+        .cap-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; margin-bottom:16px; padding:12px 16px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+        .cap-stat-n { font-size:24px; font-weight:700; line-height:1; }
+        .cap-stat-l { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+        .cap-search { flex:1 1 240px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:16px; }
+        .cap-filters { display:flex; gap:6px; }
+        .cap-filters button { padding:6px 12px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; font-size:13px; }
+        .cap-filters button.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .cap-list { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden; }
+        .cap-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f1f5f9; }
+        .cap-row[hidden] { display:none; }
+        .cap-row:first-child { border-top:none; }
+        .cap-row.done { background:#f0fdf4; }
+        .cap-name { flex:1; min-width:0; }
+        .cap-name strong { color:#0d2148; }
+        .cap-status { font-size:12px; color:#64748b; }
+        .cap-row.done .cap-status { color:#15803d; }
+        .cap-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+        .cap-give { min-width:110px; padding:10px 14px; font-size:15px; font-weight:600; }
+        .cap-undo { padding:4px 6px; font-size:12px; color:#64748b; background:none; border:none; text-decoration:underline; }
+        .cap-empty { padding:20px; text-align:center; color:#94a3b8; }
+    </style>
+
+    <div class="cap-bar">
+        <div>
+            <div class="cap-stat-n" style="color:#16a34a;"><span id="cap-received">{{ received }}</span> / {{ rows|length }}</div>
+            <div class="cap-stat-l">Bonnets remis</div>
+        </div>
+        <input type="search" id="cap-search" class="cap-search" placeholder="🔎 Nom ou prénom…" autocomplete="off" autofocus>
+        <div class="cap-filters" id="cap-filters">
+            <button type="button" data-filter="all" class="active">Tous</button>
+            <button type="button" data-filter="todo">À remettre</button>
+            <button type="button" data-filter="done">Reçu</button>
+        </div>
+    </div>
+
+    <div class="cap-list" id="cap-list">
+        {% for r in rows %}
+            <div class="cap-row" data-id="{{ r.id }}" data-search="{{ (r.prenom ~ ' ' ~ r.nom ~ ' ' ~ r.nom ~ ' ' ~ r.prenom)|lower }}"
+                 data-state="{{ r.state|json_encode }}">
+                <div class="cap-name">
+                    <strong>{{ r.prenom }} {{ r.nom|upper }}</strong>
+                    {% if r.categorie %}<span style="font-size:12px; color:#94a3b8;"> · {{ r.categorie }}</span>{% endif %}
+                    <div class="cap-status"></div>
+                </div>
+                <div class="cap-actions">
+                    <button type="button" class="cap-undo" hidden>Annuler</button>
+                    <button type="button" class="btn cap-give"></button>
+                </div>
+            </div>
+        {% else %}
+            <div class="cap-empty">Aucun adhérent actif.</div>
+        {% endfor %}
+        <div class="cap-empty" id="cap-noresult" hidden>Aucun adhérent ne correspond.</div>
+    </div>
+
+    <script>
+    (function () {
+        const token = {{ csrf_token('cap_distribution')|json_encode|raw }};
+        const giveUrl = {{ path('admin_cap_distribution_give', {id: 0})|json_encode|raw }};
+        const undoUrl = {{ path('admin_cap_distribution_undo', {id: 0})|json_encode|raw }};
+        const rows = Array.from(document.querySelectorAll('.cap-row'));
+        const search = document.getElementById('cap-search');
+        const received = document.getElementById('cap-received');
+        let filter = 'all';
+
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        rows.forEach(row => { row.dataset.search = normalize(row.dataset.search); });
+
+        function render(row) {
+            const s = JSON.parse(row.dataset.state);
+            const done = s.count > 0;
+            row.classList.toggle('done', done);
+            let status = 'Pas encore de bonnet';
+            if (done) {
+                status = '✓ Remis le ' + s.lastAt + (s.lastBy ? ' par ' + s.lastBy : '');
+                if (s.count > 1) status += ' (' + s.count + 'e bonnet)';
+            }
+            row.querySelector('.cap-status').textContent = status;
+            const give = row.querySelector('.cap-give');
+            give.textContent = done ? 'Nouveau bonnet' : '✓ Remis';
+            give.className = 'btn cap-give ' + (done ? 'btn-outline-secondary' : 'btn-success');
+            row.querySelector('.cap-undo').hidden = !done;
+        }
+
+        function applyFilter() {
+            const q = normalize(search.value.trim());
+            let visible = 0;
+            rows.forEach(row => {
+                const done = JSON.parse(row.dataset.state).count > 0;
+                const show = (!q || q.split(/\s+/).every(w => row.dataset.search.includes(w)))
+                    && (filter === 'all' || (filter === 'done') === done);
+                row.hidden = !show;
+                if (show) visible++;
+            });
+            document.getElementById('cap-noresult').hidden = visible > 0 || rows.length === 0;
+        }
+
+        function updateCount() {
+            received.textContent = rows.filter(r => JSON.parse(r.dataset.state).count > 0).length;
+        }
+
+        async function post(row, urlTemplate, button) {
+            const name = row.querySelector('strong').textContent;
+            button.disabled = true;
+            try {
+                const body = new URLSearchParams({ _token: token });
+                const res = await fetch(urlTemplate.replace(/\/0\//, '/' + row.dataset.id + '/'), { method: 'POST', body });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                row.dataset.state = JSON.stringify(await res.json());
+                render(row);
+                updateCount();
+            } catch (e) {
+                alert('Enregistrement impossible pour ' + name + ' (' + e.message + '). Rechargez la page et réessayez.');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        rows.forEach(row => {
+            render(row);
+            row.querySelector('.cap-give').addEventListener('click', e => {
+                const s = JSON.parse(row.dataset.state);
+                const name = row.querySelector('strong').textContent;
+                if (s.count > 0 && !confirm(name + ' a déjà reçu un bonnet le ' + s.lastAt + '. Enregistrer un nouveau bonnet (remplacement) ?')) return;
+                post(row, giveUrl, e.currentTarget);
+            });
+            row.querySelector('.cap-undo').addEventListener('click', e => {
+                const s = JSON.parse(row.dataset.state);
+                const name = row.querySelector('strong').textContent;
+                if (!confirm('Annuler la remise du ' + s.lastAt + ' à ' + name + ' ?')) return;
+                post(row, undoUrl, e.currentTarget);
+            });
+        });
+
+        search.addEventListener('input', applyFilter);
+        document.getElementById('cap-filters').addEventListener('click', e => {
+            const b = e.target.closest('button[data-filter]');
+            if (!b) return;
+            filter = b.dataset.filter;
+            document.querySelectorAll('#cap-filters button').forEach(x => x.classList.toggle('active', x === b));
+            applyFilter();
+        });
+    })();
+    </script>
+{% endblock %}
