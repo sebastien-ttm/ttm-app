@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\PerfTest;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -50,6 +51,26 @@ class PerfTestSessionCrudController extends AbstractCrudController
             ->reorder(Crud::PAGE_INDEX, ['enterTimes', Action::EDIT, Action::DELETE]);
     }
 
+    public function configureAssets(Assets $assets): Assets
+    {
+        // Le choix du bassin n'apparaît que pour le 400 m natation.
+        return $assets->addHtmlContentToBody(sprintf(<<<'HTML'
+            <script>
+            (function () {
+                const radios = document.querySelectorAll('input[type=radio][name$="[test]"]');
+                const pool = document.querySelector('.js-perf-pool-length');
+                if (!radios.length || !pool) return;
+                const update = () => {
+                    const checked = document.querySelector('input[type=radio][name$="[test]"]:checked');
+                    pool.hidden = !checked || checked.value !== %s;
+                };
+                radios.forEach(r => r.addEventListener('change', update));
+                update();
+            })();
+            </script>
+            HTML, json_encode(PerfTest::Swim400->value)));
+    }
+
     public function createEntity(string $entityFqcn): PerfTestSession
     {
         $session = new PerfTestSession();
@@ -77,7 +98,8 @@ class PerfTestSessionCrudController extends AbstractCrudController
             ->setChoices(['25 m' => 25, '50 m' => 50])
             ->renderExpanded()
             ->setRequired(false)
-            ->setHelp('Natation uniquement : les temps ne sont comparés qu\'entre séances du même bassin.')
+            ->setHelp('Les temps ne sont comparés qu\'entre séances du même bassin.')
+            ->addCssClass('js-perf-pool-length')
             ->onlyOnForms();
         yield DateField::new('date', 'Date')->setFormat('dd/MM/yyyy');
         yield TextField::new('notes', 'Notes')
