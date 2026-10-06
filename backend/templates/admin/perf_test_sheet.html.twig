@@ -1,0 +1,183 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Temps — {{ session.testLabel }}{% endblock %}
+{% block content_title %}{{ session.test.icon }} {{ session.testLabel }} — {{ session.date|date('d/m/Y') }}{% endblock %}
+
+{% block main %}
+    <style>
+        .pt-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; margin-bottom:16px; padding:12px 16px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+        .pt-stat-n { font-size:24px; font-weight:700; line-height:1; color:#16a34a; }
+        .pt-stat-l { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+        .pt-search { flex:1 1 240px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:16px; }
+        .pt-filters { display:flex; flex-wrap:wrap; gap:6px; }
+        .pt-filters button { padding:6px 12px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; font-size:13px; }
+        .pt-filters button.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .pt-list { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden; }
+        .pt-row { display:flex; align-items:center; gap:12px; padding:10px 16px; border-top:1px solid #f1f5f9; }
+        .pt-row[hidden] { display:none; }
+        .pt-row.done { background:#f0fdf4; }
+        .pt-rank { width:28px; flex-shrink:0; font-weight:700; color:#0d2148; text-align:right; }
+        .pt-name { flex:1; min-width:0; }
+        .pt-name strong { color:#0d2148; }
+        .pt-hist { font-size:12px; color:#64748b; }
+        .pt-status { font-size:12px; }
+        .pt-better { color:#15803d; font-weight:600; }
+        .pt-worse { color:#b91c1c; font-weight:600; }
+        .pt-error { color:#b91c1c; }
+        .pt-time { width:110px; flex-shrink:0; padding:10px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:17px; font-weight:600; text-align:center; font-variant-numeric:tabular-nums; }
+        .pt-time.saving { border-color:#f59e0b; }
+        .pt-time.invalid { border-color:#dc2626; background:#fef2f2; }
+        .pt-row.done .pt-time { border-color:#16a34a; }
+        .pt-empty { padding:20px; text-align:center; color:#94a3b8; }
+    </style>
+
+    <div class="pt-bar">
+        <div>
+            {% if session.notes %}<div style="color:#555; margin-bottom:6px;">📝 {{ session.notes }}</div>{% endif %}
+            <span class="pt-stat-n" id="pt-count">{{ enteredCount }}</span>
+            <span class="pt-stat-l">temps saisi(s)</span>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="{{ csvUrl }}" class="btn btn-secondary"><i class="fa fa-file-csv"></i> CSV (classement)</a>
+            <a href="{{ indexUrl }}" class="btn btn-secondary">← Séances</a>
+        </div>
+    </div>
+
+    <div class="pt-bar">
+        <input type="search" id="pt-search" class="pt-search" placeholder="🔎 Nom ou prénom…" autocomplete="off">
+        <div class="pt-filters" id="pt-filters">
+            <button type="button" data-filter="all" class="active">Tous</button>
+            <button type="button" data-filter="done">Classement</button>
+            <button type="button" data-filter="history">Déjà testés</button>
+        </div>
+        <div style="flex-basis:100%; font-size:12px; color:#64748b;">
+            Saisie : <strong>5:42</strong> ou <strong>5.42</strong> (min:s), <strong>1:02:15</strong> (h:min:s). Enregistré dès qu'on quitte le champ ou qu'on appuie sur Entrée (passe à l'adhérent suivant). Vider le champ efface le temps.
+        </div>
+    </div>
+
+    <div class="pt-list" id="pt-list">
+        {% for r in rows %}
+            <div class="pt-row" data-id="{{ r.id }}" data-order="{{ loop.index0 }}"
+                 data-search="{{ (r.prenom ~ ' ' ~ r.nom)|lower }}"
+                 data-state="{{ r.state|json_encode }}"
+                 data-last="{{ r.last|json_encode }}" data-best="{{ r.best|json_encode }}">
+                <div class="pt-rank"></div>
+                <div class="pt-name">
+                    <strong>{{ r.prenom }} {{ r.nom|upper }}</strong>
+                    {% if r.categorie %}<span style="font-size:12px; color:#94a3b8;"> · {{ r.categorie }}</span>{% endif %}
+                    <div class="pt-hist">
+                        {% if r.last %}
+                            Préc. {{ r.last.time }} ({{ r.last.date }}){% if r.best.seconds < r.last.seconds %} · record {{ r.best.time }}{% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="pt-status"></div>
+                </div>
+                <input type="text" class="pt-time" inputmode="decimal" autocomplete="off" placeholder="—"
+                       value="{{ r.state.time }}" aria-label="Temps de {{ r.prenom }} {{ r.nom }}">
+            </div>
+        {% endfor %}
+        <div class="pt-empty" id="pt-noresult" hidden>Personne à afficher.</div>
+    </div>
+
+    <script>
+    (function () {
+        const token = {{ csrf_token('perf_test')|json_encode|raw }};
+        const saveUrl = {{ path('admin_perf_test_save', {id: session.id, userId: 0})|json_encode|raw }};
+        const list = document.getElementById('pt-list');
+        const rows = Array.from(list.querySelectorAll('.pt-row'));
+        const search = document.getElementById('pt-search');
+        const count = document.getElementById('pt-count');
+        let filter = 'all';
+
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const json = (row, key) => JSON.parse(row.dataset[key]);
+        const fmtDelta = s => { const a = Math.abs(s); return (s < 0 ? '−' : '+') + (a >= 60 ? Math.floor(a / 60) + ' min ' + (a % 60) + ' s' : a + ' s'); };
+        rows.forEach(row => { row.dataset.search = normalize(row.dataset.search); });
+
+        function render(row) {
+            const s = json(row, 'state'), last = json(row, 'last'), best = json(row, 'best');
+            row.classList.toggle('done', s.seconds !== null);
+            const status = row.querySelector('.pt-status');
+            status.className = 'pt-status';
+            status.textContent = '';
+            if (s.seconds === null || !last) return;
+            const delta = s.seconds - last.seconds;
+            status.classList.add(delta <= 0 ? 'pt-better' : 'pt-worse');
+            status.textContent = (delta === 0 ? '= temps précédent' : fmtDelta(delta) + ' vs préc.')
+                + (s.seconds < best.seconds ? ' · 🏆 nouveau record' : '');
+        }
+
+        function applyFilter() {
+            const q = normalize(search.value.trim());
+            let visible = 0;
+            rows.forEach(row => {
+                const s = json(row, 'state');
+                const show = (!q || q.split(/\s+/).every(w => row.dataset.search.includes(w)))
+                    && (filter === 'all'
+                        || (filter === 'done' && s.seconds !== null)
+                        || (filter === 'history' && (s.seconds !== null || json(row, 'last') !== null)));
+                row.hidden = !show;
+                if (show) visible++;
+            });
+            // Classement : tri par temps et rang affiché ; sinon ordre alphabétique.
+            const sorted = rows.slice().sort(filter === 'done'
+                ? (a, b) => json(a, 'state').seconds - json(b, 'state').seconds
+                : (a, b) => a.dataset.order - b.dataset.order);
+            let rank = 0;
+            sorted.forEach(row => {
+                list.insertBefore(row, document.getElementById('pt-noresult'));
+                row.querySelector('.pt-rank').textContent = filter === 'done' && !row.hidden ? ++rank : '';
+            });
+            document.getElementById('pt-noresult').hidden = visible > 0;
+        }
+
+        async function save(row, input) {
+            const value = input.value.trim();
+            const current = json(row, 'state').time || '';
+            if (value === current) return;
+            input.classList.add('saving');
+            input.classList.remove('invalid');
+            const status = row.querySelector('.pt-status');
+            try {
+                const body = new URLSearchParams({ _token: token, time: value });
+                const res = await fetch(saveUrl.replace(/\/0$/, '/' + row.dataset.id), { method: 'POST', body });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+                row.dataset.state = JSON.stringify(data);
+                if (document.activeElement !== input) input.value = data.time || '';
+                render(row);
+                count.textContent = rows.filter(r => json(r, 'state').seconds !== null).length;
+            } catch (err) {
+                input.classList.add('invalid');
+                status.className = 'pt-status pt-error';
+                status.textContent = err.message;
+            } finally {
+                input.classList.remove('saving');
+            }
+        }
+
+        rows.forEach(row => {
+            render(row);
+            const input = row.querySelector('.pt-time');
+            input.addEventListener('change', () => save(row, input));
+            input.addEventListener('keydown', e => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const visible = rows.filter(r => !r.hidden);
+                const next = visible[visible.indexOf(row) + 1];
+                if (next) next.querySelector('.pt-time').focus(); else input.blur();
+            });
+        });
+
+        search.addEventListener('input', applyFilter);
+        document.getElementById('pt-filters').addEventListener('click', e => {
+            const b = e.target.closest('button[data-filter]');
+            if (!b) return;
+            filter = b.dataset.filter;
+            document.querySelectorAll('#pt-filters button').forEach(x => x.classList.toggle('active', x === b));
+            applyFilter();
+        });
+        applyFilter();
+    })();
+    </script>
+{% endblock %}

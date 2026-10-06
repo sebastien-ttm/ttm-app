@@ -14,6 +14,7 @@ use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
 use App\Entity\BibOffer;
 use App\Entity\MemberGroup;
+use App\Entity\PerfTestSession;
 use App\Entity\PhotoUpload;
 use App\Entity\RaceProposal;
 use App\Entity\MembershipSettings;
@@ -147,6 +148,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Créneaux de la semaine', 'fa fa-calendar-week', 'admin_training_schedule')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Tests chronométrés', 'fa fa-stopwatch', PerfTestSession::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
             ],
             'Présences staff' => [
