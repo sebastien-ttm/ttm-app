@@ -28,6 +28,7 @@ use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Entity\UserMessage;
 use App\Entity\WelcomeEmailTemplate;
+use App\Security\CapDistributionVoter;
 use App\Security\StaffScheduleSupervisionVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Asset;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -162,7 +163,7 @@ class DashboardController extends AbstractDashboardController
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Bonnets du club', 'fa fa-person-swimming', 'admin_cap_distribution')],
+                [CapDistributionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Bonnets du club', 'fa fa-person-swimming', 'admin_cap_distribution')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Groupes d\'adhérents', 'fa fa-user-group', MemberGroup::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')],

@@ -6,6 +6,7 @@ use App\Entity\CapDistribution;
 use App\Entity\User;
 use App\Repository\CapDistributionRepository;
 use App\Repository\UserRepository;
+use App\Security\CapDistributionVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -19,8 +20,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * liste des adhérents actifs avec recherche, un bouton « Remis » par
  * adhérent (sans rechargement de page, pratique sur téléphone au bord
  * du bassin), remplacement possible et annulation d'un clic erroné.
+ * Accès : entraîneurs, admins et membres du CoDir (CapDistributionVoter).
  */
-#[IsGranted('ROLE_ENTRAINEUR')]
+#[IsGranted(CapDistributionVoter::ATTRIBUTE)]
 class CapDistributionController extends AbstractController
 {
     use EnsureAdminContextTrait;
