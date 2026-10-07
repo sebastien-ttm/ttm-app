@@ -538,6 +538,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isEntraineur(): bool { return $this->hasProfile(Profile::Entraineur); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
 
+    /**
+     * Plans d'entraînement hebdomadaires : réservés aux adultes. Un
+     * compte Jeune n'y a pas accès dans l'appli (sauf s'il est aussi
+     * Entraîneur / Encadrant). Même règle que les emails de plan
+     * (UserRepository::findTrainingPlanEmailRecipients).
+     */
+    public function canSeeTrainingPlans(): bool
+    {
+        return !$this->isJeune() || $this->isEntraineur() || $this->isEncadrant();
+    }
+
     /** @return Collection<int, User> */
     public function getChildren(): Collection { return $this->children; }
 

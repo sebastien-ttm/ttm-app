@@ -19,7 +19,7 @@ import { SportBadge } from '@/components/SportBadge';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
-import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingTab } from '@/utils/profile';
+import { canSeeGouter, canSeePoolBadge, canSeeTraining, canSeeTrainingPlans, canSeeTrainingTab } from '@/utils/profile';
 import { addDays, dayLabel, formatDurationHm, fromIsoDate, getMonday, shortDayLabel, toIsoDate } from '@/utils/week';
 import { formatDate } from '@/utils/html';
 
@@ -43,6 +43,7 @@ function TrainingScreenInner() {
   // Vue « entraînement » = plans + créneaux + piscine + staff. Un parent
   // non-licencié qui n'a QUE le goûter à voir n'a pas ce bloc-là.
   const showTrainingSections = canSeeTraining(user);
+  const showPlans = canSeeTrainingPlans(user);
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
   const [data, setData] = useState<WeeklySchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +223,8 @@ function TrainingScreenInner() {
               l'onglet Entraînements que pour la section Goûter. */}
           {showTrainingSections && (
             <>
+              {/* Plans hebdo : pas pour les comptes Jeune. */}
+              {showPlans && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>📄 Plans d'entraînement</Text>
                 {(data?.plans ?? []).length > 0 ? (
@@ -240,6 +243,7 @@ function TrainingScreenInner() {
                   <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
                 </Pressable>
               </View>
+              )}
 
               {(() => {
                 const chronoTotal = Array.from(slotsByDay.values()).reduce((n, arr) => n + arr.length, 0);

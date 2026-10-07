@@ -41,8 +41,9 @@ class TrainingPlanListener
         }
         $stamps = $delayMs > 0 ? [new DelayStamp($delayMs)] : [];
 
-        // 1) Push notification (devices mobiles enregistrés).
-        $tokens = $this->deviceTokens->findAllActiveExpoTokens();
+        // 1) Push notification (devices mobiles enregistrés), sauf comptes
+        //    Jeune qui n'ont pas accès aux plans (User::canSeeTrainingPlans).
+        $tokens = $this->deviceTokens->findActiveExpoTokensForTrainingPlans();
         if ($tokens !== []) {
             $this->bus->dispatch(new Envelope(new SendPushNotificationsMessage(
                 expoTokens: $tokens,

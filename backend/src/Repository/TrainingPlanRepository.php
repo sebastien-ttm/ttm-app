@@ -6,6 +6,7 @@ use App\Entity\TrainingPlan;
 use App\Entity\User;
 use App\Service\Audience\AudienceFilter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -38,8 +39,17 @@ class TrainingPlanRepository extends ServiceEntityRepository
             ->setMaxResults($limit);
 
         $this->audienceFilter->apply($qb, $viewer, 't');
+        $this->excludeIfNotAllowed($qb, $viewer);
 
         return new Paginator($qb->getQuery());
+    }
+
+    /** Compte Jeune (User::canSeeTrainingPlans) : aucun plan. */
+    private function excludeIfNotAllowed(QueryBuilder $qb, ?User $viewer): void
+    {
+        if ($viewer !== null && !$viewer->canSeeTrainingPlans()) {
+            $qb->andWhere('1 = 0');
+        }
     }
 
     /**
@@ -61,6 +71,7 @@ class TrainingPlanRepository extends ServiceEntityRepository
             ->addOrderBy('t.postedAt', 'DESC');
 
         $this->audienceFilter->apply($qb, $viewer, 't');
+        $this->excludeIfNotAllowed($qb, $viewer);
 
         return $qb->getQuery()->getResult();
     }

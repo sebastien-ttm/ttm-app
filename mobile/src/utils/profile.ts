@@ -89,6 +89,17 @@ export function canSeeTraining(user: AuthenticatedUser | null | undefined): bool
 }
 
 /**
+ * Plans d'entraînement hebdomadaires : pas pour les comptes Jeune (sauf
+ * s'ils sont aussi Entraîneur / Encadrant). Le backend applique la même
+ * règle (User::canSeeTrainingPlans) — ceci ne fait que masquer la section.
+ */
+export function canSeeTrainingPlans(user: AuthenticatedUser | null | undefined): boolean {
+  if (!user) return false;
+  if (!user.profiles.includes('jeune')) return true;
+  return user.profiles.includes('entraineur') || user.profiles.includes('encadrant');
+}
+
+/**
  * Le compte donne-t-il droit au QR code piscines (badge d'accès club) ?
  * Réservé aux adhérents licenciés. Un dirigeant garde l'accès (il est licencié).
  */
