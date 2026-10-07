@@ -12,6 +12,7 @@ import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
+import { downloadAttachmentOnWeb, openAttachment } from '@/lib/openAttachment';
 import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
@@ -130,17 +131,24 @@ function isBrowserViewable(att: TrainingSlotAttachment): boolean {
 function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
   const [busy, setBusy] = useState(false);
 
-  async function open() {
+  async function buildUrl(): Promise<string> {
     const token = await storage.getItem(STORAGE_KEYS.accessToken);
-    const url =
-      `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`
+    return `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`
       + (token ? `?bearer=${encodeURIComponent(token)}` : '');
+  }
 
-    // PDF / image (ou web) : navigateur intégré, comme avant.
-    if (Platform.OS === 'web' || isBrowserViewable(attachment)) {
-      await WebBrowser.openBrowserAsync(url);
+  async function open() {
+    // PDF / image : nouvel onglet (web) ou navigateur intégré (mobile).
+    if (isBrowserViewable(attachment)) {
+      await openAttachment(buildUrl);
       return;
     }
+    // Web, GPX & co : simple téléchargement (pas d'onglet vide).
+    if (Platform.OS === 'web') {
+      await downloadAttachmentOnWeb(buildUrl);
+      return;
+    }
+    const url = await buildUrl();
 
     // Autres fichiers (GPX, FIT…) : le navigateur intégré ne sait pas
     // les afficher et ne faisait rien. On télécharge puis on propose
