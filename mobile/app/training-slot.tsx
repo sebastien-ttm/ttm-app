@@ -12,7 +12,7 @@ import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { downloadAttachmentOnWeb, openAttachment } from '@/lib/openAttachment';
+import { openAttachment } from '@/lib/openAttachment';
 import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
@@ -131,6 +131,13 @@ function isBrowserViewable(att: TrainingSlotAttachment): boolean {
 function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
   const [busy, setBusy] = useState(false);
 
+  function notifyError() {
+    const msg = `Le fichier « ${attachment.name} » n'a pas pu être ouvert. Réessayez plus tard.`;
+    // Alert.alert ne fait rien sur le web.
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('Ouverture impossible', msg);
+  }
+
   async function buildUrl(): Promise<string> {
     const token = await storage.getItem(STORAGE_KEYS.accessToken);
     return `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`
@@ -139,13 +146,17 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
 
   async function open() {
     // PDF / image : nouvel onglet (web) ou navigateur intégré (mobile).
-    if (isBrowserViewable(attachment)) {
-      await openAttachment(buildUrl);
-      return;
-    }
-    // Web, GPX & co : simple téléchargement (pas d'onglet vide).
-    if (Platform.OS === 'web') {
-      await downloadAttachmentOnWeb(buildUrl);
+    // Web, GPX & co : nouvel onglet aussi — le serveur envoie ces
+    // fichiers en téléchargement, c'est le navigateur qui propose de les
+    // enregistrer / ouvrir. (Le menu de partage Web Share et les
+    // téléchargements en mémoire sont refusés ou ignorés par les applis
+    // web installées sur l'écran d'accueil.)
+    if (isBrowserViewable(attachment) || Platform.OS === 'web') {
+      try {
+        await openAttachment(buildUrl);
+      } catch {
+        notifyError();
+      }
       return;
     }
     const url = await buildUrl();
@@ -168,8 +179,8 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
         dialogTitle: attachment.name,
         UTI: /\.gpx$/i.test(attachment.name) ? 'com.topografix.gpx' : undefined,
       });
-    } catch (e) {
-      Alert.alert('Ouverture impossible', `Le fichier « ${attachment.name} » n'a pas pu être ouvert. Réessayez plus tard.`);
+    } catch {
+      notifyError();
     } finally {
       setBusy(false);
     }

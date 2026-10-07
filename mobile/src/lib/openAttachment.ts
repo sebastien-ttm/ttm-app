@@ -32,12 +32,3 @@ export async function openAttachment(buildUrl: () => Promise<string>): Promise<v
     window.location.href = url;
   }
 }
-
-/**
- * Fichier à télécharger plutôt qu'à afficher (GPX…) sur le web : le
- * serveur l'envoie en « attachment », le navigateur le télécharge sans
- * quitter l'appli ni ouvrir d'onglet vide.
- */
-export async function downloadAttachmentOnWeb(buildUrl: () => Promise<string>): Promise<void> {
-  window.location.href = await buildUrl();
-}
