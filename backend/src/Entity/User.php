@@ -449,7 +449,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** Label "Non licencié" pour les comptes externes ou sans n° de licence. */
     public function getLicenceLabel(): string
     {
-        return $this->numLicence ?? 'Non licencié';
+        return $this->numLicence ?? ($this->pendingLicenceSince !== null ? 'Licence en attente' : 'Non licencié');
     }
 
     public function getStatutLicence(): string

@@ -62,6 +62,18 @@ class MembershipStatusResolver
         // (compte adhérent sans aucune adhésion historique — cas rare :
         // création manuelle, backfill incomplet).
         $last = $this->memberships->findLatestForUser($user);
+
+        // Compte temporaire : adhérent de la saison en cours, licence pas
+        // encore validée par la ligue.
+        if ($user->isPendingLicence()) {
+            return [
+                'label' => $prefix.' '.$currentLabel.' (licence en attente)',
+                'season' => $currentLabel,
+                'needsRenewal' => false,
+                'isExternal' => $isExternal,
+            ];
+        }
+
         if ($last === null) {
             return null;
         }

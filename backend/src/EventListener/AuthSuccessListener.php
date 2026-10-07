@@ -16,6 +16,9 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 class AuthSuccessListener
 {
+    /** n° de licence envoyé à l'appli pour un compte temporaire (voir serializeUser). */
+    public const PENDING_LICENCE_PLACEHOLDER = 'EN-ATTENTE';
+
     public function __construct(
         private readonly RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private readonly RefreshTokenManagerInterface $refreshTokenManager,
@@ -63,7 +66,14 @@ class AuthSuccessListener
             'nom' => $user->getNom(),
             'prenom' => $user->getPrenom(),
             'fullName' => $user->getFullName(),
-            'numLicence' => $user->getNumLicence(),
+            // Compte temporaire (licence en attente) : l'appli n'ouvre
+            // l'onglet Entraînements et le badge piscines qu'aux comptes
+            // ayant un n° de licence (canSeeTraining côté mobile). Une
+            // valeur de remplacement leur donne les mêmes accès qu'un
+            // adhérent normal sans attendre une nouvelle version de
+            // l'appli ; elle n'est affichée nulle part (licenceLabel l'est).
+            'numLicence' => $user->getNumLicence() ?? ($user->isPendingLicence() ? self::PENDING_LICENCE_PLACEHOLDER : null),
+            'isPendingLicence' => $user->isPendingLicence(),
             'licenceLabel' => $user->getLicenceLabel(),
             'type' => $user->getType()->value,
             'subType' => $user->getSubType(),
