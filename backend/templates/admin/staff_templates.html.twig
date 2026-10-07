@@ -1,0 +1,113 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Semaines types entraîneurs{% endblock %}
+{% block content_title %}🗓️ Semaines types entraîneurs{% endblock %}
+
+{% block main %}
+    <style>
+        .st-help { color:#475569; margin-bottom:14px; }
+        .st-wrap { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:auto; max-height:75vh; }
+        .st-table { border-collapse:separate; border-spacing:0; font-size:13px; min-width:100%; }
+        .st-table th, .st-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; white-space:nowrap; }
+        .st-table thead th { position:sticky; top:0; background:#f8fafc; z-index:2; font-weight:600; text-align:center; }
+        .st-table thead th.st-slot-h { text-align:left; left:0; z-index:3; }
+        .st-table td.st-slot { position:sticky; left:0; background:#fff; z-index:1; min-width:220px; }
+        .st-day td { background:#0d2148; color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; font-size:12px; position:sticky; left:0; }
+        .st-slot strong { color:#0d2148; }
+        .st-slot small { display:block; color:#64748b; }
+        .st-cell { text-align:center; }
+        .st-cell input { width:20px; height:20px; cursor:pointer; accent-color:#16a34a; }
+        .st-cell.saving { background:#fef3c7; }
+        .st-cell.error { background:#fee2e2; }
+        .st-count { text-align:center; font-weight:700; }
+        .st-count.zero { color:#b91c1c; }
+    </style>
+
+    <p class="st-help">
+        Cochez les créneaux où chaque entraîneur est présent <strong>en temps normal</strong> : c'est sa
+        « semaine type », la même que dans l'appli (Entraînements → Ma semaine type). Enregistré à chaque clic.
+        Elle sert ensuite à pré-remplir les présences de la semaine (« Appliquer la semaine type » dans
+        <em>Emploi du temps entraîneurs</em>). La colonne « Couverts » signale en rouge un créneau sans entraîneur.
+    </p>
+
+    {% if trainers is empty %}
+        <div class="alert alert-warning">Aucun entraîneur actif (profil « Entraîneur » sur la fiche adhérent).</div>
+    {% elseif rows is empty %}
+        <div class="alert alert-warning">Aucun créneau dans la semaine type en cours.</div>
+    {% else %}
+        <div class="st-wrap">
+            <table class="st-table">
+                <thead>
+                    <tr>
+                        <th class="st-slot-h">Créneau</th>
+                        <th>Couverts</th>
+                        {% for t in trainers %}
+                            <th title="{{ t.fullName }}">{{ t.prenom }}<br><small style="font-weight:400;">{{ t.nom|upper }}</small></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set currentDay = null %}
+                    {% for row in rows %}
+                        {% set s = row.slot %}
+                        {% if row.day != currentDay %}
+                            {% set currentDay = row.day %}
+                            <tr class="st-day"><td colspan="{{ trainers|length + 2 }}">{{ row.day }}</td></tr>
+                        {% endif %}
+                        <tr data-slot="{{ s.id }}">
+                            <td class="st-slot">
+                                <strong>{{ s.startTime|date('H:i') }}–{{ row.end|date('H:i') }}</strong> {{ s.sport.icon }} {{ s.title }}
+                                {% if s.location %}<small>{{ s.location }}</small>{% endif %}
+                            </td>
+                            <td class="st-count {{ row.count == 0 ? 'zero' }}">{{ row.count }}</td>
+                            {% for t in trainers %}
+                                <td class="st-cell">
+                                    <input type="checkbox" data-user="{{ t.id }}"
+                                           aria-label="{{ t.fullName }} — {{ row.day }} {{ s.startTime|date('H:i') }}"
+                                           {{ checked[t.id][s.id] is defined ? 'checked' }}>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <script>
+    (function () {
+        const token = {{ csrf_token('staff_template_admin')|json_encode|raw }};
+        const url = {{ path('admin_staff_templates_toggle')|json_encode|raw }};
+        document.querySelectorAll('.st-cell input').forEach(input => {
+            input.addEventListener('change', async () => {
+                const cell = input.closest('td');
+                const row = input.closest('tr');
+                cell.classList.remove('error');
+                cell.classList.add('saving');
+                input.disabled = true;
+                try {
+                    const body = new URLSearchParams({
+                        _token: token,
+                        userId: input.dataset.user,
+                        slotTemplateId: row.dataset.slot,
+                        present: input.checked ? '1' : '0',
+                    });
+                    const res = await fetch(url, { method: 'POST', body });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const n = row.querySelectorAll('.st-cell input:checked').length;
+                    const count = row.querySelector('.st-count');
+                    count.textContent = n;
+                    count.classList.toggle('zero', n === 0);
+                } catch (e) {
+                    input.checked = !input.checked;
+                    cell.classList.add('error');
+                    alert('Enregistrement impossible (' + e.message + '). Rechargez la page et réessayez.');
+                } finally {
+                    cell.classList.remove('saving');
+                    input.disabled = false;
+                }
+            });
+        });
+    })();
+    </script>
+{% endblock %}
