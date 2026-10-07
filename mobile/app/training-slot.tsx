@@ -7,12 +7,13 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { api } from '@/api/client';
 import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { openAttachment } from '@/lib/openAttachment';
+import { isAndroidWeb, openAttachment, openWithOnAndroid, withBearer } from '@/lib/openAttachment';
 import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
@@ -138,13 +139,32 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
     else Alert.alert('Ouverture impossible', msg);
   }
 
-  async function buildUrl(): Promise<string> {
-    const token = await storage.getItem(STORAGE_KEYS.accessToken);
-    return `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`
-      + (token ? `?bearer=${encodeURIComponent(token)}` : '');
+  function buildUrl(token: string | null): string {
+    return withBearer(`${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`, token);
+  }
+
+  /**
+   * Appli web sur Android, GPX & co : « Ouvrir avec… » via un lien
+   * temporaire sans jeton (c'est l'appli choisie qui télécharge).
+   */
+  async function openWithOnAndroidWeb() {
+    setBusy(true);
+    try {
+      const link = await api.get<{ path: string }>(`/api/training-slots/attachments/${attachment.id}/temporary-link`);
+      const mime = /\.gpx$/i.test(attachment.name) ? 'application/gpx+xml' : (attachment.mimeType || 'application/octet-stream');
+      openWithOnAndroid(`${API_BASE_URL}${link.path}`, mime);
+    } catch {
+      notifyError();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function open() {
+    if (isAndroidWeb() && !isBrowserViewable(attachment)) {
+      await openWithOnAndroidWeb();
+      return;
+    }
     // PDF / image : nouvel onglet (web) ou navigateur intégré (mobile).
     // Web, GPX & co : nouvel onglet aussi — le serveur envoie ces
     // fichiers en téléchargement, c'est le navigateur qui propose de les
@@ -159,7 +179,7 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
       }
       return;
     }
-    const url = await buildUrl();
+    const url = buildUrl(await storage.getItem(STORAGE_KEYS.accessToken));
 
     // Autres fichiers (GPX, FIT…) : le navigateur intégré ne sait pas
     // les afficher et ne faisait rien. On télécharge puis on propose

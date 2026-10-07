@@ -5,11 +5,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { ApiError } from '@/api/client';
 import { trainingPlans as plansApi } from '@/api/resources';
 import type { TrainingPlan } from '@/api/types';
-import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { openAttachment } from '@/lib/openAttachment';
+import { openAttachment, withBearer } from '@/lib/openAttachment';
 import { formatDate } from '@/utils/html';
 
 export default function TrainingPlanDetailScreen() {
@@ -64,11 +63,7 @@ export default function TrainingPlanDetailScreen() {
     try {
       // Endpoint authentifié → on ajoute le bearer en query (cf. Lexik).
       // Nouvel onglet sur le web, navigateur intégré sur mobile.
-      await openAttachment(async () => {
-        const token = await storage.getItem(STORAGE_KEYS.accessToken);
-        const sep = plan.fileUrl.includes('?') ? '&' : '?';
-        return token ? `${plan.fileUrl}${sep}bearer=${encodeURIComponent(token)}` : plan.fileUrl;
-      });
+      await openAttachment((token) => withBearer(plan.fileUrl, token));
     } finally {
       setOpening(false);
     }

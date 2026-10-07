@@ -19,7 +19,6 @@ import { ApiError } from '@/api/client';
 import { articles as articlesApi, comments as commentsApi } from '@/api/resources';
 import type { Article, ArticleAttachment, Comment } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
@@ -29,7 +28,7 @@ import { EventRow } from '@/components/UpcomingEvents';
 import { COLORS } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { openAttachment } from '@/lib/openAttachment';
+import { openAttachment, withBearer } from '@/lib/openAttachment';
 import { formatDate, htmlExcerpt } from '@/utils/html';
 
 export default function ArticleScreen() {
@@ -203,10 +202,7 @@ export default function ArticleScreen() {
 function AttachmentLink({ attachment }: { attachment: ArticleAttachment }) {
   async function open() {
     // Nouvel onglet sur le web, navigateur intégré sur mobile.
-    await openAttachment(async () => {
-      const token = await storage.getItem(STORAGE_KEYS.accessToken);
-      return attachment.url + (token ? `?bearer=${encodeURIComponent(token)}` : '');
-    });
+    await openAttachment((token) => withBearer(attachment.url, token));
   }
   return (
     <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && styles.pressed]}>

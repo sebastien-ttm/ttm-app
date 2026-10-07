@@ -93,34 +93,32 @@ class TrainingScheduleController extends AbstractController
     public function downloadAttachment(int $id): BinaryFileResponse
     {
         $att = $this->attachments->find($id);
+        $resp = $att !== null ? $this->attachmentService->fileResponse($att) : null;
+        if ($resp === null) {
+            throw $this->createNotFoundException();
+        }
+        return $resp;
+    }
+
+    /**
+     * Lien temporaire (15 min) vers UNE pièce jointe, sans jeton de
+     * connexion : sert à « Ouvrir avec… » sur Android (appli web), où
+     * c'est l'appli choisie (OsmAnd, Komoot…) qui télécharge le fichier.
+     * On ne lui confie jamais le jeton de l'adhérent, qui donnerait
+     * accès à tout son compte. Téléchargement : PublicAttachmentController.
+     */
+    #[Route('/api/training-slots/attachments/{id}/temporary-link', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function temporaryLink(int $id): JsonResponse
+    {
+        $att = $this->attachments->find($id);
         if ($att === null) {
             throw $this->createNotFoundException();
         }
-        $path = $this->attachmentService->absolutePath($att);
-        if ($path === null || !is_file($path)) {
-            throw $this->createNotFoundException();
-        }
-        $name = $att->getOriginalName();
-        $mime = $att->getMimeType();
-        // Les GPX arrivent souvent en application/octet-stream ou text/xml
-        // selon le navigateur qui les a envoyés : type explicite pour que
-        // le téléphone propose les bonnes applis (Komoot, Strava, Garmin…).
-        if (preg_match('/\.gpx$/i', $name)) {
-            $mime = 'application/gpx+xml';
-        }
-        // PDF / images : affichés dans le navigateur. Le reste (GPX, FIT…) :
-        // téléchargé — un navigateur intégré ne sait pas l'afficher.
-        $viewable = $mime === 'application/pdf' || str_starts_with($mime, 'image/');
-
-        $resp = new BinaryFileResponse($path);
-        $resp->setContentDisposition(
-            $viewable ? ResponseHeaderBag::DISPOSITION_INLINE : ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $name,
-            // Repli ASCII obligatoire pour les noms accentués.
-            (string) preg_replace('/[^\x20-\x7e]|[\/\\\\%"]/', '_', $name),
-        );
-        $resp->headers->set('Content-Type', $mime);
-        return $resp;
+        $link = $this->attachmentService->temporaryLink($att);
+        return new JsonResponse([
+            'path' => $link['path'],
+            'expiresAt' => (new \DateTimeImmutable('@'.$link['expires']))->format(\DATE_ATOM),
+        ]);
     }
 
     private function formatWeekLabel(\DateTimeImmutable $monday): string
