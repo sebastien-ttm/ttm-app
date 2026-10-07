@@ -100,12 +100,26 @@ class TrainingScheduleController extends AbstractController
         if ($path === null || !is_file($path)) {
             throw $this->createNotFoundException();
         }
+        $name = $att->getOriginalName();
+        $mime = $att->getMimeType();
+        // Les GPX arrivent souvent en application/octet-stream ou text/xml
+        // selon le navigateur qui les a envoyés : type explicite pour que
+        // le téléphone propose les bonnes applis (Komoot, Strava, Garmin…).
+        if (preg_match('/\.gpx$/i', $name)) {
+            $mime = 'application/gpx+xml';
+        }
+        // PDF / images : affichés dans le navigateur. Le reste (GPX, FIT…) :
+        // téléchargé — un navigateur intégré ne sait pas l'afficher.
+        $viewable = $mime === 'application/pdf' || str_starts_with($mime, 'image/');
+
         $resp = new BinaryFileResponse($path);
         $resp->setContentDisposition(
-            ResponseHeaderBag::DISPOSITION_INLINE,
-            $att->getOriginalName(),
+            $viewable ? ResponseHeaderBag::DISPOSITION_INLINE : ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $name,
+            // Repli ASCII obligatoire pour les noms accentués.
+            (string) preg_replace('/[^\x20-\x7e]|[\/\\\\%"]/', '_', $name),
         );
-        $resp->headers->set('Content-Type', $att->getMimeType());
+        $resp->headers->set('Content-Type', $mime);
         return $resp;
     }
 

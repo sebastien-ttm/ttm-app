@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import * as WebBrowser from 'expo-web-browser';
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
@@ -119,19 +121,58 @@ function Tag({ label, color, bg }: { label: string; color: string; bg?: string }
   );
 }
 
+/** PDF et images : affichables dans le navigateur intégré. */
+function isBrowserViewable(att: TrainingSlotAttachment): boolean {
+  const mime = (att.mimeType ?? '').toLowerCase();
+  return mime === 'application/pdf' || mime.startsWith('image/') || /\.(pdf|jpe?g|png|gif|webp)$/i.test(att.name);
+}
+
 function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
+  const [busy, setBusy] = useState(false);
+
   async function open() {
     const token = await storage.getItem(STORAGE_KEYS.accessToken);
     const url =
       `${API_BASE_URL}/api/training-slots/attachments/${attachment.id}/file`
       + (token ? `?bearer=${encodeURIComponent(token)}` : '');
-    await WebBrowser.openBrowserAsync(url);
+
+    // PDF / image (ou web) : navigateur intégré, comme avant.
+    if (Platform.OS === 'web' || isBrowserViewable(attachment)) {
+      await WebBrowser.openBrowserAsync(url);
+      return;
+    }
+
+    // Autres fichiers (GPX, FIT…) : le navigateur intégré ne sait pas
+    // les afficher et ne faisait rien. On télécharge puis on propose
+    // « Ouvrir avec… » (Komoot, Strava, Garmin, Fichiers…).
+    setBusy(true);
+    try {
+      const safeName = attachment.name.replace(/[^\w.\-]+/g, '_') || `piece-jointe-${attachment.id}`;
+      const target = `${FileSystem.cacheDirectory}${attachment.id}-${safeName}`;
+      const { status, uri } = await FileSystem.downloadAsync(url, target);
+      if (status !== 200) throw new Error(`HTTP ${status}`);
+      if (!(await Sharing.isAvailableAsync())) {
+        await WebBrowser.openBrowserAsync(url);
+        return;
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: attachment.mimeType || undefined,
+        dialogTitle: attachment.name,
+        UTI: /\.gpx$/i.test(attachment.name) ? 'com.topografix.gpx' : undefined,
+      });
+    } catch (e) {
+      Alert.alert('Ouverture impossible', `Le fichier « ${attachment.name} » n'a pas pu être ouvert. Réessayez plus tard.`);
+    } finally {
+      setBusy(false);
+    }
   }
   return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && { opacity: 0.85 }]}>
-      <Text style={styles.attachmentIcon}>📎</Text>
+    <Pressable onPress={open} disabled={busy} style={({ pressed }) => [styles.attachmentChip, (pressed || busy) && { opacity: 0.85 }]}>
+      <Text style={styles.attachmentIcon}>{/\.gpx$/i.test(attachment.name) ? '🗺️' : '📎'}</Text>
       <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
-      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
+      {busy
+        ? <ActivityIndicator size="small" color={COLORS.secondaryDark} />
+        : <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>}
     </Pressable>
   );
 }
