@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: EventRepository::class)]
 #[ORM\Table(name: 'event')]
@@ -95,6 +96,20 @@ class Event implements OwnedContentInterface
     #[ORM\Column(name: 'external_registration_url', length: 500, nullable: true)]
     private ?string $externalRegistrationUrl = null;
 
+    /**
+     * Entraînement lié (optionnel) : créneau de la semaine type, dont on
+     * affiche l'occurrence de la semaine de l'événement (modifiée ou
+     * annulée le cas échéant)…
+     */
+    #[ORM\ManyToOne(targetEntity: TrainingSlotTemplate::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?TrainingSlotTemplate $trainingSlotTemplate = null;
+
+    /** …ou créneau occasionnel (hors semaine type). */
+    #[ORM\ManyToOne(targetEntity: TrainingSlot::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?TrainingSlot $trainingSlot = null;
+
     public function __construct()
     {
         $this->tags = new ArrayCollection();
@@ -139,6 +154,20 @@ class Event implements OwnedContentInterface
     public function getOwner(): ?User { return $this->createdBy; }
     public function getCreatedBy(): ?User { return $this->createdBy; }
     public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
+
+    public function getTrainingSlotTemplate(): ?TrainingSlotTemplate { return $this->trainingSlotTemplate; }
+    public function setTrainingSlotTemplate(?TrainingSlotTemplate $t): self { $this->trainingSlotTemplate = $t; return $this; }
+    public function getTrainingSlot(): ?TrainingSlot { return $this->trainingSlot; }
+    public function setTrainingSlot(?TrainingSlot $s): self { $this->trainingSlot = $s; return $this; }
+
+    #[Assert\Callback]
+    public function validateTrainingLink(ExecutionContextInterface $context): void
+    {
+        if ($this->trainingSlotTemplate !== null && $this->trainingSlot !== null) {
+            $context->buildViolation('Choisissez un créneau récurrent OU un créneau occasionnel, pas les deux.')
+                ->atPath('trainingSlot')->addViolation();
+        }
+    }
 
     public function getExternalRegistrationUrl(): ?string { return $this->externalRegistrationUrl; }
     public function setExternalRegistrationUrl(?string $u): self

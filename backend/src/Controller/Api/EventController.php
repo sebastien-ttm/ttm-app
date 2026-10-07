@@ -14,6 +14,7 @@ use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Serializer\ApiSerializer;
+use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,6 +36,7 @@ class EventController extends AbstractController
         private readonly MemberGroupService $memberGroups,
         private readonly CommentRepository $comments,
         private readonly ValidatorInterface $validator,
+        private readonly WeeklyScheduleService $schedule,
     ) {
     }
 
@@ -63,7 +65,11 @@ class EventController extends AbstractController
         $myVote = $event->isVoteEnabled()
             ? $this->attendances->findOneByUserAndEvent($viewer, $event)?->getStatus()->value
             : null;
-        return new JsonResponse($this->serializer->event($event, $myVote, $counts));
+        $data = $this->serializer->event($event, $myVote, $counts);
+        // Détail uniquement : créneau d'entraînement lié, au format de la
+        // liste de la semaine (l'appli ouvre directement son écran détail).
+        $data['trainingSlot'] = $this->schedule->linkedSlotForEvent($event, $viewer);
+        return new JsonResponse($data);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Service\Training;
 
+use App\Entity\Event;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
@@ -37,6 +38,38 @@ class WeeklyScheduleService
     public static function snapToMonday(\DateTimeImmutable $d): \DateTimeImmutable
     {
         return $d->modify('monday this week')->setTime(0, 0, 0);
+    }
+
+    /**
+     * Entraînement lié à un événement, sérialisé comme dans buildWeek
+     * (même format que la liste de la semaine côté appli) : occurrence
+     * du créneau récurrent dans la semaine de l'événement, ou créneau
+     * occasionnel. null si aucun lien, ou si le créneau n'est pas visible
+     * pour ce viewer (audience) / ne tombe pas cette semaine-là.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function linkedSlotForEvent(Event $event, ?User $viewer): ?array
+    {
+        $template = $event->getTrainingSlotTemplate();
+        $occasional = $event->getTrainingSlot();
+        if ($template === null && $occasional === null) {
+            return null;
+        }
+
+        $monday = $occasional !== null
+            ? self::snapToMonday($occasional->getWeekStartsAt())
+            : self::snapToMonday($event->getStartsAt());
+
+        foreach ($this->buildWeek($monday, $viewer) as $row) {
+            if ($template !== null && $row['templateId'] === $template->getId()) {
+                return $row;
+            }
+            if ($occasional !== null && $row['id'] === $occasional->getId()) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     /**

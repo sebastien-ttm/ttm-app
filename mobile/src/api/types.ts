@@ -177,6 +177,11 @@ export type EventItem = {
    * l'URL dans le navigateur externe. Null = fonctionnement standard.
    */
   externalRegistrationUrl: string | null;
+  /**
+   * Entraînement lié (détail GET /api/events/{id} uniquement), au format
+   * de la liste de la semaine. Absent des listes, null si aucun lien.
+   */
+  trainingSlot?: TrainingSlot | null;
 };
 
 export type CarpoolRole = 'driver' | 'passenger';
