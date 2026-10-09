@@ -64,7 +64,13 @@ class StaffPresenceController extends AbstractController
             return $r;
         }
 
-        $week = $this->parseWeek($request->query->get('week'));
+        // Derrière le forward EasyAdmin (`/admin?routeName=…&routeParams[week]=…`),
+        // `week` n'est pas dans la query string de la requête mais dans les
+        // attributs (routeParams y sont fusionnés) : on le cherche aux deux endroits.
+        $rawWeek = $request->attributes->get('week')
+            ?? $request->query->all('routeParams')['week']
+            ?? $request->query->get('week');
+        $week = $this->parseWeek(is_string($rawWeek) ? $rawWeek : null);
 
         // Deux sections de colonnes : entraîneurs puis encadrants.
         $sections = [];
