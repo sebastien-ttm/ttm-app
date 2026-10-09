@@ -9,13 +9,14 @@
     <style>
         .pt-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
         .pt-help { color:#475569; margin-bottom:12px; font-size:13px; }
-        .pt-wrap { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:auto; max-height:78vh; margin-bottom:20px; }
+        /* Pas de hauteur max : le tableau s'étire et la page défile (barre globale). Seul le défilement horizontal reste dans le cadre. */
+        .pt-wrap { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow-x:auto; margin-bottom:20px; }
         .pt-table { border-collapse:separate; border-spacing:0; font-size:13px; }
         .pt-table th, .pt-table td { padding:6px 8px; border-bottom:1px solid #f1f5f9; white-space:nowrap; }
 
         .pt-table thead th { position:sticky; z-index:2; background:#f8fafc; text-align:center; font-weight:600; }
-        .pt-table thead tr.pt-h1 th { top:0; height:34px; }
-        .pt-table thead tr.pt-h2 th { top:34px; border-bottom:2px solid #94a3b8; }
+        .pt-table thead tr.pt-h1 th { height:34px; }
+        .pt-table thead tr.pt-h2 th { border-bottom:2px solid #94a3b8; }
         .pt-table thead th.pt-sec-entraineur { background:#0d2148; color:#fff; }
         .pt-table thead th.pt-sec-encadrant { background:#dc2626; color:#fff; }
         .pt-sec-start { border-left:2px solid #94a3b8; }
