@@ -2,17 +2,10 @@
 
 namespace App\Controller\Admin;
 
-use App\Entity\StaffDayUnavailability;
 use App\Entity\StaffPresence;
-use App\Entity\TrainingSlot;
-use App\Entity\User;
 use App\Enum\Profile;
-use App\Enum\Sport;
-use App\Enum\StaffAbsenceReason;
-use App\Entity\StaffWeekUnavailability;
 use App\Repository\StaffDayUnavailabilityRepository;
 use App\Repository\StaffPresenceRepository;
-use App\Repository\StaffPresenceTemplateRepository;
 use App\Repository\StaffWeekUnavailabilityRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
@@ -21,24 +14,35 @@ use App\Security\StaffScheduleSupervisionVoter;
 use App\Service\Training\StaffPresenceService;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Pages backend liées à la présence du staff :
- *  - "Mes présences"            : entraîneur édite ses propres présences
- *                                 + ajoute des créneaux hors entraînement.
- *  - "Présences encadrants"     : vue récap de toutes les présences
- *                                 encadrants pour une semaine, modifiable.
- *  - "Emploi du temps coachs"   : semaine de chaque entraîneur.
+ * « Présence entraînements » : une semaine sous forme de tableau, une
+ * ligne par créneau et une colonne par entraîneur / encadrant (deux
+ * sections). Chaque case est cochée = présent. Les valeurs viennent de ce
+ * que chacun a saisi sur le mobile ; seuls l'entraîneur référent (case
+ * « Entraîneur référent » de la fiche adhérent) et les admins peuvent
+ * les surcharger — les autres entraîneurs voient la page en lecture seule.
+ *
+ * Il n'y a plus de notion de « réservé » côté backend : présent (statut
+ * scheduled ou attended) ou non. Décocher pose un « non dispo » explicite
+ * pour que le mobile de la personne reflète le choix du référent.
  */
 #[IsGranted('ROLE_ENTRAINEUR')]
 class StaffPresenceController extends AbstractController
 {
+    use EnsureAdminContextTrait;
+
+    private const CSRF_INTENT = 'staff_presence_matrix';
+
+    private const DAY_NAMES = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi', 6 => 'Samedi', 7 => 'Dimanche'];
+
     public function __construct(
         private readonly StaffPresenceRepository $presences,
         private readonly TrainingSlotRepository $slots,
@@ -48,501 +52,180 @@ class StaffPresenceController extends AbstractController
         private readonly WeeklyScheduleService $schedule,
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
-        private readonly StaffPresenceTemplateRepository $presenceTemplates,
         private readonly StaffDayUnavailabilityRepository $dayUnavailabilities,
+        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
 
-    // ============================================================
-    //   1) Mes présences (entraîneur self-service)
-    // ============================================================
-
-    #[Route('/admin/staff/my-presences', name: 'admin_staff_my_presences')]
-    public function myPresences(Request $request): Response
+    #[Route('/admin/staff/presences', name: 'admin_staff_presence_trainings', methods: ['GET'])]
+    public function index(Request $request): Response
     {
-        /** @var User $user */
-        $user = $this->getUser();
+        if ($r = $this->ensureAdminContext($request, 'admin_staff_presence_trainings')) {
+            return $r;
+        }
+
         $week = $this->parseWeek($request->query->get('week'));
 
-        $slotRows = $this->schedule->buildWeek($week);
-        $myPresences = $this->presences->findByUserAndWeek($user, $week);
+        // Deux sections de colonnes : entraîneurs puis encadrants.
+        $sections = [];
+        foreach ([[Profile::Entraineur, 'Entraîneurs'], [Profile::Encadrant, 'Encadrants']] as [$profile, $label]) {
+            $staff = $this->presences->findActiveStaffByProfile($profile);
+            if ($staff !== []) {
+                $sections[] = ['key' => $profile->value, 'label' => $label, 'staff' => $staff];
+            }
+        }
 
-        // Map slotId → presence
-        $presencesBySlot = [];
+        // present[slotId][userId] = true ; les tâches hors entraînement
+        // (sans créneau) sont listées à part sous le tableau.
+        $present = [];
         $customTasks = [];
-        foreach ($myPresences as $p) {
-            if ($p->getSlot() !== null) {
-                $presencesBySlot[$p->getSlot()->getId()] = $p;
-            } else {
-                $customTasks[] = $p;
-            }
-        }
-
-        return $this->render('admin/staff_my_presences.html.twig', [
-            'user' => $user,
-            'week' => $week,
-            'weekHuman' => $this->humanWeekLabel($week),
-            'prev' => $week->modify('-7 days')->format('Y-m-d'),
-            'next' => $week->modify('+7 days')->format('Y-m-d'),
-            'today' => WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'))->format('Y-m-d'),
-            'slotRows' => $slotRows,
-            'presencesBySlot' => $presencesBySlot,
-            'customTasks' => $customTasks,
-        ]);
-    }
-
-    #[Route('/admin/staff/my-presences/slot', name: 'admin_staff_my_presences_slot', methods: ['POST'])]
-    public function setMySlotPresence(Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-        /** @var User $user */
-        $user = $this->getUser();
-        $week = $this->parseWeek($request->request->get('week'));
-
-        $status = (string) $request->request->get('status', StaffPresence::STATUS_SCHEDULED);
-        $slotId = $this->intOrNull($request->request->get('slotId'));
-        $templateId = $this->intOrNull($request->request->get('templateId'));
-        $remove = $request->request->getBoolean('remove');
-
-        if ($slotId !== null) {
-            $slot = $this->slots->find($slotId);
-            if ($slot === null) {
-                throw $this->createNotFoundException();
-            }
-            if ($remove) {
-                $this->service->unset($user, $slot);
-            } else {
-                $this->service->setForSlot($user, $slot, $status);
-            }
-        } elseif ($templateId !== null && !$remove) {
-            $template = $this->templates->find($templateId);
-            if ($template === null) {
-                throw $this->createNotFoundException();
-            }
-            $this->service->setForTemplate($user, $template, $week, $status);
-        }
-        $this->em->flush();
-
-        $this->addFlash('success', 'Présence mise à jour.');
-        return $this->redirectToRoute('admin_staff_my_presences', ['week' => $week->format('Y-m-d')]);
-    }
-
-    #[Route('/admin/staff/my-presences/custom/new', name: 'admin_staff_my_presences_custom_new', methods: ['GET', 'POST'])]
-    public function newCustomTask(Request $request): Response
-    {
-        /** @var User $user */
-        $user = $this->getUser();
-        $week = $this->parseWeek($request->query->get('week') ?? $request->request->get('week'));
-
-        if ($request->isMethod('POST')) {
-            $this->validateCsrf($request, 'staff_presence');
-            $title = trim((string) $request->request->get('title', ''));
-            $dateRaw = (string) $request->request->get('date', '');
-            $timeRaw = (string) $request->request->get('startTime', '18:30');
-            $duration = (int) $request->request->get('durationMinutes', 60);
-
-            $errors = [];
-            if ($title === '') $errors[] = 'Titre requis.';
-            try {
-                $date = new \DateTimeImmutable($dateRaw);
-            } catch (\Exception) {
-                $date = null;
-                $errors[] = 'Date invalide.';
-            }
-            try {
-                $time = new \DateTimeImmutable($timeRaw);
-            } catch (\Exception) {
-                $time = null;
-                $errors[] = 'Heure invalide.';
-            }
-
-            if ($errors === [] && $date !== null && $time !== null) {
-                $task = new StaffPresence($user);
-                $task->setTitle($title);
-                $task->setDate($date);
-                $task->setStartTime($time);
-                $task->setDurationMinutes(max(5, min(600, $duration)));
-                $task->setNotes(trim((string) $request->request->get('notes', '')) ?: null);
-                $this->em->persist($task);
-                $this->em->flush();
-                $this->addFlash('success', 'Tâche ajoutée à ton emploi du temps.');
-                return $this->redirectToRoute('admin_staff_my_presences', [
-                    'week' => $task->getWeekStartsAt()->format('Y-m-d'),
-                ]);
-            }
-            foreach ($errors as $e) $this->addFlash('error', $e);
-        }
-
-        return $this->render('admin/staff_custom_task_edit.html.twig', [
-            'task' => null,
-            'week' => $week,
-            'weekHuman' => $this->humanWeekLabel($week),
-        ]);
-    }
-
-    #[Route('/admin/staff/my-presences/custom/{id}/delete', name: 'admin_staff_my_presences_custom_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function deleteCustomTask(int $id, Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-        /** @var User $user */
-        $user = $this->getUser();
-        $task = $this->presences->find($id);
-        if ($task === null || $task->getUser()->getId() !== $user->getId() || !$task->isCustom()) {
-            throw $this->createNotFoundException();
-        }
-        $week = $task->getWeekStartsAt();
-        $this->em->remove($task);
-        $this->em->flush();
-        $this->addFlash('success', 'Tâche supprimée.');
-        return $this->redirectToRoute('admin_staff_my_presences', ['week' => $week->format('Y-m-d')]);
-    }
-
-    // ============================================================
-    //   2) Supervision : présences encadrants par semaine
-    // ============================================================
-
-    #[Route('/admin/staff/supervision/encadrants', name: 'admin_staff_supervision_encadrants')]
-    public function supervisionEncadrants(Request $request): Response
-    {
-        return $this->renderSupervision($request, Profile::Encadrant, 'Présences encadrants');
-    }
-
-    /**
-     * Restreint cette seule page : un compte ROLE_ENTRAINEUR ordinaire
-     * (qui passe déjà le #[IsGranted] de classe) n'y a PAS accès sauf
-     * s'il est explicitement désigné gestionnaire (ou admin) — voir
-     * StaffScheduleSupervisionVoter.
-     */
-    #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
-    #[Route('/admin/staff/supervision/entraineurs', name: 'admin_staff_supervision_entraineurs')]
-    public function supervisionEntraineurs(Request $request): Response
-    {
-        return $this->renderSupervision($request, Profile::Entraineur, 'Emploi du temps entraîneurs');
-    }
-
-    private function renderSupervision(Request $request, Profile $profile, string $title): Response
-    {
-        $week = $this->parseWeek($request->query->get('week'));
-        $staff = $this->presences->findActiveStaffByProfile($profile);
-        $presencesByUser = $this->presences->findStaffPresencesForWeekGroupedByUser($week);
-        $slotRows = $this->schedule->buildWeek($week);
-
-        // Indexe les indisponibilités déclarées par user_id pour cette semaine
-        $unavailableByUser = [];
-        foreach ($this->unavailabilities->findForWeek($week) as $u) {
-            $unavailableByUser[$u->getUser()->getId()] = $u;
-        }
-
-        // Indexe les absences journalières déclarées par user_id → date ISO
-        // → StaffDayUnavailability, pour cette semaine.
-        $dayUnavailableByUser = [];
-        foreach ($this->dayUnavailabilities->findForWeek($week) as $d) {
-            $dayUnavailableByUser[$d->getUser()->getId()][$d->getDate()->format('Y-m-d')] = $d;
-        }
-
-        // Pour chaque encadrant, calcule les créneaux où il n'est PAS
-        // encore positionné — permet de proposer une dropdown « ajouter
-        // une présence » sans inclure les doublons. On annote chaque
-        // créneau disponible avec sa présence (ou non) dans la semaine
-        // type PERSONNELLE de ce membre : ça permet à l'admin de
-        // distinguer, dans la liste de pré-positionnement comme dans un
-        // encart dédié, un créneau qu'il couvre habituellement (juste
-        // pas encore confirmé cette semaine) d'un créneau hors de sa
-        // semaine type (probablement à confier à quelqu'un d'autre).
-        $availableByUser = [];
-        $templateConfiguredByUser = [];
-        foreach ($staff as $member) {
-            $templatePresent = $this->presenceTemplates->findPresentTemplateIds($member);
-            $templateConfiguredByUser[$member->getId()] = $templatePresent !== [];
-
-            $available = $this->computeAvailableSlots(
-                $slotRows,
-                $presencesByUser[$member->getId()] ?? [],
-            );
-            $availableByUser[$member->getId()] = array_map(
-                static function (array $row) use ($templatePresent) {
-                    $row['inTemplate'] = $row['templateId'] !== null && isset($templatePresent[$row['templateId']]);
-                    return $row;
-                },
-                $available,
-            );
-        }
-
-        return $this->render('admin/staff_supervision.html.twig', [
-            'title' => $title,
-            'profile' => $profile->value,
-            'week' => $week,
-            'weekHuman' => $this->humanWeekLabel($week),
-            'prev' => $week->modify('-7 days')->format('Y-m-d'),
-            'next' => $week->modify('+7 days')->format('Y-m-d'),
-            'today' => WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'))->format('Y-m-d'),
-            'staff' => $staff,
-            'presencesByUser' => $presencesByUser,
-            'availableByUser' => $availableByUser,
-            'unavailableByUser' => $unavailableByUser,
-            'templateConfiguredByUser' => $templateConfiguredByUser,
-            'dayUnavailableByUser' => $dayUnavailableByUser,
-            'weekDates' => array_map(
-                static fn (int $d) => $week->modify(sprintf('+%d days', $d - 1)),
-                [1, 2, 3, 4, 5, 6, 7],
-            ),
-            'absenceReasons' => StaffAbsenceReason::cases(),
-        ]);
-    }
-
-    /**
-     * Applique la semaine type personnelle d'un membre du staff à la
-     * semaine affichée (même logique que le bouton « Appliquer ma
-     * semaine type » côté mobile), mais déclenchée par un admin pour un
-     * membre qui ne s'est pas positionné lui-même. Écrase toute présence
-     * déjà posée sur la semaine pour ce membre.
-     */
-    #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
-    #[Route('/admin/staff/supervision/apply-template', name: 'admin_staff_supervision_apply_template', methods: ['POST'])]
-    public function supervisionApplyTemplate(Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-
-        $userId = (int) $request->request->get('userId');
-        $week = $this->parseWeek($request->request->get('week'));
-        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
-
-        $user = $this->users->find($userId);
-        if ($user === null || !$user->isActive()) {
-            throw $this->createNotFoundException();
-        }
-
-        try {
-            $result = $this->service->applyTemplateToWeek($user, $week);
-            $this->addFlash('success', sprintf(
-                'Semaine type appliquée pour %s (%d présent(s), %d non-dispo).',
-                $user->getFullName(),
-                $result['scheduledCount'],
-                $result['unavailableCount'],
-            ));
-        } catch (\DomainException) {
-            $this->addFlash('error', sprintf('%s n\'a pas encore configuré sa semaine type.', $user->getFullName()));
-        }
-
-        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
-    }
-
-    /**
-     * Admin toggle : marque un membre du staff comme (non-)disponible pour
-     * une semaine. Utile quand l'encadrant a prévenu de vive voix et que
-     * l'admin renseigne pour lui.
-     */
-    #[Route('/admin/staff/supervision/unavailable', name: 'admin_staff_supervision_unavailable', methods: ['POST'])]
-    public function toggleUnavailable(Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-        $userId = (int) $request->request->get('userId');
-        $week = $this->parseWeek($request->request->get('week'));
-        $action = (string) $request->request->get('action', 'set');
-        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
-
-        $user = $this->users->find($userId);
-        if ($user === null || !$user->isActive()) {
-            throw $this->createNotFoundException();
-        }
-
-        $existing = $this->unavailabilities->findOneByUserAndWeek($user, $week);
-        if ($action === 'unset') {
-            if ($existing !== null) {
-                $this->em->remove($existing);
-                $this->em->flush();
-                $this->addFlash('success', sprintf('%s marqué à nouveau disponible.', $user->getFullName()));
-            }
-        } else {
-            if ($existing === null) {
-                // Motif obligatoire uniquement depuis la vue entraîneurs — le
-                // formulaire encadrants n'affiche pas ce champ (voir
-                // staff_supervision.html.twig).
-                $requiresReason = $back === 'admin_staff_supervision_entraineurs';
-                $reason = StaffAbsenceReason::tryFrom((string) $request->request->get('reason', ''));
-                if ($requiresReason && $reason === null) {
-                    $this->addFlash('error', 'Motif requis (maladie, vacances ou déplacement).');
-                    return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+        foreach ($this->presences->findStaffPresencesForWeekGroupedByUser($week) as $userId => $list) {
+            foreach ($list as $p) {
+                if ($p->getSlot() === null) {
+                    $customTasks[] = $p;
+                } elseif ($p->getStatus() !== StaffPresence::STATUS_UNAVAILABLE) {
+                    $present[$p->getSlot()->getId()][$userId] = true;
                 }
-                $notes = trim((string) $request->request->get('notes', '')) ?: null;
-                $this->em->persist(new StaffWeekUnavailability($user, $week, $reason, $notes));
-                $this->em->flush();
-                $this->addFlash('success', sprintf(
-                    '%s marqué non-dispo cette semaine%s.',
-                    $user->getFullName(),
-                    $reason !== null ? ' ('.$reason->label().')' : '',
-                ));
             }
         }
 
-        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+        // Absences déclarées (semaine / jour) : affichées en lecture seule
+        // dans les cases décochées, avec leur motif.
+        $weekAbsence = [];
+        foreach ($this->unavailabilities->findForWeek($week) as $u) {
+            $weekAbsence[$u->getUser()->getId()] = $u;
+        }
+        $dayAbsence = [];
+        foreach ($this->dayUnavailabilities->findForWeek($week) as $d) {
+            $dayAbsence[$d->getUser()->getId()][$d->getDate()->format('Y-m-d')] = $d;
+        }
+
+        $days = [];
+        foreach ($this->schedule->buildWeek($week) as $row) {
+            $slotId = $row['id'];
+            $templateId = $row['templateId'];
+            $cancelled = !empty($row['isCancelled']);
+
+            $counts = [Profile::Entraineur->value => 0, Profile::Encadrant->value => 0];
+            $cells = [];
+            foreach ($sections as $section) {
+                foreach ($section['staff'] as $member) {
+                    $uid = $member->getId();
+                    $isPresent = !$cancelled && $slotId !== null && isset($present[$slotId][$uid]);
+                    if ($isPresent) {
+                        $counts[$section['key']]++;
+                    }
+                    $absence = $isPresent ? null : ($dayAbsence[$uid][$row['date']] ?? $weekAbsence[$uid] ?? null);
+                    $cells[$uid] = ['present' => $isPresent, 'absent' => $absence !== null, 'reason' => $absence?->getReason()];
+                }
+            }
+
+            $dow = (int) $row['dayOfWeek'];
+            $days[$dow] ??= [
+                'label' => (self::DAY_NAMES[$dow] ?? '?').' '.$week->modify(sprintf('+%d days', $dow - 1))->format('d/m'),
+                'rows' => [],
+            ];
+            $days[$dow]['rows'][] = [
+                // Un créneau virtuel (pas encore de TrainingSlot) se désigne par son
+                // template ; la première coche le matérialise (setForTemplate).
+                'choice' => $slotId !== null ? 's:'.$slotId : 't:'.$templateId,
+                'startTime' => $row['startTime'],
+                'endTime' => (new \DateTimeImmutable($row['date'].' '.$row['startTime']))
+                    ->modify(sprintf('+%d minutes', (int) $row['durationMinutes']))->format('H:i'),
+                'title' => $row['title'],
+                'location' => $row['location'],
+                'sportIcon' => $row['sportIcon'],
+                'isCancelled' => $cancelled,
+                'isOccasional' => !empty($row['isOccasional']),
+                'cells' => $cells,
+                'counts' => $counts,
+            ];
+        }
+        ksort($days);
+
+        $prev = $week->modify('-7 days')->format('Y-m-d');
+        $next = $week->modify('+7 days')->format('Y-m-d');
+        $today = WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'))->format('Y-m-d');
+
+        return $this->render('admin/staff_presence_trainings.html.twig', [
+            'week' => $week,
+            'weekHuman' => $this->humanWeekLabel($week),
+            'prevUrl' => $this->adminRoute('admin_staff_presence_trainings', ['week' => $prev]),
+            'nextUrl' => $this->adminRoute('admin_staff_presence_trainings', ['week' => $next]),
+            'todayUrl' => $this->adminRoute('admin_staff_presence_trainings', ['week' => $today]),
+            'sections' => $sections,
+            'staffCount' => array_sum(array_map(fn (array $s) => count($s['staff']), $sections)),
+            'days' => $days,
+            'weekAbsence' => $weekAbsence,
+            'customTasks' => $customTasks,
+            'canEdit' => $this->isGranted(StaffScheduleSupervisionVoter::ATTRIBUTE),
+        ]);
     }
 
     /**
-     * Admin toggle : marque un membre du staff comme (non-)disponible pour
-     * UNE journée précise (plutôt que la semaine entière), avec motif
-     * obligatoire à la pose.
+     * Coche / décoche la présence d'un membre du staff sur un créneau.
+     * Réservé à l'entraîneur référent et aux admins.
+     *
+     * POST : _token, week, userId, choice ("s:<slotId>" ou "t:<templateId>"),
+     * present ("1"/"0"). Cocher = scheduled (et retire un éventuel « non
+     * dispo cette semaine », comme côté mobile) ; décocher = unavailable.
      */
     #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
-    #[Route('/admin/staff/supervision/day-unavailable', name: 'admin_staff_supervision_day_unavailable', methods: ['POST'])]
-    public function toggleDayUnavailable(Request $request): RedirectResponse
+    #[Route('/admin/staff/presences/toggle', name: 'admin_staff_presence_toggle', methods: ['POST'])]
+    public function toggle(Request $request): JsonResponse
     {
-        $this->validateCsrf($request, 'staff_presence');
-        $userId = (int) $request->request->get('userId');
-        $week = $this->parseWeek($request->request->get('week'));
-        $dateRaw = (string) $request->request->get('date', '');
-        $action = (string) $request->request->get('action', 'set');
-        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
-
-        $user = $this->users->find($userId);
-        if ($user === null || !$user->isActive()) {
+        if (!$this->isCsrfTokenValid(self::CSRF_INTENT, (string) $request->request->get('_token', ''))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
+        if (!preg_match('/^([st]):(\d+)$/', (string) $request->request->get('choice', ''), $m)) {
             throw $this->createNotFoundException();
         }
-        try {
-            $date = $dateRaw !== '' ? new \DateTimeImmutable($dateRaw) : null;
-        } catch (\Exception) {
-            $date = null;
-        }
-        if ($date === null) {
-            throw $this->createNotFoundException('Date invalide.');
-        }
-
-        if ($action === 'unset') {
-            $this->service->unsetDayUnavailable($user, $date);
-            $this->addFlash('success', sprintf('%s marqué à nouveau disponible le %s.', $user->getFullName(), $date->format('d/m')));
-        } else {
-            $reason = StaffAbsenceReason::tryFrom((string) $request->request->get('reason', ''));
-            if ($reason === null) {
-                $this->addFlash('error', 'Motif requis (maladie, vacances ou déplacement).');
-                return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
-            }
-            $notes = trim((string) $request->request->get('notes', '')) ?: null;
-            $this->service->setDayUnavailable($user, $date, $reason, $notes);
-            $this->addFlash('success', sprintf('%s marqué non-dispo le %s (%s).', $user->getFullName(), $date->format('d/m'), $reason->label()));
-        }
-
-        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
-    }
-
-    /**
-     * Filtre la liste des créneaux de la semaine pour ne garder que ceux
-     * où l'utilisateur n'a pas déjà une présence (slot id ou template id).
-     * Ignore aussi les créneaux annulés (rien à y faire).
-     *
-     * @param list<array<string, mixed>> $slotRows
-     * @param list<\App\Entity\StaffPresence> $userPresences
-     * @return list<array<string, mixed>>
-     */
-    private function computeAvailableSlots(array $slotRows, array $userPresences): array
-    {
-        $takenSlotIds = [];
-        $takenTemplateIds = [];
-        foreach ($userPresences as $p) {
-            $s = $p->getSlot();
-            if ($s === null) continue;
-            $takenSlotIds[$s->getId()] = true;
-            $tpl = $s->getTemplate();
-            if ($tpl !== null) {
-                $takenTemplateIds[$tpl->getId()] = true;
-            }
-        }
-
-        $available = [];
-        foreach ($slotRows as $row) {
-            if (!empty($row['isCancelled'])) continue;
-            if ($row['id'] !== null && isset($takenSlotIds[$row['id']])) continue;
-            if ($row['id'] === null && $row['templateId'] !== null && isset($takenTemplateIds[$row['templateId']])) continue;
-            $available[] = $row;
-        }
-        return $available;
-    }
-
-    /**
-     * Endpoint admin/entraineur : ajoute une présence pour un encadrant
-     * tiers (pas le user connecté). Permet de pré-positionner quelqu'un.
-     */
-    #[Route('/admin/staff/supervision/add', name: 'admin_staff_supervision_add', methods: ['POST'])]
-    public function supervisionAdd(Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-
-        $userId = (int) $request->request->get('userId');
-        $week = $this->parseWeek($request->request->get('week'));
-        $status = (string) $request->request->get('status', StaffPresence::STATUS_SCHEDULED);
-        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
-
-        // slotChoice encode soit s:<slotId> (créneau persisté), soit t:<templateId>
-        // (créneau virtuel à matérialiser via setForTemplate). Un seul champ
-        // dans le form simplifie l'UI et évite la dépendance à du JS inline.
-        $slotId = null;
-        $templateId = null;
-        $choice = (string) $request->request->get('slotChoice', '');
-        if (preg_match('/^s:(\d+)$/', $choice, $m)) {
-            $slotId = (int) $m[1];
-        } elseif (preg_match('/^t:(\d+)$/', $choice, $m)) {
-            $templateId = (int) $m[1];
-        }
-
-        $user = $this->users->find($userId);
-        if ($user === null || !$user->isActive()) {
+        $user = $this->users->find((int) $request->request->get('userId'));
+        if ($user === null || !$user->isActive() || (!$user->isEntraineur() && !$user->isEncadrant())) {
             throw $this->createNotFoundException();
         }
 
-        if ($slotId !== null) {
-            $slot = $this->slots->find($slotId);
+        $present = $request->request->get('present') === '1';
+        $status = $present ? StaffPresence::STATUS_SCHEDULED : StaffPresence::STATUS_UNAVAILABLE;
+
+        if ($m[1] === 's') {
+            $slot = $this->slots->find((int) $m[2]);
             if ($slot === null) {
                 throw $this->createNotFoundException();
+            }
+            if ($slot->isCancelled()) {
+                return new JsonResponse(['error' => 'Créneau annulé.'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
             $this->service->setForSlot($user, $slot, $status);
-        } elseif ($templateId !== null) {
-            $template = $this->templates->find($templateId);
+            $monday = $slot->getWeekStartsAt();
+        } else {
+            $template = $this->templates->find((int) $m[2]);
             if ($template === null) {
                 throw $this->createNotFoundException();
             }
-            $this->service->setForTemplate($user, $template, $week, $status);
-        } else {
-            throw $this->createNotFoundException();
-        }
-        $this->em->flush();
-
-        $this->addFlash('success', sprintf('Présence ajoutée pour %s.', $user->getFullName()));
-        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
-    }
-
-    /**
-     * Endpoint d'édition rapide : un admin/entraineur change le statut d'une
-     * présence existante (utilisé depuis la page supervision).
-     */
-    #[Route('/admin/staff/supervision/update/{id}', name: 'admin_staff_supervision_update', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function supervisionUpdate(int $id, Request $request): RedirectResponse
-    {
-        $this->validateCsrf($request, 'staff_presence');
-        $presence = $this->presences->find($id);
-        if ($presence === null) {
-            throw $this->createNotFoundException();
+            $monday = $this->parseWeek($request->request->get('week'));
+            $this->service->setForTemplate($user, $template, $monday, $status);
         }
 
-        $action = (string) $request->request->get('action', 'set');
-        $week = $presence->getWeekStartsAt();
-        $back = (string) $request->request->get('back', 'admin_staff_supervision_encadrants');
-
-        if ($action === 'remove') {
-            $this->em->remove($presence);
-        } else {
-            $status = (string) $request->request->get('status', StaffPresence::STATUS_SCHEDULED);
-            if (in_array($status, StaffPresence::STATUSES, true)) {
-                $presence->setStatus($status);
+        if ($present) {
+            $weekAbsence = $this->unavailabilities->findOneByUserAndWeek($user, $monday);
+            if ($weekAbsence !== null) {
+                $this->em->remove($weekAbsence);
             }
         }
         $this->em->flush();
 
-        $this->addFlash('success', 'Présence mise à jour.');
-        return $this->redirectToRoute($back, ['week' => $week->format('Y-m-d')]);
+        return new JsonResponse(['present' => $present]);
     }
 
-    // ============================================================
-    //   Helpers
-    // ============================================================
+    /** URL vers une route admin custom en gardant le contexte EasyAdmin (menu, layout). */
+    private function adminRoute(string $routeName, array $params = []): string
+    {
+        return $this->adminUrlGenerator
+            ->unsetAll()
+            ->setRoute($routeName, $params)
+            ->generateUrl();
+    }
 
     private function parseWeek(?string $raw): \DateTimeImmutable
     {
@@ -552,23 +235,6 @@ class StaffPresenceController extends AbstractController
             $d = new \DateTimeImmutable('today');
         }
         return WeeklyScheduleService::snapToMonday($d);
-    }
-
-    private function intOrNull(mixed $v): ?int
-    {
-        if ($v === null || $v === '' || $v === '0') {
-            return null;
-        }
-        $i = (int) $v;
-        return $i > 0 ? $i : null;
-    }
-
-    private function validateCsrf(Request $request, string $intent): void
-    {
-        $token = (string) $request->request->get('_token', '');
-        if (!$this->isCsrfTokenValid($intent, $token)) {
-            throw $this->createAccessDeniedException('CSRF invalide.');
-        }
     }
 
     private function humanWeekLabel(\DateTimeImmutable $monday): string

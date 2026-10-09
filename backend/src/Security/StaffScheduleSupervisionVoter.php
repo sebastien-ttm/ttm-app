@@ -7,10 +7,12 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
- * Attribut `STAFF_SCHEDULE_SUPERVISION` (voir StaffPresenceController)
- * : ouvre la page backend « Emploi du temps entraîneurs » aux seuls
- * entraîneurs explicitement désignés gestionnaires (ou aux admins),
- * pas à tous les comptes ROLE_ENTRAINEUR.
+ * Attribut `STAFF_SCHEDULE_SUPERVISION` : réservé à l'entraîneur référent
+ * (case « Entraîneur référent » de la fiche adhérent) et aux admins, pas
+ * à tous les comptes ROLE_ENTRAINEUR. Autorise à modifier les présences
+ * du staff dans « Présence entraînements » (les autres entraîneurs
+ * la voient en lecture seule) et à éditer les « Semaines types
+ * entraîneurs ».
  */
 class StaffScheduleSupervisionVoter extends Voter
 {

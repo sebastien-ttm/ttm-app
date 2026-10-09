@@ -152,9 +152,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
             ],
             'Présences staff' => [
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Mes présences', 'fa fa-user-check', 'admin_staff_my_presences')],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présences encadrants', 'fa fa-people-group', 'admin_staff_supervision_encadrants')],
-                [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Emploi du temps entraîneurs', 'fa fa-chalkboard-user', 'admin_staff_supervision_entraineurs')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présence entraînements', 'fa fa-people-group', 'admin_staff_presence_trainings')],
                 [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Semaines types entraîneurs', 'fa fa-table-cells', 'admin_staff_templates')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
             ],

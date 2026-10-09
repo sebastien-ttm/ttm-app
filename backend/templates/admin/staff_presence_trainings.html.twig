@@ -1,0 +1,211 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Présence entraînements{% endblock %}
+{% block content_title %}🏊 Présence entraînements — {{ weekHuman }}{% endblock %}
+
+{% block main %}
+    {% set totalCols = staffCount + 3 %}
+
+    <style>
+        .pt-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+        .pt-help { color:#475569; margin-bottom:12px; font-size:13px; }
+        .pt-wrap { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:auto; max-height:78vh; margin-bottom:20px; }
+        .pt-table { border-collapse:separate; border-spacing:0; font-size:13px; }
+        .pt-table th, .pt-table td { padding:6px 8px; border-bottom:1px solid #f1f5f9; white-space:nowrap; }
+
+        .pt-table thead th { position:sticky; z-index:2; background:#f8fafc; text-align:center; font-weight:600; }
+        .pt-table thead tr.pt-h1 th { top:0; height:34px; }
+        .pt-table thead tr.pt-h2 th { top:34px; border-bottom:2px solid #94a3b8; }
+        .pt-table thead th.pt-sec-entraineur { background:#0d2148; color:#fff; }
+        .pt-table thead th.pt-sec-encadrant { background:#dc2626; color:#fff; }
+        .pt-sec-start { border-left:2px solid #94a3b8; }
+
+        .pt-slot { position:sticky; left:0; z-index:1; background:#fff; width:250px; min-width:250px; max-width:250px; white-space:normal !important; text-align:left; }
+        .pt-c1 { position:sticky; left:250px; z-index:1; background:#fff; width:54px; min-width:54px; text-align:center; }
+        .pt-c2 { position:sticky; left:304px; z-index:1; background:#fff; width:54px; min-width:54px; text-align:center; border-right:2px solid #94a3b8; }
+        .pt-table thead th.pt-slot, .pt-table thead th.pt-c1, .pt-table thead th.pt-c2 { z-index:4; background:#f8fafc; }
+        .pt-slot strong { color:#0d2148; }
+        .pt-slot small { display:block; color:#64748b; }
+
+        .pt-day td { background:#0d2148; color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; font-size:12px; padding:6px 10px; }
+        .pt-day-label { position:sticky; left:10px; display:inline-block; }
+
+        .pt-cell { text-align:center; min-width:76px; }
+        .pt-cell.on { background:#dcfce7; }
+        .pt-cell label { margin:0; cursor:pointer; }
+        .pt-cell input { width:20px; height:20px; cursor:pointer; accent-color:#16a34a; vertical-align:middle; }
+        .pt-cell input:disabled { cursor:default; }
+        .pt-cell.saving { background:#fef3c7; }
+        .pt-cell.error { background:#fee2e2; }
+        .pt-reason { margin-left:2px; font-size:14px; }
+        .pt-weekabs { font-weight:400; font-size:14px; }
+
+        .pt-count { font-weight:700; }
+        .pt-count.zero { color:#cbd5e1; }
+        .pt-count.zero-alert { color:#b91c1c; }
+        /* Pas d'opacité sur les colonnes figées : les cases défileraient « à travers ». */
+        tr.pt-cancelled td:not(.pt-slot):not(.pt-c1):not(.pt-c2) { opacity:.45; }
+        tr.pt-cancelled .pt-slot, tr.pt-cancelled .pt-slot strong { color:#94a3b8; }
+        .pt-table thead th.pt-sec-entraineur, .pt-table thead th.pt-sec-encadrant { text-align:left; padding-left:10px; }
+        /* Le nom de la section reste visible (à droite des colonnes figées) quand on défile. */
+        .pt-sec-label { position:sticky; left:370px; display:inline-block; }
+    </style>
+
+    <div class="pt-nav">
+        <a href="{{ prevUrl }}" class="btn btn-secondary">← Semaine précédente</a>
+        <a href="{{ todayUrl }}" class="btn btn-secondary">Aujourd'hui</a>
+        <a href="{{ nextUrl }}" class="btn btn-secondary">Semaine suivante →</a>
+    </div>
+
+    {% if canEdit %}
+        <p class="pt-help">
+            Case cochée = présent. Les valeurs viennent de ce que chacun a saisi sur le mobile ; en tant
+            qu'entraîneur référent (ou admin) vous pouvez les modifier, chaque clic est enregistré tout de suite.
+            Les icônes 🤒 🏖️ 🚗 indiquent une absence déclarée avec son motif.
+        </p>
+    {% else %}
+        <div class="alert alert-info">
+            Lecture seule : les présences sont celles saisies par chacun sur le mobile. Seuls l'entraîneur
+            référent et les administrateurs peuvent les modifier ici.
+        </div>
+    {% endif %}
+
+    {% if sections is empty %}
+        <div class="alert alert-warning">
+            Aucun entraîneur ni encadrant actif. Les profils « Entraîneur » / « Encadrant » se posent sur la fiche adhérent.
+        </div>
+    {% elseif days is empty %}
+        <div class="alert alert-warning">Aucun créneau cette semaine.</div>
+    {% else %}
+        <div class="pt-wrap">
+            <table class="pt-table">
+                <thead>
+                    <tr class="pt-h1">
+                        <th class="pt-slot" rowspan="2">Créneau</th>
+                        <th class="pt-c1" rowspan="2" title="Entraîneurs présents">Entr.</th>
+                        <th class="pt-c2" rowspan="2" title="Encadrants présents">Enc.</th>
+                        {% for section in sections %}
+                            <th colspan="{{ section.staff|length }}" class="pt-sec-start pt-sec-{{ section.key }}">
+                                <span class="pt-sec-label">{{ section.label }} ({{ section.staff|length }})</span>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="pt-h2">
+                        {% for section in sections %}
+                            {% for m in section.staff %}
+                                <th class="{{ loop.first ? 'pt-sec-start' : '' }}" title="{{ m.fullName }}">
+                                    {{ m.prenom }}<br><small style="font-weight:400;">{{ m.nom|upper }}</small>
+                                    {% if weekAbsence[m.id] is defined %}
+                                        {% set wa = weekAbsence[m.id] %}
+                                        <div class="pt-weekabs" title="Non dispo cette semaine{% if wa.reason %} — {{ wa.reason.label }}{% endif %}">{{ wa.reason ? wa.reason.icon : '❌' }}</div>
+                                    {% endif %}
+                                </th>
+                            {% endfor %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in days %}
+                        <tr class="pt-day"><td colspan="{{ totalCols }}"><span class="pt-day-label">{{ day.label }}</span></td></tr>
+                        {% for row in day.rows %}
+                            <tr class="{{ row.isCancelled ? 'pt-cancelled' : '' }}" data-choice="{{ row.choice }}">
+                                <td class="pt-slot">
+                                    <strong>{{ row.startTime }}–{{ row.endTime }}</strong> {{ row.sportIcon }} {{ row.title }}
+                                    {% if row.isCancelled %}<span class="badge bg-danger">annulé</span>{% endif %}
+                                    {% if row.isOccasional %}<span class="badge bg-info">ponctuel</span>{% endif %}
+                                    {% if row.location %}<small>{{ row.location }}</small>{% endif %}
+                                </td>
+                                {% if row.isCancelled %}
+                                    <td class="pt-c1 pt-count zero">—</td>
+                                    <td class="pt-c2 pt-count zero">—</td>
+                                {% else %}
+                                    <td class="pt-c1 pt-count {{ row.counts.entraineur == 0 ? 'zero-alert' : '' }}" data-count="entraineur">{{ row.counts.entraineur }}</td>
+                                    <td class="pt-c2 pt-count {{ row.counts.encadrant == 0 ? 'zero' : '' }}" data-count="encadrant">{{ row.counts.encadrant }}</td>
+                                {% endif %}
+                                {% for section in sections %}
+                                    {% for m in section.staff %}
+                                        {% set c = row.cells[m.id] %}
+                                        <td class="pt-cell{{ c.present ? ' on' : '' }}{{ loop.first ? ' pt-sec-start' : '' }}">
+                                            <label title="{{ m.fullName }} — {{ day.label }} {{ row.startTime }}{% if c.absent and not c.present %} — non dispo{% if c.reason %} ({{ c.reason.label }}){% endif %}{% endif %}">
+                                                <input type="checkbox" data-user="{{ m.id }}" data-section="{{ section.key }}"
+                                                       aria-label="{{ m.fullName }} — {{ day.label }} {{ row.startTime }}"
+                                                       {{ c.present ? 'checked' }}
+                                                       {{ (canEdit and not row.isCancelled) ? '' : 'disabled' }}>
+                                                {% if c.absent and not c.present %}<span class="pt-reason">{{ c.reason ? c.reason.icon : '❌' }}</span>{% endif %}
+                                            </label>
+                                        </td>
+                                    {% endfor %}
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% if customTasks|length > 0 %}
+        <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            <strong style="color:#0d2148;">📋 Tâches hors entraînement cette semaine</strong>
+            <ul style="margin:8px 0 0; padding-left:18px; font-size:13px;">
+                {% for t in customTasks %}
+                    <li>{{ t.date|date('d/m') }} {{ t.startTime|date('H:i') }} · <strong>{{ t.user.fullName }}</strong> — {{ t.title }}{% if t.status == 'unavailable' %} <em>(non dispo)</em>{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {% if canEdit %}
+        <script>
+        (function () {
+            const token = {{ csrf_token('staff_presence_matrix')|json_encode|raw }};
+            const url = {{ path('admin_staff_presence_toggle')|json_encode|raw }};
+            const week = {{ week|date('Y-m-d')|json_encode|raw }};
+
+            function recount(row) {
+                ['entraineur', 'encadrant'].forEach(section => {
+                    const cell = row.querySelector('[data-count="' + section + '"]');
+                    if (!cell) return;
+                    const n = row.querySelectorAll('.pt-cell input[data-section="' + section + '"]:checked').length;
+                    cell.textContent = n;
+                    cell.classList.toggle('zero-alert', section === 'entraineur' && n === 0);
+                    cell.classList.toggle('zero', section === 'encadrant' && n === 0);
+                });
+            }
+
+            document.querySelectorAll('.pt-cell input:not([disabled])').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const cell = input.closest('td');
+                    const row = input.closest('tr');
+                    cell.classList.remove('error');
+                    cell.classList.add('saving');
+                    input.disabled = true;
+                    try {
+                        const body = new URLSearchParams({
+                            _token: token,
+                            week: week,
+                            userId: input.dataset.user,
+                            choice: row.dataset.choice,
+                            present: input.checked ? '1' : '0',
+                        });
+                        const res = await fetch(url, { method: 'POST', body });
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        cell.classList.toggle('on', input.checked);
+                        // Choix manuel : l'icône d'absence déclarée n'a plus lieu d'être sur cette case.
+                        const reason = cell.querySelector('.pt-reason');
+                        if (reason) reason.remove();
+                        recount(row);
+                    } catch (e) {
+                        input.checked = !input.checked;
+                        cell.classList.add('error');
+                        alert('Enregistrement impossible (' + e.message + '). Rechargez la page et réessayez.');
+                    } finally {
+                        cell.classList.remove('saving');
+                        input.disabled = false;
+                    }
+                });
+            });
+        })();
+        </script>
+    {% endif %}
+{% endblock %}

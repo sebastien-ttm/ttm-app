@@ -96,9 +96,7 @@ class StaffPresenceService
      * ce créneau (y compris une indisponibilité explicite) et retirant
      * le marqueur d'indisponibilité globale de la semaine.
      *
-     * Partagé entre l'API mobile (l'user applique sa propre semaine
-     * type) et le backend admin (un admin l'applique pour un membre du
-     * staff qui ne s'est pas positionné lui-même).
+     * Utilisé par l'API mobile (« Appliquer ma semaine type »).
      *
      * @return array{scheduledCount:int, unavailableCount:int}
      * @throws \DomainException si le user n'a aucun créneau configuré dans sa semaine type

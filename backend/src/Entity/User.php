@@ -180,12 +180,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $clubFunction = null;
 
     /**
-     * Accès à la page backend « Emploi du temps entraîneurs » (semaine
-     * type des entraîneurs, motifs d'absence). Indépendant du rôle
-     * ROLE_ENTRAINEUR : un entraîneur "normal" ne voit que « Présences
-     * encadrants » — seul un entraîneur explicitement coché ici (ou un
-     * Administrateur) gère l'emploi du temps de ses collègues. Voir
-     * StaffScheduleSupervisionVoter.
+     * Entraîneur référent : peut modifier les présences du staff dans la
+     * page backend « Présence entraînements » et éditer les « Semaines
+     * types entraîneurs ». Indépendant du rôle ROLE_ENTRAINEUR : un
+     * entraîneur "normal" voit ces pages en lecture seule (ou pas du
+     * tout pour les semaines types) — seul un entraîneur coché ici (ou un
+     * Administrateur) peut les modifier. Voir StaffScheduleSupervisionVoter.
      */
     #[ORM\Column(options: ['default' => false])]
     private bool $canManageTrainerSchedule = false;

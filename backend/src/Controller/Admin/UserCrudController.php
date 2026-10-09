@@ -181,13 +181,13 @@ class UserCrudController extends AbstractCrudController
                 .'« Administrateur » : tout l\'entraîneur + adhérents, import CSV, charte du club.'
             );
 
-        yield BooleanField::new('canManageTrainerSchedule', 'Gestion entraîneurs')
+        yield BooleanField::new('canManageTrainerSchedule', 'Entraîneur référent')
             ->hideOnIndex()
             ->setHelp(
-                'Donne accès à la page backend « Emploi du temps entraîneurs » (semaine type '
-                .'et motifs d\'absence des entraîneurs). Indépendant du rôle : un compte '
-                .'Entraîneur normal ne voit que « Présences encadrants » sans cette case. '
-                .'Les administrateurs y ont toujours accès.'
+                'Peut modifier les présences du staff dans « Présence entraînements » et éditer '
+                .'les « Semaines types entraîneurs ». Indépendant du rôle : sans cette case, un '
+                .'compte Entraîneur voit « Présence entraînements » en lecture seule. '
+                .'Les administrateurs peuvent toujours tout modifier.'
             );
 
         yield TextField::new('categorieAge', 'Catégorie FFTri')->hideOnIndex();
