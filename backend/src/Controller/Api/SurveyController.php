@@ -3,13 +3,16 @@
 namespace App\Controller\Api;
 
 use App\Entity\Survey;
+use App\Entity\SurveyDismissal;
 use App\Entity\SurveyResponse;
 use App\Entity\User;
+use App\Repository\SurveyDismissalRepository;
 use App\Repository\SurveyRepository;
 use App\Repository\SurveyResponseRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Survey\SurveySchemaValidator;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,6 +35,7 @@ class SurveyController extends AbstractController
     public function __construct(
         private readonly SurveyRepository $surveys,
         private readonly SurveyResponseRepository $responses,
+        private readonly SurveyDismissalRepository $dismissals,
         private readonly SurveySchemaValidator $validator,
         private readonly EntityManagerInterface $em,
         private readonly AudienceFilter $audienceFilter,
@@ -65,9 +69,13 @@ class SurveyController extends AbstractController
         $rows = $this->surveys->findOpenFor($user);
         $ids = array_map(fn (Survey $s) => (int) $s->getId(), $rows);
         $answered = $this->responses->findAnsweredSurveyIds($user, $ids);
+        $dismissed = $this->dismissals->findDismissedSurveyIds($user, $ids);
 
         return new JsonResponse([
-            'data' => array_map(fn (Survey $s) => $this->serializeSummary($s, isset($answered[$s->getId()])), $rows),
+            'data' => array_map(
+                fn (Survey $s) => $this->serializeSummary($s, isset($answered[$s->getId()]), isset($dismissed[$s->getId()])),
+                $rows,
+            ),
         ]);
     }
 
@@ -75,7 +83,8 @@ class SurveyController extends AbstractController
      * Compteur agrégé pour le badge « sondages non répondus » (titre
      * « Sondages en cours » + onglet Contact). Même logique que
      * listOpen(), réduite à un chiffre pour éviter de recharger la
-     * liste complète à chaque poll.
+     * liste complète à chaque poll. Les sondages écartés (« pas
+     * concerné ») ne comptent pas.
      */
     #[Route('/api/me/surveys/unanswered-count', methods: ['GET'])]
     public function unansweredCount(): JsonResponse
@@ -85,8 +94,56 @@ class SurveyController extends AbstractController
         $rows = $this->surveys->findOpenFor($user);
         $ids = array_map(fn (Survey $s) => (int) $s->getId(), $rows);
         $answered = $this->responses->findAnsweredSurveyIds($user, $ids);
+        $dismissed = $this->dismissals->findDismissedSurveyIds($user, $ids);
 
-        return new JsonResponse(['count' => count($ids) - count($answered)]);
+        $pending = array_filter($ids, fn (int $id) => !isset($answered[$id]) && !isset($dismissed[$id]));
+
+        return new JsonResponse(['count' => count($pending)]);
+    }
+
+    /**
+     * « Pas concerné » : coche le sondage sans y répondre (il sort du
+     * compteur). Idempotent. Refusé si le user a déjà répondu — la
+     * réponse fait déjà foi.
+     */
+    #[Route('/api/me/surveys/{id}/dismissal', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function dismiss(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $survey = $this->findVisibleOr404($id, $user);
+
+        if ($this->responses->findOneByUserAndSurvey($user, $survey) !== null) {
+            return new JsonResponse(['error' => 'Vous avez déjà répondu à ce sondage.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($this->dismissals->findOneByUserAndSurvey($user, $survey) === null) {
+            $this->em->persist(new SurveyDismissal($user, $survey));
+            try {
+                $this->em->flush();
+            } catch (UniqueConstraintViolationException) {
+                // Double appui : la ligne existe déjà, c'est l'état voulu.
+            }
+        }
+
+        return new JsonResponse(['dismissed' => true]);
+    }
+
+    /** Annule le « pas concerné » : le sondage redevient à traiter. Idempotent. */
+    #[Route('/api/me/surveys/{id}/dismissal', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function undismiss(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $survey = $this->findVisibleOr404($id, $user);
+
+        $existing = $this->dismissals->findOneByUserAndSurvey($user, $survey);
+        if ($existing !== null) {
+            $this->em->remove($existing);
+            $this->em->flush();
+        }
+
+        return new JsonResponse(['dismissed' => false]);
     }
 
     #[Route('/api/me/surveys/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
@@ -127,6 +184,13 @@ class SurveyController extends AbstractController
             $this->em->persist($existing);
         }
 
+        // Répondre l'emporte sur « pas concerné » : on retire la coche
+        // manuelle, la réponse suffit à marquer le sondage comme traité.
+        $dismissal = $this->dismissals->findOneByUserAndSurvey($user, $survey);
+        if ($dismissal !== null) {
+            $this->em->remove($dismissal);
+        }
+
         // Rattachement automatique aux groupes : chaque question du
         // schéma qui déclare un `groupTarget` peut ajouter (ou retirer)
         // le user d'un groupe selon que la réponse matche le trigger.
@@ -140,7 +204,7 @@ class SurveyController extends AbstractController
     /**
      * @return array<string, mixed>
      */
-    private function serializeSummary(Survey $s, bool $answered): array
+    private function serializeSummary(Survey $s, bool $answered, bool $dismissed): array
     {
         return [
             'id' => $s->getId(),
@@ -150,6 +214,8 @@ class SurveyController extends AbstractController
             'closesAt' => $s->getClosesAt()?->format(\DATE_ATOM),
             'sectionCount' => count($s->getSections() ?? []),
             'answered' => $answered,
+            // Coche « pas concerné » posée par l'adhérent (sans réponse).
+            'dismissed' => !$answered && $dismissed,
         ];
     }
 

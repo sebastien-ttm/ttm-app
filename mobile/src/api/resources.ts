@@ -242,8 +242,12 @@ export const surveys = {
   /** Soumission ou mise à jour (upsert). */
   submit: (id: number, answers: SurveyAnswers) =>
     api.post<Survey>(`/api/me/surveys/${id}/response`, { answers }),
-  /** Compteur pour le badge « non répondus » (titre + onglet Contact). */
+  /** Compteur pour le badge « non répondus » (titre + onglet Contact) — hors sondages écartés. */
   unansweredCount: () => api.get<{ count: number }>('/api/me/surveys/unanswered-count'),
+  /** « Pas concerné » : coche le sondage sans y répondre (il sort du compteur). */
+  dismiss: (id: number) => api.put<{ dismissed: boolean }>(`/api/me/surveys/${id}/dismissal`),
+  /** Annule le « pas concerné ». */
+  undismiss: (id: number) => api.delete<{ dismissed: boolean }>(`/api/me/surveys/${id}/dismissal`),
 };
 
 export const notices = {

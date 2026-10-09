@@ -101,10 +101,33 @@ export default function ContactScreen() {
   useFocusEffect(useCallback(() => { void loadNewCounts(); }, [loadNewCounts]));
   useRefreshOnResume(() => { void loadNewCounts(); });
 
+  // Les sondages cochés « pas concerné » ne comptent pas, pas plus que
+  // ceux auxquels on a répondu (même règle que le compteur serveur).
   const unansweredSurveysCount = useMemo(
-    () => openSurveys.filter((s) => !s.answered).length,
+    () => openSurveys.filter((s) => !s.answered && !s.dismissed).length,
     [openSurveys],
   );
+
+  const [togglingSurveyId, setTogglingSurveyId] = useState<number | null>(null);
+
+  /** Pose / retire la coche « pas concerné » d'un sondage sans réponse. */
+  async function toggleSurveyDismissed(s: SurveySummary) {
+    if (togglingSurveyId !== null) return;
+    const next = !s.dismissed;
+    setTogglingSurveyId(s.id);
+    // Optimiste : la coche et le compteur bougent tout de suite.
+    setOpenSurveys((list) => list.map((x) => (x.id === s.id ? { ...x, dismissed: next } : x)));
+    try {
+      if (next) await surveysApi.dismiss(s.id);
+      else await surveysApi.undismiss(s.id);
+      void refreshUnansweredSurveys();
+    } catch (e) {
+      setOpenSurveys((list) => list.map((x) => (x.id === s.id ? { ...x, dismissed: s.dismissed } : x)));
+      showError(e);
+    } finally {
+      setTogglingSurveyId(null);
+    }
+  }
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -259,26 +282,55 @@ export default function ContactScreen() {
                   </View>
                 )}
               </View>
-              {openSurveys.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => router.push(('/survey/' + s.id) as never)}
-                  style={({ pressed }) => [styles.surveyCard, pressed && { opacity: 0.75 }, s.answered && styles.surveyCardDone]}
-                >
-                  <View style={styles.surveyIconWrap}>
-                    <Text style={{ fontSize: 20 }}>{s.answered ? '✅' : '📝'}</Text>
+              {openSurveys.map((s) => {
+                const openSurvey = () => router.push(('/survey/' + s.id) as never);
+                return (
+                  // Deux zones sœurs (pas de Pressable imbriqué) : l'icône à
+                  // gauche pose/retire « pas concerné » tant qu'on n'a pas
+                  // répondu ; le reste de la carte ouvre le sondage.
+                  <View
+                    key={s.id}
+                    style={[styles.surveyCard, s.answered && styles.surveyCardDone, s.dismissed && styles.surveyCardDismissed]}
+                  >
+                    <Pressable
+                      onPress={s.answered ? openSurvey : () => void toggleSurveyDismissed(s)}
+                      disabled={togglingSurveyId === s.id}
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.surveyIconWrap, s.dismissed && styles.surveyIconWrapDismissed, pressed && { opacity: 0.6 }]}
+                      accessibilityRole={s.answered ? 'button' : 'checkbox'}
+                      accessibilityState={s.answered ? undefined : { checked: s.dismissed }}
+                      accessibilityLabel={
+                        s.answered
+                          ? 'Ouvrir le sondage'
+                          : s.dismissed
+                            ? 'Non concerné(e) — décocher pour remettre le sondage à traiter'
+                            : 'Cocher si vous n\'êtes pas concerné(e) par ce sondage'
+                      }
+                    >
+                      {s.dismissed ? (
+                        <Ionicons name="checkmark-circle" size={24} color={COLORS.textMuted} />
+                      ) : (
+                        <Text style={{ fontSize: 20 }}>{s.answered ? '✅' : '📝'}</Text>
+                      )}
+                    </Pressable>
+                    <Pressable onPress={openSurvey} style={({ pressed }) => [styles.surveyCardBody, pressed && { opacity: 0.75 }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.surveyCardTitle}>{s.title}</Text>
+                        <Text style={styles.surveyCardMeta}>
+                          {s.sectionCount} question{s.sectionCount > 1 ? 's' : ''}
+                          {s.answered
+                            ? ' · Répondu — modifiez si besoin'
+                            : s.dismissed
+                              ? ' · Non concerné(e) — touchez la coche pour annuler'
+                              : ' · Donnez votre avis · Pas concerné(e) ? Touchez le crayon'}
+                          {s.closesAt ? ' · Ferme le ' + new Date(s.closesAt).toLocaleDateString('fr-FR') : ''}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+                    </Pressable>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.surveyCardTitle}>{s.title}</Text>
-                    <Text style={styles.surveyCardMeta}>
-                      {s.sectionCount} question{s.sectionCount > 1 ? 's' : ''}
-                      {s.answered ? ' · Répondu — modifiez si besoin' : ' · Donnez votre avis'}
-                      {s.closesAt ? ' · Ferme le ' + new Date(s.closesAt).toLocaleDateString('fr-FR') : ''}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-                </Pressable>
-              ))}
+                );
+              })}
             </View>
           )}
 
@@ -688,6 +740,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   surveyCardDone: { borderLeftColor: '#16a34a', opacity: 0.85 },
+  surveyCardDismissed: { borderLeftColor: '#9ca3af', opacity: 0.75 },
+  surveyCardBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   marketCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -723,6 +777,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ede9fe',
     alignItems: 'center', justifyContent: 'center',
   },
+  surveyIconWrapDismissed: { backgroundColor: '#e5e7eb' },
   surveyCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   surveyCardMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
   tabs: {

@@ -233,6 +233,8 @@ export type SurveySummary = {
   sectionCount: number;
   /** True si le viewer a déjà répondu (au moins une fois). */
   answered: boolean;
+  /** True si le viewer a coché « pas concerné » sans répondre (exclu du compteur). */
+  dismissed: boolean;
 };
 
 /** Détail complet + éventuelle réponse existante du viewer. */
