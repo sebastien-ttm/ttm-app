@@ -30,6 +30,9 @@
 
         .pt-day td { background:#0d2148; color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; font-size:12px; padding:6px 10px; }
         .pt-day-label { position:sticky; left:10px; display:inline-block; }
+        .pt-names td { background:#f8fafc; font-weight:600; font-size:12px; text-align:center; min-width:76px; border-bottom:2px solid #94a3b8; }
+        .pt-names td.pt-slot, .pt-names td.pt-c1, .pt-names td.pt-c2 { background:#f8fafc; }
+        .pt-names small { font-weight:400; }
 
         .pt-cell { text-align:center; min-width:76px; }
         .pt-cell.on { background:#dcfce7; }
@@ -108,6 +111,22 @@
                 <tbody>
                     {% for day in days %}
                         <tr class="pt-day"><td colspan="{{ totalCols }}"><span class="pt-day-label">{{ day.label }}</span></td></tr>
+                        {# Les noms sont répétés sous chaque jour (les en-têtes ne sont pas figés) ;
+                           le premier jour suit directement l'en-tête du tableau. #}
+                        {% if not loop.first %}
+                            <tr class="pt-names">
+                                <td class="pt-slot"></td>
+                                <td class="pt-c1">Entr.</td>
+                                <td class="pt-c2">Enc.</td>
+                                {% for section in sections %}
+                                    {% for m in section.staff %}
+                                        <td class="pt-nm{{ loop.first ? ' pt-sec-start' : '' }}" title="{{ m.fullName }}">
+                                            {{ m.prenom }}<br><small>{{ m.nom|upper }}</small>
+                                        </td>
+                                    {% endfor %}
+                                {% endfor %}
+                            </tr>
+                        {% endif %}
                         {% for row in day.rows %}
                             <tr class="{{ row.isCancelled ? 'pt-cancelled' : '' }}" data-choice="{{ row.choice }}">
                                 <td class="pt-slot">
