@@ -3,13 +3,15 @@
 {% block content_title %}Résultats · {{ survey.title }}{% endblock %}
 
 {% block main %}
+    {% set groups = matrix.groups %}
+
     <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
             <div>
                 <h3 style="margin:0;">{{ survey.title }}</h3>
                 <p style="margin:6px 0 0 0; color:#666;">
                     <strong style="color:#1d4ed8;">{{ responseCount }}</strong> réponse(s) reçue(s)
-                    · <strong>{{ sections|length }}</strong> section(s)
+                    · <strong>{{ groups|length }}</strong> section(s)
                     {% if survey.closesAt %}
                         · Ferme le {{ survey.closesAt|date('d/m/Y H:i') }}
                     {% endif %}
@@ -23,64 +25,7 @@
         </div>
     </div>
 
-    {% if respondents|length > 0 %}
-        {# Table rapide : QUI a répondu, quand. #}
-        <details style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;" open>
-            <summary style="cursor:pointer; font-weight:700; color:#0d2148;">
-                👥 Répondants ({{ respondents|length }})
-            </summary>
-            <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:12px;">
-                <thead>
-                    <tr style="background:#f5f5f5;">
-                        <th style="padding:6px 8px; text-align:left;">Adhérent</th>
-                        <th style="padding:6px 8px; text-align:left; white-space:nowrap;">N° licence</th>
-                        <th style="padding:6px 8px; text-align:left;">Email</th>
-                        <th style="padding:6px 8px; text-align:left; white-space:nowrap;">Répondu le</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in respondents %}
-                        <tr style="border-bottom:1px solid #eee;">
-                            <td style="padding:6px 8px;">{{ r.fullName }}</td>
-                            <td style="padding:6px 8px; font-family:monospace; color:#555;">{{ r.numLicence ?? '—' }}</td>
-                            <td style="padding:6px 8px; color:#555;">{{ r.email ?? '—' }}</td>
-                            <td style="padding:6px 8px; white-space:nowrap;">{{ r.at|date('d/m/Y H:i') }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </details>
-
-        {# Vue détaillée : QUI a répondu QUOI, question par question. #}
-        <details style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
-            <summary style="cursor:pointer; font-weight:700; color:#0d2148;">
-                📝 Réponses détaillées par adhérent
-            </summary>
-            <div style="margin-top:12px;">
-                {% for r in respondents %}
-                    <div style="border:1px solid #e5e7eb; border-radius:6px; padding:12px 14px; margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:8px;">
-                            <strong style="color:#0d2148; font-size:14px;">{{ r.fullName }}</strong>
-                            <span style="color:#888; font-size:11px; white-space:nowrap;">
-                                {% if r.numLicence %}<span style="font-family:monospace;">{{ r.numLicence }}</span> · {% endif %}
-                                {{ r.at|date('d/m/Y H:i') }}
-                            </span>
-                        </div>
-                        <dl style="margin:0; font-size:13px;">
-                            {% for d in r.details %}
-                                <dt style="color:#555; font-weight:600; margin-top:6px;">{{ d.label }}</dt>
-                                <dd style="margin:2px 0 0 12px; color:{{ d.answer is null ? '#bbb' : '#222' }}; white-space:pre-wrap;">
-                                    {{ d.answer ?? '— (sans réponse)' }}
-                                </dd>
-                            {% endfor %}
-                        </dl>
-                    </div>
-                {% endfor %}
-            </div>
-        </details>
-    {% endif %}
-
-    {% if sections|length == 0 %}
+    {% if groups|length == 0 %}
         <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
             Ce sondage ne contient pas de section. Ajoutez-en dans son édition.
         </div>
@@ -89,50 +34,104 @@
             Aucune réponse pour l'instant.
         </div>
     {% else %}
-        {% for s in sections %}
-            <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;">
-                    <h4 style="margin:0;">{{ s.label }}</h4>
-                    <span style="color:#888; font-size:12px;">{{ s.typeLabel }} · {{ s.count }} réponse(s)</span>
-                </div>
-                {% if s.help %}
-                    <p style="margin:4px 0 12px 0; color:#666; font-size:13px;">{{ s.help }}</p>
-                {% else %}
-                    <div style="margin-bottom:12px;"></div>
-                {% endif %}
+        <style>
+            .svm { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+            .svm th, .svm td { padding: 6px 8px; border-bottom: 1px solid #eee; background: #fff; }
+            .svm .gstart { border-left: 2px solid #94a3b8; }
+            .svm .g0 { background: #eef2ff !important; }
+            .svm .g1 { background: #ecfdf5 !important; }
 
-                {% if s.type == 'short_text' or s.type == 'long_text' %}
-                    {% if s.texts|length == 0 %}
-                        <p style="color:#999; font-style:italic; margin:0;">Aucune réponse textuelle.</p>
-                    {% else %}
-                        <ul style="list-style:none; padding:0; margin:0;">
-                            {% for t in s.texts %}
-                                <li style="padding:10px; border-left:3px solid #1d4ed8; background:#f8f9fc; margin-bottom:6px; border-radius:4px;">
-                                    <div style="white-space:pre-wrap; color:#222;">{{ t.value }}</div>
-                                    <div style="color:#888; font-size:11px; margin-top:6px;">
-                                        — {{ t.user }} · {{ t.updatedAt|date('d/m/Y H:i') }}
-                                    </div>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-                {% else %}
-                    {# choix unique ou multiple : histogramme #}
-                    <div style="display:flex; flex-direction:column; gap:6px;">
-                        {% for t in s.tallies %}
-                            <div>
-                                <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:2px;">
-                                    <span>{{ t.option }}</span>
-                                    <span style="color:#666;">{{ t.count }} ({{ t.percent }}%)</span>
-                                </div>
-                                <div style="background:#eee; height:12px; border-radius:6px; overflow:hidden;">
-                                    <div style="background:#1d4ed8; height:100%; width:{{ t.percent }}%;"></div>
-                                </div>
-                            </div>
+            .svm thead th { position: sticky; z-index: 2; background: #f5f5f5; text-align: center; vertical-align: middle; }
+            .svm thead tr.svm-groups th { top: 0; height: 61px; border-bottom: 1px solid #d4d4d8; }
+            .svm thead tr.svm-options th { top: 61px; font-size: 12px; font-weight: 600; border-bottom: 2px solid #94a3b8; }
+            .svm .svm-label { max-height: 48px; line-height: 16px; overflow: hidden; font-weight: 700; color: #0d2148; }
+
+            .svm .svm-sticky { position: sticky; left: 0; z-index: 4 !important; text-align: left; border-right: 1px solid #d4d4d8; min-width: 190px; }
+            .svm td.svm-name { position: sticky; left: 0; z-index: 1; border-right: 1px solid #d4d4d8; min-width: 190px; }
+            .svm td.svm-date { white-space: nowrap; color: #555; }
+            .svm td.svm-text { min-width: 220px; max-width: 380px; white-space: pre-wrap; text-align: left; vertical-align: top; }
+            .svm td.on { background: #dbeafe; color: #1d4ed8; font-weight: 700; text-align: center; }
+            .svm td.off { color: #cbd5e1; text-align: center; }
+            .svm tbody tr:hover td:not(.on) { background: #f8fafc; }
+
+            .svm tfoot th, .svm tfoot td { position: sticky; bottom: 0; z-index: 2; background: #f1f5f9; font-weight: 700; text-align: center; border-top: 2px solid #94a3b8; border-bottom: 0; }
+            .svm tfoot th.svm-sticky { text-align: left; }
+        </style>
+
+        <p style="margin:0 0 8px 0; color:#666; font-size:12px;">
+            ☑ choisi · ☐ non choisi. Le total en pied de colonne compte les cases cochées ; les sections
+            à saisie libre n'ont pas de total.
+        </p>
+
+        <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:auto; max-height:78vh; margin-bottom:20px;">
+            <table class="svm">
+                <thead>
+                    {# Ligne 1 : une cellule de regroupement par section (= question). #}
+                    <tr class="svm-groups">
+                        <th rowspan="2" class="svm-sticky">Adhérent</th>
+                        <th rowspan="2" style="white-space:nowrap;">Répondu le</th>
+                        {% for g in groups %}
+                            <th colspan="{{ g.isText ? 1 : g.options|length }}" class="gstart g{{ loop.index0 % 2 }}">
+                                <div class="svm-label" title="{{ g.label }}">{{ g.label }}</div>
+                            </th>
                         {% endfor %}
-                    </div>
-                {% endif %}
-            </div>
-        {% endfor %}
+                    </tr>
+                    {# Ligne 2 : une colonne par option (ou « Réponse » pour une saisie libre). #}
+                    <tr class="svm-options">
+                        {% for g in groups %}
+                            {% set gi = loop.index0 %}
+                            {% if g.isText %}
+                                <th class="gstart g{{ gi % 2 }}">Réponse</th>
+                            {% else %}
+                                {% for option in g.options %}
+                                    <th class="{{ loop.first ? 'gstart ' : '' }}g{{ gi % 2 }}" title="{{ option }}">{{ option }}</th>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in matrix.rows %}
+                        <tr>
+                            <td class="svm-name" title="{{ r.email ?? '' }}">
+                                <strong>{{ r.fullName }}</strong>
+                                {% if r.numLicence %}
+                                    <div style="font-family:monospace; font-size:11px; color:#888;">{{ r.numLicence }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="svm-date">{{ r.at|date('d/m/Y H:i') }}</td>
+                            {% for g in groups %}
+                                {% set cell = r.cells[loop.index0] %}
+                                {% if g.isText %}
+                                    <td class="gstart svm-text">
+                                        {% if cell is null %}<span style="color:#bbb;">—</span>{% else %}{{ cell }}{% endif %}
+                                    </td>
+                                {% else %}
+                                    {% for checked in cell %}
+                                        <td class="{{ loop.first ? 'gstart ' : '' }}{{ checked ? 'on' : 'off' }}">{{ checked ? '☑' : '☐' }}</td>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th class="svm-sticky">Total <span style="font-weight:400; color:#666;">({{ responseCount }} répondant{{ responseCount > 1 ? 's' : '' }})</span></th>
+                        <th></th>
+                        {% for g in groups %}
+                            {% set gi = loop.index0 %}
+                            {% if g.isText %}
+                                <td class="gstart"></td>
+                            {% else %}
+                                {% for n in matrix.totals[gi] %}
+                                    <td class="{{ loop.first ? 'gstart' : '' }}">{{ n }}</td>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     {% endif %}
 {% endblock %}

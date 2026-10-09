@@ -15,10 +15,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Vue « résultats » d'un sondage :
- *  - texte : liste des réponses (avec auteur)
- *  - choix unique : histogramme (count par option)
- *  - choix multiple : idem, chaque option comptée indépendamment
+ * Vue « résultats » d'un sondage, sous forme de matrice :
+ *  - une ligne par adhérent ayant répondu ;
+ *  - un groupe de colonnes par section (= question) ;
+ *  - choix unique / multiple : une colonne par option, case cochée ou non,
+ *    avec le comptage global de chaque colonne en pied de tableau ;
+ *  - texte : une seule colonne avec la réponse saisie (pas de comptage).
  */
 #[IsGranted('ROLE_EDITEUR')]
 class SurveyResultsController extends AbstractController
@@ -47,51 +49,11 @@ class SurveyResultsController extends AbstractController
             throw $this->createNotFoundException('Sondage introuvable.');
         }
         $responses = $this->responses->findBySurveyWithUser($survey);
-        $aggregate = $this->aggregate($survey, $responses);
-
-        $sectionsRaw = $survey->getSections() ?? [];
-
-        // Liste des répondants — nom + date de la dernière soumission +
-        // détail de leurs réponses par question, triée du plus récent
-        // au plus ancien. Sert à voir qui a répondu quoi individuellement.
-        $respondents = [];
-        foreach ($responses as $r) {
-            $u = $r->getUser();
-            $answers = $r->getAnswers();
-            $details = [];
-            foreach ($sectionsRaw as $q) {
-                $id = $q['id'] ?? null;
-                if (!is_string($id)) continue;
-                $v = $answers[$id] ?? null;
-                $displayed = null;
-                if (is_array($v)) {
-                    $filtered = array_filter($v, fn ($x) => is_string($x) && $x !== '');
-                    $displayed = $filtered === [] ? null : implode(' · ', $filtered);
-                } elseif (is_string($v) && trim($v) !== '') {
-                    $displayed = $v;
-                } elseif (is_scalar($v)) {
-                    $displayed = (string) $v;
-                }
-                $details[] = [
-                    'label' => $q['label'] ?? $id,
-                    'answer' => $displayed,
-                ];
-            }
-            $respondents[] = [
-                'fullName' => $u->getFullName(),
-                'numLicence' => $u->getNumLicence(),
-                'email' => $u->getEmail(),
-                'at' => $r->getUpdatedAt() ?? $r->getSubmittedAt(),
-                'details' => $details,
-            ];
-        }
-        usort($respondents, fn ($a, $b) => $b['at'] <=> $a['at']);
 
         return $this->render('admin/survey_results.html.twig', [
             'survey' => $survey,
             'responseCount' => count($responses),
-            'sections' => $aggregate,
-            'respondents' => $respondents,
+            'matrix' => $this->buildMatrix($survey, $responses),
             'csvUrl' => $this->adminRoute('admin_survey_results_csv', ['id' => $survey->getId()]),
         ]);
     }
@@ -146,73 +108,85 @@ class SurveyResultsController extends AbstractController
     }
 
     /**
-     * Agrège les réponses par section pour l'affichage :
-     *  - text/textarea → { type, question, texts: [{user, value, updatedAt}], count }
-     *  - single_choice / multi_choice → { type, question, tallies: [{option, count, percent}], count }
+     * Construit la matrice des résultats.
+     *
+     * groups : une entrée par section — { label, typeLabel, isText, options[] }.
+     *          Les sections de choix sans option sont ignorées (rien à cocher).
+     * rows   : une entrée par répondant, triée par nom — { fullName, numLicence,
+     *          email, at, cells[] } où cells[i] correspond à groups[i] :
+     *          texte → string|null ; choix → list<bool> (une case par option).
+     * totals : totals[i] = list<int> — nombre de cases cochées par option
+     *          (vide pour une section texte).
+     *
+     * Une réponse dont la valeur n'est plus dans les options du sondage (schéma
+     * modifié après coup) ne coche aucune case ; elle reste visible dans l'export CSV.
      *
      * @param list<SurveyResponse> $responses
-     * @return list<array<string, mixed>>
+     * @return array{groups: list<array<string, mixed>>, rows: list<array<string, mixed>>, totals: list<list<int>>}
      */
-    private function aggregate(Survey $survey, array $responses): array
+    private function buildMatrix(Survey $survey, array $responses): array
     {
-        $sections = $survey->getSections() ?? [];
-        $out = [];
-        foreach ($sections as $q) {
-            $id = $q['id'] ?? null;
+        $groups = [];
+        foreach ($survey->getSections() ?? [] as $q) {
+            $qid = $q['id'] ?? null;
             $type = SurveyQuestionType::tryFrom((string) ($q['type'] ?? ''));
-            if (!is_string($id) || $type === null) continue;
-
-            $entry = [
-                'id' => $id,
-                'label' => $q['label'] ?? $id,
-                'type' => $type->value,
+            if (!is_string($qid) || $type === null) {
+                continue;
+            }
+            $isText = $type === SurveyQuestionType::ShortText || $type === SurveyQuestionType::LongText;
+            $options = $isText ? [] : array_values(array_filter((array) ($q['options'] ?? []), 'is_string'));
+            if (!$isText && $options === []) {
+                continue;
+            }
+            $groups[] = [
+                'id' => $qid,
+                'label' => $q['label'] ?? $qid,
                 'typeLabel' => $type->label(),
-                'help' => $q['help'] ?? null,
+                'isText' => $isText,
+                'options' => $options,
             ];
+        }
 
-            if ($type === SurveyQuestionType::ShortText || $type === SurveyQuestionType::LongText) {
-                $texts = [];
-                foreach ($responses as $r) {
-                    $v = $r->getAnswers()[$id] ?? null;
-                    if (!is_string($v) || trim($v) === '') continue;
-                    $texts[] = [
-                        'user' => $r->getUser()->getFullName(),
-                        'value' => $v,
-                        'updatedAt' => $r->getUpdatedAt() ?? $r->getSubmittedAt(),
-                    ];
+        $totals = array_map(fn (array $g) => array_fill(0, count($g['options']), 0), $groups);
+
+        $rows = [];
+        foreach ($responses as $r) {
+            $answers = $r->getAnswers();
+            $cells = [];
+            foreach ($groups as $gi => $g) {
+                $value = $answers[$g['id']] ?? null;
+                if ($g['isText']) {
+                    $cells[] = is_string($value) && trim($value) !== '' ? $value : null;
+                    continue;
                 }
-                $entry['texts'] = $texts;
-                $entry['count'] = count($texts);
-            } else {
-                $opts = array_values(array_filter((array) ($q['options'] ?? []), 'is_string'));
-                $tally = array_fill_keys($opts, 0);
-                $totalVotes = 0;
-                foreach ($responses as $r) {
-                    $v = $r->getAnswers()[$id] ?? null;
-                    if ($v === null || $v === '') continue;
-                    if ($type === SurveyQuestionType::MultiChoice) {
-                        if (!is_array($v)) continue;
-                        foreach ($v as $vv) {
-                            if (isset($tally[$vv])) { $tally[$vv]++; $totalVotes++; }
-                        }
-                    } else {
-                        if (is_string($v) && isset($tally[$v])) { $tally[$v]++; $totalVotes++; }
+                $selected = is_array($value) ? $value : (is_string($value) && $value !== '' ? [$value] : []);
+                $checks = [];
+                foreach ($g['options'] as $oi => $option) {
+                    $checked = in_array($option, $selected, true);
+                    $checks[] = $checked;
+                    if ($checked) {
+                        $totals[$gi][$oi]++;
                     }
                 }
-                $tallies = [];
-                $baseline = $type === SurveyQuestionType::MultiChoice ? count($responses) : $totalVotes;
-                foreach ($tally as $opt => $n) {
-                    $tallies[] = [
-                        'option' => $opt,
-                        'count' => $n,
-                        'percent' => $baseline > 0 ? (int) round(100 * $n / $baseline) : 0,
-                    ];
-                }
-                $entry['tallies'] = $tallies;
-                $entry['count'] = $totalVotes;
+                $cells[] = $checks;
             }
-            $out[] = $entry;
+
+            $u = $r->getUser();
+            $rows[] = [
+                'sortKey' => trim($u->getNom().' '.$u->getPrenom()),
+                'fullName' => $u->getFullName(),
+                'numLicence' => $u->getNumLicence(),
+                'email' => $u->getEmail(),
+                'at' => $r->getUpdatedAt() ?? $r->getSubmittedAt(),
+                'cells' => $cells,
+            ];
         }
-        return $out;
+
+        $collator = class_exists(\Collator::class) ? new \Collator('fr_FR') : null;
+        usort($rows, fn (array $a, array $b) => $collator !== null
+            ? $collator->compare($a['sortKey'], $b['sortKey'])
+            : strcasecmp($a['sortKey'], $b['sortKey']));
+
+        return ['groups' => $groups, 'rows' => $rows, 'totals' => $totals];
     }
 }
