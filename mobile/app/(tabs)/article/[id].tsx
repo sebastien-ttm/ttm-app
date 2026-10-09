@@ -17,8 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { articles as articlesApi, comments as commentsApi } from '@/api/resources';
-import type { Article, ArticleAttachment, Comment } from '@/api/types';
+import type { Article, Comment } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { AttachmentLink } from '@/components/AttachmentLink';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
@@ -28,7 +29,6 @@ import { EventRow } from '@/components/UpcomingEvents';
 import { COLORS } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { openAttachment, withBearer } from '@/lib/openAttachment';
 import { formatDate, htmlExcerpt } from '@/utils/html';
 
 export default function ArticleScreen() {
@@ -199,20 +199,6 @@ export default function ArticleScreen() {
   );
 }
 
-function AttachmentLink({ attachment }: { attachment: ArticleAttachment }) {
-  async function open() {
-    // Nouvel onglet sur le web, navigateur intégré sur mobile.
-    await openAttachment((token) => withBearer(attachment.url, token));
-  }
-  return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && styles.pressed]}>
-      <Text style={styles.attachmentIcon}>📎</Text>
-      <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
-      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
-    </Pressable>
-  );
-}
-
 function CommentForm({ articleId, onPosted }: { articleId: number; onPosted: (c: Comment) => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -295,20 +281,6 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.5 },
   submitLabel: { color: '#fff', fontWeight: '700' },
   attachments: { gap: 8 },
-  attachmentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  attachmentIcon: { fontSize: 16 },
-  attachmentName: { flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' },
-  attachmentSize: { fontSize: 12, color: COLORS.textMuted },
-  pressed: { opacity: 0.6 },
   backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 8 },
   backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });

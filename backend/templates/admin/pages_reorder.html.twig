@@ -16,6 +16,7 @@
 {% macro renderPage(page, childrenByParent, crud, depth) %}
     {% set editUrl = ea_url().setController(crud).setAction('edit').setEntityId(page.id).generateUrl() %}
     {% set deleteUrl = ea_url().setController(crud).setAction('delete').setEntityId(page.id).generateUrl() %}
+    {% set attachmentsUrl = ea_url().setRoute('admin_static_page_attachments', {id: page.id}).generateUrl() %}
     {% set titleSize = depth == 0 ? 15 : (depth == 1 ? 14 : 13) %}
     {% set rowPadding = depth == 0 ? '10px 12px' : '8px 10px' %}
     {% set bg = depth == 0 ? '#fafbfc' : '#fff' %}
@@ -33,6 +34,7 @@
                 <span style="font-size:{{ depth == 0 ? 11 : 10 }}px; background:#fef3c7; color:#92400e; padding:2px {{ depth == 0 ? 6 : 5 }}px; border-radius:3px;">Brouillon</span>
             {% endif %}
             <a href="{{ editUrl }}" class="btn btn-sm btn-secondary" title="Éditer" style="padding:2px 8px;">✏️</a>
+            <a href="{{ attachmentsUrl }}" class="btn btn-sm btn-secondary" title="Pièces jointes" style="padding:2px 8px;">📎{% if page.attachments|length > 0 %} {{ page.attachments|length }}{% endif %}</a>
             {# Un éditeur ne supprime que ses propres pages (ContentDeleteVoter) —
                le serveur le refuse de toute façon, on évite juste un bouton mort. #}
             {% if is_granted('CONTENT_DELETE', page) %}

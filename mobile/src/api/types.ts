@@ -122,6 +122,8 @@ export type StaticPage = StaticPageSummary & {
   updatedAt: string;
   parentSlug: string | null;
   children: StaticPageNode[];
+  /** Pièces jointes (PDF…) — même forme que celles des articles. */
+  attachments: ArticleAttachment[];
 };
 
 export type MenuItem = {

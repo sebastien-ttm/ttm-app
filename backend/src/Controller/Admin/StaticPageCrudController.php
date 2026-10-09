@@ -7,6 +7,8 @@ use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
 use App\Security\ContentDeleteVoter;
+use App\Service\StaticPage\StaticPageAttachmentService;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -17,12 +19,23 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class StaticPageCrudController extends AbstractCrudController
 {
+    /** 10 Mo max par PJ — même limite que la page dédiée. */
+    private const ATTACHMENT_MAX_BYTES = 10_000_000;
+
+    public function __construct(
+        private readonly StaticPageAttachmentService $attachments,
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return StaticPage::class;
@@ -39,8 +52,64 @@ class StaticPageCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
+        // Bouton « Pièces jointes » : uniquement pour une page déjà
+        // enregistrée (l'id est requis par la route).
+        $manageAttachments = Action::new('manageAttachments', '📎 Pièces jointes', null)
+            ->linkToRoute('admin_static_page_attachments', fn (StaticPage $p) => ['id' => $p->getId()])
+            ->displayIf(fn (StaticPage $p) => $p->getId() !== null);
+
         return parent::configureActions($actions)
+            ->add(Crud::PAGE_DETAIL, $manageAttachments)
+            ->add(Crud::PAGE_EDIT, $manageAttachments)
             ->setPermission(Action::DELETE, ContentDeleteVoter::ATTRIBUTE);
+    }
+
+    public function persistEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        parent::persistEntity($em, $entityInstance);
+        $this->processNewAttachments($em, $entityInstance);
+    }
+
+    public function updateEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        parent::updateEntity($em, $entityInstance);
+        $this->processNewAttachments($em, $entityInstance);
+    }
+
+    /**
+     * Attache les fichiers uploadés (champ non persisté `newAttachments`).
+     * Appelé APRÈS le flush parent pour que la page ait un id (requis par
+     * StaticPageAttachmentService::upload pour le dossier de stockage).
+     */
+    private function processNewAttachments(EntityManagerInterface $em, mixed $entity): void
+    {
+        if (!$entity instanceof StaticPage) {
+            return;
+        }
+        $files = $entity->getNewAttachments();
+        $entity->setNewAttachments(null);
+        if ($files === null || $files === []) {
+            return;
+        }
+        $rejected = [];
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile || !$file->isValid()) {
+                continue;
+            }
+            if ($file->getSize() > self::ATTACHMENT_MAX_BYTES) {
+                $rejected[] = $file->getClientOriginalName();
+                continue;
+            }
+            $this->attachments->upload($entity, $file);
+        }
+        $em->flush();
+        if ($rejected !== []) {
+            $this->addFlash('warning', sprintf(
+                'Pièce(s) jointe(s) ignorée(s) (>%d Mo) : %s',
+                (int) (self::ATTACHMENT_MAX_BYTES / 1_000_000),
+                implode(', ', $rejected),
+            ));
+        }
     }
 
     public function createEntity(string $entityFqcn): StaticPage
@@ -111,5 +180,21 @@ class StaticPageCrudController extends AbstractCrudController
                 .'l\'unique catégorie visible pour les comptes Dirigeant.'
             );
         yield DateTimeField::new('updatedAt', 'Mis à jour le')->onlyOnIndex();
+
+        // Upload multi-fichiers, non persisté sur l'entité : traité dans
+        // persistEntity/updateEntity (après flush, l'id de la page est requis).
+        yield Field::new('newAttachments', '📎 Pièces jointes')
+            ->setFormType(FileType::class)
+            ->setFormTypeOptions([
+                'multiple' => true,
+                'required' => false,
+                'attr' => ['multiple' => 'multiple'],
+            ])
+            ->onlyOnForms()
+            ->setHelp(
+                'PDF, documents, images… — 10 Mo max par fichier. Affichées en bas de la page dans '
+                .'l\'appli. Les pièces déjà attachées se gèrent via le bouton « 📎 Pièces jointes » '
+                .'en haut à droite (liste + suppression).'
+            );
     }
 }

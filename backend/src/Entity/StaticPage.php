@@ -59,6 +59,21 @@ class StaticPage implements OwnedContentInterface
     #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
     private ?User $createdBy = null;
 
+    /**
+     * Pièces jointes (PDF, documents…) affichées en bas de la page côté mobile.
+     *
+     * @var Collection<int, StaticPageAttachment>
+     */
+    #[ORM\OneToMany(targetEntity: StaticPageAttachment::class, mappedBy: 'page', cascade: ['remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['uploadedAt' => 'ASC'])]
+    private Collection $attachments;
+
+    /**
+     * Uploads transitoires depuis le formulaire admin. Non persisté.
+     * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
+     */
+    private ?array $newAttachments = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
@@ -66,7 +81,16 @@ class StaticPage implements OwnedContentInterface
     {
         $this->updatedAt = new \DateTimeImmutable();
         $this->children = new ArrayCollection();
+        $this->attachments = new ArrayCollection();
     }
+
+    /** @return Collection<int, StaticPageAttachment> */
+    public function getAttachments(): Collection { return $this->attachments; }
+
+    /** @return array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null */
+    public function getNewAttachments(): ?array { return $this->newAttachments; }
+    /** @param array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null $files */
+    public function setNewAttachments(?array $files): self { $this->newAttachments = $files; return $this; }
 
     #[ORM\PreUpdate]
     public function touchUpdatedAt(): void

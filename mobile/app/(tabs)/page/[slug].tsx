@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { pages as pagesApi } from '@/api/resources';
 import type { StaticPage, StaticPageNode } from '@/api/types';
+import { AttachmentLink } from '@/components/AttachmentLink';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RichContent } from '@/components/RichContent';
 import { ShareButton } from '@/components/ShareButton';
@@ -75,6 +76,8 @@ export default function PageScreen() {
   const text = page ? htmlToText(page.content).trim() : '';
   const hasContent = text.length > 0;
   const hasChildren = (page?.children?.length ?? 0) > 0;
+  const attachments = page?.attachments ?? [];
+  const hasAttachments = attachments.length > 0;
 
   return (
     <View style={styles.container}>
@@ -89,8 +92,17 @@ export default function PageScreen() {
           </View>
           {hasContent && <RichContent html={page.content} style={styles.body} />}
 
+          {hasAttachments && (
+            <View style={[styles.attachments, hasContent && styles.sectionSpaced]}>
+              <Text style={styles.attachmentsTitle}>Pièces jointes ({attachments.length})</Text>
+              {attachments.map((att) => (
+                <AttachmentLink key={att.id} attachment={att} />
+              ))}
+            </View>
+          )}
+
           {hasChildren && (
-            <View style={[styles.children, hasContent && styles.childrenSpaced]}>
+            <View style={[styles.children, (hasContent || hasAttachments) && styles.sectionSpaced]}>
               <Text style={styles.childrenTitle}>Sous-pages</Text>
               {page.children.map((child) => (
                 <ChildLink key={child.slug} node={child} />
@@ -98,7 +110,7 @@ export default function PageScreen() {
             </View>
           )}
 
-          {!hasContent && !hasChildren && (
+          {!hasContent && !hasChildren && !hasAttachments && (
             <Text style={styles.empty}>Cette page est vide pour le moment.</Text>
           )}
 
@@ -133,8 +145,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginBottom: 12 },
   body: { fontSize: 15, color: COLORS.text, lineHeight: 24 },
   empty: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic' },
+  attachments: { gap: 8 },
+  attachmentsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  sectionSpaced: { marginTop: 24 },
   children: { backgroundColor: COLORS.surface, borderRadius: 12, paddingVertical: 4 },
-  childrenSpaced: { marginTop: 24 },
   childrenTitle: {
     fontSize: 13,
     fontWeight: '700',

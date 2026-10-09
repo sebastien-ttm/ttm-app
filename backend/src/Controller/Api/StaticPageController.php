@@ -3,10 +3,14 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\Repository\StaticPageAttachmentRepository;
 use App\Repository\StaticPageRepository;
 use App\Service\Serializer\ApiSerializer;
+use App\Service\StaticPage\StaticPageAttachmentService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -16,8 +20,34 @@ class StaticPageController extends AbstractController
 {
     public function __construct(
         private readonly StaticPageRepository $pages,
+        private readonly StaticPageAttachmentRepository $attachments,
+        private readonly StaticPageAttachmentService $attachmentService,
         private readonly ApiSerializer $serializer,
     ) {
+    }
+
+    /**
+     * Téléchargement authentifié d'une PJ de page depuis le mobile. Mêmes
+     * règles de visibilité que la page elle-même (publiée + audience).
+     */
+    #[Route('/attachments/{attId}/file', methods: ['GET'], requirements: ['attId' => '\d+'])]
+    public function downloadAttachment(int $attId): BinaryFileResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $att = $this->attachments->find($attId);
+        if ($att === null || $this->pages->findOneBySlugPublished($att->getPage()->getSlug(), $viewer) === null) {
+            throw $this->createNotFoundException();
+        }
+
+        $path = $this->attachmentService->absolutePath($att);
+        if ($path === null || !is_file($path)) {
+            throw $this->createNotFoundException();
+        }
+        $resp = new BinaryFileResponse($path);
+        $resp->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, $att->getOriginalName());
+        $resp->headers->set('Content-Type', $att->getMimeType());
+        return $resp;
     }
 
     /**

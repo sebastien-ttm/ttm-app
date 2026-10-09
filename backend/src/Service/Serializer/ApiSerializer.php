@@ -164,6 +164,14 @@ class ApiSerializer
             'parentSlug' => $p->getParent()?->getSlug(),
             'audience' => $p->getAudience(),
             'contentAudience' => $p->getContentAudience(),
+            'attachments' => array_map(fn ($att) => [
+                'id' => $att->getId(),
+                'name' => $att->getOriginalName(),
+                'size' => $att->getSize(),
+                'humanSize' => $att->getHumanSize(),
+                'mimeType' => $att->getMimeType(),
+                'url' => rtrim($this->publicUrl, '/').'/api/pages/attachments/'.$att->getId().'/file',
+            ], $p->getAttachments()->toArray()),
         ];
         if ($includeChildren) {
             $data['children'] = array_map(
