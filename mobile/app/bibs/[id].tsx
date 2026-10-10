@@ -165,7 +165,7 @@ export default function BibDetailScreen() {
 
           {!isMine && offer.myConversationId != null && (
             <View style={styles.contactBox}>
-              <Text style={styles.contactTitle}>Discussion en cours avec {offer.authorFirstName}</Text>
+              <Text style={styles.contactTitle}>Discussion en cours avec {offer.authorFullName}</Text>
               <Pressable
                 onPress={() => router.push(('/marketplace/conversation/' + offer.myConversationId) as never)}
                 style={styles.contactBtn}
@@ -178,9 +178,9 @@ export default function BibDetailScreen() {
 
           {!isMine && offer.myConversationId == null && (
             <View style={styles.contactBox}>
-              <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {offer.authorFirstName}</Text>
+              <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {offer.authorFullName}</Text>
               <Text style={styles.contactHint}>
-                {offer.authorFirstName} reçoit votre message dans l'application et par e-mail,
+                {offer.authorFullName} reçoit votre message dans l'application et par e-mail,
                 et pourra vous répondre ici.
               </Text>
               <TextInput

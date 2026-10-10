@@ -151,7 +151,7 @@ export default function MarketplaceScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
                 <Text style={styles.cardMeta}>
-                  par {item.authorFirstName} · {formatRelativeFr(item.createdAt)}
+                  par {item.authorFullName} · {formatRelativeFr(item.createdAt)}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
@@ -186,7 +186,7 @@ export default function MarketplaceScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.otherFirstName}
+                  {item.otherFullName}
                   <Text style={styles.cardMeta}>
                     {item.iAmSeller ? ' · intéressé(e) par votre annonce' : ' · vendeur'}
                   </Text>

@@ -125,7 +125,7 @@ export default function MarketplaceConversationScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen
         options={{
-          title: `Discussion avec ${conversation.otherFirstName} pour ${isBib ? "l'offre" : "l'annonce"} ${conversation.listingTitle}`,
+          title: `Discussion avec ${conversation.otherFullName} pour ${isBib ? "l'offre" : "l'annonce"} ${conversation.listingTitle}`,
         }}
       />
 
@@ -135,11 +135,18 @@ export default function MarketplaceConversationScreen() {
         style={styles.listingBar}
       >
         <Ionicons name={isBib ? 'ticket-outline' : 'pricetag-outline'} size={16} color={COLORS.textMuted} />
-        <Text style={styles.listingBarLabel} numberOfLines={1}>
-          {conversation.iAmSeller
-            ? `${conversation.otherFirstName} vous écrit à propos de « ${conversation.listingTitle} »`
-            : `À propos de « ${conversation.listingTitle} »`}
-        </Text>
+        <View style={{ flex: 1 }}>
+          {/* L'interlocuteur (nom + prénom) toujours visible, des deux côtés. */}
+          <Text style={styles.listingBarWho} numberOfLines={1}>
+            {conversation.otherFullName}
+            <Text style={styles.listingBarLabel}>
+              {conversation.iAmSeller ? ' · vous écrit' : ' · vendeur'}
+            </Text>
+          </Text>
+          <Text style={styles.listingBarLabel} numberOfLines={1}>
+            À propos de « {conversation.listingTitle} »
+          </Text>
+        </View>
         {canOpenListing && <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
       </Pressable>
 
@@ -163,7 +170,7 @@ export default function MarketplaceConversationScreen() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={`Écrire à ${conversation.otherFirstName}…`}
+            placeholder={`Écrire à ${conversation.otherFullName}…`}
             placeholderTextColor={COLORS.textSubtle}
             multiline
             maxLength={2000}
@@ -191,7 +198,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  listingBarLabel: { flex: 1, fontSize: 13, color: COLORS.textMuted },
+  listingBarWho: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  listingBarLabel: { fontSize: 13, fontWeight: '400', color: COLORS.textMuted },
   messages: {
     padding: SPACING.md, gap: 8, flexGrow: 1,
     maxWidth: 640, width: '100%', alignSelf: 'center',

@@ -162,7 +162,7 @@ export default function MarketplaceDetailScreen() {
 
           {!isMine && listing.myConversationId != null && (
             <View style={styles.contactBox}>
-              <Text style={styles.contactTitle}>Discussion en cours avec {listing.authorFirstName}</Text>
+              <Text style={styles.contactTitle}>Discussion en cours avec {listing.authorFullName}</Text>
               <Pressable
                 onPress={() => router.push(('/marketplace/conversation/' + listing.myConversationId) as never)}
                 style={styles.contactBtn}
@@ -175,9 +175,9 @@ export default function MarketplaceDetailScreen() {
 
           {!isMine && listing.myConversationId == null && (
             <View style={styles.contactBox}>
-              <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {listing.authorFirstName}</Text>
+              <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {listing.authorFullName}</Text>
               <Text style={styles.contactHint}>
-                {listing.authorFirstName} reçoit votre message dans l'application et par e-mail,
+                {listing.authorFullName} reçoit votre message dans l'application et par e-mail,
                 et pourra vous répondre ici.
               </Text>
               <TextInput

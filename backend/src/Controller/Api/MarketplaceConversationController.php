@@ -231,6 +231,7 @@ class MarketplaceConversationController extends AbstractController
             'listingPhotoUrl' => $first instanceof MarketplaceListingPhoto ? $this->photoService->urlFor($first) : null,
             'iAmSeller' => $c->getSeller()->getId() === $viewer->getId(),
             'otherFirstName' => $other->getPrenom(),
+            'otherFullName' => $other->getFullName(),
             'lastMessage' => $last === null ? null : [
                 'content' => mb_strimwidth($last->getContent(), 0, 140, '…'),
                 'mine' => $last->getAuthor()->getId() === $viewer->getId(),

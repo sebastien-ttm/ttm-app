@@ -635,6 +635,7 @@ export type MarketplaceListingSummary = {
   /** Absent sur un backend antérieur à l'ajout du champ. */
   authorId?: number;
   authorFirstName: string;
+  authorFullName: string;
   createdAt: string;
   /** null si l'annonce n'a aucune photo. */
   photoUrl: string | null;
@@ -679,6 +680,7 @@ export type MarketplaceConversationSummary = {
   /** true si je suis l'auteur de l'annonce (l'autre est alors un acheteur potentiel). */
   iAmSeller: boolean;
   otherFirstName: string;
+  otherFullName: string;
   lastMessage: { content: string; mine: boolean; createdAt: string } | null;
   lastMessageAt: string;
 };

@@ -55,7 +55,7 @@ class NotifyMarketplaceMessageMessageHandler
         $subjectTitle = $conversation->getSubjectTitle();
         $email = (new TemplatedEmail())
             ->to($recipient->getEmail())
-            ->subject(sprintf('%s vous a écrit à propos de « %s »', $author->getPrenom(), $subjectTitle))
+            ->subject(sprintf('%s vous a écrit à propos de « %s »', $author->getFullName(), $subjectTitle))
             ->htmlTemplate('email/marketplace_message.html.twig')
             ->textTemplate('email/marketplace_message.txt.twig')
             ->context([

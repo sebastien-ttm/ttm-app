@@ -122,7 +122,7 @@ export default function BibsScreen() {
                 <Text style={styles.cardTitle} numberOfLines={2}>{item.raceName}</Text>
                 <Text style={styles.cardDate}>{formatIsoDate(item.raceDate)}</Text>
                 <PriceBadge offer={item} />
-                <Text style={styles.cardMeta}>par {item.authorFirstName} · {formatRelativeFr(item.createdAt)}</Text>
+                <Text style={styles.cardMeta}>par {item.authorFullName} · {formatRelativeFr(item.createdAt)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </Pressable>
@@ -149,7 +149,7 @@ export default function BibsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.otherFirstName}
+                  {item.otherFullName}
                   <Text style={styles.cardMeta}>
                     {item.iAmSeller ? ' · intéressé(e) par vos dossards' : ' · vendeur'}
                   </Text>

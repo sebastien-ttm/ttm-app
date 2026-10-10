@@ -307,6 +307,7 @@ class MarketplaceController extends AbstractController
             'title' => $l->getTitle(),
             'authorId' => $l->getAuthor()->getId(),
             'authorFirstName' => $l->getAuthor()->getPrenom(),
+            'authorFullName' => $l->getAuthor()->getFullName(),
             'createdAt' => $l->getCreatedAt()->format(\DATE_ATOM),
             'photoUrl' => $first instanceof MarketplaceListingPhoto ? $this->photoService->urlFor($first) : null,
             'photoCount' => $l->getPhotos()->count(),
