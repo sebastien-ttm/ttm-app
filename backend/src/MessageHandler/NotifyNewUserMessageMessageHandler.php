@@ -8,6 +8,7 @@ use App\Enum\MessageScope;
 use App\Message\NotifyNewUserMessageMessage;
 use App\Repository\UserMessageRepository;
 use App\Repository\UserRepository;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -25,6 +26,7 @@ class NotifyNewUserMessageMessageHandler
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly string $publicUrl,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -52,6 +54,16 @@ class NotifyNewUserMessageMessageHandler
         if ($recipients === []) {
             return;
         }
+
+        // Push web (appli installée / navigateur) en plus du mail ; le clic ouvre le
+        // message dans l'appli (boîte de réception).
+        $this->webPush->notifyUsers(
+            array_map(static fn (User $recipient) => (int) $recipient->getId(), $recipients),
+            sprintf('Nouveau message de %s', $msg->getSender()->getFullName()),
+            $msg->getSubject() ?? $msg->getBody(),
+            '/social/inbox/'.$msg->getId(),
+            'message-'.$msg->getId(),
+        );
 
         // Lien vers l'écran admin du message (le destinataire doit avoir
         // ROLE_ENTRAINEUR au moins, ce qui est vrai pour les admins et

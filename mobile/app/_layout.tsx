@@ -10,6 +10,7 @@ import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { NoticeGate } from '@/components/NoticeGate';
 import { WebUpdateGate } from '@/components/WebUpdateGate';
 import { COLORS } from '@/config';
+import { registerServiceWorker } from '@/lib/serviceWorker';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { status, charterRequired } = useAuth();
@@ -85,6 +86,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  // Web : service worker (notifications push, page hors ligne, cache des fichiers de l'appli).
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

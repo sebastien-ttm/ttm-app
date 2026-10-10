@@ -92,6 +92,18 @@ const version = computeVersion();
 writeFileSync(VERSION_JSON, JSON.stringify(version, null, 2) + '\n', 'utf8');
 info(`dist/version.json généré (${version.sha}).`);
 
+// Service worker : sa version = celle du déploiement. Un sw.js différent à chaque
+// déploiement fait installer le nouveau service worker, qui purge les anciens
+// caches (voir public/sw.js). Fait AVANT le garde-fou d'idempotence plus bas.
+const SW_FILE = join(DIST_DIR, 'sw.js');
+if (existsSync(SW_FILE)) {
+  const sw = readFileSync(SW_FILE, 'utf8');
+  writeFileSync(SW_FILE, sw.replaceAll('__SW_VERSION__', version.sha), 'utf8');
+  info(`dist/sw.js versionné (${version.sha}).`);
+} else {
+  info('dist/sw.js absent : service worker non publié (vérifier mobile/public/sw.js).');
+}
+
 // Setup O2Switch : mobile + backend Symfony partagent le même dossier
 // (public_html/ttm-app/backend/public/ = document root du sous-domaine
 // app.*). Le .htaccess Symfony orchestre TOUT le routage (redirect

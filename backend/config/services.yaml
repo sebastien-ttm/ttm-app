@@ -24,6 +24,10 @@ parameters:
     app.piwigo_empty_fallback: ''
     app.piwigo_url_fallback: 'https://photos.triathlontoulousemetropole.com'
     app.piwigo_cache_dir: '%kernel.project_dir%/var/piwigo-cache'
+    # Notifications push web (VAPID) : replis si les variables manquent (ex : .env.local.php
+    # généré avant leur ajout) → notifications push web désactivées.
+    app.vapid_empty_fallback: ''
+    app.vapid_subject_fallback: 'mailto:noreply@ttm-toulouse.fr'
 
 services:
     _defaults:
@@ -103,6 +107,12 @@ services:
             $rootAlbumId: '%env(default:app.piwigo_empty_fallback:PIWIGO_ROOT_ALBUM_ID)%'
             $membersGroupId: '%env(default:app.piwigo_empty_fallback:PIWIGO_MEMBERS_GROUP_ID)%'
             $cacheDir: '%app.piwigo_cache_dir%'
+
+    App\Service\WebPush\WebPushClient:
+        arguments:
+            $vapidPublicKey: '%env(default:app.vapid_empty_fallback:VAPID_PUBLIC_KEY)%'
+            $vapidPrivateKey: '%env(default:app.vapid_empty_fallback:VAPID_PRIVATE_KEY)%'
+            $vapidSubject: '%env(default:app.vapid_subject_fallback:VAPID_SUBJECT)%'
 
     App\Controller\Admin\InlineUploadController:
         arguments:

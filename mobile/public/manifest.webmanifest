@@ -1,6 +1,7 @@
 {
   "name": "Triathlon Toulouse Métropole",
   "short_name": "TTM",
+  "id": "/",
   "description": "Application du club Triathlon Toulouse Métropole.",
   "start_url": "/",
   "scope": "/",

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d2148">
+  <title>Hors ligne — TTM</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #0d2148; color: #fff;
+    }
+    .card { max-width: 380px; }
+    .logo {
+      width: 88px; height: 88px; margin: 0 auto 20px; border-radius: 20px;
+      background: #D32F2F url("/icons/icon-192.png") center / cover no-repeat;
+    }
+    h1 { margin: 0 0 10px; font-size: 22px; }
+    p { margin: 0 0 22px; line-height: 1.5; color: #cbd5e1; font-size: 16px; }
+    button {
+      min-height: 48px; padding: 12px 28px; border: 0; border-radius: 10px;
+      background: #D32F2F; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo" role="img" aria-label="Triathlon Toulouse Métropole"></div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>L'application a besoin d'une connexion internet. Vérifiez votre réseau, puis réessayez.</p>
+    <button type="button" onclick="location.reload()">Réessayer</button>
+  </div>
+</body>
+</html>

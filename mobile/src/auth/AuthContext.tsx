@@ -6,6 +6,7 @@ import { charter as charterApi } from '@/api/resources';
 import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { registerForPushNotifications } from '@/notifications/registerForPush';
+import { detachWebPush } from '@/notifications/webPush';
 
 /**
  * Deep-link : mémorise l'URL demandée quand un user non authentifié est
@@ -177,6 +178,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Web : cet appareil ne doit plus recevoir les notifications de ce compte.
+    detachWebPush();
     await Promise.all([
       storage.removeItem(STORAGE_KEYS.accessToken),
       storage.removeItem(STORAGE_KEYS.refreshToken),

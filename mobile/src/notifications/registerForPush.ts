@@ -2,13 +2,18 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { api } from '@/api/client';
+import { syncWebPush } from '@/notifications/webPush';
 
 /**
  * Ask permission, retrieve Expo push token, register it backend-side.
- * No-op on web (browser-based push needs a different stack).
+ * Sur le web : resynchronise l'abonnement Web Push de ce navigateur (voir
+ * webPush.ts) s'il a déjà été autorisé — l'activation, elle, se fait depuis le profil.
  */
 export async function registerForPushNotifications(): Promise<void> {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web') {
+    await syncWebPush();
+    return;
+  }
 
   try {
     const settings = await Notifications.getPermissionsAsync();

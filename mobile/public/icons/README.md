@@ -7,7 +7,11 @@ Ce dossier contient les icônes utilisées pour :
 
 `icon.svg` (source) est commité — c'est le logo TTM officiel reconstitué en SVG (fond rouge club + monogramme blanc + bandeau bleu inférieur). Identique au logo de la page de login.
 
-## Fichiers attendus
+## Fichiers (commités)
+
+Les PNG ci-dessous sont **dans le dépôt** (générés depuis `icon.svg`, rendu Arial gras
+du navigateur). Si le logo change, régénérez-les à partir de `icon.svg` avec l'une des
+options suivantes.
 
 | Fichier | Taille | Usage |
 |---------|--------|-------|

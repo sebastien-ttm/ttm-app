@@ -92,6 +92,15 @@ export const perfTests = {
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
 };
 
+/** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */
+export const webPush = {
+  config: () => api.get<{ enabled: boolean; publicKey: string | null }>('/api/me/push/config'),
+  subscribe: (subscription: unknown) => api.post<{ ok: boolean }>('/api/me/push/subscriptions', subscription),
+  unsubscribe: (endpoint: string) => api.delete<void>('/api/me/push/subscriptions', { body: { endpoint } }),
+  /** Envoie tout de suite une notification de test à mes appareils abonnés. */
+  test: () => api.post<{ sent: number; failed: number }>('/api/me/push/test', {}),
+};
+
 export const trainingSchedule = {
   /** week au format YYYY-MM-DD (n'importe quel jour de la semaine ciblée). */
   week: (week?: string) => {

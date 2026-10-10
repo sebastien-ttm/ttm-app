@@ -5,6 +5,7 @@ namespace App\MessageHandler;
 use App\Message\SendArticleEmailsMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\UserRepository;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -22,6 +23,7 @@ class SendArticleEmailsMessageHandler
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly string $publicUrl,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -56,6 +58,15 @@ class SendArticleEmailsMessageHandler
         if ($recipients === []) {
             return;
         }
+
+        // Push web (appli installée / navigateur) aux mêmes destinataires que le mail.
+        $this->webPush->notifyUsers(
+            array_map(static fn ($user) => (int) $user->getId(), $recipients),
+            'Nouvel article',
+            $article->getTitle(),
+            '/article/'.$article->getId(),
+            'article-'.$article->getId(),
+        );
 
         // Lien vers la page détail de l'article dans la SPA.
         $articleUrl = rtrim($this->publicUrl, '/').'/article/'.$article->getId();

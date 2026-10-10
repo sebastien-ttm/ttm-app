@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { ApiError, auth as authApi } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import { useAuth } from '@/auth/AuthContext';
+import { WebPushSettings } from '@/components/WebPushSettings';
 import { COLORS } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
@@ -280,6 +281,9 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </Pressable>
       )}
+
+      {/* Notifications push de l'appli web installée (sans effet sur l'appli native). */}
+      <WebPushSettings />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Notifications par email</Text>

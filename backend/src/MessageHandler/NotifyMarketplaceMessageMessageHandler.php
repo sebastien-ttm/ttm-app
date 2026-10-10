@@ -4,6 +4,7 @@ namespace App\MessageHandler;
 
 use App\Message\NotifyMarketplaceMessageMessage;
 use App\Repository\MarketplaceMessageRepository;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -28,6 +29,7 @@ class NotifyMarketplaceMessageMessageHandler
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly string $publicUrl,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -51,6 +53,15 @@ class NotifyMarketplaceMessageMessageHandler
         if (!$recipient->isActive()) {
             return;
         }
+
+        // Push web (appli installée / navigateur) en plus du mail.
+        $this->webPush->notifyUsers(
+            [(int) $recipient->getId()],
+            sprintf('Message de %s', $author->getFullName()),
+            $message->getContent(),
+            '/marketplace/conversation/'.$conversation->getId(),
+            'marketplace-'.$conversation->getId(),
+        );
 
         $subjectTitle = $conversation->getSubjectTitle();
         $email = (new TemplatedEmail())

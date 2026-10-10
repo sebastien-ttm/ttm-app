@@ -4,6 +4,7 @@ namespace App\MessageHandler;
 
 use App\Message\NotifyUserMessageReplyMessage;
 use App\Repository\UserMessageRepository;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
@@ -20,6 +21,7 @@ class NotifyUserMessageReplyMessageHandler
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly string $publicUrl,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -52,6 +54,15 @@ class NotifyUserMessageReplyMessageHandler
         // deep-link direct vers le détail de SON message envoyé, pas une
         // route « /profile/messages » qui n'a jamais existé côté mobile.
         $messagesUrl = rtrim($this->publicUrl, '/').'/social/sent/'.$msg->getId();
+
+        // Push web (appli installée / navigateur) en plus du mail.
+        $this->webPush->notifyUsers(
+            [(int) $sender->getId()],
+            sprintf('Réponse de %s à votre message', $msg->getRepliedBy()?->getFullName() ?? 'l\'équipe TTM'),
+            (string) $msg->getReply(),
+            '/social/sent/'.$msg->getId(),
+            'reply-'.$msg->getId(),
+        );
 
         $email = (new TemplatedEmail())
             ->to($sender->getEmail())

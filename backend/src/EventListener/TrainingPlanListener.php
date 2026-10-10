@@ -6,6 +6,8 @@ use App\Entity\TrainingPlan;
 use App\Message\SendPushNotificationsMessage;
 use App\Message\SendTrainingPlanEmailsMessage;
 use App\Repository\DeviceTokenRepository;
+use App\Repository\WebPushSubscriptionRepository;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Events;
@@ -19,6 +21,8 @@ class TrainingPlanListener
     public function __construct(
         private readonly MessageBusInterface $bus,
         private readonly DeviceTokenRepository $deviceTokens,
+        private readonly WebPushNotifier $webPush,
+        private readonly WebPushSubscriptionRepository $webPushSubscriptions,
     ) {
     }
 
@@ -55,6 +59,16 @@ class TrainingPlanListener
                 ],
             ), $stamps));
         }
+
+        // 1 bis) Push web (appli installée / navigateur) aux mêmes destinataires.
+        $this->webPush->notifyUsers(
+            $this->webPushSubscriptions->findUserIdsForTrainingPlans(),
+            'Nouveau plan d\'entraînement',
+            $entity->getTitle(),
+            '/training-plan/'.$entity->getId(),
+            'training-plan-'.$entity->getId(),
+            $stamps,
+        );
 
         // 2) Email aux destinataires éligibles (handler s'occupe du filtrage
         //    + idempotence via plan.emailsSentAt + skip si publishedAt encore futur).
