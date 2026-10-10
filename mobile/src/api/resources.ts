@@ -26,6 +26,7 @@ import type {
   MarketplaceMessage,
   MenuItem,
   Paginated,
+  PerfTestsResponse,
   PhotoAlbum,
   PhotoAlbumPage,
   PhotoImage,
@@ -72,6 +73,11 @@ export const articles = {
 export const trainingPlans = {
   list: (page = 1) => api.get<Paginated<TrainingPlan>>(`/api/training-plans?page=${page}`),
   get: (id: number) => api.get<TrainingPlan>(`/api/training-plans/${id}`),
+};
+
+/** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par année. */
+export const perfTests = {
+  list: (year?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${year ? `?year=${year}` : ''}`),
 };
 
 export const trainingSchedule = {

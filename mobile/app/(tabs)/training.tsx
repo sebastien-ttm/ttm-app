@@ -245,6 +245,24 @@ function TrainingScreenInner() {
               </View>
               )}
 
+              {/* Tests chronométrés : mon temps et ceux de tous les adhérents, par année. */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>⏱️ Tests chronométrés</Text>
+                <Pressable
+                  onPress={() => router.push('/perf-tests' as never)}
+                  style={({ pressed }) => [stylesPerf.card, pressed && { opacity: 0.7 }]}
+                >
+                  <View style={stylesPerf.iconWrap}>
+                    <Text style={{ fontSize: 22 }}>⏱️</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={stylesPerf.title}>Mes temps et ceux du club</Text>
+                    <Text style={stylesPerf.sub}>1500 m course à pied · 400 m natation · montée vélo — par année</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+                </Pressable>
+              </View>
+
               {(() => {
                 const chronoTotal = Array.from(slotsByDay.values()).reduce((n, arr) => n + arr.length, 0);
                 const gridTotal = Array.from(slotsByDayFull.values()).reduce((n, arr) => n + arr.length, 0);
@@ -797,6 +815,29 @@ const stylesPool = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+});
+
+const stylesPerf = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.secondary,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: COLORS.secondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 16 },
 });
 
 const stylesGouter = StyleSheet.create({

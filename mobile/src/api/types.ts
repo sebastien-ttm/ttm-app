@@ -330,6 +330,47 @@ export type WeeklySchedule = {
   plans: TrainingPlan[];
 };
 
+/** Un temps d'une séance de test chronométré (classement du plus rapide au plus lent). */
+export type PerfTestResultRow = {
+  /** Ex æquo = même rang. */
+  rank: number;
+  userId: number;
+  fullName: string;
+  timeSeconds: number;
+  /** « 5:42 » ou « 1:02:15 ». */
+  time: string;
+  /** True = c'est mon temps. */
+  mine: boolean;
+};
+
+export type PerfTestSessionView = {
+  id: number;
+  /** YYYY-MM-DD */
+  date: string;
+  notes: string | null;
+  participants: number;
+  results: PerfTestResultRow[];
+};
+
+/** Une épreuve (en natation : une par longueur de bassin) sur l'année choisie. */
+export type PerfTestGroup = {
+  key: string;
+  test: string;
+  label: string;
+  icon: string;
+  poolLength: number | null;
+  /** Mes temps de l'année sur cette épreuve ; null si je n'ai pas été chronométré. */
+  mine: { count: number; best: { timeSeconds: number; time: string; date: string } } | null;
+  sessions: PerfTestSessionView[];
+};
+
+export type PerfTestsResponse = {
+  year: number;
+  /** Années disponibles, la plus récente d'abord. */
+  years: number[];
+  groups: PerfTestGroup[];
+};
+
 export type StaffPresenceStatus = 'scheduled' | 'attended' | 'unavailable';
 
 export type StaffAbsenceReason = 'maladie' | 'vacances' | 'deplacement';
