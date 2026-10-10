@@ -32,6 +32,9 @@ class StaffCheckInController extends AbstractController
     /** Ordre d'affichage : les « oui » d'abord, puis peut-être, non, et ceux qui n'ont pas voté. */
     private const VOTE_ORDER = ['yes' => 0, 'maybe' => 1, 'no' => 2, 'none' => 3];
 
+    /** Fenêtre de la liste mobile : jours avant le début d'un événement à venir, et après la fin d'un événement passé. */
+    private const WINDOW_DAYS = 5;
+
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventAttendanceRepository $attendances,
@@ -42,10 +45,11 @@ class StaffCheckInController extends AbstractController
     }
 
     /**
-     * Événements soumis au vote à émarger aujourd'hui, dans l'ordre chronologique :
-     * ceux du jour et, pour un événement sur plusieurs jours, tous les jours de sa
-     * durée (il disparaît le lendemain de sa dernière journée). Les événements
-     * passés ou futurs restent consultables dans le backend.
+     * Événements soumis au vote à émarger : ceux en cours ou à venir dont le début
+     * tombe dans les 5 prochains jours (du plus proche au plus lointain), puis les
+     * terminés depuis moins de 5 jours (du plus récent au plus ancien). Un événement
+     * sur plusieurs jours reste proposé tant qu'il dure. Au-delà de cette fenêtre,
+     * les événements restent consultables dans le backend.
      */
     #[Route('/api/staff/check-in/events', methods: ['GET'])]
     public function events(): JsonResponse
@@ -54,27 +58,39 @@ class StaffCheckInController extends AbstractController
         $viewer = $this->getUser();
         $this->denyUnlessCheckIn($viewer);
 
+        $now = new \DateTimeImmutable();
         $today = new \DateTimeImmutable('today');
-        $tomorrow = $today->modify('+1 day');
+        // Terminé depuis 5 jours au plus (dernier jour ≥ J-5) ; commence au plus tard le J+5 inclus.
+        $since = $today->modify('-'.self::WINDOW_DAYS.' days');
+        $until = $today->modify('+'.(self::WINDOW_DAYS + 1).' days');
 
         // findVotable trie par début croissant : l'ordre chronologique est conservé.
         $events = array_values(array_filter(
-            $this->events->findVotable($today),
-            static fn (Event $e) => $e->getStartsAt() < $tomorrow && self::lastDay($e) >= $today,
+            $this->events->findVotable($since),
+            static fn (Event $e) => $e->getStartsAt() < $until && self::lastDay($e) >= $since,
         ));
         $ids = array_map(static fn (Event $e) => (int) $e->getId(), $events);
         $votes = $this->attendances->countsForEvents($ids);
         $checked = $this->checkIns->countsForEvents($ids);
 
-        $rows = [];
+        $upcoming = [];
+        $past = [];
         foreach ($events as $e) {
-            $rows[] = self::eventPayload($e) + [
+            // Sans heure de fin, l'événement reste « en cours » jusqu'à la fin de sa journée.
+            $end = $e->getEndsAt() ?? $e->getStartsAt()->setTime(23, 59, 59);
+            $row = self::eventPayload($e) + [
                 'votes' => $votes[$e->getId()] ?? ['yes' => 0, 'maybe' => 0, 'no' => 0],
                 'checkedCount' => $checked[$e->getId()] ?? 0,
             ];
+            if ($end < $now) {
+                $past[] = $row;
+            } else {
+                $upcoming[] = $row;
+            }
         }
 
-        return new JsonResponse(['data' => $rows]);
+        // Les terminés arrivent du plus ancien au plus récent : on les inverse.
+        return new JsonResponse(['data' => array_merge($upcoming, array_reverse($past))]);
     }
 
     /** Feuille d'émargement d'un événement : tous les adhérents, avec leur vote et leur état. */

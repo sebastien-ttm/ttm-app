@@ -148,10 +148,10 @@ export function EmargementTab() {
         <>
           <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
           <Text style={styles.hint}>
-            Événements du jour soumis au vote de présence (un événement sur plusieurs jours reste proposé chaque jour) : émargez les adhérents présents sur place, même sans vote.
+            Événements soumis au vote de présence : à venir (à partir de 5 jours avant), puis terminés depuis moins de 5 jours. Émargez les adhérents présents sur place, même sans vote.
           </Text>
           {events.length === 0 ? (
-            <EmptyState icon="📅" title="Aucun événement aujourd'hui" message="Les événements du jour soumis au vote de présence apparaîtront ici." />
+            <EmptyState icon="📅" title="Aucun événement à émarger" message="Les événements soumis au vote, à venir dans les 5 jours ou terminés depuis moins de 5 jours, apparaîtront ici." />
           ) : (
             events.map((e) => (
               <Pressable
