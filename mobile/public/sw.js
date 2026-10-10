@@ -17,7 +17,7 @@
 const VERSION = '__SW_VERSION__';
 const CACHE = 'ttm-' + VERSION;
 const OFFLINE_URL = '/offline.html';
-const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/icon-192.png'];
+const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/badge-96.png'];
 
 /** Chemins servis par le backend ou à ne jamais intercepter. */
 const BYPASS_PREFIXES = ['/api', '/admin', '/uploads', '/bundles', '/_wdt', '/_profiler', '/sw.js'];
@@ -101,7 +101,9 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: data.icon || '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    // Petit pictogramme de la barre d'état Android : seule sa transparence compte (voir
+    // scripts/generate-notification-badge.mjs) — une icône pleine donnerait un carré blanc.
+    badge: '/icons/badge-96.png',
     data: { url: data.url || '/' },
   };
   if (data.tag) {

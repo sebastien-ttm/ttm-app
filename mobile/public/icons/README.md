@@ -22,6 +22,7 @@ options suivantes.
 | `icon-192.png` | 192×192 | Android Chrome icône PWA standard |
 | `icon-512.png` | 512×512 | Android Chrome splash + écran d'accueil HD |
 | `icon-maskable-512.png` | 512×512 | Android adaptative icon (avec marge intérieure ~10 %) |
+| `badge-96.png` | 96×96 | Petit pictogramme des notifications push (Android) : disque blanc transparent autour d'un « T » évidé. Seule la transparence compte — généré par `node scripts/generate-notification-badge.mjs` |
 
 ## Comment les générer
 
