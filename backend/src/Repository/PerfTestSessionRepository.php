@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\PerfTestSession;
+use App\Enum\PerfTest;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -31,6 +32,20 @@ class PerfTestSessionRepository extends ServiceEntityRepository
     public static function seasonLabel(int $startYear): string
     {
         return $startYear.'-'.($startYear + 1);
+    }
+
+    /**
+     * Séance « individuelle » (temps déclarés par les adhérents) d'une
+     * épreuve, d'un bassin et d'un jour — null si elle n'existe pas encore.
+     */
+    public function findIndividualSession(PerfTest $test, ?int $poolLength, \DateTimeImmutable $date): ?PerfTestSession
+    {
+        return $this->findOneBy([
+            'test' => $test,
+            'poolLength' => $poolLength,
+            'date' => $date,
+            'notes' => PerfTestSession::INDIVIDUAL_NOTES,
+        ]);
     }
 
     /**

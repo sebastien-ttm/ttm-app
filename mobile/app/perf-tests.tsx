@@ -7,12 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, auth } from '@/api/client';
 import { perfTests as perfTestsApi } from '@/api/resources';
 import type {
+  PerfTestDeclaration,
   PerfTestGroup,
   PerfTestMineGroup,
   PerfTestSessionView,
   PerfTestsResponse,
 } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { DateField, todayIso } from '@/components/DateField';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { canSeeTraining } from '@/utils/profile';
@@ -35,6 +37,8 @@ export default function PerfTestsScreen() {
   const [data, setData] = useState<PerfTestsResponse | null>(null);
   // « Mon évolution » : mes temps sur toutes les saisons (indépendant de la saison affichée).
   const [mine, setMine] = useState<PerfTestMineGroup[]>([]);
+  // Mes temps déclarés (prise de temps individuelle) et leur état de validation.
+  const [declarations, setDeclarations] = useState<PerfTestDeclaration[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +49,14 @@ export default function PerfTestsScreen() {
     try {
       setError(null);
       // « Mon évolution » est secondaire : son échec ne doit pas masquer le classement.
-      const [resp, mineResp] = await Promise.all([
+      const [resp, mineResp, declResp] = await Promise.all([
         perfTestsApi.list(s),
         perfTestsApi.mine().catch(() => null),
+        perfTestsApi.declarations().catch(() => null),
       ]);
       setData(resp);
       if (mineResp) setMine(mineResp.groups);
+      if (declResp) setDeclarations(declResp.data);
       setOpen(new Set(resp.groups.flatMap((g) => (g.sessions[0] ? [`${g.key}:${g.sessions[0].id}`] : []))));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
@@ -75,6 +81,14 @@ export default function PerfTestsScreen() {
     await load(season);
     setRefreshing(false);
   }, [load, season]);
+
+  const reloadDeclarations = useCallback(async () => {
+    try {
+      setDeclarations((await perfTestsApi.declarations()).data);
+    } catch {
+      // Rafraîchissement de confort : on garde la liste affichée.
+    }
+  }, []);
 
   function toggle(key: string) {
     setOpen((prev) => {
@@ -177,6 +191,13 @@ export default function PerfTestsScreen() {
                     key={`${activeTab.key}:${data.season}`}
                     label={activeTab.label}
                     season={seasonLabel(data)}
+                  />
+
+                  <DeclareBox
+                    key={`declare:${activeTab.key}`}
+                    tab={activeTab}
+                    declarations={declarations.filter((d) => d.test === activeTab.test && d.poolLength === activeTab.pool)}
+                    onChanged={reloadDeclarations}
                   />
 
                   {activeMine && (
@@ -319,6 +340,177 @@ function CorrectionBox({ label, season }: { label: string; season: string }) {
           {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnLabel}>Envoyer aux entraîneurs</Text>}
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Déclaration d'un temps pris individuellement : l'adhérent indique la date et
+ * son temps ; les entraîneurs l'acceptent (il rejoint alors les classements)
+ * ou le refusent depuis le backend. Sous le formulaire, mes demandes sur cette
+ * épreuve avec leur état.
+ */
+function DeclareBox({
+  tab, declarations, onChanged,
+}: {
+  tab: PerfTab;
+  declarations: PerfTestDeclaration[];
+  onChanged: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<string | null>(todayIso());
+  const [time, setTime] = useState('');
+  const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+
+  const canSend = !sending && date !== null && time.trim() !== '';
+
+  async function send() {
+    if (!canSend || date === null) return;
+    setSending(true);
+    setError(null);
+    try {
+      await perfTestsApi.declare({
+        test: tab.test,
+        poolLength: tab.pool,
+        date,
+        time: time.trim(),
+        comment: comment.trim() || undefined,
+      });
+      setSent(true);
+      setOpen(false);
+      setTime('');
+      setComment('');
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Envoi impossible. Réessayez plus tard.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function cancel(id: number) {
+    setCancellingId(id);
+    try {
+      await perfTestsApi.cancelDeclaration(id);
+      await onChanged();
+    } catch {
+      // Déjà traitée entre-temps : le rechargement affichera son état réel.
+      await onChanged();
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  return (
+    <View style={styles.declareWrap}>
+      {open ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>⏱️ Déclarer mon temps — {tab.label}</Text>
+          <Text style={styles.correctionHint}>
+            Vous avez chronométré votre temps vous-même ? Indiquez-le : les entraîneurs le valident avant
+            qu'il n'apparaisse dans les classements.
+          </Text>
+
+          <Text style={styles.fieldLabel}>Date de la prise de temps</Text>
+          <DateField initialIso={todayIso()} onChange={setDate} disabled={sending} />
+
+          <Text style={styles.fieldLabel}>Mon temps</Text>
+          <TextInput
+            value={time}
+            onChangeText={setTime}
+            placeholder="5:42  (min:s)  ou  1:02:15  (h:min:s)"
+            placeholderTextColor={COLORS.textSubtle}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={12}
+            editable={!sending}
+            style={styles.declareInput}
+          />
+
+          <Text style={styles.fieldLabel}>Précisions (facultatif)</Text>
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Lieu, chronométreur, conditions…"
+            placeholderTextColor={COLORS.textSubtle}
+            multiline
+            maxLength={500}
+            editable={!sending}
+            style={[styles.declareInput, { minHeight: 70, textAlignVertical: 'top' }]}
+          />
+
+          {error && <Text style={styles.correctionError}>{error}</Text>}
+          <View style={styles.correctionActions}>
+            <Pressable
+              onPress={() => { setOpen(false); setError(null); }}
+              disabled={sending}
+              style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.cancelBtnLabel}>Annuler</Text>
+            </Pressable>
+            <Pressable
+              onPress={send}
+              disabled={!canSend}
+              style={({ pressed }) => [styles.sendBtn, !canSend && { opacity: 0.5 }, pressed && { opacity: 0.8 }]}
+            >
+              {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnLabel}>Envoyer la demande</Text>}
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => { setOpen(true); setSent(false); setDate(todayIso()); }}
+          style={({ pressed }) => [styles.correctionLinkBox, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons name="timer-outline" size={18} color={COLORS.secondaryDark} />
+          <Text style={[styles.correctionLink, { flex: 1 }]}>Prise de temps individuelle ? Déclarer mon temps</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
+        </Pressable>
+      )}
+
+      {sent && !open && (
+        <View style={styles.sentBox}>
+          <Text style={styles.sentLabel}>✅ Demande envoyée aux entraîneurs : elle apparaîtra dans les classements une fois acceptée.</Text>
+        </View>
+      )}
+
+      {declarations.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Mes demandes de temps</Text>
+          {declarations.slice(0, 5).map((d) => (
+            <View key={d.id} style={styles.declRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.evoDate}>{formatDates([d.date])} · {d.time}</Text>
+                <Text
+                  style={[
+                    styles.evoMeta,
+                    d.status === 'accepted' && { color: COLORS.success },
+                    d.status === 'rejected' && { color: COLORS.error },
+                  ]}
+                >
+                  {d.status === 'pending' && '⏳ En attente de validation'}
+                  {d.status === 'accepted' && '✅ Acceptée — visible dans les classements'}
+                  {d.status === 'rejected' && `❌ Refusée${d.decisionNote ? ` — ${d.decisionNote}` : ''}`}
+                </Text>
+              </View>
+              {d.status === 'pending' && (
+                <Pressable
+                  onPress={() => cancel(d.id)}
+                  disabled={cancellingId === d.id}
+                  hitSlop={8}
+                  style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.declCancel}>{cancellingId === d.id ? '…' : 'Annuler'}</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -574,6 +766,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, minWidth: 150, alignItems: 'center',
   },
   sendBtnLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  declareWrap: { gap: SPACING.md },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginTop: 2 },
+  declareInput: {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    padding: SPACING.md, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.surfaceAlt,
+  },
+  declRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border,
+  },
+  declCancel: { fontSize: 13, fontWeight: '600', color: COLORS.error },
   sentBox: {
     padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: '#d1fae5',
     gap: SPACING.xs,

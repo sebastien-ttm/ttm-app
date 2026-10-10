@@ -369,6 +369,26 @@ export type PerfTestGroup = {
   sessions: PerfTestSessionView[];
 };
 
+export type PerfTestDeclarationStatus = 'pending' | 'accepted' | 'rejected';
+
+/** Un temps que j'ai déclaré (prise de temps individuelle) : à valider par les entraîneurs. */
+export type PerfTestDeclaration = {
+  id: number;
+  test: string;
+  poolLength: number | null;
+  label: string;
+  /** Jour de la prise de temps, YYYY-MM-DD. */
+  date: string;
+  timeSeconds: number;
+  time: string;
+  comment: string | null;
+  status: PerfTestDeclarationStatus;
+  /** Motif donné par l'entraîneur (surtout en cas de refus). */
+  decisionNote: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
 /** Un de mes temps (« Mon évolution »), toutes saisons confondues. */
 export type PerfTestMineResult = {
   sessionId: number;

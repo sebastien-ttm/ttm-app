@@ -26,6 +26,7 @@ import type {
   MarketplaceMessage,
   MenuItem,
   Paginated,
+  PerfTestDeclaration,
   PerfTestsMineResponse,
   PerfTestsResponse,
   PhotoAlbum,
@@ -78,6 +79,13 @@ export const trainingPlans = {
 
 /** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par saison d'entraînement. */
 export const perfTests = {
+  /** Mes demandes de temps déclarés (en attente, acceptées, refusées). */
+  declarations: () => api.get<{ data: PerfTestDeclaration[] }>('/api/perf-tests/declarations'),
+  /** Déclare un temps pris individuellement ; les entraîneurs l'acceptent ou le refusent. date = YYYY-MM-DD. */
+  declare: (payload: { test: string; poolLength: number | null; date: string; time: string; comment?: string }) =>
+    api.post<PerfTestDeclaration>('/api/perf-tests/declarations', payload),
+  /** Annule ma demande tant qu'elle est en attente. */
+  cancelDeclaration: (id: number) => api.delete<{ ok: boolean }>(`/api/perf-tests/declarations/${id}`),
   /** « Mon évolution » : tous mes temps, toutes saisons, par épreuve. */
   mine: () => api.get<PerfTestsMineResponse>('/api/perf-tests/mine'),
   /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */

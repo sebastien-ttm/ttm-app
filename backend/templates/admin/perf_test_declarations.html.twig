@@ -1,0 +1,103 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Temps déclarés{% endblock %}
+{% block content_title %}⏱️ Temps déclarés par les adhérents{% endblock %}
+
+{% block main %}
+    <style>
+        .pd-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 20px; margin-bottom:16px; }
+        .pd-help { font-size:13px; color:#475569; line-height:1.55; }
+        .pd-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+        .pd-tab { padding:7px 14px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; color:#0d2148; font-size:13px; font-weight:600; text-decoration:none; }
+        .pd-tab.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .pd-tab .n { opacity:.75; font-weight:400; }
+        .pd-table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); font-size:14px; }
+        .pd-table th { text-align:left; background:#f8fafc; color:#475569; padding:9px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .pd-table td { padding:10px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+        .pd-time { font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pd-note { font-size:12px; color:#64748b; }
+        .pd-comment { max-width:320px; white-space:pre-wrap; }
+        .pd-act { display:flex; flex-direction:column; gap:6px; min-width:230px; }
+        .pd-act input[type=text] { padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; }
+        .pd-act .btns { display:flex; gap:6px; }
+        .pd-ok { color:#15803d; font-weight:600; }
+        .pd-ko { color:#b91c1c; font-weight:600; }
+        .pd-wait { color:#b45309; font-weight:600; }
+    </style>
+
+    <div class="pd-card pd-help">
+        Les adhérents déclarent depuis l'appli un temps pris <strong>individuellement</strong> (onglet de l'épreuve, « Déclarer mon temps »).
+        <strong>Accepter</strong> enregistre le temps dans les classements, sur une séance « Temps individuels » créée pour l'épreuve et le jour indiqués ;
+        <strong>Refuser</strong> le laisse de côté (le motif est visible de l'adhérent dans l'appli).
+    </div>
+
+    <div class="pd-tabs">
+        {% set pending = counts['pending'] ?? 0 %}
+        {% set accepted = counts['accepted'] ?? 0 %}
+        {% set rejected = counts['rejected'] ?? 0 %}
+        <a class="pd-tab {{ filter == 'pending' ? 'active' : '' }}" href="{{ path('admin_perf_test_declarations', {status: 'pending'}) }}">⏳ En attente <span class="n">({{ pending }})</span></a>
+        <a class="pd-tab {{ filter == 'accepted' ? 'active' : '' }}" href="{{ path('admin_perf_test_declarations', {status: 'accepted'}) }}">✅ Acceptées <span class="n">({{ accepted }})</span></a>
+        <a class="pd-tab {{ filter == 'rejected' ? 'active' : '' }}" href="{{ path('admin_perf_test_declarations', {status: 'rejected'}) }}">❌ Refusées <span class="n">({{ rejected }})</span></a>
+        <a class="pd-tab {{ filter == 'all' ? 'active' : '' }}" href="{{ path('admin_perf_test_declarations', {status: 'all'}) }}">Toutes <span class="n">({{ pending + accepted + rejected }})</span></a>
+    </div>
+
+    {% if rows is empty %}
+        <div class="pd-card" style="color:#64748b;">
+            {% if filter == 'pending' %}Aucune demande en attente. 🎉{% else %}Aucune demande dans cette vue.{% endif %}
+        </div>
+    {% else %}
+        <table class="pd-table">
+            <thead>
+                <tr>
+                    <th>Reçue le</th>
+                    <th>Adhérent</th>
+                    <th>Épreuve</th>
+                    <th>Prise de temps</th>
+                    <th>Temps</th>
+                    <th>Commentaire</th>
+                    <th>{{ filter == 'pending' ? 'Décision' : 'Statut' }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in rows %}
+                    <tr>
+                        <td style="white-space:nowrap;">{{ d.createdAt|date('d/m/Y H:i') }}</td>
+                        <td><strong>{{ d.user.prenom }} {{ d.user.nom|upper }}</strong></td>
+                        <td>{{ d.test.icon }} {{ d.testLabel }}</td>
+                        <td style="white-space:nowrap;">{{ d.performedOn|date('d/m/Y') }}</td>
+                        <td class="pd-time">{{ d.timeLabel }}</td>
+                        <td class="pd-comment">{{ d.memberComment ?: '—' }}</td>
+                        <td>
+                            {% if d.pending %}
+                                <form method="post" action="{{ path('admin_perf_test_declaration_decide', {id: d.id}) }}" class="pd-act">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('perf_test_declaration') }}">
+                                    <input type="hidden" name="filter" value="{{ filter }}">
+                                    <input type="text" name="note" maxlength="255" placeholder="Motif (facultatif, visible de l'adhérent)">
+                                    <div class="btns">
+                                        <button type="submit" name="decision" value="accept" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Accepter</button>
+                                        <button type="submit" name="decision" value="reject" class="btn btn-outline-danger btn-sm"><i class="fa fa-xmark"></i> Refuser</button>
+                                    </div>
+                                </form>
+                            {% elseif d.accepted %}
+                                <div class="pd-ok">✅ Acceptée</div>
+                                <div class="pd-note">
+                                    {% if d.decidedBy %}par {{ d.decidedBy.fullName }}{% endif %}{% if d.decidedAt %} le {{ d.decidedAt|date('d/m/Y') }}{% endif %}
+                                    {% if d.decisionNote %}<br>{{ d.decisionNote }}{% endif %}
+                                </div>
+                            {% else %}
+                                <div class="pd-ko">❌ Refusée</div>
+                                <div class="pd-note">
+                                    {% if d.decidedBy %}par {{ d.decidedBy.fullName }}{% endif %}{% if d.decidedAt %} le {{ d.decidedAt|date('d/m/Y') }}{% endif %}
+                                    {% if d.decisionNote %}<br>{{ d.decisionNote }}{% endif %}
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if rows|length >= limit %}
+            <div class="pd-note" style="margin-top:8px;">Les {{ limit }} demandes les plus récentes sont affichées.</div>
+        {% endif %}
+    {% endif %}
+{% endblock %}

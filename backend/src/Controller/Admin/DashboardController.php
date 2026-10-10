@@ -38,12 +38,33 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem as AdminMenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use App\Repository\PerfTestDeclarationRepository;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\Service\Attribute\Required;
 
 class DashboardController extends AbstractDashboardController
 {
+    /** Injecté par setter (pas de constructeur) : sert au badge « Temps déclarés » du menu. */
+    private ?PerfTestDeclarationRepository $perfDeclarations = null;
+
+    #[Required]
+    public function setPerfDeclarations(PerfTestDeclarationRepository $repository): void
+    {
+        $this->perfDeclarations = $repository;
+    }
+
+    /** Demandes de temps en attente — jamais bloquant pour le menu (0 en cas d'erreur). */
+    private function pendingPerfDeclarations(): int
+    {
+        try {
+            return $this->perfDeclarations?->countPending() ?? 0;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     #[Route('/admin', name: 'admin_dashboard')]
     public function index(): Response
     {
@@ -150,6 +171,8 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Semaine type', 'fa fa-repeat', TrainingSlotTemplate::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Saison d\'entraînement', 'fa fa-calendar-day', TrainingSeason::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Tests chronométrés', 'fa fa-stopwatch', PerfTestSession::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Temps déclarés', 'fa fa-user-clock', 'admin_perf_test_declarations')
+                    ->setBadge($this->pendingPerfDeclarations() ?: null, 'danger')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
             ],
             'Présences staff' => [

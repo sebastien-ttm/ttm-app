@@ -22,6 +22,8 @@ class PerfTestSession
 {
     public const POOL_LENGTHS = [25, 50];
     public const MAX_EXTRA_DATES = 10;
+    /** Notes des séances créées automatiquement pour les temps déclarés par les adhérents (une par épreuve et par jour). */
+    public const INDIVIDUAL_NOTES = 'Temps individuels (déclarés par les adhérents)';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
