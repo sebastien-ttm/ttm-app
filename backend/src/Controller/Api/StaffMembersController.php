@@ -6,18 +6,20 @@ use App\Entity\User;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Repository\UserSeasonMembershipRepository;
+use App\Service\AvatarService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Annuaire des adhérents pour le staff sportif (espace « Gestion » de l'appli) :
- * nom, prénom et numéro de téléphone, pour pouvoir appeler en cas d'urgence, et
- * appartenance à la liste des adhérents de la saison en cours.
+ * Annuaire des adhérents pour le staff sportif (espace « Staff » de l'appli) :
+ * nom, prénom, photo et numéro de téléphone, pour reconnaître l'adhérent et pouvoir
+ * l'appeler en cas d'urgence, et appartenance à la liste des adhérents de la saison
+ * en cours.
  *
  * Données personnelles : réservé aux profils Entraîneur et Encadrant, et
- * limité à l'identité et au téléphone (rien d'autre n'est exposé).
+ * limité à l'identité, à la photo et au téléphone (rien d'autre n'est exposé).
  */
 #[IsGranted('ROLE_USER')]
 class StaffMembersController extends AbstractController
@@ -26,6 +28,7 @@ class StaffMembersController extends AbstractController
         private readonly UserRepository $users,
         private readonly TrainingSeasonRepository $seasons,
         private readonly UserSeasonMembershipRepository $memberships,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -43,7 +46,7 @@ class StaffMembersController extends AbstractController
         $season = $this->seasons->findCurrent();
         $inSeason = $season !== null ? array_flip($this->memberships->findUserIdsForSeason($season)) : [];
 
-        $members = array_map(static function (User $u) use ($inSeason): array {
+        $members = array_map(function (User $u) use ($inSeason): array {
             $phone = self::cleanPhone($u->getTelephone());
             $phoneOf = null;
             // Enfant sans numéro : celui d'un parent, pour pouvoir joindre quelqu'un en cas d'urgence.
@@ -62,6 +65,8 @@ class StaffMembersController extends AbstractController
                 'id' => $u->getId(),
                 'nom' => $u->getNom(),
                 'prenom' => $u->getPrenom(),
+                // URL publique de la photo (carrée, 400 px), null si l'adhérent n'en a pas.
+                'avatarUrl' => $this->avatars->urlFor($u),
                 'telephone' => $phone,
                 // Non null quand le numéro est celui d'un parent (« Appeler Marie Dupont »).
                 'telephoneOf' => $phoneOf,

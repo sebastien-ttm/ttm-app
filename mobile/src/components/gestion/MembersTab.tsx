@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -41,6 +43,8 @@ export function MembersTab() {
   const [query, setQuery] = useState('');
   const [season, setSeason] = useState<StaffDirectorySeason | null>(null);
   const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>('all');
+  // Adhérent dont la photo est affichée en grand (appui sur la photo d'une ligne).
+  const [zoomed, setZoomed] = useState<StaffMember | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -173,6 +177,7 @@ export function MembersTab() {
         )}
         renderItem={({ item }) => (
           <View style={styles.row}>
+            <MemberAvatar member={item} onPress={() => setZoomed(item)} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
@@ -206,12 +211,59 @@ export function MembersTab() {
           </View>
         )}
       />
+
+      {/* Photo en grand : un appui n'importe où referme. */}
+      <Modal visible={zoomed !== null} transparent animationType="fade" onRequestClose={() => setZoomed(null)}>
+        <Pressable style={styles.zoomBackdrop} onPress={() => setZoomed(null)} accessibilityLabel="Fermer la photo">
+          {zoomed?.avatarUrl ? (
+            <Image source={{ uri: zoomed.avatarUrl }} style={styles.zoomImage} contentFit="cover" />
+          ) : null}
+          {zoomed && (
+            <Text style={styles.zoomName}>{zoomed.prenom} {zoomed.nom.toUpperCase()}</Text>
+          )}
+        </Pressable>
+      </Modal>
     </View>
+  );
+}
+
+/** Photo ronde de l'adhérent (appui = agrandir) ; ses initiales à défaut de photo. */
+function MemberAvatar({ member, onPress }: { member: StaffMember; onPress: () => void }) {
+  if (!member.avatarUrl) {
+    const initials = ((member.prenom[0] ?? '') + (member.nom[0] ?? '')).toUpperCase() || '?';
+    return (
+      <View style={[styles.avatar, styles.avatarPlaceholder]} accessibilityElementsHidden importantForAccessibility="no">
+        <Text style={styles.avatarInitials}>{initials}</Text>
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={`Agrandir la photo de ${member.prenom} ${member.nom}`}
+      style={({ pressed }) => pressed && { opacity: 0.8 }}
+    >
+      <Image source={{ uri: member.avatarUrl }} style={styles.avatar} contentFit="cover" />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.surfaceAlt },
+  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandNavy },
+  avatarInitials: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  zoomBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    padding: SPACING.xl,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  zoomImage: { width: 300, height: 300, maxWidth: '100%', borderRadius: RADIUS.lg, backgroundColor: COLORS.surfaceAlt },
+  zoomName: { color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',

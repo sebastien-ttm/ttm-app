@@ -374,6 +374,8 @@ export type StaffMember = {
   id: number;
   nom: string;
   prenom: string;
+  /** URL publique de la photo de l'adhérent (carrée) ; null s'il n'en a pas. */
+  avatarUrl: string | null;
   /** null si aucun numéro n'est renseigné (ni pour l'adhérent, ni pour un parent). */
   telephone: string | null;
   /** Nom du parent quand le numéro est le sien (enfant sans téléphone) ; sinon null. */
