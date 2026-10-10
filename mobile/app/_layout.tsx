@@ -10,7 +10,12 @@ import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { NoticeGate } from '@/components/NoticeGate';
 import { WebUpdateGate } from '@/components/WebUpdateGate';
 import { COLORS } from '@/config';
+import { listenForInstallPrompt } from '@/lib/installPrompt';
 import { registerServiceWorker } from '@/lib/serviceWorker';
+
+// Web : garde l'événement d'installation du navigateur dès le chargement (il peut arriver avant
+// l'ouverture du profil) pour le bouton « Installer l'application ».
+listenForInstallPrompt();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { status, charterRequired } = useAuth();

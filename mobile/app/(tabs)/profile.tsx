@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { ApiError, auth as authApi } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import { useAuth } from '@/auth/AuthContext';
+import { InstallAppCard } from '@/components/InstallAppCard';
 import { WebPushSettings } from '@/components/WebPushSettings';
 import { COLORS } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
@@ -281,6 +282,9 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </Pressable>
       )}
+
+      {/* Installation de l'appli web sur l'écran d'accueil (rien à afficher sur l'appli native ou déjà installée). */}
+      <InstallAppCard />
 
       {/* Notifications push de l'appli web installée (sans effet sur l'appli native). */}
       <WebPushSettings />
