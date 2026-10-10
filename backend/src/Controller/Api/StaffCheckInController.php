@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * backend, EventCheckInController) : la feuille part des votes de présence
  * (oui, peut-être, non) et permet d'émarger aussi un adhérent qui n'a pas voté.
  *
- * Réservé aux profils Entraîneur et Encadrant.
+ * Réservé aux entraîneurs et aux membres du CoDir.
  */
 #[IsGranted('ROLE_USER')]
 class StaffCheckInController extends AbstractController
@@ -51,7 +51,7 @@ class StaffCheckInController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessStaff($viewer);
+        $this->denyUnlessCheckIn($viewer);
 
         $events = $this->events->findVotable((new \DateTimeImmutable('today'))->modify('-60 days'));
         $ids = array_map(static fn (Event $e) => (int) $e->getId(), $events);
@@ -90,7 +90,7 @@ class StaffCheckInController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessStaff($viewer);
+        $this->denyUnlessCheckIn($viewer);
         $event = $this->findEvent($id);
 
         $checkIns = $this->checkIns->findByEventIndexedByUser($event);
@@ -140,7 +140,7 @@ class StaffCheckInController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessStaff($viewer);
+        $this->denyUnlessCheckIn($viewer);
         $event = $this->findEvent($id);
         $user = $this->users->find($userId);
         if ($user === null) {

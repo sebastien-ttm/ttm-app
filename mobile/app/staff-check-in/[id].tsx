@@ -21,7 +21,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { formatEventWhen } from '@/components/gestion/EmargementTab';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { isStaffMember } from '@/utils/profile';
+import { canCheckIn } from '@/utils/profile';
 
 const VOTE_TITLES: Record<CheckInVote, string> = {
   yes: '✅ Ont voté « présent »',
@@ -86,7 +86,7 @@ export default function StaffCheckInScreen() {
       .filter((s) => s.data.length > 0);
   }, [sheet, query]);
 
-  if (!isStaffMember(user)) {
+  if (!canCheckIn(user)) {
     return <Redirect href="/(tabs)" />;
   }
 

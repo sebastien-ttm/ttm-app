@@ -130,11 +130,46 @@ export function canSeeTrainingTab(user: AuthenticatedUser | null | undefined): b
 }
 
 /**
- * Staff sportif : profil Entraîneur ou Encadrant. Donne accès à l'espace
- * « Staff » (présences, annuaire des adhérents). Le back-end revérifie
- * (StaffMembersController) — ceci ne fait que masquer le bouton.
+ * Staff sportif : profil Entraîneur ou Encadrant. Donne accès aux onglets
+ * « Présences » et « Adhérents » de l'espace « Staff » (annuaire, présences
+ * aux entraînements). Le back-end revérifie (StaffMembersController) — ceci
+ * ne fait que masquer l'interface.
  */
 export function isStaffMember(user: AuthenticatedUser | null | undefined): boolean {
   if (!user) return false;
   return user.profiles.includes('entraineur') || user.profiles.includes('encadrant');
+}
+
+/** Profil Entraîneur (les encadrants n'en font pas partie). */
+export function isEntraineur(user: AuthenticatedUser | null | undefined): boolean {
+  return !!user && user.profiles.includes('entraineur');
+}
+
+/** Membre du CoDir (poste au bureau). */
+export function isBoardMember(user: AuthenticatedUser | null | undefined): boolean {
+  return !!user && user.isBoardMember === true;
+}
+
+/**
+ * Émargement de la présence aux événements : entraîneurs et membres du CoDir
+ * (StaffCheckInController).
+ */
+export function canCheckIn(user: AuthenticatedUser | null | undefined): boolean {
+  return isEntraineur(user) || isBoardMember(user);
+}
+
+/**
+ * Remise des bonnets et saisie des temps des tests chronométrés : entraîneurs
+ * uniquement (StaffCapController, StaffPerfTestController).
+ */
+export function canManageCapsAndTimes(user: AuthenticatedUser | null | undefined): boolean {
+  return isEntraineur(user);
+}
+
+/**
+ * Le bouton « Staff » de l'en-tête est-il proposé ? Staff sportif (entraîneur,
+ * encadrant) ou membre du CoDir ; chaque onglet reste filtré selon le profil.
+ */
+export function canUseStaffSpace(user: AuthenticatedUser | null | undefined): boolean {
+  return isStaffMember(user) || isBoardMember(user);
 }

@@ -4,18 +4,18 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { isStaffMember } from '@/utils/profile';
+import { canUseStaffSpace } from '@/utils/profile';
 
 /**
  * Bouton « Staff » de l'en-tête, à gauche du changement de profil lié :
- * ouvre l'espace staff (présences, annuaire des adhérents). Visible
- * uniquement pour les profils Entraîneur et Encadrant.
+ * ouvre l'espace staff (présences, émargements, annuaire des adhérents).
+ * Visible pour les profils Entraîneur et Encadrant et pour le CoDir.
  */
 export function StaffMenuButton() {
   const { user } = useAuth();
   const router = useRouter();
 
-  if (!isStaffMember(user)) {
+  if (!canUseStaffSpace(user)) {
     return null;
   }
 
@@ -23,7 +23,7 @@ export function StaffMenuButton() {
     <Pressable
       onPress={() => router.push('/gestion' as never)}
       accessibilityRole="button"
-      accessibilityLabel="Staff : présences et annuaire des adhérents"
+      accessibilityLabel="Espace Staff"
       style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
     >
       <Ionicons name="briefcase" size={15} color={COLORS.secondary} />

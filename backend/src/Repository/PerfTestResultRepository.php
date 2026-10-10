@@ -66,6 +66,31 @@ class PerfTestResultRepository extends ServiceEntityRepository
     }
 
     /**
+     * Nombre de temps saisis (adhérents et anciens adhérents) par séance.
+     *
+     * @param list<int> $sessionIds
+     * @return array<int, int> id de séance => nombre de temps
+     */
+    public function countBySessionIds(array $sessionIds): array
+    {
+        if ($sessionIds === []) {
+            return [];
+        }
+        $rows = $this->createQueryBuilder('r')
+            ->select('IDENTITY(r.session) AS sid', 'COUNT(r.id) AS n')
+            ->where('r.session IN (:ids)')->setParameter('ids', $sessionIds)
+            ->groupBy('r.session')
+            ->getQuery()
+            ->getScalarResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['sid']] = (int) $row['n'];
+        }
+        return $out;
+    }
+
+    /**
      * Temps d'une séance, indexés par id d'adhérent.
      *
      * @return array<int, PerfTestResult>

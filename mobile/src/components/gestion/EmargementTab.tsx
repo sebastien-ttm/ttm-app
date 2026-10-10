@@ -4,10 +4,18 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { staffCheckIn } from '@/api/resources';
-import type { StaffCheckInEvent } from '@/api/types';
+import { staffCheckIn, staffPerfTests } from '@/api/resources';
+import type { StaffCheckInEvent, StaffPerfTestSession } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { canCheckIn, canManageCapsAndTimes } from '@/utils/profile';
+
+const STATUS_LABELS: Record<StaffPerfTestSession['status'], string> = {
+  ongoing: 'En cours',
+  upcoming: 'À venir',
+  past: 'Terminée',
+};
 
 /** « sam. 12 octobre · 18:30 » (heure omise pour un événement sur la journée). */
 export function formatEventWhen(startsAt: string, isAllDay: boolean): string {
@@ -18,28 +26,36 @@ export function formatEventWhen(startsAt: string, isAllDay: boolean): string {
 
 /**
  * Onglet « Émargements » de l'espace Staff : feuille de présence des
- * événements soumis au vote, et remise des bonnets du club. Les compteurs se
- * rafraîchissent au retour d'une feuille.
+ * événements soumis au vote (entraîneurs et CoDir), remise des bonnets du club
+ * et saisie des temps des tests chronométrés (entraîneurs seulement). Les
+ * compteurs se rafraîchissent au retour d'une feuille.
  */
 export function EmargementTab() {
   const router = useRouter();
+  const { user } = useAuth();
+  const showCheckIn = canCheckIn(user);
+  const showManage = canManageCapsAndTimes(user);
   const [events, setEvents] = useState<StaffCheckInEvent[]>([]);
+  const [sessions, setSessions] = useState<StaffPerfTestSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try {
-      setError(null);
-      setEvents((await staffCheckIn.events()).data);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setError(null);
+    // Deux sources indépendantes : l'échec de l'une ne vide pas l'autre.
+    const [ev, ses] = await Promise.allSettled([
+      showCheckIn ? staffCheckIn.events() : Promise.resolve({ data: [] as StaffCheckInEvent[] }),
+      showManage ? staffPerfTests.list() : Promise.resolve({ data: [] as StaffPerfTestSession[] }),
+    ]);
+    if (ev.status === 'fulfilled') setEvents(ev.value.data);
+    if (ses.status === 'fulfilled') setSessions(ses.value.data);
+    const failure = ev.status === 'rejected' ? ev.reason : ses.status === 'rejected' ? ses.reason : null;
+    if (failure) setError(failure instanceof ApiError ? failure.message : 'Erreur de chargement');
+    setLoading(false);
+  }, [showCheckIn, showManage]);
 
-  // Au retour d'une feuille d'émargement, les compteurs « émargés » doivent être à jour.
+  // Au retour d'une feuille, les compteurs (émargés, temps saisis) doivent être à jour.
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = useCallback(async () => {
@@ -49,57 +65,98 @@ export function EmargementTab() {
   }, [load]);
 
   if (loading) return <FullScreenLoading />;
-  if (error && events.length === 0) return <ErrorState message={error} onRetry={load} />;
+  if (error && events.length === 0 && sessions.length === 0) return <ErrorState message={error} onRetry={load} />;
 
   return (
     <ScrollView
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
     >
-      <Text style={styles.sectionTitle}>🧢 Bonnets de bain</Text>
-      <Pressable
-        onPress={() => router.push('/staff-caps' as never)}
-        style={({ pressed }) => [styles.card, styles.cardCaps, pressed && { opacity: 0.7 }]}
-      >
-        <View style={[styles.iconWrap, { backgroundColor: COLORS.secondary }]}>
-          <Ionicons name="water" size={22} color="#fff" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Remise des bonnets</Text>
-          <Text style={styles.sub}>Qui a reçu son bonnet du club</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-      </Pressable>
-
-      <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
-      <Text style={styles.hint}>
-        Événements soumis au vote de présence : émargez les adhérents présents sur place, même sans vote.
-      </Text>
-      {events.length === 0 ? (
-        <EmptyState icon="📅" title="Aucun événement à émarger" message="Les événements soumis au vote apparaîtront ici." />
-      ) : (
-        events.map((e) => (
+      {showManage && (
+        <>
+          <Text style={styles.sectionTitle}>🧢 Bonnets de bain</Text>
           <Pressable
-            key={e.id}
-            onPress={() => router.push({ pathname: '/staff-check-in/[id]', params: { id: String(e.id) } } as never)}
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}
+            onPress={() => router.push('/staff-caps' as never)}
+            style={({ pressed }) => [styles.card, styles.cardCaps, pressed && { opacity: 0.7 }]}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title} numberOfLines={2}>{e.title}</Text>
-              <Text style={styles.sub}>
-                {formatEventWhen(e.startsAt, e.isAllDay)}{e.location ? ` · ${e.location}` : ''}
-              </Text>
-              <Text style={styles.votes}>
-                Votes : ✅ {e.votes.yes} · ❓ {e.votes.maybe} · ❌ {e.votes.no}
-              </Text>
+            <View style={[styles.iconWrap, { backgroundColor: COLORS.secondary }]}>
+              <Ionicons name="water" size={22} color="#fff" />
             </View>
-            <View style={styles.checkedBox}>
-              <Text style={styles.checkedNumber}>{e.checkedCount}</Text>
-              <Text style={styles.checkedLabel}>émargé{e.checkedCount > 1 ? 's' : ''}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Remise des bonnets</Text>
+              <Text style={styles.sub}>Qui a reçu son bonnet du club</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>
-        ))
+
+          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>⏱️ Tests chronométrés</Text>
+          <Text style={styles.hint}>
+            Saisie des temps des prises de temps en cours ou terminées depuis moins de 45 jours.
+          </Text>
+          {sessions.length === 0 ? (
+            <EmptyState
+              icon="⏱️"
+              title="Aucune prise de temps récente"
+              message="Créez la prise de temps dans le backend (Tests chronométrés) pour saisir les temps ici."
+            />
+          ) : (
+            sessions.map((s) => (
+              <Pressable
+                key={s.id}
+                onPress={() => router.push({ pathname: '/staff-perf-tests/[id]', params: { id: String(s.id) } } as never)}
+                style={({ pressed }) => [styles.card, styles.cardTimes, pressed && { opacity: 0.7 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title} numberOfLines={2}>{s.icon} {s.label}</Text>
+                  <Text style={styles.sub}>
+                    {s.datesLabel} · {STATUS_LABELS[s.status]}
+                  </Text>
+                  {s.notes ? <Text style={styles.votes} numberOfLines={1}>{s.notes}</Text> : null}
+                </View>
+                <View style={styles.checkedBox}>
+                  <Text style={[styles.checkedNumber, { color: COLORS.secondaryDark }]}>{s.resultsCount ?? 0}</Text>
+                  <Text style={styles.checkedLabel}>temps</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            ))
+          )}
+        </>
+      )}
+
+      {showCheckIn && (
+        <>
+          <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
+          <Text style={styles.hint}>
+            Événements soumis au vote de présence : émargez les adhérents présents sur place, même sans vote.
+          </Text>
+          {events.length === 0 ? (
+            <EmptyState icon="📅" title="Aucun événement à émarger" message="Les événements soumis au vote apparaîtront ici." />
+          ) : (
+            events.map((e) => (
+              <Pressable
+                key={e.id}
+                onPress={() => router.push({ pathname: '/staff-check-in/[id]', params: { id: String(e.id) } } as never)}
+                style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title} numberOfLines={2}>{e.title}</Text>
+                  <Text style={styles.sub}>
+                    {formatEventWhen(e.startsAt, e.isAllDay)}{e.location ? ` · ${e.location}` : ''}
+                  </Text>
+                  <Text style={styles.votes}>
+                    Votes : ✅ {e.votes.yes} · ❓ {e.votes.maybe} · ❌ {e.votes.no}
+                  </Text>
+                </View>
+                <View style={styles.checkedBox}>
+                  <Text style={styles.checkedNumber}>{e.checkedCount}</Text>
+                  <Text style={styles.checkedLabel}>émargé{e.checkedCount > 1 ? 's' : ''}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            ))
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -121,6 +178,7 @@ const styles = StyleSheet.create({
     borderLeftColor: COLORS.success,
   },
   cardCaps: { borderLeftColor: COLORS.secondary },
+  cardTimes: { borderLeftColor: COLORS.brandNavy },
   iconWrap: {
     width: 40,
     height: 40,

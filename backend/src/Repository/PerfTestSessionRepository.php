@@ -56,6 +56,23 @@ class PerfTestSessionRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Prises de temps en cours, à venir, ou terminées depuis la date donnée
+     * (fin de période), la plus récente d'abord — pour la saisie des temps
+     * dans l'appli.
+     *
+     * @return list<PerfTestSession>
+     */
+    public function findOngoingOrRecent(\DateTimeImmutable $since): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('COALESCE(s.endDate, s.date) >= :since')->setParameter('since', $since->format('Y-m-d'))
+            ->orderBy('s.date', 'DESC')
+            ->addOrderBy('s.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /** La prise de temps la plus récente d'une épreuve (et d'un bassin en natation), ou null. */
     public function findMostRecentForTest(PerfTest $test, ?int $poolLength): ?PerfTestSession
     {

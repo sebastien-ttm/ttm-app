@@ -27,6 +27,7 @@ import type {
   MenuItem,
   Paginated,
   PerfTestDeclaration,
+  PerfTestEntryState,
   CapRow,
   CapState,
   CheckInSheet,
@@ -34,6 +35,8 @@ import type {
   StaffCheckInEvent,
   StaffDirectorySeason,
   StaffMember,
+  StaffPerfTestSession,
+  StaffPerfTestSheet,
   PerfTestsMineResponse,
   PerfTestsResponse,
   PhotoAlbum,
@@ -99,7 +102,7 @@ export const perfTests = {
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
 };
 
-/** Émargement de la présence aux événements soumis au vote — profils entraîneur / encadrant. */
+/** Émargement de la présence aux événements soumis au vote — entraîneurs et membres du CoDir. */
 export const staffCheckIn = {
   events: () => api.get<{ data: StaffCheckInEvent[] }>('/api/staff/check-in/events'),
   sheet: (eventId: number) => api.get<CheckInSheet>(`/api/staff/check-in/events/${eventId}`),
@@ -107,11 +110,20 @@ export const staffCheckIn = {
     api.put<CheckInState>(`/api/staff/check-in/events/${eventId}/members/${userId}`, { checked }),
 };
 
-/** Émargement de la remise des bonnets du club — profils entraîneur / encadrant. */
+/** Émargement de la remise des bonnets du club — entraîneurs uniquement. */
 export const staffCaps = {
   list: () => api.get<{ data: CapRow[]; total: number; received: number }>('/api/staff/caps'),
   give: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/give`, {}),
   undo: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/undo`, {}),
+};
+
+/** Saisie des temps des tests chronométrés en cours ou récents — entraîneurs uniquement. */
+export const staffPerfTests = {
+  list: () => api.get<{ data: StaffPerfTestSession[] }>('/api/staff/perf-tests'),
+  sheet: (sessionId: number) => api.get<StaffPerfTestSheet>(`/api/staff/perf-tests/${sessionId}`),
+  /** time vide = efface le temps ; 422 « Temps illisible » si le format n'est pas reconnu. */
+  saveTime: (sessionId: number, userId: number, time: string) =>
+    api.put<PerfTestEntryState>(`/api/staff/perf-tests/${sessionId}/results/${userId}`, { time }),
 };
 
 /** Annuaire des adhérents (nom, prénom, téléphone) — réservé aux profils entraîneur / encadrant. */

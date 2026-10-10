@@ -187,6 +187,8 @@ export type AuthenticatedUser = {
   role: UserRole;
   /** True si typeLicence = 'Dirigeant' (filtrage UI spécifique). */
   isDirigeant: boolean;
+  /** Membre du CoDir (poste au bureau) : accès à l'émargement des événements dans l'espace Staff. Absent des anciennes réponses. */
+  isBoardMember?: boolean;
   /** Catégorie FFTri calculée depuis la date de naissance (Senior, V1, Junior, ...). */
   categorieFFTri: string | null;
   /** Rétrocompat : 'jeune' / 'senior' / null. Dérivé de profiles[]. */

@@ -422,6 +422,47 @@ export type CheckInSheet = {
 export type CapState = { count: number; lastAt: string | null; lastBy: string | null };
 export type CapRow = CapState & { id: number; nom: string; prenom: string; categorie: string | null };
 
+// ---- Saisie des temps des tests chronométrés (entraîneurs) ----
+
+/** Prise de temps en cours, à venir ou récente. */
+export type StaffPerfTestSession = {
+  id: number;
+  /** Code de l'épreuve (run_1500, swim_400, bike_climb_2k). */
+  test: string;
+  icon: string;
+  /** Épreuve avec le bassin en natation (« 400 m natation — bassin 25 m »). */
+  label: string;
+  poolLength: number | null;
+  /** Période : « 12/03/2026 » ou « du 12/03 au 14/03/2026 ». */
+  datesLabel: string;
+  notes: string | null;
+  status: 'upcoming' | 'ongoing' | 'past';
+  /** Présent dans la liste uniquement. */
+  resultsCount?: number;
+};
+
+/** Temps d'un adhérent sur une prise de temps ; warning = temps hors de la fourchette plausible. */
+export type PerfTestEntryState = { seconds: number | null; time: string | null; by: string | null; warning: string | null };
+
+export type PerfTestSheetRow = PerfTestEntryState & {
+  id: number;
+  nom: string;
+  prenom: string;
+  categorie: string | null;
+  /** Dernier temps sur la même épreuve avant cette prise de temps. */
+  last: { time: string; date: string } | null;
+  /** Meilleur temps antérieur. */
+  best: string | null;
+};
+
+export type StaffPerfTestSheet = {
+  session: StaffPerfTestSession;
+  enteredCount: number;
+  /** Temps d'anciens adhérents (sans compte), visibles dans le backend uniquement. */
+  legacyCount: number;
+  data: PerfTestSheetRow[];
+};
+
 export type PerfTestDeclarationStatus = 'pending' | 'accepted' | 'rejected';
 
 /** Un temps que j'ai déclaré (prise de temps individuelle) : à valider par les entraîneurs. */

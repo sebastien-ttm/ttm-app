@@ -22,7 +22,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { confirmAction } from '@/utils/confirm';
-import { isStaffMember } from '@/utils/profile';
+import { canManageCapsAndTimes } from '@/utils/profile';
 
 type CapFilter = 'all' | 'todo' | 'done';
 
@@ -85,7 +85,7 @@ export default function StaffCapsScreen() {
       .map(([title, data]) => ({ title, data }));
   }, [rows, query, filter]);
 
-  if (!isStaffMember(user)) {
+  if (!canManageCapsAndTimes(user)) {
     return <Redirect href="/(tabs)" />;
   }
 
