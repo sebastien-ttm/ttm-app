@@ -17,7 +17,10 @@
 const VERSION = '__SW_VERSION__';
 const CACHE = 'ttm-' + VERSION;
 const OFFLINE_URL = '/offline.html';
-const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', '/icons/icon-192.png', '/icons/badge-96.png'];
+// Les icônes portent un « ?v= » : leur nom ne change pas d'une version à l'autre, et un cache
+// navigateur (ou ce cache) garderait sinon l'ancienne image (voir icons/README.md).
+const ICON_URL = '/icons/icon-192.png?v=2';
+const PRECACHE = [OFFLINE_URL, '/manifest.webmanifest', ICON_URL, '/icons/badge-96.png'];
 
 /** Chemins servis par le backend ou à ne jamais intercepter. */
 const BYPASS_PREFIXES = ['/api', '/admin', '/uploads', '/bundles', '/_wdt', '/_profiler', '/sw.js'];
@@ -100,7 +103,7 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || '',
-    icon: data.icon || '/icons/icon-192.png',
+    icon: data.icon || ICON_URL,
     // Petit pictogramme de la barre d'état Android : seule sa transparence compte (silhouette
     // blanche du logo, voir icons/README.md) — une icône pleine donnerait un carré blanc.
     badge: '/icons/badge-96.png',

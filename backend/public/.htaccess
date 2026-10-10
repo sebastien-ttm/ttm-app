@@ -92,4 +92,13 @@ DirectoryIndex index.html index.php
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
+
+    # Icônes de l'appli (PWA, favicons, notifications) : noms NON versionnés, donc cache d'un
+    # jour seulement (et non le « 1 an » des images ci-dessus). Sinon un téléphone ou un
+    # navigateur garde l'ancienne icône après un changement de logo, y compris à la
+    # réinstallation de l'appli. Pour forcer le rechargement tout de suite, incrémenter le
+    # « ?v= » des adresses d'icônes (voir mobile/public/icons/README.md).
+    <FilesMatch "^(icon\.svg|icon-[0-9]+\.png|icon-maskable-[0-9]+\.png|apple-touch-icon\.png|badge-[0-9]+\.png|favicon(-[0-9]+)?\.(png|ico))$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
 </IfModule>

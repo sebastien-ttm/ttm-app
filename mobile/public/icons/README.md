@@ -61,6 +61,18 @@ le logo est rouge, transparents ailleurs, emblème recadré et centré avec ~6 p
 régénérer (changement de logo) : dessiner le logo sur un canvas blanc, passer chaque pixel en blanc
 avec pour alpha `(255 − vert) / 190` (borné à 0–1), puis exporter en PNG 96×96.
 
+## Cache des icônes et « ?v= »
+
+Les icônes gardent le même nom d'une version à l'autre. Or le serveur mettait les `.png` en cache **un an**
+(`.htaccess`) : un téléphone ou un navigateur qui avait déjà vu `icon-192.png` le gardait, même après
+réinstallation de l'appli, et affichait donc l'ancienne icône. Deux protections :
+
+- le `.htaccess` ne cache plus les icônes (`icon*.png`, `apple-touch-icon.png`, `favicon*`) qu'**un jour** ;
+- leurs adresses portent un `?v=2` (manifeste, balises du `<head>` injectées par `scripts/inject-pwa-meta.mjs`,
+  service worker `public/sw.js`, page `offline.html`, gabarit backend `base.html.twig`, notification push
+  `SendWebPushMessageHandler.php`). **Après un changement d'icônes, incrémenter ce `?v=`** (rechercher `v=2`
+  dans le dépôt) pour que tous les appareils les rechargent sans attendre.
+
 ## Vérification après déploiement
 
 Une icône d'appli **déjà installée** ne change pas toute seule tout de suite : Android ne met à jour

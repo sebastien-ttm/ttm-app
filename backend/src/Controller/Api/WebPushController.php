@@ -107,7 +107,7 @@ class WebPushController extends AbstractController
             'body' => 'Les notifications fonctionnent sur cet appareil.',
             'url' => '/',
             'tag' => 'push-test',
-            'icon' => '/icons/icon-192.png',
+            'icon' => '/icons/icon-192.png?v=2',
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         // TTL court : un test n'a aucun intérêt s'il arrive des heures plus tard.

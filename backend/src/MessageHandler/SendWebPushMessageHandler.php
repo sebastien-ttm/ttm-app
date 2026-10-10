@@ -33,7 +33,8 @@ class SendWebPushMessageHandler
             'body' => $message->body,
             'url' => $message->url,
             'tag' => $message->tag,
-            'icon' => '/icons/icon-192.png',
+            // « ?v= » : voir mobile/public/icons/README.md (cache des icônes).
+            'icon' => '/icons/icon-192.png?v=2',
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $results = $this->client->sendMany($subscriptions, $payload);
