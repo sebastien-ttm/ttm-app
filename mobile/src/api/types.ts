@@ -426,7 +426,14 @@ export type CheckInSheet = {
 
 /** Remises de bonnet d'un adhérent (la dernière en date). */
 export type CapState = { count: number; lastAt: string | null; lastBy: string | null };
-export type CapRow = CapState & { id: number; nom: string; prenom: string; categorie: string | null };
+export type CapRow = CapState & {
+  id: number;
+  nom: string;
+  prenom: string;
+  /** URL publique de la photo de l'adhérent ; null s'il n'en a pas. */
+  avatarUrl: string | null;
+  categorie: string | null;
+};
 
 // ---- Saisie des temps des tests chronométrés (entraîneurs) ----
 

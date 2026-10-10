@@ -6,6 +6,7 @@ use App\Entity\CapDistribution;
 use App\Entity\User;
 use App\Repository\CapDistributionRepository;
 use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,6 +30,7 @@ class StaffCapController extends AbstractController
         private readonly UserRepository $users,
         private readonly CapDistributionRepository $distributions,
         private readonly EntityManagerInterface $em,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -40,10 +42,12 @@ class StaffCapController extends AbstractController
         $this->denyUnlessCapsAndTimes($viewer);
 
         $byUser = $this->distributions->findAllGroupedByUser();
-        $rows = array_map(static fn (User $u) => [
+        $rows = array_map(fn (User $u) => [
             'id' => $u->getId(),
             'nom' => $u->getNom(),
             'prenom' => $u->getPrenom(),
+            // URL publique de la photo (carrée), null si l'adhérent n'en a pas : sert à le reconnaître.
+            'avatarUrl' => $this->avatars->urlFor($u),
             'categorie' => $u->getCategorieFFTri(),
         ] + self::state($byUser[$u->getId()] ?? []), $this->users->findActiveAdherentsForRecap());
 

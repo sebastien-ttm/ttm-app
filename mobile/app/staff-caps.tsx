@@ -20,6 +20,7 @@ import { staffCaps } from '@/api/resources';
 import type { CapRow, CapState } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { confirmAction } from '@/utils/confirm';
 import { canManageCapsAndTimes } from '@/utils/profile';
@@ -216,8 +217,9 @@ export default function StaffCapsScreen() {
           const busy = busyId === item.id;
           return (
             <View style={styles.row}>
+              <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} size={44} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.name} numberOfLines={1}>
+                <Text style={styles.name} numberOfLines={2}>
                   <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
                   {item.categorie ? <Text style={styles.cat}>  {item.categorie}</Text> : null}
                 </Text>
