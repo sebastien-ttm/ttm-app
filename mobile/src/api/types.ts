@@ -385,6 +385,43 @@ export type StaffMember = {
 /** Saison en cours de l'annuaire ; memberCount = 0 → liste pas encore importée (marquage sans objet). */
 export type StaffDirectorySeason = { id: number; label: string; memberCount: number };
 
+// ---- Émargements du staff : présence aux événements et remise des bonnets ----
+
+/** Vote de présence d'un adhérent à un événement (none = n'a pas voté). */
+export type CheckInVote = 'yes' | 'maybe' | 'no' | 'none';
+
+/** Événement soumis au vote, à émarger. */
+export type StaffCheckInEvent = {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  isAllDay: boolean;
+  location: string | null;
+  votes: { yes: number; maybe: number; no: number };
+  checkedCount: number;
+};
+
+/** État d'émargement d'un adhérent à un événement. */
+export type CheckInState = { checked: boolean; checkedAt: string | null; checkedBy: string | null };
+
+export type CheckInRow = CheckInState & {
+  id: number;
+  nom: string;
+  prenom: string;
+  vote: CheckInVote;
+};
+
+export type CheckInSheet = {
+  event: Omit<StaffCheckInEvent, 'votes' | 'checkedCount'>;
+  checkedCount: number;
+  data: CheckInRow[];
+};
+
+/** Remises de bonnet d'un adhérent (la dernière en date). */
+export type CapState = { count: number; lastAt: string | null; lastBy: string | null };
+export type CapRow = CapState & { id: number; nom: string; prenom: string; categorie: string | null };
+
 export type PerfTestDeclarationStatus = 'pending' | 'accepted' | 'rejected';
 
 /** Un temps que j'ai déclaré (prise de temps individuelle) : à valider par les entraîneurs. */

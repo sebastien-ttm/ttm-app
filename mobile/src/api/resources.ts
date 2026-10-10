@@ -27,6 +27,11 @@ import type {
   MenuItem,
   Paginated,
   PerfTestDeclaration,
+  CapRow,
+  CapState,
+  CheckInSheet,
+  CheckInState,
+  StaffCheckInEvent,
   StaffDirectorySeason,
   StaffMember,
   PerfTestsMineResponse,
@@ -92,6 +97,21 @@ export const perfTests = {
   mine: () => api.get<PerfTestsMineResponse>('/api/perf-tests/mine'),
   /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
+};
+
+/** Émargement de la présence aux événements soumis au vote — profils entraîneur / encadrant. */
+export const staffCheckIn = {
+  events: () => api.get<{ data: StaffCheckInEvent[] }>('/api/staff/check-in/events'),
+  sheet: (eventId: number) => api.get<CheckInSheet>(`/api/staff/check-in/events/${eventId}`),
+  setChecked: (eventId: number, userId: number, checked: boolean) =>
+    api.put<CheckInState>(`/api/staff/check-in/events/${eventId}/members/${userId}`, { checked }),
+};
+
+/** Émargement de la remise des bonnets du club — profils entraîneur / encadrant. */
+export const staffCaps = {
+  list: () => api.get<{ data: CapRow[]; total: number; received: number }>('/api/staff/caps'),
+  give: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/give`, {}),
+  undo: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/undo`, {}),
 };
 
 /** Annuaire des adhérents (nom, prénom, téléphone) — réservé aux profils entraîneur / encadrant. */
