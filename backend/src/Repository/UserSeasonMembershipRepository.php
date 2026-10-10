@@ -52,6 +52,23 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
             ->getQuery()->getResult();
     }
 
+    /**
+     * Ids des adhérents présents dans la liste d'une saison (une seule
+     * requête) — pour marquer qui en fait partie dans l'annuaire du staff.
+     *
+     * @return list<int>
+     */
+    public function findUserIdsForSeason(TrainingSeason $season): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('IDENTITY(m.user) AS uid')
+            ->where('m.season = :s')->setParameter('s', $season)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $r) => (int) $r['uid'], $rows);
+    }
+
     public function countForSeason(TrainingSeason $season): int
     {
         return (int) $this->createQueryBuilder('m')

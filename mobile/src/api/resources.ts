@@ -27,6 +27,7 @@ import type {
   MenuItem,
   Paginated,
   PerfTestDeclaration,
+  StaffDirectorySeason,
   StaffMember,
   PerfTestsMineResponse,
   PerfTestsResponse,
@@ -95,7 +96,7 @@ export const perfTests = {
 
 /** Annuaire des adhérents (nom, prénom, téléphone) — réservé aux profils entraîneur / encadrant. */
 export const staffDirectory = {
-  list: () => api.get<{ data: StaffMember[]; total: number }>('/api/staff/members'),
+  list: () => api.get<{ data: StaffMember[]; total: number; season: StaffDirectorySeason | null }>('/api/staff/members'),
 };
 
 /** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */

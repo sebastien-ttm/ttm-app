@@ -378,7 +378,12 @@ export type StaffMember = {
   telephone: string | null;
   /** Nom du parent quand le numéro est le sien (enfant sans téléphone) ; sinon null. */
   telephoneOf: string | null;
+  /** Présent dans la liste des adhérents de la saison en cours (import FFTri) ? */
+  inCurrentSeason: boolean;
 };
+
+/** Saison en cours de l'annuaire ; memberCount = 0 → liste pas encore importée (marquage sans objet). */
+export type StaffDirectorySeason = { id: number; label: string; memberCount: number };
 
 export type PerfTestDeclarationStatus = 'pending' | 'accepted' | 'rejected';
 

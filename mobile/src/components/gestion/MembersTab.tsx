@@ -15,7 +15,7 @@ import {
 
 import { ApiError } from '@/api/client';
 import { staffDirectory } from '@/api/resources';
-import type { StaffMember } from '@/api/types';
+import type { StaffDirectorySeason, StaffMember } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatPhoneFr, telHref } from '@/utils/phone';
@@ -28,20 +28,26 @@ function normalize(text: string): string {
 /**
  * Onglet « Adhérents » de l'espace Staff : tous les adhérents actifs avec
  * nom, prénom et téléphone, et un bouton d'appel (urgences). Regroupés par
- * initiale du nom, avec une recherche. Réservé au staff (le serveur
- * revérifie le profil).
+ * initiale du nom, avec une recherche. Chaque adhérent porte une pastille
+ * indiquant s'il est dans la liste des adhérents de la saison en cours (import
+ * FFTri), avec un filtre. Réservé au staff (le serveur revérifie le profil).
  */
+type SeasonFilter = 'all' | 'in' | 'out';
 export function MembersTab() {
   const [members, setMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [season, setSeason] = useState<StaffDirectorySeason | null>(null);
+  const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>('all');
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      setMembers((await staffDirectory.list()).data);
+      const resp = await staffDirectory.list();
+      setMembers(resp.data);
+      setSeason(resp.season);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     }
@@ -60,11 +66,19 @@ export function MembersTab() {
     setRefreshing(false);
   }, [load]);
 
+  // Marquage possible seulement si la liste de la saison est déjà importée ; sinon tout le
+  // monde paraîtrait « hors liste ».
+  const seasonKnown = season !== null && season.memberCount > 0;
+  const inCount = members.filter((m) => m.inCurrentSeason).length;
+
   const sections = useMemo(() => {
     const q = normalize(query.trim());
-    const filtered = q === ''
+    const bySeason = !seasonKnown || seasonFilter === 'all'
       ? members
-      : members.filter((m) => normalize(`${m.nom} ${m.prenom}`).includes(q) || normalize(`${m.prenom} ${m.nom}`).includes(q));
+      : members.filter((m) => m.inCurrentSeason === (seasonFilter === 'in'));
+    const filtered = q === ''
+      ? bySeason
+      : bySeason.filter((m) => normalize(`${m.nom} ${m.prenom}`).includes(q) || normalize(`${m.prenom} ${m.nom}`).includes(q));
 
     const byLetter = new Map<string, StaffMember[]>();
     for (const m of filtered) {
@@ -75,7 +89,7 @@ export function MembersTab() {
     return Array.from(byLetter.entries())
       .sort(([a], [b]) => (a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b)))
       .map(([title, data]) => ({ title, data }));
-  }, [members, query]);
+  }, [members, query, seasonKnown, seasonFilter]);
 
   const total = sections.reduce((n, s) => n + s.data.length, 0);
 
@@ -113,6 +127,33 @@ export function MembersTab() {
           </Pressable>
         )}
       </View>
+      {seasonKnown && season && (
+        <View style={styles.filters}>
+          {([
+            { key: 'all', label: `Tous (${members.length})` },
+            { key: 'in', label: `Saison ${season.label} (${inCount})` },
+            { key: 'out', label: `Hors liste (${members.length - inCount})` },
+          ] as { key: SeasonFilter; label: string }[]).map((f) => {
+            const active = seasonFilter === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => setSeasonFilter(f.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterLabel, active && styles.filterLabelActive]} numberOfLines={1}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+      {season !== null && season.memberCount === 0 && (
+        <Text style={styles.seasonNote}>
+          La liste des adhérents de la saison {season.label} n'est pas encore importée : l'appartenance n'est pas indiquée.
+        </Text>
+      )}
       <Text style={styles.count}>{total} adhérent{total > 1 ? 's' : ''}</Text>
 
       <SectionList
@@ -136,6 +177,13 @@ export function MembersTab() {
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
               </Text>
+              {seasonKnown && season && (
+                <View style={[styles.pill, item.inCurrentSeason ? styles.pillIn : styles.pillOut]}>
+                  <Text style={[styles.pillLabel, item.inCurrentSeason ? styles.pillLabelIn : styles.pillLabelOut]}>
+                    {item.inCurrentSeason ? `✓ Saison ${season.label}` : `Hors liste ${season.label}`}
+                  </Text>
+                </View>
+              )}
               {item.telephone ? (
                 <>
                   <Text style={styles.phone}>{formatPhoneFr(item.telephone)}</Text>
@@ -177,6 +225,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   search: { flex: 1, paddingVertical: 11, fontSize: 15, color: COLORS.text },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: SPACING.md, marginBottom: 6 },
+  filterChip: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface,
+  },
+  filterChipActive: { backgroundColor: COLORS.brandNavy, borderColor: COLORS.brandNavy },
+  filterLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text },
+  filterLabelActive: { color: '#fff' },
+  seasonNote: { fontSize: 12, color: COLORS.textMuted, marginHorizontal: SPACING.md, marginBottom: 4 },
+  pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.full, marginTop: 3 },
+  pillIn: { backgroundColor: '#dcfce7' },
+  pillOut: { backgroundColor: '#ffedd5' },
+  pillLabel: { fontSize: 11, fontWeight: '700' },
+  pillLabelIn: { color: '#166534' },
+  pillLabelOut: { color: '#9a3412' },
   count: { fontSize: 12, color: COLORS.textMuted, marginHorizontal: SPACING.md, marginBottom: 4 },
   listContent: { paddingBottom: SPACING.xxl },
   sectionHeader: { backgroundColor: COLORS.background, paddingHorizontal: SPACING.md, paddingVertical: 4 },
