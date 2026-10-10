@@ -36,11 +36,20 @@ function normalize(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+type CheckInFilter = 'registered' | 'all';
+
+const FILTERS: { key: CheckInFilter; label: string }[] = [
+  { key: 'registered', label: 'Inscrits' },
+  { key: 'all', label: 'Tous' },
+];
+
 /**
  * Feuille d'émargement d'un événement soumis au vote (espace Staff) : un appui
- * sur un adhérent coche / décoche sa présence, immédiatement enregistrée. Part
- * des votes de présence ; les adhérents qui n'ont pas voté n'apparaissent qu'en
- * recherche (ou une fois émargés) pour ne pas noyer la liste.
+ * sur un adhérent coche / décoche sa présence, immédiatement enregistrée. Deux
+ * filtres : « Inscrits » (par défaut) ne montre que ceux qui ont voté « présent »
+ * (et ceux déjà émargés, pour ne jamais les perdre de vue) ; « Tous » montre tous
+ * les adhérents, y compris ceux qui n'ont pas voté, pour émarger quelqu'un venu
+ * sans s'être inscrit.
  */
 export default function StaffCheckInScreen() {
   const { user } = useAuth();
@@ -53,6 +62,10 @@ export default function StaffCheckInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<CheckInFilter>('registered');
+  // Adhérents émargés / décochés pendant cette session : ils restent dans « Inscrits »
+  // même si on les décoche, pour que la ligne ne disparaisse pas sous le doigt.
+  const [touched, setTouched] = useState<Set<number>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -73,18 +86,25 @@ export default function StaffCheckInScreen() {
     setRefreshing(false);
   }, [load]);
 
+  /** Inscrit = a voté « présent » ; un adhérent déjà émargé (ou touché ici) reste visible. */
+  const isRegistered = useCallback(
+    (r: CheckInRow) => r.vote === 'yes' || r.checked || touched.has(r.id),
+    [touched],
+  );
+
+  const registeredCount = useMemo(() => (sheet ? sheet.data.filter(isRegistered).length : 0), [sheet, isRegistered]);
+
   const sections = useMemo(() => {
     if (!sheet) return [];
     const q = normalize(query.trim());
     const rows = sheet.data.filter((r) => {
-      if (q !== '') return normalize(`${r.nom} ${r.prenom}`).includes(q) || normalize(`${r.prenom} ${r.nom}`).includes(q);
-      // Sans recherche : les non-votants ne sont affichés que s'ils sont déjà émargés.
-      return r.vote !== 'none' || r.checked;
+      if (filter === 'registered' && !isRegistered(r)) return false;
+      return q === '' || normalize(`${r.nom} ${r.prenom}`).includes(q) || normalize(`${r.prenom} ${r.nom}`).includes(q);
     });
     return VOTE_ORDER
       .map((vote) => ({ vote, title: VOTE_TITLES[vote], data: rows.filter((r) => r.vote === vote) }))
       .filter((s) => s.data.length > 0);
-  }, [sheet, query]);
+  }, [sheet, query, filter, isRegistered]);
 
   if (!canCheckIn(user)) {
     return <Redirect href="/(tabs)" />;
@@ -94,6 +114,7 @@ export default function StaffCheckInScreen() {
     if (pending.has(row.id) || !sheet) return;
     const next = !row.checked;
     setPending((p) => new Set(p).add(row.id));
+    setTouched((t) => new Set(t).add(row.id));
     // Optimiste : l'appui se voit tout de suite ; retour arrière si le serveur refuse.
     patch(row.id, { checked: next, checkedAt: null, checkedBy: null });
     try {
@@ -159,7 +180,7 @@ export default function StaffCheckInScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Chercher un adhérent (même sans vote)"
+          placeholder="Chercher un adhérent"
           placeholderTextColor={COLORS.textSubtle}
           autoCapitalize="none"
           autoCorrect={false}
@@ -172,6 +193,24 @@ export default function StaffCheckInScreen() {
         )}
       </View>
 
+      <View style={styles.filters}>
+        {FILTERS.map((f) => {
+          const active = f.key === filter;
+          const count = f.key === 'registered' ? registeredCount : sheet.data.length;
+          return (
+            <Pressable
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.pill, active && styles.pillActive]}
+            >
+              <Text style={[styles.pillLabel, active && styles.pillLabelActive]}>{f.label} ({count})</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <SectionList
         sections={sections}
         keyExtractor={(r) => String(r.id)}
@@ -180,9 +219,18 @@ export default function StaffCheckInScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {query === '' ? 'Personne n\'a voté pour l\'instant : cherchez un adhérent pour l\'émarger.' : 'Aucun adhérent trouvé.'}
-          </Text>
+          <View style={styles.emptyWrap}>
+            <Text style={styles.empty}>
+              {filter === 'registered'
+                ? (query === '' ? 'Personne ne s\'est encore inscrit.' : 'Aucun inscrit trouvé.')
+                : 'Aucun adhérent trouvé.'}
+            </Text>
+            {filter === 'registered' && (
+              <Pressable onPress={() => setFilter('all')} accessibilityRole="button" style={styles.emptyLink}>
+                <Text style={styles.emptyLinkLabel}>Voir tous les adhérents</Text>
+              </Pressable>
+            )}
+          </View>
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
@@ -240,7 +288,22 @@ const styles = StyleSheet.create({
   },
   search: { flex: 1, paddingVertical: 11, fontSize: 15, color: COLORS.text },
   listContent: { paddingBottom: SPACING.xxl },
-  empty: { textAlign: 'center', color: COLORS.textMuted, padding: SPACING.xl, fontSize: 14 },
+  filters: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.md, marginBottom: 6 },
+  pill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  pillActive: { backgroundColor: COLORS.brandNavy, borderColor: COLORS.brandNavy },
+  pillLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  pillLabelActive: { color: '#fff' },
+  emptyWrap: { alignItems: 'center' },
+  empty: { textAlign: 'center', color: COLORS.textMuted, padding: SPACING.xl, paddingBottom: SPACING.md, fontSize: 14 },
+  emptyLink: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+  emptyLinkLabel: { fontSize: 13, fontWeight: '700', color: COLORS.secondaryDark },
   sectionHeader: { backgroundColor: COLORS.background, paddingHorizontal: SPACING.md, paddingVertical: 5 },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.secondaryDark },
   row: {
