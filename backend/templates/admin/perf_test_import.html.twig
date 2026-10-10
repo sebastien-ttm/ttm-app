@@ -53,6 +53,7 @@
             <div class="pi-chips">
                 <span class="pi-chip ok">✅ {{ ready }} prêt(s)</span>
                 <span class="pi-chip check">⚠️ {{ toCheck }} à vérifier</span>
+                <span class="pi-chip check">❓ {{ unknown }} non reconnu(s)</span>
                 <span class="pi-chip ignored">⛔ {{ ignored }} ignoré(s)</span>
             </div>
 
@@ -95,12 +96,28 @@
                                                         {{ c.prenom }} {{ c.nom|upper }}{% if c.categorieFFTri %} ({{ c.categorieFFTri }}){% endif %}
                                                     </option>
                                                 {% endfor %}
+                                                {% if row.status == 'fuzzy' %}
+                                                    {# Suggestion fausse : tout adhérent actif reste choisissable. #}
+                                                    <optgroup label="Autres adhérents">
+                                                        {% for u in users %}
+                                                            {% if u not in row.candidates %}
+                                                                <option value="{{ u.id }}">{{ u.nom|upper }} {{ u.prenom }}{% if u.categorieFFTri %} ({{ u.categorieFFTri }}){% endif %}</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </optgroup>
+                                                {% endif %}
                                             </select>
                                             <div class="pi-note">
                                                 {% if row.status == 'ambiguous' %}Plusieurs adhérents portent ce nom : choisissez.{% else %}Nom approchant : vérifiez avant d'importer.{% endif %}
                                             </div>
                                         {% elseif row.status == 'unknown' %}
-                                            ❌ Introuvable parmi les adhérents actifs — ligne ignorée.
+                                            <select name="choices[{{ row.line }}]" class="pi-select">
+                                                <option value="">— Ignorer cette ligne —</option>
+                                                {% for u in users %}
+                                                    <option value="{{ u.id }}">{{ u.nom|upper }} {{ u.prenom }}{% if u.categorieFFTri %} ({{ u.categorieFFTri }}){% endif %}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="pi-note">Nom non reconnu : choisissez l'adhérent dans la liste (tapez les premières lettres du nom pour y accéder), ou laissez « Ignorer ».</div>
                                         {% elseif row.status == 'duplicate' %}
                                             ⚠️ {{ row.message }}
                                         {% else %}
@@ -113,7 +130,7 @@
                     </table>
 
                     <div class="pi-actions">
-                        {% if ready + toCheck > 0 %}
+                        {% if ready + toCheck + unknown > 0 %}
                             <button type="submit" class="btn btn-success"><i class="fa fa-check"></i> Importer les temps</button>
                             <span class="pi-note">Seules les lignes ✅ et celles où vous avez choisi un adhérent sont enregistrées.</span>
                         {% else %}

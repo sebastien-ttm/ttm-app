@@ -50,11 +50,14 @@ class PerfTestImportController extends AbstractController
 
         $rows = null;
         $counts = [];
+        // Adhérents actifs (triés par nom) : base du rapprochement ET liste
+        // proposée pour choisir à la main les noms non reconnus.
+        $users = $this->users->findActiveAdherentsForRecap();
         if (trim($text) !== '') {
             $rows = $this->import->analyse(
                 $session,
                 $text,
-                $this->users->findActiveAdherentsForRecap(),
+                $users,
                 $this->results->findBySessionIndexedByUser($session),
             );
             $counts = array_count_values(array_column($rows, 'status'));
@@ -65,9 +68,11 @@ class PerfTestImportController extends AbstractController
             'text' => $text,
             'textHash' => sha1($text),
             'rows' => $rows,
+            'users' => $users,
             'ready' => $counts['ok'] ?? 0,
             'toCheck' => ($counts['fuzzy'] ?? 0) + ($counts['ambiguous'] ?? 0),
-            'ignored' => ($counts['unknown'] ?? 0) + ($counts['invalid'] ?? 0) + ($counts['duplicate'] ?? 0),
+            'unknown' => $counts['unknown'] ?? 0,
+            'ignored' => ($counts['invalid'] ?? 0) + ($counts['duplicate'] ?? 0),
             'sheetUrl' => $this->forwardUrl('admin_perf_test_sheet', ['id' => $id]),
         ]);
     }

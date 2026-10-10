@@ -80,8 +80,9 @@ class PerfTestImportService
     }
 
     /**
-     * Enregistre les lignes reconnues, plus les lignes à confirmer pour
-     * lesquelles un adhérent a été choisi (`$choices` : n° de ligne => id d'adhérent).
+     * Enregistre les lignes reconnues, plus les lignes à confirmer ou non
+     * reconnues pour lesquelles un adhérent a été choisi à la main
+     * (`$choices` : n° de ligne => id d'adhérent).
      *
      * @param list<User>                 $users
      * @param array<int, PerfTestResult> $existing
@@ -93,17 +94,27 @@ class PerfTestImportService
     {
         $summary = ['created' => 0, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0];
         $done = [];
+        $byId = [];
+        foreach ($users as $candidateUser) {
+            $byId[$candidateUser->getId()] = $candidateUser;
+        }
 
         foreach ($this->analyse($session, $text, $users, $existing) as $row) {
             $user = null;
             if ($row['status'] === 'ok') {
                 $user = $row['candidates'][0];
-            } elseif ($row['status'] === 'fuzzy' || $row['status'] === 'ambiguous') {
+            } elseif (in_array($row['status'], ['fuzzy', 'ambiguous', 'unknown'], true)) {
                 $chosenId = (int) ($choices[$row['line']] ?? 0);
-                foreach ($row['candidates'] as $candidate) {
-                    if ($candidate->getId() === $chosenId) {
-                        $user = $candidate;
+                if ($row['status'] === 'ambiguous') {
+                    // Homonymes : le choix se fait parmi eux uniquement.
+                    foreach ($row['candidates'] as $candidate) {
+                        if ($candidate->getId() === $chosenId) {
+                            $user = $candidate;
+                        }
                     }
+                } else {
+                    // Nom approchant ou non reconnu : n'importe quel adhérent actif.
+                    $user = $byId[$chosenId] ?? null;
                 }
             }
 
