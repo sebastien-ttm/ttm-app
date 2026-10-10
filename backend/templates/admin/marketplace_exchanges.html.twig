@@ -1,0 +1,117 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}Échanges vendeurs / acheteurs{% endblock %}
+
+{% block main %}
+    <style>
+        .mx-filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:16px; }
+        .mx-filters select, .mx-filters input[type=search] { padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; }
+        .mx-filters input[type=search] { min-width:240px; }
+        .mx-table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); font-size:13px; }
+        .mx-table th { text-align:left; background:#f8fafc; color:#475569; padding:9px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .mx-table td { padding:9px 10px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+        .mx-table .num { text-align:center; }
+        .mx-tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; background:#fef3c7; color:#92400e; margin-left:6px; }
+        .mx-yes { color:#15803d; font-weight:600; }
+        .mx-no { color:#b45309; }
+        .mx-thread td { background:#f8fafc; padding:12px 18px 16px 18px; }
+        .mx-thread[hidden] { display:none; }
+        .mx-msg { max-width:640px; margin:0 0 8px 0; padding:8px 12px; border-radius:8px; background:#fff; border:1px solid #e2e8f0; }
+        .mx-msg.seller { margin-left:auto; background:#eff6ff; border-color:#bfdbfe; }
+        .mx-msg-head { font-size:12px; color:#64748b; margin-bottom:3px; }
+        .mx-msg-head strong { color:#0f172a; }
+        .mx-btn { border:1px solid #cbd5e1; background:#fff; border-radius:4px; padding:3px 10px; cursor:pointer; font-size:12px; }
+        .mx-btn:hover { background:#f1f5f9; }
+    </style>
+
+    <form method="get" action="{{ path('admin_marketplace_exchanges') }}" class="mx-filters">
+        <select name="kind" aria-label="Type d'échange">
+            <option value="" {{ kind is null ? 'selected' : '' }}>Tous les échanges</option>
+            <option value="listing" {{ kind == 'listing' ? 'selected' : '' }}>Bourse aux équipements</option>
+            <option value="bib" {{ kind == 'bib' ? 'selected' : '' }}>Bourse aux dossards</option>
+        </select>
+        <input type="search" name="q" value="{{ search }}" placeholder="Nom, prénom, annonce, course…">
+        <button type="submit" class="btn btn-primary">Filtrer</button>
+        {% if kind is not null or search != '' %}
+            <a href="{{ path('admin_marketplace_exchanges') }}">Réinitialiser</a>
+        {% endif %}
+        <span style="margin-left:auto; color:#666;">
+            <strong>{{ rows|length }}</strong> échange(s){% if truncated %} — les {{ limit }} plus récents, affinez avec la recherche{% endif %}
+        </span>
+    </form>
+
+    {% if rows is empty %}
+        <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); color:#666;">
+            Aucun échange{% if kind is not null or search != '' %} pour ce filtre{% endif %}.
+        </div>
+    {% else %}
+        <table class="mx-table">
+            <thead>
+                <tr>
+                    <th>Dernier message</th>
+                    <th>Bourse</th>
+                    <th>Annonce / offre</th>
+                    <th>Vendeur</th>
+                    <th>Acheteur</th>
+                    <th class="num">Messages</th>
+                    <th>Réponse du vendeur</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                    {% set c = r.conversation %}
+                    <tr>
+                        <td style="white-space:nowrap;">{{ c.lastMessageAt|date('d/m/Y H:i') }}</td>
+                        <td style="white-space:nowrap;">{{ c.subjectKind == 'bib' ? '🎫 Dossards' : '👕 Équipements' }}</td>
+                        <td>
+                            {{ c.subjectTitle }}
+                            {% if c.subjectPaused %}<span class="mx-tag">en pause</span>{% endif %}
+                        </td>
+                        <td>{{ r.seller.fullName }}</td>
+                        <td>{{ r.buyer.fullName }}</td>
+                        <td class="num">{{ r.messages|length }}</td>
+                        <td>
+                            {% if r.sellerReplied %}
+                                <span class="mx-yes">✓ Oui</span>
+                            {% else %}
+                                <span class="mx-no">Pas encore</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="mx-btn" data-mx-toggle="mx-thread-{{ c.id }}" aria-expanded="false">Voir le fil</button>
+                        </td>
+                    </tr>
+                    <tr class="mx-thread" id="mx-thread-{{ c.id }}" hidden>
+                        <td colspan="8">
+                            {% for m in r.messages %}
+                                <div class="mx-msg {{ m.author.id == r.seller.id ? 'seller' : '' }}">
+                                    <div class="mx-msg-head">
+                                        <strong>{{ m.author.fullName }}</strong>
+                                        ({{ m.author.id == r.seller.id ? 'vendeur' : 'acheteur' }})
+                                        · {{ m.createdAt|date('d/m/Y à H:i') }}
+                                    </div>
+                                    <div>{{ m.content|nl2br }}</div>
+                                </div>
+                            {% else %}
+                                <em style="color:#666;">Aucun message.</em>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <script>
+            document.querySelectorAll('[data-mx-toggle]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var row = document.getElementById(btn.getAttribute('data-mx-toggle'));
+                    var open = row.hasAttribute('hidden');
+                    if (open) { row.removeAttribute('hidden'); } else { row.setAttribute('hidden', ''); }
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    btn.textContent = open ? 'Masquer le fil' : 'Voir le fil';
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}

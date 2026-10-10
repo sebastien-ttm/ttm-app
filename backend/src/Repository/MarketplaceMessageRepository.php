@@ -49,6 +49,35 @@ class MarketplaceMessageRepository extends ServiceEntityRepository
         return $out;
     }
 
+    /**
+     * Tous les messages des discussions données, en ordre chronologique,
+     * regroupés par id de conversation (vue admin, une seule requête).
+     *
+     * @param list<MarketplaceConversation> $conversations
+     * @return array<int, list<MarketplaceMessage>>
+     */
+    public function findGroupedByConversations(array $conversations): array
+    {
+        if ($conversations === []) {
+            return [];
+        }
+        /** @var list<MarketplaceMessage> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->innerJoin('m.author', 'a')->addSelect('a')
+            ->where('m.conversation IN (:convs)')
+            ->setParameter('convs', array_map(static fn (MarketplaceConversation $c) => $c->getId(), $conversations))
+            ->orderBy('m.createdAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($rows as $m) {
+            $out[$m->getConversation()->getId()][] = $m;
+        }
+        return $out;
+    }
+
     /** Anti-spam : messages postés par ce user depuis $since. */
     public function countByAuthorSince(User $author, \DateTimeImmutable $since): int
     {

@@ -30,6 +30,41 @@ class MarketplaceConversationRepository extends ServiceEntityRepository
     }
 
     /**
+     * Vue admin : toutes les discussions (annonces et dossards), la plus
+     * récemment active d'abord. `$kind` = 'listing' | 'bib' | null (tout) ;
+     * `$search` filtre sur les noms/prénoms des deux parties et sur le sujet.
+     *
+     * @return list<MarketplaceConversation>
+     */
+    public function findForAdmin(?string $kind, string $search, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->leftJoin('c.listing', 'l')->addSelect('l')
+            ->leftJoin('l.author', 'seller')->addSelect('seller')
+            ->leftJoin('c.bibOffer', 'b')->addSelect('b')
+            ->leftJoin('b.author', 'bibSeller')->addSelect('bibSeller')
+            ->innerJoin('c.buyer', 'buyer')->addSelect('buyer')
+            ->orderBy('c.lastMessageAt', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($kind === 'listing') {
+            $qb->andWhere('c.listing IS NOT NULL');
+        } elseif ($kind === 'bib') {
+            $qb->andWhere('c.bibOffer IS NOT NULL');
+        }
+        if ($search !== '') {
+            $qb->andWhere(
+                "CONCAT(buyer.prenom, ' ', buyer.nom) LIKE :q OR CONCAT(buyer.nom, ' ', buyer.prenom) LIKE :q"
+                ." OR CONCAT(seller.prenom, ' ', seller.nom) LIKE :q OR CONCAT(seller.nom, ' ', seller.prenom) LIKE :q"
+                ." OR CONCAT(bibSeller.prenom, ' ', bibSeller.nom) LIKE :q OR CONCAT(bibSeller.nom, ' ', bibSeller.prenom) LIKE :q"
+                .' OR l.title LIKE :q OR b.raceName LIKE :q'
+            )->setParameter('q', '%'.addcslashes($search, '%_\\').'%');
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Toutes les discussions d'un user, qu'il soit acheteur ou vendeur,
      * annonces comme dossards, la plus récemment active d'abord.
      *

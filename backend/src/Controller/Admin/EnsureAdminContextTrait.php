@@ -36,6 +36,20 @@ trait EnsureAdminContextTrait
         $this->adminContextProvider = $provider;
     }
 
+    /**
+     * Paramètre de requête d'une page custom. Derrière le forward EasyAdmin
+     * (`/admin?routeName=…&routeParams[clé]=…`), il n'est PAS dans la query
+     * string mais dans les attributs de la requête (routeParams fusionnés) :
+     * on le cherche aux deux endroits.
+     */
+    protected function adminParam(Request $request, string $key): ?string
+    {
+        $value = $request->attributes->get($key)
+            ?? $request->query->all('routeParams')[$key]
+            ?? $request->query->get($key);
+        return is_string($value) ? $value : null;
+    }
+
     protected function ensureAdminContext(Request $request, string $routeName): ?RedirectResponse
     {
         if ($this->adminContextProvider->getContext() !== null) {
