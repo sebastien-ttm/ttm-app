@@ -100,27 +100,6 @@ class TrainingScheduleController extends AbstractController
         return $resp;
     }
 
-    /**
-     * Lien temporaire (15 min) vers UNE pièce jointe, sans jeton de
-     * connexion : sert à « Ouvrir avec… » sur Android (appli web), où
-     * c'est l'appli choisie (OsmAnd, Komoot…) qui télécharge le fichier.
-     * On ne lui confie jamais le jeton de l'adhérent, qui donnerait
-     * accès à tout son compte. Téléchargement : PublicAttachmentController.
-     */
-    #[Route('/api/training-slots/attachments/{id}/temporary-link', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function temporaryLink(int $id): JsonResponse
-    {
-        $att = $this->attachments->find($id);
-        if ($att === null) {
-            throw $this->createNotFoundException();
-        }
-        $link = $this->attachmentService->temporaryLink($att);
-        return new JsonResponse([
-            'path' => $link['path'],
-            'expiresAt' => (new \DateTimeImmutable('@'.$link['expires']))->format(\DATE_ATOM),
-        ]);
-    }
-
     private function formatWeekLabel(\DateTimeImmutable $monday): string
     {
         $end = $monday->modify('+6 days');

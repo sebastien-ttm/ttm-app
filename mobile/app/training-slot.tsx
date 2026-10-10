@@ -1,19 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as WebBrowser from 'expo-web-browser';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api } from '@/api/client';
 import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
-import { isAndroidWeb, openAttachment, openWithOnAndroid, withBearer } from '@/lib/openAttachment';
+import { openAttachment, withBearer } from '@/lib/openAttachment';
 import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
 
 /**
@@ -130,8 +126,6 @@ function isBrowserViewable(att: TrainingSlotAttachment): boolean {
 }
 
 function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
-  const [busy, setBusy] = useState(false);
-
   function notifyError() {
     const msg = `Le fichier « ${attachment.name} » n'a pas pu être ouvert. Réessayez plus tard.`;
     // Alert.alert ne fait rien sur le web.
@@ -144,74 +138,29 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
   }
 
   /**
-   * Appli web sur Android, GPX & co : « Ouvrir avec… » via un lien
-   * temporaire sans jeton (c'est l'appli choisie qui télécharge).
+   * Un simple appui, sans « Ouvrir avec… » ni menu de partage : PDF et
+   * images s'affichent ; GPX & co sont envoyés en téléchargement par le
+   * serveur (Content-Disposition: attachment) et le navigateur les
+   * enregistre. Web : nouvel onglet ; appli native : navigateur du
+   * système pour les fichiers non affichables (l'intégré ne télécharge pas).
    */
-  async function openWithOnAndroidWeb() {
-    setBusy(true);
-    try {
-      const link = await api.get<{ path: string }>(`/api/training-slots/attachments/${attachment.id}/temporary-link`);
-      const mime = /\.gpx$/i.test(attachment.name) ? 'application/gpx+xml' : (attachment.mimeType || 'application/octet-stream');
-      openWithOnAndroid(`${API_BASE_URL}${link.path}`, mime);
-    } catch {
-      notifyError();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function open() {
-    if (isAndroidWeb() && !isBrowserViewable(attachment)) {
-      await openWithOnAndroidWeb();
-      return;
-    }
-    // PDF / image : nouvel onglet (web) ou navigateur intégré (mobile).
-    // Web, GPX & co : nouvel onglet aussi — le serveur envoie ces
-    // fichiers en téléchargement, c'est le navigateur qui propose de les
-    // enregistrer / ouvrir. (Le menu de partage Web Share et les
-    // téléchargements en mémoire sont refusés ou ignorés par les applis
-    // web installées sur l'écran d'accueil.)
-    if (isBrowserViewable(attachment) || Platform.OS === 'web') {
-      try {
-        await openAttachment(buildUrl);
-      } catch {
-        notifyError();
-      }
-      return;
-    }
-    const url = buildUrl(await storage.getItem(STORAGE_KEYS.accessToken));
-
-    // Autres fichiers (GPX, FIT…) : le navigateur intégré ne sait pas
-    // les afficher et ne faisait rien. On télécharge puis on propose
-    // « Ouvrir avec… » (Komoot, Strava, Garmin, Fichiers…).
-    setBusy(true);
     try {
-      const safeName = attachment.name.replace(/[^\w.\-]+/g, '_') || `piece-jointe-${attachment.id}`;
-      const target = `${FileSystem.cacheDirectory}${attachment.id}-${safeName}`;
-      const { status, uri } = await FileSystem.downloadAsync(url, target);
-      if (status !== 200) throw new Error(`HTTP ${status}`);
-      if (!(await Sharing.isAvailableAsync())) {
-        await WebBrowser.openBrowserAsync(url);
+      if (Platform.OS !== 'web' && !isBrowserViewable(attachment)) {
+        await Linking.openURL(buildUrl(await storage.getItem(STORAGE_KEYS.accessToken)));
         return;
       }
-      await Sharing.shareAsync(uri, {
-        mimeType: attachment.mimeType || undefined,
-        dialogTitle: attachment.name,
-        UTI: /\.gpx$/i.test(attachment.name) ? 'com.topografix.gpx' : undefined,
-      });
+      await openAttachment(buildUrl);
     } catch {
       notifyError();
-    } finally {
-      setBusy(false);
     }
   }
+
   return (
-    <Pressable onPress={open} disabled={busy} style={({ pressed }) => [styles.attachmentChip, (pressed || busy) && { opacity: 0.85 }]}>
+    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && { opacity: 0.85 }]}>
       <Text style={styles.attachmentIcon}>{/\.gpx$/i.test(attachment.name) ? '🗺️' : '📎'}</Text>
       <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
-      {busy
-        ? <ActivityIndicator size="small" color={COLORS.secondaryDark} />
-        : <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>}
+      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
     </Pressable>
   );
 }

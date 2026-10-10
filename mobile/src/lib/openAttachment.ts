@@ -32,31 +32,6 @@ export async function openAttachment(buildUrl: (token: string | null) => string)
   window.open(buildUrl(token), '_blank', 'noopener');
 }
 
-/** Version web de l'appli ouverte sur un téléphone Android ? */
-export function isAndroidWeb(): boolean {
-  return Platform.OS === 'web' && typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
-}
-
-/**
- * Android (appli web) : « Ouvrir avec… » — Chrome propose les applis
- * capables d'ouvrir ce type de fichier (OsmAnd, Komoot, Locus…), qui
- * le téléchargent elles-mêmes depuis `url`. Si aucune appli ne se
- * propose, Chrome charge `url` : téléchargement classique.
- * `url` doit être un lien temporaire SANS jeton de connexion : il est
- * transmis à une autre appli.
- * À appeler peu après un appui (Chrome refuse sinon d'ouvrir une appli).
- */
-export function openWithOnAndroid(url: string, mimeType: string): void {
-  const u = new URL(url, window.location.origin);
-  const intent = `intent://${u.host}${u.pathname}${u.search}#Intent;`
-    + `scheme=${u.protocol.replace(':', '')};`
-    + 'action=android.intent.action.VIEW;'
-    + `type=${mimeType};`
-    + `S.browser_fallback_url=${encodeURIComponent(u.toString())};`
-    + 'end';
-  window.location.href = intent;
-}
-
 /** Ajoute le jeton en query `bearer` à une URL. */
 export function withBearer(url: string, token: string | null): string {
   if (!token) return url;
