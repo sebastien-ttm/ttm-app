@@ -203,6 +203,13 @@ class EventController extends AbstractController
         } catch (\Throwable) {
             return new JsonResponse(['error' => 'Date invalide.'], Response::HTTP_BAD_REQUEST);
         }
+        // L'appli envoie des instants UTC (« …T22:00:00.000Z » pour minuit à Paris) alors que
+        // les dates des événements sont stockées à l'heure de Paris : Doctrine écrit la date
+        // SANS convertir le fuseau. Sans ce recalage la fenêtre démarrait 1 à 2 h trop tôt et
+        // les événements de la veille au soir apparaissaient dans « Prochainement ».
+        $appTimezone = new \DateTimeZone(date_default_timezone_get());
+        $from = $from->setTimezone($appTimezone);
+        $to = $to->setTimezone($appTimezone);
 
         /** @var User $viewer */
         $viewer = $this->getUser();
