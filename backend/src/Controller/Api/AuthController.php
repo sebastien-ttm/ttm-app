@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\Profile;
 use App\Enum\UserType;
 use App\EventListener\AuthSuccessListener;
+use App\Message\NotifyExternalMemberCreatedMessage;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
@@ -390,6 +391,15 @@ class AuthController extends AbstractController
 
         $this->em->persist($member);
         $this->em->flush();
+
+        // Prévient les administrateurs, qui doivent l'activer pour la saison en cours (sinon
+        // l'import des licences le désactive après la date limite). Ne doit jamais faire
+        // échouer l'inscription.
+        try {
+            $this->bus->dispatch(new NotifyExternalMemberCreatedMessage((int) $member->getId()));
+        } catch (\Throwable) {
+            // file indisponible : l'adhérent apparaît quand même dans « Adhérents externes »
+        }
 
         $accessToken = $this->jwt->create($member);
         $refresh = $this->refreshTokenGenerator->createForUserWithTtl($member, 2592000);

@@ -9,6 +9,7 @@ use App\Enum\Profile;
 use App\Enum\UserType;
 use App\Message\SendMagicLinkEmailMessage;
 use App\Repository\MembershipSettingsRepository;
+use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Repository\UserSeasonMembershipRepository;
 use App\Service\MagicLinkService;
@@ -85,6 +86,7 @@ class CsvImportService
         private readonly LoggerInterface $csvImportLogger,
         private readonly MembershipSettingsRepository $membership,
         private readonly UserSeasonMembershipRepository $memberships,
+        private readonly TrainingSeasonRepository $seasons,
     ) {
     }
 
@@ -379,7 +381,9 @@ class CsvImportService
             // jusqu'à la date limite.
             $settings = $this->membership->findCurrent();
             $inGrace = $settings !== null && $settings->isInOldMembersGracePeriod();
-            $stale = $this->users->findActiveNotSyncedSince($importedAt);
+            // Les adhérents externes (licenciés dans un autre club, absents du CSV par définition)
+            // que l'admin a activés pour la saison en cours ne sont pas désactivés.
+            $stale = $this->users->findActiveNotSyncedSince($importedAt, $this->seasons->findCurrent());
 
             if ($inGrace) {
                 $result->deactivationDeferred = count($stale);

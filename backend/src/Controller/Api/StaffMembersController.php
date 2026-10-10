@@ -70,6 +70,8 @@ class StaffMembersController extends AbstractController
                 'telephone' => $phone,
                 // Non null quand le numéro est celui d'un parent (« Appeler Marie Dupont »).
                 'telephoneOf' => $phoneOf,
+                // Adhérent externe : licencié dans un autre club (compte créé depuis l'appli).
+                'isExternal' => $u->isLicencieAutreClub(),
                 // Présent dans la liste des adhérents de la saison en cours ?
                 'inCurrentSeason' => isset($inSeason[$u->getId()]),
             ];

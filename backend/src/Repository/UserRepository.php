@@ -167,12 +167,15 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      *    pas du flux FFTri.
      *  - les comptes externes (type='externe') : créés via inscription
      *    mobile (parents), n'apparaissent pas dans le CSV.
+     *  - les adhérents externes (licenciés dans un autre club, absents du CSV par
+     *    définition) que l'admin a ACTIVÉS pour la saison $protectedSeason : tant que
+     *    cette activation tient, l'import ne les désactive pas.
      *
      * @return list<User>
      */
-    public function findActiveNotSyncedSince(\DateTimeImmutable $cutoff): array
+    public function findActiveNotSyncedSince(\DateTimeImmutable $cutoff, ?\App\Entity\TrainingSeason $protectedSeason = null): array
     {
-        return $this->createQueryBuilder('u')
+        $qb = $this->createQueryBuilder('u')
             ->where('u.isActive = true')
             ->andWhere('u.lastCsvSyncAt IS NULL OR u.lastCsvSyncAt < :cutoff')
             ->andWhere("u.role <> 'admin'")
@@ -180,9 +183,50 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             // Comptes temporaires (licence en attente) : absents du CSV
             // par définition, ils ne doivent pas être désactivés.
             ->andWhere('u.pendingLicenceSince IS NULL')
-            ->setParameter('cutoff', $cutoff)
+            ->setParameter('cutoff', $cutoff);
+
+        if ($protectedSeason !== null) {
+            $qb->andWhere('u.subType IS NULL OR u.subType <> :autreClub OR NOT EXISTS ('
+                .'SELECT m.id FROM '.\App\Entity\UserSeasonMembership::class.' m WHERE m.user = u AND m.season = :protectedSeason)')
+                ->setParameter('autreClub', User::SUBTYPE_AUTRE_CLUB)
+                ->setParameter('protectedSeason', $protectedSeason);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Adhérents externes : comptes d'adhérents licenciés dans un AUTRE club, créés depuis
+     * l'appli (« Créer un compte adhérent externe »). Actifs ou non, par ordre alphabétique.
+     *
+     * @return list<User>
+     */
+    public function findExternalMembers(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where("u.type = 'adherent'")
+            ->andWhere('u.subType = :autreClub')
+            ->setParameter('autreClub', User::SUBTYPE_AUTRE_CLUB)
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /** Adhérents externes dont le compte est actif mais pas encore activé pour la saison donnée. */
+    public function countExternalMembersToActivate(\App\Entity\TrainingSeason $season): int
+    {
+        return (int) $this->createQueryBuilder('u')
+            ->select('COUNT(u.id)')
+            ->where("u.type = 'adherent'")
+            ->andWhere('u.subType = :autreClub')
+            ->andWhere('u.isActive = true')
+            ->andWhere('NOT EXISTS ('
+                .'SELECT m.id FROM '.\App\Entity\UserSeasonMembership::class.' m WHERE m.user = u AND m.season = :season)')
+            ->setParameter('autreClub', User::SUBTYPE_AUTRE_CLUB)
+            ->setParameter('season', $season)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**

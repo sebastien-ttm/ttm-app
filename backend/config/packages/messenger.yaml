@@ -18,6 +18,7 @@ framework:
             App\Message\SendMailingBatchMessage: async
             App\Message\SendMagicLinkEmailMessage: async
             App\Message\SendPasswordResetEmailMessage: async
+            App\Message\NotifyExternalMemberCreatedMessage: async
             App\Message\SendTrainingPlanEmailsMessage: async
             App\Message\SendInvoiceEmailMessage: async
             App\Message\NotifyNewUserMessageMessage: async

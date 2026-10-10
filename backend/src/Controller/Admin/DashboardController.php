@@ -40,6 +40,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem as AdminMenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
 use App\Repository\PerfTestDeclarationRepository;
+use App\Repository\TrainingSeasonRepository;
+use App\Repository\UserRepository;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -61,6 +63,29 @@ class DashboardController extends AbstractDashboardController
     {
         try {
             return $this->perfDeclarations?->countPending() ?? 0;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /** Injectés par setter (pas de constructeur) : servent au badge « Adhérents externes » du menu. */
+    private ?UserRepository $externalUsers = null;
+    private ?TrainingSeasonRepository $externalSeasons = null;
+
+    #[Required]
+    public function setExternalMembersSources(UserRepository $users, TrainingSeasonRepository $seasons): void
+    {
+        $this->externalUsers = $users;
+        $this->externalSeasons = $seasons;
+    }
+
+    /** Adhérents externes actifs à activer pour la saison en cours — jamais bloquant pour le menu (0 en cas d'erreur). */
+    private function externalMembersToActivate(): int
+    {
+        try {
+            $season = $this->externalSeasons?->findCurrent();
+
+            return $season !== null ? ($this->externalUsers?->countExternalMembersToActivate($season) ?? 0) : 0;
         } catch (\Throwable) {
             return 0;
         }
@@ -190,6 +215,8 @@ class DashboardController extends AbstractDashboardController
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Licences en attente', 'fa fa-hourglass-half', 'admin_pending_licence')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Adhérents externes', 'fa fa-user-plus', 'admin_external_members')
+                    ->setBadge($this->externalMembersToActivate() ?: null, 'danger')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Trombinoscope', 'fa fa-address-card', 'admin_members_recap')],
                 [CapDistributionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Bonnets du club', 'fa fa-person-swimming', 'admin_cap_distribution')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Groupes d\'adhérents', 'fa fa-user-group', MemberGroup::class)],

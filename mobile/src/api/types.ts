@@ -380,7 +380,9 @@ export type StaffMember = {
   telephone: string | null;
   /** Nom du parent quand le numéro est le sien (enfant sans téléphone) ; sinon null. */
   telephoneOf: string | null;
-  /** Présent dans la liste des adhérents de la saison en cours (import FFTri) ? */
+  /** Adhérent externe : licencié dans un autre club (compte créé depuis l'appli). */
+  isExternal: boolean;
+  /** Présent dans la liste des adhérents de la saison en cours (import FFTri, ou activé par l'admin pour un adhérent externe) ? */
   inCurrentSeason: boolean;
 };
 

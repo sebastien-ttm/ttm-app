@@ -1,0 +1,15 @@
+Bonjour {{ admin.prenom }},
+
+Un nouveau compte adhérent externe (licencié dans un autre club) vient d'être créé depuis l'application :
+
+  {{ member.fullName }}
+  E-mail : {{ member.email }}
+  N° de licence : {{ member.numLicence ?: '—' }}
+{% if member.dateNaissance %}  Né(e) le {{ member.dateNaissance|date('d/m/Y') }}{% if member.categorieFFTri %} ({{ member.categorieFFTri }}){% endif %}
+{% endif %}  Compte créé le {{ member.createdAt|date('d/m/Y à H:i') }}
+
+Son compte est actif dès maintenant, mais il ne figure pas dans l'import des licences du club : sans activation pour la saison{% if seasonLabel %} {{ seasonLabel }}{% endif %}, il sera désactivé lors du prochain import après la date limite des anciens adhérents.
+
+Activer pour la saison : {{ adminUrl }}
+
+— Triathlon Toulouse Métropole (message automatique)

@@ -1,0 +1,109 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Adhérents externes{% endblock %}
+{% block content_title %}🧑‍🤝‍🧑 Adhérents externes{% endblock %}
+
+{% block main %}
+    <style>
+        .ex-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 20px; margin-bottom:16px; }
+        .ex-help { font-size:13px; color:#475569; line-height:1.55; }
+        .ex-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+        .ex-tab { padding:7px 14px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; color:#0d2148; font-size:13px; font-weight:600; text-decoration:none; }
+        .ex-tab.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .ex-tab .n { opacity:.75; font-weight:400; }
+        .ex-table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); font-size:14px; }
+        .ex-table th { text-align:left; background:#f8fafc; color:#475569; padding:9px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .ex-table td { padding:9px 10px; border-bottom:1px solid #eef2f7; vertical-align:middle; }
+        .ex-ok { color:#15803d; font-weight:600; }
+        .ex-wait { color:#b45309; font-weight:600; }
+        .ex-off { display:inline-block; padding:2px 8px; border-radius:999px; background:#fee2e2; color:#991b1b; font-size:12px; font-weight:600; }
+        .ex-bulk { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+        .ex-inline { display:inline; margin:0; }
+    </style>
+
+    <div class="ex-card ex-help">
+        Ce sont les comptes <strong>« adhérent externe »</strong> : des adhérents licenciés dans un <strong>autre club</strong> qui se sont inscrits eux-mêmes
+        dans l'appli. Ils ne figurent pas dans l'import des licences du club : <strong>sans activation pour la saison</strong>, l'import les désactive une fois la
+        date limite des anciens adhérents passée. <strong>Activer</strong> enregistre leur adhésion pour la saison en cours (comme un adhérent importé) et
+        réactive le compte s'il avait été désactivé. L'activation est à refaire à chaque nouvelle saison.
+    </div>
+
+    {% if season is null %}
+        <div class="ex-card" style="color:#b45309;">
+            Aucune saison d'entraînement n'est définie : créez-la (Entraînements → Saison d'entraînement) pour pouvoir activer les adhérents externes.
+        </div>
+    {% else %}
+        <p class="ex-help" style="margin:0 0 12px;">Saison en cours : <strong>{{ season }}</strong>.</p>
+
+        <div class="ex-tabs">
+            <a class="ex-tab {{ view == 'todo' ? 'active' : '' }}" href="{{ path('admin_external_members', {view: 'todo'}) }}">⏳ À activer <span class="n">({{ counts.todo }})</span></a>
+            <a class="ex-tab {{ view == 'done' ? 'active' : '' }}" href="{{ path('admin_external_members', {view: 'done'}) }}">✅ Activés <span class="n">({{ counts.done }})</span></a>
+            <a class="ex-tab {{ view == 'all' ? 'active' : '' }}" href="{{ path('admin_external_members', {view: 'all'}) }}">Tous <span class="n">({{ counts.all }})</span></a>
+        </div>
+
+        {% if rows is empty %}
+            <div class="ex-card" style="color:#64748b;">
+                {% if view == 'todo' %}Aucun adhérent externe à activer. 🎉{% else %}Aucun adhérent externe dans cette vue.{% endif %}
+            </div>
+        {% else %}
+            {# Formulaires hors du tableau (un <form> ne peut pas contenir un <form>) : cases et boutons s'y rattachent par l'attribut form="…". #}
+            <form id="ex-bulk" method="post" action="{{ path('admin_external_members_activate') }}"
+                  onsubmit="return confirm('Activer les adhérents externes cochés pour la saison {{ season }} ?');">
+                <input type="hidden" name="_token" value="{{ csrf_token('external_members') }}">
+                <input type="hidden" name="view" value="{{ view }}">
+            </form>
+            {% for row in rows %}
+                <form id="ex-one-{{ row.user.id }}" method="post" action="{{ path('admin_external_members_activate') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('external_members') }}">
+                    <input type="hidden" name="view" value="{{ view }}">
+                    <input type="hidden" name="ids[]" value="{{ row.user.id }}">
+                </form>
+            {% endfor %}
+
+            <div class="ex-bulk">
+                <button type="submit" form="ex-bulk" class="btn btn-primary"><i class="fa fa-check"></i> Activer la sélection pour {{ season }}</button>
+                <span class="ex-help">Cochez les adhérents (ou « tout cocher ») puis activez-les en une fois.</span>
+            </div>
+
+            <table class="ex-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" title="Tout cocher" onclick="document.querySelectorAll('.ex-check').forEach(function (c) { c.checked = this.checked; }, this);"></th>
+                        <th>Adhérent</th>
+                        <th>E-mail</th>
+                        <th>N° de licence</th>
+                        <th>Compte créé le</th>
+                        <th>Compte</th>
+                        <th>Saison {{ season }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        {% set u = row.user %}
+                        <tr>
+                            <td>
+                                {% if not row.activated or not u.active %}
+                                    <input type="checkbox" class="ex-check" form="ex-bulk" name="ids[]" value="{{ u.id }}">
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ u.prenom }} {{ u.nom|upper }}</strong></td>
+                            <td>{{ u.email }}</td>
+                            <td>{{ u.numLicence ?: '—' }}</td>
+                            <td style="white-space:nowrap;">{{ u.createdAt|date('d/m/Y') }}</td>
+                            <td>{% if u.active %}Actif{% else %}<span class="ex-off">Désactivé</span>{% endif %}</td>
+                            <td>{% if row.activated %}<span class="ex-ok">✓ Activé</span>{% else %}<span class="ex-wait">⏳ À activer</span>{% endif %}</td>
+                            <td>
+                                {% if not row.activated or not u.active %}
+                                    <button type="submit" form="ex-one-{{ u.id }}" class="btn btn-success btn-sm">
+                                        <i class="fa fa-check"></i> {{ row.activated ? 'Réactiver le compte' : 'Activer' }}
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    {% endif %}
+{% endblock %}

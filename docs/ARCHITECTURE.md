@@ -294,6 +294,18 @@ num_licence,nom,prenom,email,telephone,categorie,statut_licence
 3. Après le passage de toutes les lignes : tout user dont `last_csv_sync_at` < timestamp de cet import → `is_active = false` ("désactivation"). Ne supprime jamais.
 4. Compte-rendu affiché en EasyAdmin : créés / mis à jour / désactivés / erreurs ligne par ligne.
 
+### Adhérents externes (licenciés dans un autre club)
+Ces comptes sont créés depuis l'appli (« Créer un compte adhérent externe » : `type = adherent`, `subType = autre_club`). Ils
+ne sont **jamais dans le CSV FFTri** : sans action, l'étape 3 les désactive une fois la date limite des anciens adhérents
+passée.
+- **Notification** : à chaque inscription, un e-mail part à chaque administrateur actif (`NotifyExternalMemberCreatedMessage`).
+- **Activation pour la saison** : backend « Adhérents → Adhérents externes » (pastille = comptes actifs à activer). Activer
+  crée l'adhésion de la saison en cours (`UserSeasonMembership`, comme un adhérent importé) et réactive le compte s'il
+  était désactivé. L'étape 3 (`UserRepository::findActiveNotSyncedSince`) épargne les externes activés pour la saison en
+  cours. À refaire à chaque nouvelle saison.
+- **Appli (Staff → Adhérents)** : pastille « Externe · autre club » et filtre « Externes » ; la pastille de saison indique
+  « Hors liste » tant que l'admin n'a pas activé le compte.
+
 ### Mapping `statut_licence` → `is_active`
 - "Actif", "ACTIF" → `true`
 - toute autre valeur → `false`

@@ -35,7 +35,7 @@ function normalize(text: string): string {
  * indiquant s'il est dans la liste des adhérents de la saison en cours (import
  * FFTri), avec un filtre. Réservé au staff (le serveur revérifie le profil).
  */
-type SeasonFilter = 'all' | 'in' | 'out';
+type MemberFilter = 'all' | 'in' | 'out' | 'external';
 export function MembersTab() {
   const [members, setMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export function MembersTab() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [season, setSeason] = useState<StaffDirectorySeason | null>(null);
-  const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>('all');
+  const [seasonFilter, setSeasonFilter] = useState<MemberFilter>('all');
   // Adhérent dont la photo est affichée en grand (appui sur la photo d'une ligne).
   const [zoomed, setZoomed] = useState<StaffMember | null>(null);
 
@@ -75,12 +75,16 @@ export function MembersTab() {
   // monde paraîtrait « hors liste ».
   const seasonKnown = season !== null && season.memberCount > 0;
   const inCount = members.filter((m) => m.inCurrentSeason).length;
+  // Adhérents externes : licenciés dans un autre club (compte créé depuis l'appli).
+  const externalCount = members.filter((m) => m.isExternal).length;
 
   const sections = useMemo(() => {
     const q = normalize(query.trim());
-    const bySeason = !seasonKnown || seasonFilter === 'all'
-      ? members
-      : members.filter((m) => m.inCurrentSeason === (seasonFilter === 'in'));
+    const bySeason = seasonFilter === 'external'
+      ? members.filter((m) => m.isExternal)
+      : !seasonKnown || seasonFilter === 'all'
+        ? members
+        : members.filter((m) => m.inCurrentSeason === (seasonFilter === 'in'));
     const filtered = q === ''
       ? bySeason
       : bySeason.filter((m) => normalize(`${m.nom} ${m.prenom}`).includes(q) || normalize(`${m.prenom} ${m.nom}`).includes(q));
@@ -132,13 +136,18 @@ export function MembersTab() {
           </Pressable>
         )}
       </View>
-      {seasonKnown && season && (
+      {((seasonKnown && season) || externalCount > 0) && (
         <View style={styles.filters}>
           {([
             { key: 'all', label: `Tous (${members.length})` },
-            { key: 'in', label: `Saison ${season.label} (${inCount})` },
-            { key: 'out', label: `Hors liste (${members.length - inCount})` },
-          ] as { key: SeasonFilter; label: string }[]).map((f) => {
+            ...(seasonKnown && season
+              ? [
+                  { key: 'in', label: `Saison ${season.label} (${inCount})` },
+                  { key: 'out', label: `Hors liste (${members.length - inCount})` },
+                ]
+              : []),
+            ...(externalCount > 0 ? [{ key: 'external', label: `Externes (${externalCount})` }] : []),
+          ] as { key: MemberFilter; label: string }[]).map((f) => {
             const active = seasonFilter === f.key;
             return (
               <Pressable
@@ -183,11 +192,20 @@ export function MembersTab() {
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
               </Text>
-              {seasonKnown && season && (
-                <View style={[styles.pill, item.inCurrentSeason ? styles.pillIn : styles.pillOut]}>
-                  <Text style={[styles.pillLabel, item.inCurrentSeason ? styles.pillLabelIn : styles.pillLabelOut]}>
-                    {item.inCurrentSeason ? `✓ Saison ${season.label}` : `Hors liste ${season.label}`}
-                  </Text>
+              {((seasonKnown && season) || item.isExternal) && (
+                <View style={styles.pillRow}>
+                  {item.isExternal && (
+                    <View style={[styles.pill, styles.pillExternal]}>
+                      <Text style={[styles.pillLabel, styles.pillLabelExternal]}>Externe · autre club</Text>
+                    </View>
+                  )}
+                  {seasonKnown && season && (
+                    <View style={[styles.pill, item.inCurrentSeason ? styles.pillIn : styles.pillOut]}>
+                      <Text style={[styles.pillLabel, item.inCurrentSeason ? styles.pillLabelIn : styles.pillLabelOut]}>
+                        {item.inCurrentSeason ? `✓ Saison ${season.label}` : `Hors liste ${season.label}`}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
               {item.telephone ? (
@@ -263,6 +281,9 @@ const styles = StyleSheet.create({
   filterLabelActive: { color: '#fff' },
   seasonNote: { fontSize: 12, color: COLORS.textMuted, marginHorizontal: SPACING.md, marginBottom: 4 },
   pill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.full, marginTop: 3 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  pillExternal: { backgroundColor: '#dbeafe' },
+  pillLabelExternal: { color: '#1e40af' },
   pillIn: { backgroundColor: '#dcfce7' },
   pillOut: { backgroundColor: '#ffedd5' },
   pillLabel: { fontSize: 11, fontWeight: '700' },
