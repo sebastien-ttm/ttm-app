@@ -100,13 +100,13 @@
                                 {{ att.originalName }}
                             </a>
                             <span style="font-size:12px; color:#888;">{{ att.humanSize }}</span>
-                            <form method="post" action="{{ path('admin_training_schedule_attachment_delete', {id: att.id}) }}" style="display:inline;"
-                                  onsubmit="return confirm('Supprimer cette pièce jointe ?');">
-                                <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
-                                <button type="submit" class="btn btn-sm btn-link" style="color:#991B1B; padding:0;">
-                                    <i class="fa fa-trash"></i>
-                                </button>
-                            </form>
+                            {# Bouton rattaché à un formulaire séparé (placé après le formulaire d'édition) :
+                               un <form> imbriqué est ignoré par le navigateur, qui enverrait alors le
+                               formulaire d'édition avec le mauvais jeton CSRF. #}
+                            <button type="submit" form="att-del-{{ att.id }}" class="btn btn-sm btn-link" style="color:#991B1B; padding:0;"
+                                    title="Supprimer cette pièce jointe" onclick="return confirm('Supprimer cette pièce jointe ?');">
+                                <i class="fa fa-trash"></i>
+                            </button>
                         </li>
                     {% endfor %}
                 </ul>
@@ -126,4 +126,13 @@
             <a href="{{ path('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
+
+    {# Formulaires de suppression des pièces jointes, HORS du formulaire d'édition (voir les boutons plus haut). #}
+    {% if slot.id %}
+        {% for att in slot.attachments %}
+            <form id="att-del-{{ att.id }}" method="post" action="{{ path('admin_training_schedule_attachment_delete', {id: att.id}) }}" hidden>
+                <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+            </form>
+        {% endfor %}
+    {% endif %}
 {% endblock %}
