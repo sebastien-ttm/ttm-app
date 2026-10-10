@@ -4,8 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { trainingSchedule as scheduleApi } from '@/api/resources';
 import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
+import { FullScreenLoading } from '@/components/Loading';
+import { ShareButton } from '@/components/ShareButton';
 import { SportBadge } from '@/components/SportBadge';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
@@ -21,16 +24,52 @@ import { dayLabel, formatDurationHm, fromIsoDate } from '@/utils/week';
  * Pour les créneaux virtuels (id=null : projection d'un template
  * de semaine type non-encore matérialisée), on affiche la même vue
  * sans que l'URL doive porter d'ID côté serveur.
+ *
+ * Lien partagé (bouton « Partager ») : pas d'objet en paramètre, seulement
+ * `date` + `slotId` ou `templateId` (+ `time`) — le créneau est alors retrouvé
+ * dans le planning de la semaine de cette date.
  */
 export default function TrainingSlotDetailScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
-  const { slot: rawSlot } = useLocalSearchParams<{ slot?: string }>();
+  const { slot: rawSlot, date, slotId, templateId, time } = useLocalSearchParams<{
+    slot?: string; date?: string; slotId?: string; templateId?: string; time?: string;
+  }>();
 
-  const slot: TrainingSlot | null = useMemo(() => {
+  const passed: TrainingSlot | null = useMemo(() => {
     if (typeof rawSlot !== 'string' || rawSlot === '') return null;
     try { return JSON.parse(rawSlot) as TrainingSlot; } catch { return null; }
   }, [rawSlot]);
+
+  // Lien partagé : on retrouve le créneau dans le planning de la semaine indiquée.
+  const [fetched, setFetched] = useState<TrainingSlot | null>(null);
+  const [lookupFailed, setLookupFailed] = useState(false);
+  useEffect(() => {
+    if (passed || typeof date !== 'string' || date === '') return;
+    let cancelled = false;
+    setLookupFailed(false);
+    scheduleApi.week(date)
+      .then((week) => {
+        if (cancelled) return;
+        const found = findSlot(week.slots, date, slotId, templateId, time);
+        setFetched(found);
+        setLookupFailed(found === null);
+      })
+      .catch(() => { if (!cancelled) setLookupFailed(true); });
+    return () => { cancelled = true; };
+  }, [passed, date, slotId, templateId, time]);
+
+  const slot: TrainingSlot | null = passed ?? fetched;
+  const waiting = !slot && !passed && typeof date === 'string' && date !== '' && !lookupFailed;
+
+  if (waiting) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <Stack.Screen options={{ title: 'Créneau' }} />
+        <FullScreenLoading />
+      </SafeAreaView>
+    );
+  }
 
   if (!slot) {
     return (
@@ -68,6 +107,13 @@ export default function TrainingSlotDetailScreen() {
           </View>
 
           <Text style={[styles.title, slot.isCancelled && styles.titleCancelled]}>{slot.title}</Text>
+
+          <View style={styles.shareRow}>
+            <ShareButton
+              path={shareablePath(slot)}
+              title={`${slot.title} — ${dayName} ${dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${slot.startTime}`}
+            />
+          </View>
 
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={18} color={COLORS.textMuted} />
@@ -109,6 +155,39 @@ export default function TrainingSlotDetailScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * Retrouve un créneau dans la liste d'une semaine à partir des paramètres du
+ * lien partagé : id du créneau, sinon template de semaine type, sinon heure.
+ */
+function findSlot(
+  slots: TrainingSlot[],
+  date: string,
+  slotId?: string,
+  templateId?: string,
+  time?: string,
+): TrainingSlot | null {
+  const onDay = slots.filter((s) => s.date === date);
+  if (slotId) {
+    const hit = onDay.find((s) => String(s.id) === slotId);
+    if (hit) return hit;
+  }
+  if (templateId) {
+    const hit = onDay.find((s) => String(s.templateId) === templateId);
+    if (hit) return hit;
+  }
+  return time ? onDay.find((s) => s.startTime === time) ?? null : null;
+}
+
+/** Chemin du lien partagé : porte la date et l'identité du créneau, pas l'objet entier. */
+function shareablePath(slot: TrainingSlot): string {
+  // Construit à la main : URLSearchParams est incomplet sur certaines versions natives.
+  const parts = [`date=${encodeURIComponent(slot.date)}`];
+  if (slot.id !== null) parts.push(`slotId=${slot.id}`);
+  else if (slot.templateId !== null) parts.push(`templateId=${slot.templateId}`);
+  parts.push(`time=${encodeURIComponent(slot.startTime)}`);
+  return `/training-slot?${parts.join('&')}`;
 }
 
 function Tag({ label, color, bg }: { label: string; color: string; bg?: string }) {
@@ -241,6 +320,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   sportRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  shareRow: { flexDirection: 'row' },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginTop: 4 },
   titleCancelled: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
