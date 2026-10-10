@@ -69,8 +69,9 @@ const HEAD_INJECTION = `
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TTM" />
 
-    <!-- === Favicon (onglet navigateur) === -->
-    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <!-- === Favicon (onglet navigateur) : emblème du club ===
+         Pas de favicon SVG : icon.svg reste le monogramme TTM (source des icônes PWA). -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
     <!-- /pwa-injected -->`;

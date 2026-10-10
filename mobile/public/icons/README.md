@@ -16,8 +16,9 @@ options suivantes.
 | Fichier | Taille | Usage |
 |---------|--------|-------|
 | `icon.svg` | vectoriel | Favicon SVG (navigateurs modernes), source pour générer les PNG |
-| `favicon-16.png` | 16×16 | Favicon onglet (Firefox, anciens navigateurs) |
-| `favicon-32.png` | 32×32 | Favicon onglet (la plupart des navigateurs) |
+| `favicon-16.png` | 16×16 | Favicon onglet : emblème du club sur fond transparent |
+| `favicon-32.png` | 32×32 | Favicon onglet (la plupart des navigateurs), emblème du club |
+| `../favicon.ico` | 16/32/48 | Favicon à la racine du site : demandé par défaut par les navigateurs et par l'administration (EasyAdmin) — emblème du club |
 | `apple-touch-icon.png` | 180×180 | iOS Safari « Ajouter à l'écran d'accueil » |
 | `icon-192.png` | 192×192 | Android Chrome icône PWA standard |
 | `icon-512.png` | 512×512 | Android Chrome splash + écran d'accueil HD |
@@ -51,6 +52,13 @@ magick icon.svg -resize 410x410 -gravity center -background "#D32F2F" -extent 51
 
 Le dernier ajoute une marge intérieure de ~10 % pour respecter la safe area des
 icônes adaptatives Android.
+
+## Favicons (onglet du navigateur)
+
+Les favicons (`favicon-16.png`, `favicon-32.png`, `../favicon.ico`) sont l'**emblème du club** (rouge, fond
+transparent, ~6 % de marge) tiré de `mobile/assets/branding/logo-mark.png`, lui-même issu du logo officiel
+`assets/branding/logo.svg`. Ils ne dérivent donc pas de `icon.svg` (monogramme TTM, source des icônes PWA
+et de l'écran d'accueil). Le `.ico` contient les PNG 16, 32 et 48 px.
 
 ## Pictogramme des notifications (`badge-96.png`)
 
