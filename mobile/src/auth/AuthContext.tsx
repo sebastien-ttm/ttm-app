@@ -105,6 +105,8 @@ type AuthState = {
 type AuthContextValue = AuthState & {
   loginWithPassword: (email: string, password: string) => Promise<void>;
   consumeMagicLink: (token: string) => Promise<void>;
+  /** « Mot de passe oublié » : enregistre le nouveau mot de passe et ouvre la session. */
+  completePasswordReset: (token: string, password: string) => Promise<void>;
   registerParent: (payload: RegisterParentPayload) => Promise<void>;
   registerMember: (payload: RegisterMemberPayload) => Promise<void>;
   signOut: () => Promise<void>;
@@ -267,6 +269,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
+  const completePasswordReset = useCallback(
+    async (token: string, password: string) => {
+      const resp = await auth.confirmPasswordReset(token, password);
+      await persist(resp);
+    },
+    [persist],
+  );
+
   const registerParent = useCallback(
     async (payload: RegisterParentPayload) => {
       const resp = await auth.registerParent(payload);
@@ -327,6 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...state,
       loginWithPassword,
       consumeMagicLink,
+      completePasswordReset,
       registerParent,
       registerMember,
       signOut,
@@ -336,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       switchProfile,
       replaceLinkedProfiles,
     }),
-    [state, loginWithPassword, consumeMagicLink, registerParent, registerMember, signOut, refreshMe, refreshCharterStatus, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
+    [state, loginWithPassword, consumeMagicLink, completePasswordReset, registerParent, registerMember, signOut, refreshMe, refreshCharterStatus, acknowledgeCharter, switchProfile, replaceLinkedProfiles],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

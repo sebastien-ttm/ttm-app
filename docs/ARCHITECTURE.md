@@ -214,7 +214,13 @@ Backend : check Argon2/bcrypt, retourne JWT
 
 ### Définir / changer son mot de passe
 - Adhérent connecté via magic link peut poser un mot de passe : `POST /api/me/password { new_password }`.
-- Reset via magic link à nouveau (= "mot de passe oublié").
+- **Mot de passe oublié** (lien sur l'écran de connexion) : `POST /api/auth/password-reset/request {email}` → toujours `204`
+  (aucune fuite sur les adresses connues) ; si le compte est actif, e-mail avec un lien
+  `/reset-password?token=…` valable 1 h, à usage unique (table `password_reset_token`, jeton haché SHA-256, une nouvelle
+  demande invalide les liens précédents). L'écran de l'appli vérifie le lien (`POST …/check {token}`), puis
+  `POST …/confirm {token, password}` (8 caractères minimum) change le mot de passe, **ferme les sessions ouvertes**
+  (jetons de rafraîchissement supprimés) et renvoie la même réponse qu'une connexion : l'adhérent est connecté.
+  Limites de débit : 10 demandes / 15 min / IP, 3 / h / adresse, 20 vérifications / 15 min / IP.
 
 ## 5. Contrat API (résumé)
 
@@ -224,6 +230,7 @@ Toutes les routes sont préfixées par `/api`. Auth requise sauf mention contrai
 - `POST /auth/magic-link/request` — body `{email}` → `204`
 - `GET /auth/magic-link/verify?token=` → `{access_token, refresh_token, user}`
 - `POST /auth/login` — body `{email, password}` → `{access_token, refresh_token, user}`
+- `POST /auth/password-reset/request|check|confirm` — « mot de passe oublié » (voir §4)
 - `POST /auth/refresh` — body `{refresh_token}` → `{access_token}`
 
 ### Profil

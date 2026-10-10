@@ -140,6 +140,17 @@ export default function LoginScreen() {
                   style={styles.input}
                   editable={!busy}
                 />
+                <Pressable
+                  onPress={() => router.push({
+                    pathname: '/(auth)/forgot-password',
+                    params: { email: readInput(email, emailRef).trim() },
+                  })}
+                  accessibilityRole="link"
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.forgotLink, pressed && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.forgotLabel}>Mot de passe oublié ?</Text>
+                </Pressable>
               </>
             )}
 
@@ -162,7 +173,7 @@ export default function LoginScreen() {
             <Text style={styles.help}>
               {mode === 'magic-link'
                 ? 'Vous recevrez un e-mail avec un lien de connexion. Pas besoin de mémoriser un mot de passe.'
-                : 'Si vous n\'avez pas encore de mot de passe, utilisez d\'abord le lien e-mail.'}
+                : 'Pas encore de mot de passe ? Créez-le avec « Mot de passe oublié ? », ou connectez-vous par lien e-mail.'}
             </Text>
           </View>
 
@@ -281,6 +292,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   parentLinkLabel: { color: '#cbd5e1', fontSize: 13, marginBottom: 6 },
+  forgotLink: { alignSelf: 'flex-end', paddingVertical: 6, marginBottom: SPACING.xs },
+  forgotLabel: { color: COLORS.secondary, fontSize: 14, fontWeight: '600' },
   parentLinkBtn: { paddingVertical: 8 },
   parentLinkBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

@@ -269,6 +269,17 @@ export const auth = {
     api.post<void>('/api/auth/magic-link/request', next ? { email, next } : { email }, { public: true }),
   verifyMagicLink: (token: string) =>
     api.get<LoginResponse>(`/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`, { public: true }),
+
+  // ---- Mot de passe oublié ----
+  /** Demande le lien de réinitialisation : réponse identique que l'adresse soit connue ou non. */
+  requestPasswordReset: (email: string) =>
+    api.post<void>('/api/auth/password-reset/request', { email }, { public: true }),
+  /** Le lien reçu par e-mail est-il encore valable ? */
+  checkPasswordReset: (token: string) =>
+    api.post<{ valid: boolean }>('/api/auth/password-reset/check', { token }, { public: true }),
+  /** Enregistre le nouveau mot de passe ; l'adhérent est connecté en retour. */
+  confirmPasswordReset: (token: string, password: string) =>
+    api.post<LoginResponse>('/api/auth/password-reset/confirm', { token, password }, { public: true }),
   refresh: (refreshToken: string) =>
     api.post<{ token: string; refresh_token?: string }>('/api/auth/refresh', { refresh_token: refreshToken }, { public: true }),
   registerParent: (payload: RegisterParentPayload) =>

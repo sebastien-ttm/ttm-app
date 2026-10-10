@@ -31,6 +31,20 @@ framework:
             policy: 'sliding_window'
             limit: 20
             interval: '15 minutes'
+        # « Mot de passe oublié » : demandes de lien (par IP, puis par adresse e-mail pour freiner
+        # l'envoi de courriers non sollicités à quelqu'un) et tentatives de vérification / changement.
+        password_reset_ip:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
+        password_reset_email:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'
+        password_reset_confirm_ip:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '15 minutes'
 
 when@test:
     framework:

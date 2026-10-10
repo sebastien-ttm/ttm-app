@@ -30,6 +30,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     // (non connecté), ni vers la home (connecté).
     if (segments[0] === 'confirm-email-change') return;
 
+    // Réinitialisation du mot de passe (lien reçu par e-mail) : utilisable avec ou sans
+    // session ; l'écran redirige lui-même vers l'accueil une fois le mot de passe changé.
+    if (segments[0] === '(auth)' && (segments as string[])[1] === 'reset-password') return;
+
     // Routes "auth flow" : on n'y redirige pas le user déjà connecté,
     // et le user non-connecté a le droit d'y rester.
     // Inclut le groupe (auth) ET la route littérale /auth/magic-link
