@@ -81,6 +81,8 @@ security:
         - { path: ^/admin, roles: ROLE_EDITEUR }
         - { path: ^/api/auth, roles: PUBLIC_ACCESS }
         - { path: ^/api/banner/active, roles: PUBLIC_ACCESS }
+        # Pages ouvertes aux visiteurs non connectés (ex : désinscription des mailings).
+        - { path: ^/api/public, roles: PUBLIC_ACCESS }
         # Doc/entrypoint API Platform (Swagger UI, OpenAPI JSON, contexts
         # JSON-LD) : aucune ressource n'y est mappée (src/Entity n'a aucun
         # #[ApiResource]), mais ça reste de la tuyauterie interne à ne pas

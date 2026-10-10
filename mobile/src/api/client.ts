@@ -202,6 +202,8 @@ export type AuthenticatedUser = {
   notifyTrainingPlanEmail: boolean;
   /** Préférence opt-in : recevoir un email à chaque nouvel article publié. */
   notifyArticleEmail: boolean;
+  /** Recevoir les mailings groupés du club (activé par défaut). Absent des anciennes réponses : on le tient pour activé. */
+  notifyMailing?: boolean;
   /**
    * Statut d'adhésion calculé côté serveur (label prêt-à-afficher + drapeau
    * de renouvellement). Null pour les comptes externes (parent, ami) qui
@@ -291,8 +293,8 @@ export const auth = {
     api.post<{ ok: boolean; newEmail: string }>('/api/auth/email-change/confirm', { token }, { public: true }),
 
   /** Mise à jour partielle des préférences de notification. */
-  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean }) =>
-    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean; notifyArticleEmail: boolean }>(
+  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean; notifyMailing?: boolean }) =>
+    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean; notifyArticleEmail: boolean; notifyMailing: boolean }>(
       '/api/me/notification-preferences',
       prefs,
     ),

@@ -25,6 +25,7 @@ export default function ProfileScreen() {
   // l'impression que les deux préférences étaient liées.
   const [togglingPlan, setTogglingPlan] = useState(false);
   const [togglingArticle, setTogglingArticle] = useState(false);
+  const [togglingMailing, setTogglingMailing] = useState(false);
   const [charterVersion, setCharterVersion] = useState<string | null>(null);
   // Reste-t-il des comptes liés non encore attribués (ni enfant ni parent
   // déclaré) ? Détermine le libellé de la ligne « Ma famille » : on ne
@@ -90,6 +91,18 @@ export default function ProfileScreen() {
       Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
     } finally {
       setTogglingArticle(false);
+    }
+  }
+
+  async function toggleMailing(next: boolean) {
+    setTogglingMailing(true);
+    try {
+      await authApi.updateNotificationPreferences({ notifyMailing: next });
+      await refreshMe();
+    } catch (e) {
+      Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
+    } finally {
+      setTogglingMailing(false);
     }
   }
 
@@ -328,6 +341,25 @@ export default function ProfileScreen() {
               thumbColor="#fff"
               ios_backgroundColor="#d4d4d8"
               activeThumbColor="#fff"
+            />
+          )}
+        </View>
+        <View style={[styles.switchRow, { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: 12 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Mailings du club</Text>
+            <Text style={styles.actionHint}>
+              Recevoir les e-mails d'information envoyés à tous les adhérents (assemblée générale, événements…).
+            </Text>
+          </View>
+          {togglingMailing ? (
+            <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
+          ) : (
+            <Switch
+              value={user.notifyMailing !== false}
+              onValueChange={toggleMailing}
+              trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
+              thumbColor="#fff"
+              ios_backgroundColor="#d4d4d8"
             />
           )}
         </View>

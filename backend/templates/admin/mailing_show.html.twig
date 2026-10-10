@@ -1,0 +1,215 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Mailing — {{ mailing.subject }}{% endblock %}
+{% block content_title %}📧 {{ mailing.subject }}{% endblock %}
+
+{% block main %}
+    <style>
+        .ml-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 20px; margin-bottom:16px; }
+        .ml-help { font-size:13px; color:#475569; line-height:1.55; }
+        .ml-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+        .ml-badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+        .ml-badge.draft { background:#e2e8f0; color:#334155; }
+        .ml-badge.sending { background:#dbeafe; color:#1e40af; }
+        .ml-badge.paused { background:#fef3c7; color:#92400e; }
+        .ml-badge.done { background:#dcfce7; color:#166534; }
+        .ml-badge.cancelled { background:#fee2e2; color:#991b1b; }
+        .ml-note { padding:10px 14px; border-radius:8px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:14px; margin-top:12px; }
+        .ml-big { font-size:34px; font-weight:800; color:#0d2148; line-height:1; }
+        .ml-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:16px; }
+        .ml-stat { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:14px 16px; }
+        .ml-stat .n { font-size:26px; font-weight:800; line-height:1.1; }
+        .ml-stat .l { font-size:12px; color:#64748b; margin-top:2px; }
+        .ml-stat.ok .n { color:#15803d; } .ml-stat.ko .n { color:#b91c1c; } .ml-stat.wait .n { color:#b45309; }
+        .ml-bar { height:12px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin:10px 0 4px; }
+        .ml-bar > span { display:block; height:100%; background:#16a34a; }
+        .ml-table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); font-size:14px; }
+        .ml-table th { text-align:left; background:#f8fafc; color:#475569; padding:9px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .ml-table td { padding:8px 10px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+        .ml-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 10px; }
+        .ml-tab { padding:6px 14px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; color:#0d2148; font-size:13px; font-weight:600; text-decoration:none; }
+        .ml-tab.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .ml-err { color:#b91c1c; font-size:12px; max-width:380px; word-break:break-word; }
+        .ml-preview { width:100%; height:520px; border:1px solid #cbd5e1; border-radius:8px; background:#f4f4f4; }
+        .ml-warn { color:#b45309; font-size:13px; }
+        .ml-muted { color:#64748b; font-size:13px; }
+        .ml-inline { display:inline; margin:0; }
+    </style>
+
+    {# ---------------------------------------------------------------- État #}
+    <div class="ml-card">
+        <div class="ml-row">
+            <span class="ml-badge {{ mailing.status }}">{{ mailing.statusLabel }}</span>
+            <span class="ml-muted">
+                Créé le {{ mailing.createdAt|date('d/m/Y à H:i') }}{% if mailing.createdBy %} par {{ mailing.createdBy.fullName }}{% endif %}
+                {% if mailing.startedAt %} · lancé le {{ mailing.startedAt|date('d/m/Y à H:i') }}{% endif %}
+                {% if mailing.finishedAt %} · terminé le {{ mailing.finishedAt|date('d/m/Y à H:i') }}{% endif %}
+            </span>
+        </div>
+        {% if mailing.statusNote %}
+            <div class="ml-note">{{ mailing.statusNote }}</div>
+        {% endif %}
+        <p class="ml-help" style="margin:12px 0 0;">
+            <strong>Destinataires :</strong>
+            {% if profileLabels is empty %}tous les adhérents{% else %}profils {{ profileLabels|join(', ') }}{% endif %}{% if mailing.includeExternal %}, comptes externes inclus{% endif %}.
+            {% if mailing.replyTo %}<strong>Réponses à :</strong> {{ mailing.replyTo }}.{% endif %}
+        </p>
+    </div>
+
+    {% if mailing.draft %}
+        {# ------------------------------------------------------------ Brouillon #}
+        <div class="ml-card">
+            <div class="ml-row" style="justify-content:space-between;">
+                <div>
+                    <div class="ml-big">{{ audience.eligible|length }}</div>
+                    <div class="ml-muted">destinataire{{ audience.eligible|length > 1 ? 's' : '' }} si vous lancez l'envoi maintenant</div>
+                </div>
+                <div class="ml-muted" style="max-width:420px;">
+                    {% if audience.optedOut > 0 %}<div>🚫 {{ audience.optedOut }} désinscrit{{ audience.optedOut > 1 ? 's' : '' }} exclu{{ audience.optedOut > 1 ? 's' : '' }}</div>{% endif %}
+                    {% if audience.invalidEmail > 0 %}<div>⚠️ {{ audience.invalidEmail }} adresse{{ audience.invalidEmail > 1 ? 's' : '' }} e-mail invalide{{ audience.invalidEmail > 1 ? 's' : '' }} exclue{{ audience.invalidEmail > 1 ? 's' : '' }}</div>{% endif %}
+                    {% if audience.duplicates > 0 %}<div>👥 {{ audience.duplicates }} doublon{{ audience.duplicates > 1 ? 's' : '' }} d'adresse (parent et enfant, par exemple) : un seul envoi par adresse</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="ml-row" style="margin-top:16px;">
+                <a class="btn btn-secondary" href="{{ editUrl }}"><i class="fa fa-pen"></i> Modifier</a>
+
+                <form class="ml-inline" method="post" action="{{ path('admin_mailing_test', {id: mailing.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                    <button type="submit" class="btn btn-secondary"><i class="fa fa-vial"></i> M'envoyer un test</button>
+                </form>
+
+                <form class="ml-inline" method="post" action="{{ path('admin_mailing_send', {id: mailing.id}) }}"
+                      onsubmit="return confirm('Lancer l\'envoi à {{ audience.eligible|length }} destinataire(s) ? Cette action ne peut pas être annulée pour les e-mails déjà partis.');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                    <input type="hidden" name="expected" value="{{ audience.eligible|length }}">
+                    <button type="submit" class="btn btn-primary" {{ audience.eligible is empty ? 'disabled' : '' }}><i class="fa fa-paper-plane"></i> Lancer l'envoi</button>
+                </form>
+            </div>
+            <p class="ml-help" style="margin:12px 0 0;">
+                Pensez à vous envoyer un test d'abord : il arrive comme pour les adhérents (objet précédé de « [TEST] »).
+                Au lancement, la liste est figée ; l'envoi part par lots espacés — comptez environ 15 à 30 minutes pour 400 adhérents —
+                et reprend tout seul en cas de limite d'envoi atteinte.
+            </p>
+        </div>
+
+        <div class="ml-card">
+            <h3 style="margin:0 0 10px; font-size:16px;">Aperçu</h3>
+            <iframe class="ml-preview" sandbox="" srcdoc="{{ preview|e('html_attr') }}" title="Aperçu du mailing"></iframe>
+            <p class="ml-muted" style="margin:8px 0 0;">Les {{ '{{ prenom }}' }} et {{ '{{ nom }}' }} sont remplacés pour chaque destinataire ; ici, c'est votre nom.</p>
+        </div>
+
+        {% if sample is not empty %}
+            <div class="ml-card">
+                <h3 style="margin:0 0 10px; font-size:16px;">Destinataires (aperçu)</h3>
+                <table class="ml-table">
+                    <thead><tr><th>Nom</th><th>E-mail</th></tr></thead>
+                    <tbody>
+                        {% for u in sample %}
+                            <tr><td>{{ u.prenom }} {{ u.nom|upper }}</td><td>{{ u.email }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if audience.eligible|length > sample|length %}
+                    <p class="ml-muted" style="margin:8px 0 0;">… et {{ audience.eligible|length - sample|length }} autres.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        {# ------------------------------------------------------------ Suivi #}
+        {% set processed = counts.sent + counts.failed + counts.skipped %}
+        {% set pct = total > 0 ? ((processed / total) * 100)|round : 0 %}
+
+        <div class="ml-grid">
+            <div class="ml-stat"><div class="n">{{ total }}</div><div class="l">destinataires</div></div>
+            <div class="ml-stat ok"><div class="n">{{ counts.sent }}</div><div class="l">envoyés</div></div>
+            <div class="ml-stat wait"><div class="n">{{ counts.pending }}</div><div class="l">en attente</div></div>
+            <div class="ml-stat ko"><div class="n">{{ counts.failed }}</div><div class="l">en échec</div></div>
+            <div class="ml-stat"><div class="n">{{ counts.skipped }}</div><div class="l">écartés</div></div>
+        </div>
+
+        <div class="ml-card">
+            <div class="ml-bar"><span style="width:{{ pct }}%;"></span></div>
+            <div class="ml-muted">{{ pct }} % traité{% if lastSentAt %} · dernier envoi le {{ lastSentAt|date('d/m/Y à H:i:s') }}{% endif %}</div>
+            <div class="ml-muted" style="margin-top:4px;">Quota : {{ sentLast24h }} mail{{ sentLast24h > 1 ? 's' : '' }} de mailing envoyé{{ sentLast24h > 1 ? 's' : '' }} sur les dernières 24 h (limite {{ dailyLimit }}).</div>
+
+            <div class="ml-row" style="margin-top:14px;">
+                {% if mailing.sending %}
+                    <form class="ml-inline" method="post" action="{{ path('admin_mailing_action', {id: mailing.id, action: 'pause'}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                        <button type="submit" class="btn btn-secondary"><i class="fa fa-pause"></i> Mettre en pause</button>
+                    </form>
+                    <form class="ml-inline" method="post" action="{{ path('admin_mailing_action', {id: mailing.id, action: 'nudge'}) }}"
+                          onsubmit="return confirm('Relancer le traitement ? À utiliser seulement si l\'envoi semble bloqué (aucun envoi depuis plusieurs minutes).');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                        <button type="submit" class="btn btn-secondary"><i class="fa fa-rotate"></i> Relancer le traitement</button>
+                    </form>
+                {% endif %}
+                {% if mailing.paused %}
+                    <form class="ml-inline" method="post" action="{{ path('admin_mailing_action', {id: mailing.id, action: 'resume'}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                        <button type="submit" class="btn btn-primary"><i class="fa fa-play"></i> Reprendre l'envoi</button>
+                    </form>
+                {% endif %}
+                {% if mailing.sending or mailing.paused %}
+                    <form class="ml-inline" method="post" action="{{ path('admin_mailing_action', {id: mailing.id, action: 'cancel'}) }}"
+                          onsubmit="return confirm('Annuler l\'envoi ? Les e-mails encore en attente ne partiront pas.');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                        <button type="submit" class="btn btn-danger"><i class="fa fa-ban"></i> Annuler l'envoi</button>
+                    </form>
+                {% endif %}
+                {% if counts.failed > 0 and not mailing.cancelled %}
+                    <form class="ml-inline" method="post" action="{{ path('admin_mailing_action', {id: mailing.id, action: 'retry'}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('mailing') }}">
+                        <button type="submit" class="btn btn-secondary"><i class="fa fa-redo"></i> Relancer les {{ counts.failed }} échec{{ counts.failed > 1 ? 's' : '' }}</button>
+                    </form>
+                {% endif %}
+            </div>
+            {% if mailing.sending %}
+                <p class="ml-help" style="margin:12px 0 0;">L'envoi progresse tout seul (un lot toutes les minutes environ) ; cette page se met à jour toutes les 15 secondes.</p>
+            {% endif %}
+        </div>
+
+        <div class="ml-tabs">
+            <a class="ml-tab {{ filter is null ? 'active' : '' }}" href="{{ path('admin_mailing_show', {id: mailing.id}) }}">Tous ({{ total }})</a>
+            {% for code, label in statusLabels %}
+                {% if counts[code] > 0 %}
+                    <a class="ml-tab {{ filter == code ? 'active' : '' }}" href="{{ path('admin_mailing_show', {id: mailing.id, status: code}) }}">{{ label }} ({{ counts[code] }})</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if recipients is empty %}
+            <div class="ml-card ml-muted">Aucun destinataire dans cette vue.</div>
+        {% else %}
+            <table class="ml-table">
+                <thead><tr><th>Nom</th><th>E-mail</th><th>État</th><th>Envoyé le</th><th>Détail</th></tr></thead>
+                <tbody>
+                    {% for r in recipients %}
+                        <tr>
+                            <td>{{ r.name }}</td>
+                            <td>{{ r.email }}</td>
+                            <td>{{ statusLabels[r.status] ?? r.status }}</td>
+                            <td style="white-space:nowrap;">{{ r.sentAt ? r.sentAt|date('d/m/Y H:i:s') : '—' }}</td>
+                            <td class="ml-err">{{ r.error }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if total > recipients|length and filter is null %}
+                <p class="ml-muted" style="margin-top:8px;">Les {{ recipientLimit }} premiers destinataires sont affichés ; utilisez les filtres ci-dessus pour les autres.</p>
+            {% endif %}
+        {% endif %}
+
+        <div class="ml-card" style="margin-top:16px;">
+            <h3 style="margin:0 0 10px; font-size:16px;">Contenu envoyé</h3>
+            <iframe class="ml-preview" sandbox="" srcdoc="{{ preview|e('html_attr') }}" title="Contenu du mailing"></iframe>
+        </div>
+
+        {% if mailing.sending %}
+            <script>setTimeout(function () { window.location.reload(); }, 15000);</script>
+        {% endif %}
+    {% endif %}
+
+    <p style="margin-top:16px;"><a href="{{ indexUrl }}">← Tous les mailings</a></p>
+{% endblock %}

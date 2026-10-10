@@ -90,6 +90,8 @@ class AuthSuccessListener
             'avatarUrl' => $avatarUrl,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
             'notifyArticleEmail' => $user->isNotifyArticleEmail(),
+            // Mailings groupés du club : reçus par défaut, l'adhérent peut s'en désinscrire.
+            'notifyMailing' => !$user->isMailingOptedOut(),
             // Statut d'adhésion calculé : label prêt-à-afficher (« Adhérent
             // 2025-2026 » / « Adhérent externe 2025-2026 » / « Adhérent
             // 2024-2025 » quand needsRenewal). null pour les comptes

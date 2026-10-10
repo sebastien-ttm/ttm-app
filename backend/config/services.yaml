@@ -28,6 +28,13 @@ parameters:
     # généré avant leur ajout) → notifications push web désactivées.
     app.vapid_empty_fallback: ''
     app.vapid_subject_fallback: 'mailto:noreply@ttm-toulouse.fr'
+    # Mailings groupés (voir SendMailingBatchMessageHandler) : taille d'un lot, pause entre
+    # deux lots, et plafond d'envois de mailing sur 24 h glissantes. Google Workspace
+    # (smtp.gmail.com) accepte 2000 mails par jour pour TOUT ce qui part du compte (liens
+    # de connexion, notifications, mailings) : on garde de la marge pour le reste.
+    app.mailing.batch_size: 25
+    app.mailing.batch_delay_seconds: 60
+    app.mailing.daily_limit: 1200
 
 services:
     _defaults:

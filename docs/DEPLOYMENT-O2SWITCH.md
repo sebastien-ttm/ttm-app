@@ -45,7 +45,7 @@ APP_ENV=prod
 APP_SECRET=<32 octets hex>
 APP_DEBUG=0
 DATABASE_URL="mysql://USER:PASSWORD@localhost:3306/USER_ttm?serverVersion=mariadb-10.6.0&charset=utf8mb4"
-MAILER_DNS=smtp://USER%40DOMAINE.TLD:PASSWORD@DOMAINE.TLD:465?encryption=ssl
+MAILER_DSN=smtp://USER%40DOMAINE.TLD:PASSWORD@DOMAINE.TLD:465?encryption=ssl
 JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
 JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
 JWT_PASSPHRASE=<phrase>

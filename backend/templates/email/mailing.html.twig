@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <title>{{ mailingSubject }}</title>
+    <style>
+        @media only screen and (max-width: 620px) {
+            .ttm-container { width: 100% !important; }
+            .ttm-body-cell { padding: 20px !important; }
+            .ttm-header-cell { padding: 16px !important; }
+            .ttm-footer-cell { padding: 14px !important; }
+        }
+        img { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background:#f4f4f4; color:#222;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f4f4;">
+        <tr>
+            <td align="center" style="padding:20px 10px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
+                       class="ttm-container"
+                       style="width:100%; max-width:600px; background:#fff; border-radius:8px; overflow:hidden; border-collapse:collapse;">
+                    <tr>
+                        <td class="ttm-header-cell" style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                            <h1 style="margin:0; font-size:22px; line-height:1.2;">Triathlon Toulouse Métropole</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ttm-body-cell" style="padding:24px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">
+                            {# Contenu rédigé par l'administrateur ; {{ prenom }} / {{ nom }} sont déjà
+                               remplacés (valeurs échappées) par MailingMailFactory. #}
+                            {{ bodyHtml|raw }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ttm-footer-cell" style="background:#f8f8f8; color:#666; padding:16px; text-align:center; font-size:12px; line-height:1.6;">
+                            <p style="margin:0;">Vous recevez ce message en tant qu'adhérent(e) du club Triathlon Toulouse Métropole.</p>
+                            <p style="margin:8px 0 0 0;">
+                                {% if unsubscribeUrl %}
+                                    <a href="{{ unsubscribeUrl }}" style="color:#D32F2F;">Se désinscrire des mailings du club</a>
+                                {% else %}
+                                    <span style="color:#D32F2F; text-decoration:underline;">Se désinscrire des mailings du club</span>
+                                {% endif %}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

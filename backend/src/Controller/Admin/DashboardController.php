@@ -10,6 +10,7 @@ use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\EventCarpoolOffer;
 use App\Entity\EventTag;
+use App\Entity\Mailing;
 use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
 use App\Entity\BibOffer;
@@ -157,6 +158,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Mailings', 'fa fa-paper-plane', Mailing::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux équipements', 'fa fa-shirt', MarketplaceListing::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],

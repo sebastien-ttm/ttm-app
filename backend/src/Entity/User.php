@@ -214,6 +214,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'notify_article_email', options: ['default' => false])]
     private bool $notifyArticleEmail = false;
 
+    /**
+     * Désinscription des mailings groupés du club (Mailing). Null = reçoit les
+     * mailings (c'est l'inscription par défaut d'un adhérent) ; sinon, date de la
+     * désinscription (lien dans chaque mail, ou réglage du profil).
+     */
+    #[ORM\Column(name: 'mailing_opt_out_at', nullable: true)]
+    private ?\DateTimeImmutable $mailingOptOutAt = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -750,6 +758,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function isNotifyArticleEmail(): bool { return $this->notifyArticleEmail; }
     public function setNotifyArticleEmail(bool $v): self { $this->notifyArticleEmail = $v; return $this; }
+
+    public function getMailingOptOutAt(): ?\DateTimeImmutable { return $this->mailingOptOutAt; }
+    public function isMailingOptedOut(): bool { return $this->mailingOptOutAt !== null; }
+
+    /** Désinscrit (true) ou réinscrit (false) l'adhérent des mailings groupés. */
+    public function setMailingOptOut(bool $optOut): self
+    {
+        $this->mailingOptOutAt = $optOut ? ($this->mailingOptOutAt ?? new \DateTimeImmutable()) : null;
+        return $this;
+    }
 
     /** Appelé par les listeners de login (JWT mobile + admin form). */
     public function recordLogin(?\DateTimeImmutable $at = null): self

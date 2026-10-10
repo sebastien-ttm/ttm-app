@@ -370,6 +370,40 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Comptes ciblés par un mailing : actifs, avec une adresse e-mail, ni adhérents
+     * externes (sauf si le mailing les inclut) ni hors de l'audience par profil
+     * (audience vide = tous). Les désinscrits sont INCLUS ici : c'est à l'appelant
+     * (MailingService) de les écarter et de les compter, pour l'afficher à l'admin.
+     *
+     * @return list<User> triés par nom, prénom
+     */
+    public function findMailingAudience(\App\Entity\Mailing $mailing): array
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere('u.email IS NOT NULL')
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC');
+
+        if (!$mailing->isIncludeExternal()) {
+            $qb->andWhere("u.type = 'adherent'");
+        }
+
+        $audience = $mailing->getAudience();
+        if ($audience !== []) {
+            $orParts = [];
+            foreach ($audience as $i => $p) {
+                $key = "aud_{$i}";
+                $orParts[] = "JSON_CONTAINS(u.profiles, :{$key}) = 1";
+                $qb->setParameter($key, json_encode($p));
+            }
+            $qb->andWhere('('.implode(' OR ', $orParts).')');
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Tous les utilisateurs actifs ayant un rôle backend donné.
      * Utilisé pour les notifications (ex : email à tous les admins quand
      * un message « au club » est reçu).
