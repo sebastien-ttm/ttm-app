@@ -72,7 +72,7 @@ class PerfTestResultController extends AbstractController
                 'last' => $h ? [
                     'time' => PerfTestResult::format($h['last']->getTimeSeconds()),
                     'seconds' => $h['last']->getTimeSeconds(),
-                    'date' => $h['last']->getSession()->getDate()->format('d/m/Y'),
+                    'date' => $h['last']->getSession()->getDatesLabel(),
                 ] : null,
                 'best' => $h ? [
                     'time' => PerfTestResult::format($h['best']->getTimeSeconds()),
@@ -150,7 +150,7 @@ class PerfTestResultController extends AbstractController
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Épreuve', $session->getTestLabel()], ';');
-            fputcsv($out, ['Date', $session->getDate()->format('d/m/Y')], ';');
+            fputcsv($out, ['Date(s)', $session->getDatesLabel()], ';');
             if ($session->getNotes()) {
                 fputcsv($out, ['Notes', $session->getNotes()], ';');
             }

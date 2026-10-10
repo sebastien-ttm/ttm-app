@@ -152,7 +152,7 @@ function GroupCard({
           <Text style={styles.mineLabel}>Mon meilleur temps</Text>
           <Text style={styles.mineTime}>{group.mine.best.time}</Text>
           <Text style={styles.mineMeta}>
-            le {formatDay(group.mine.best.date)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette saison
+            {group.mine.best.dates.length > 1 ? 'séance des ' : 'séance du '}{formatDates(group.mine.best.dates)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette saison
           </Text>
         </View>
       ) : (
@@ -179,7 +179,7 @@ function SessionBlock({
     <View style={styles.session}>
       <Pressable onPress={onToggle} style={({ pressed }) => [styles.sessionHeader, pressed && { opacity: 0.7 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sessionDate}>{formatDay(session.date)}</Text>
+          <Text style={styles.sessionDate}>{formatDates(session.dates)}</Text>
           <Text style={styles.sessionMeta} numberOfLines={2}>
             {session.participants} participant{session.participants > 1 ? 's' : ''}
             {session.notes ? ` · ${session.notes}` : ''}
@@ -214,8 +214,25 @@ function seasonLabel(data: PerfTestsResponse): string {
   return data.seasons.find((s) => s.year === data.season)?.label ?? String(data.season);
 }
 
-function formatDay(iso: string): string {
-  return fromIsoDate(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+function joinFr(parts: string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
+}
+
+/**
+ * Dates d'une séance, en français : « 12 mars 2026 », « 12 et 14 mars 2026 »,
+ * « 28 février et 2 mars 2026 » (année et mois donnés une seule fois si communs).
+ */
+function formatDates(isos: string[]): string {
+  const dates = isos.map(fromIsoDate);
+  const day = (d: Date) => (d.getDate() === 1 ? '1er' : String(d.getDate()));
+  const month = (d: Date) => d.toLocaleDateString('fr-FR', { month: 'long' });
+  const sameYear = dates.every((d) => d.getFullYear() === dates[0].getFullYear());
+  const sameMonth = sameYear && dates.every((d) => d.getMonth() === dates[0].getMonth());
+  if (dates.length === 0) return '';
+  if (!sameYear) return joinFr(dates.map((d) => `${day(d)} ${month(d)} ${d.getFullYear()}`));
+  const year = dates[0].getFullYear();
+  if (sameMonth) return `${joinFr(dates.map(day))} ${month(dates[0])} ${year}`;
+  return `${joinFr(dates.map((d) => `${day(d)} ${month(d)}`))} ${year}`;
 }
 
 function rankLabel(rank: number): string {

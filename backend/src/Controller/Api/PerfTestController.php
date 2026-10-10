@@ -76,7 +76,7 @@ class PerfTestController extends AbstractController
                     if ($row['mine']) {
                         $mineCount++;
                         if ($mineBest === null || $row['timeSeconds'] < $mineBest['timeSeconds']) {
-                            $mineBest = ['timeSeconds' => $row['timeSeconds'], 'time' => $row['time'], 'date' => $serialized['date']];
+                            $mineBest = ['timeSeconds' => $row['timeSeconds'], 'time' => $row['time'], 'dates' => $serialized['dates']];
                         }
                     }
                 }
@@ -141,7 +141,9 @@ class PerfTestController extends AbstractController
 
         return [
             'id' => $session->getId(),
+            // Première date (tri) + toutes les dates de la séance (ex : 2 soirs).
             'date' => $session->getDate()->format('Y-m-d'),
+            'dates' => array_map(static fn (\DateTimeImmutable $d) => $d->format('Y-m-d'), $session->getDates()),
             'notes' => $session->getNotes(),
             'participants' => count($rows),
             'results' => $rows,

@@ -345,8 +345,10 @@ export type PerfTestResultRow = {
 
 export type PerfTestSessionView = {
   id: number;
-  /** YYYY-MM-DD */
+  /** Première date, YYYY-MM-DD. */
   date: string;
+  /** Toutes les dates de la séance (ex : 2 soirs), de la plus ancienne à la plus récente. */
+  dates: string[];
   notes: string | null;
   participants: number;
   results: PerfTestResultRow[];
@@ -360,7 +362,7 @@ export type PerfTestGroup = {
   icon: string;
   poolLength: number | null;
   /** Mes temps de la saison sur cette épreuve ; null si je n'ai pas été chronométré. */
-  mine: { count: number; best: { timeSeconds: number; time: string; date: string } } | null;
+  mine: { count: number; best: { timeSeconds: number; time: string; dates: string[] } } | null;
   sessions: PerfTestSessionView[];
 };
 

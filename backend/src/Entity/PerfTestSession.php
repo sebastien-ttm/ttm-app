@@ -21,6 +21,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class PerfTestSession
 {
     public const POOL_LENGTHS = [25, 50];
+    public const MAX_EXTRA_DATES = 10;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -32,6 +33,23 @@ class PerfTestSession
 
     #[ORM\Column(name: 'test_date', type: 'date_immutable')]
     private \DateTimeImmutable $date;
+
+    /**
+     * Autres dates de la même séance quand elle s'étale sur plusieurs jours
+     * (ex : un 2e soir) — « Y-m-d », la date principale étant `date`.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(name: 'extra_dates', type: 'json', nullable: true)]
+    private ?array $extraDates = null;
+
+    /**
+     * Saisies illisibles du champ « autres dates » (formulaire admin) :
+     * non persistées, signalées à la validation.
+     *
+     * @var list<string>
+     */
+    private array $invalidExtraDates = [];
 
     /** Longueur du bassin en mètres (natation uniquement). */
     #[ORM\Column(type: 'smallint', nullable: true)]
@@ -68,6 +86,21 @@ class PerfTestSession
         }
     }
 
+    #[Assert\Callback]
+    public function validateExtraDates(ExecutionContextInterface $context): void
+    {
+        if ($this->invalidExtraDates !== []) {
+            $context->buildViolation('Date illisible : « {{ value }} ». Écrivez les dates au format JJ/MM/AAAA, séparées par des virgules.')
+                ->setParameter('{{ value }}', implode(', ', $this->invalidExtraDates))
+                ->atPath('extraDatesText')->addViolation();
+        }
+        if (count($this->extraDates ?? []) > self::MAX_EXTRA_DATES) {
+            $context->buildViolation('Maximum {{ limit }} dates supplémentaires.')
+                ->setParameter('{{ limit }}', (string) self::MAX_EXTRA_DATES)
+                ->atPath('extraDatesText')->addViolation();
+        }
+    }
+
     public function getId(): ?int { return $this->id; }
 
     public function getTest(): PerfTest { return $this->test; }
@@ -82,6 +115,87 @@ class PerfTestSession
 
     public function getDate(): \DateTimeImmutable { return $this->date; }
     public function setDate(\DateTimeImmutable $date): self { $this->date = $date; return $this; }
+
+    /**
+     * Toutes les dates de la séance (principale + autres), sans doublon,
+     * de la plus ancienne à la plus récente.
+     *
+     * @return list<\DateTimeImmutable>
+     */
+    public function getDates(): array
+    {
+        $byKey = [$this->date->format('Y-m-d') => $this->date];
+        foreach ($this->extraDates ?? [] as $iso) {
+            $d = self::parseDate((string) $iso);
+            if ($d !== null) {
+                $byKey[$d->format('Y-m-d')] ??= $d;
+            }
+        }
+        ksort($byKey);
+        return array_values($byKey);
+    }
+
+    /**
+     * Libellé des dates : « 12/03/2026 », « 12/03 et 14/03/2026 »,
+     * « 12/03, 14/03 et 19/03/2026 » (année donnée une fois si commune).
+     */
+    public function getDatesLabel(): string
+    {
+        $dates = $this->getDates();
+        if (count($dates) === 1) {
+            return $dates[0]->format('d/m/Y');
+        }
+        $years = array_unique(array_map(static fn (\DateTimeImmutable $d) => $d->format('Y'), $dates));
+        $sameYear = count($years) === 1;
+        $parts = array_map(static fn (\DateTimeImmutable $d) => $d->format($sameYear ? 'd/m' : 'd/m/Y'), $dates);
+        $last = array_pop($parts);
+        return implode(', ', $parts).' et '.$last.($sameYear ? '/'.reset($years) : '');
+    }
+
+    /** Champ de formulaire : les dates AUTRES que la principale, « 14/03/2026, 21/03/2026 ». */
+    public function getExtraDatesText(): string
+    {
+        $main = $this->date->format('Y-m-d');
+        $others = array_filter($this->getDates(), static fn (\DateTimeImmutable $d) => $d->format('Y-m-d') !== $main);
+        return implode(', ', array_map(static fn (\DateTimeImmutable $d) => $d->format('d/m/Y'), $others));
+    }
+
+    /**
+     * Saisie libre de dates (JJ/MM/AAAA ou AAAA-MM-JJ) séparées par des
+     * virgules, points-virgules ou espaces. Les saisies illisibles sont
+     * mémorisées pour la validation (validateExtraDates).
+     */
+    public function setExtraDatesText(?string $text): self
+    {
+        $this->invalidExtraDates = [];
+        $keys = [];
+        foreach (preg_split('/[\s,;]+/', trim((string) $text), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) {
+            $d = self::parseDate($token);
+            if ($d === null) {
+                $this->invalidExtraDates[] = $token;
+                continue;
+            }
+            $keys[$d->format('Y-m-d')] = true;
+        }
+        ksort($keys);
+        $this->extraDates = $keys === [] ? null : array_keys($keys);
+        return $this;
+    }
+
+    private static function parseDate(string $raw): ?\DateTimeImmutable
+    {
+        if (preg_match('~^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$~', $raw, $m)) {
+            [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } elseif (preg_match('~^(\d{4})-(\d{1,2})-(\d{1,2})$~', $raw, $m)) {
+            [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } else {
+            return null;
+        }
+        if ($year < 2000 || $year > 2100 || !checkdate($month, $day, $year)) {
+            return null;
+        }
+        return (new \DateTimeImmutable('today'))->setDate($year, $month, $day);
+    }
 
     public function getPoolLength(): ?int { return $this->poolLength; }
     public function setPoolLength(?int $poolLength): self
@@ -114,6 +228,6 @@ class PerfTestSession
 
     public function __toString(): string
     {
-        return $this->getTestLabel().' du '.$this->date->format('d/m/Y');
+        return $this->getTestLabel().(count($this->getDates()) > 1 ? ' des ' : ' du ').$this->getDatesLabel();
     }
 }

@@ -36,7 +36,7 @@ class PerfTestSessionCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Tests chronométrés')
             ->setEntityPermission('ROLE_ENTRAINEUR')
             ->setDefaultSort(['date' => 'DESC', 'id' => 'DESC'])
-            ->setHelp(Crud::PAGE_INDEX, 'Créez une séance (épreuve, date, bassin pour la natation), puis « Saisir les temps ». Supprimer une séance supprime ses temps.');
+            ->setHelp(Crud::PAGE_INDEX, 'Créez une séance (épreuve, date — plusieurs si elle s\'étale sur plusieurs jours —, bassin pour la natation), puis « Saisir les temps ». Supprimer une séance supprime ses temps.');
     }
 
     public function configureActions(Actions $actions): Actions
@@ -101,7 +101,16 @@ class PerfTestSessionCrudController extends AbstractCrudController
             ->setHelp('Les temps ne sont comparés qu\'entre séances du même bassin.')
             ->addCssClass('js-perf-pool-length')
             ->onlyOnForms();
-        yield DateField::new('date', 'Date')->setFormat('dd/MM/yyyy');
+        yield DateField::new('date', 'Date')
+            ->setFormat('dd/MM/yyyy')
+            ->onlyOnForms();
+        yield TextField::new('extraDatesText', 'Autres dates')
+            ->setRequired(false)
+            ->setHelp('Si la séance s\'étale sur plusieurs jours (ex : 2 soirs), ajoutez les autres dates séparées par des virgules : 14/03/2026, 21/03/2026. Les temps saisis valent pour l\'ensemble de la séance.')
+            ->onlyOnForms();
+        yield TextField::new('datesLabel', 'Date(s)')
+            ->setSortable(false)
+            ->hideOnForm();
         yield TextField::new('notes', 'Notes')
             ->setRequired(false)
             ->setHelp('Optionnel : lieu, groupe testé, conditions (vent, chaleur…).');
