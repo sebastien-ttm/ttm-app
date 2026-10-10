@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * les prises de temps en cours ou récentes, puis un temps par adhérent actif,
  * enregistré immédiatement, avec le rappel du dernier temps et du record.
  *
- * Réservé aux entraîneurs (profil Entraîneur).
+ * Réservé aux entraîneurs (profil Entraîneur) et aux administrateurs.
  */
 #[IsGranted('ROLE_USER')]
 class StaffPerfTestController extends AbstractController
@@ -46,7 +46,7 @@ class StaffPerfTestController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
 
         $today = new \DateTimeImmutable('today');
         $sessions = $this->sessions->findOngoingOrRecent($today->modify('-'.self::RECENT_DAYS.' days'));
@@ -64,7 +64,7 @@ class StaffPerfTestController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
         $session = $this->findSession($id);
 
         $results = $this->results->findBySessionIndexedByUser($session);
@@ -117,7 +117,7 @@ class StaffPerfTestController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
         $session = $this->findSession($id);
         $user = $this->users->find($userId) ?? throw $this->createNotFoundException('Adhérent introuvable.');
 

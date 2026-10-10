@@ -18,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * liste des adhérents actifs avec leur état, « Remis » (première remise ou
  * remplacement) et annulation de la dernière remise en cas de clic par erreur.
  *
- * Réservé aux entraîneurs (profil Entraîneur).
+ * Réservé aux entraîneurs (profil Entraîneur) et aux administrateurs.
  */
 #[IsGranted('ROLE_USER')]
 class StaffCapController extends AbstractController
@@ -37,7 +37,7 @@ class StaffCapController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
 
         $byUser = $this->distributions->findAllGroupedByUser();
         $rows = array_map(static fn (User $u) => [
@@ -60,7 +60,7 @@ class StaffCapController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
         $user = $this->users->find($userId) ?? throw $this->createNotFoundException('Adhérent introuvable.');
 
         $this->em->persist(new CapDistribution($user, $viewer));
@@ -75,7 +75,7 @@ class StaffCapController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $this->denyUnlessEntraineur($viewer);
+        $this->denyUnlessCapsAndTimes($viewer);
         $user = $this->users->find($userId) ?? throw $this->createNotFoundException('Adhérent introuvable.');
 
         $list = $this->distributions->findByUser($user);

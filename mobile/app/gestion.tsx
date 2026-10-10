@@ -23,8 +23,9 @@ const TABS: { key: GestionTab; label: string }[] = [
  * /staff est déjà le trombinoscope du Club. Trois onglets, selon le profil :
  *  - Présences (entraîneur, encadrant) : indiquer / confirmer ses présences,
  *    semaine type ;
- *  - Émargements : présence aux événements (entraîneur, CoDir) ; remise des
- *    bonnets et saisie des temps des tests chronométrés (entraîneur seul) ;
+ *  - Émargements : présence aux événements (entraîneur, encadrant, CoDir,
+ *    admin) ; remise des bonnets et saisie des temps des tests chronométrés
+ *    (entraîneur, admin) ;
  *  - Adhérents (entraîneur, encadrant) : annuaire (nom, prénom, téléphone)
  *    avec appel en un geste.
  * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.

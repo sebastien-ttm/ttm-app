@@ -150,26 +150,32 @@ export function isBoardMember(user: AuthenticatedUser | null | undefined): boole
   return !!user && user.isBoardMember === true;
 }
 
+/** Administrateur (niveau d'accès du compte, pas un profil). */
+export function isAdminUser(user: AuthenticatedUser | null | undefined): boolean {
+  return !!user && user.role === 'admin';
+}
+
 /**
- * Émargement de la présence aux événements : entraîneurs et membres du CoDir
- * (StaffCheckInController).
+ * Émargement de la présence aux événements : entraîneurs, encadrants, membres
+ * du CoDir et administrateurs (StaffCheckInController).
  */
 export function canCheckIn(user: AuthenticatedUser | null | undefined): boolean {
-  return isEntraineur(user) || isBoardMember(user);
+  return isStaffMember(user) || isBoardMember(user) || isAdminUser(user);
 }
 
 /**
  * Remise des bonnets et saisie des temps des tests chronométrés : entraîneurs
- * uniquement (StaffCapController, StaffPerfTestController).
+ * et administrateurs (StaffCapController, StaffPerfTestController).
  */
 export function canManageCapsAndTimes(user: AuthenticatedUser | null | undefined): boolean {
-  return isEntraineur(user);
+  return isEntraineur(user) || isAdminUser(user);
 }
 
 /**
  * Le bouton « Staff » de l'en-tête est-il proposé ? Staff sportif (entraîneur,
- * encadrant) ou membre du CoDir ; chaque onglet reste filtré selon le profil.
+ * encadrant), membre du CoDir ou administrateur ; chaque onglet reste filtré
+ * selon le profil.
  */
 export function canUseStaffSpace(user: AuthenticatedUser | null | undefined): boolean {
-  return isStaffMember(user) || isBoardMember(user);
+  return isStaffMember(user) || isBoardMember(user) || isAdminUser(user);
 }

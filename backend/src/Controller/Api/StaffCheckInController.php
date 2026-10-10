@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * backend, EventCheckInController) : la feuille part des votes de présence
  * (oui, peut-être, non) et permet d'émarger aussi un adhérent qui n'a pas voté.
  *
- * Réservé aux entraîneurs et aux membres du CoDir.
+ * Réservé aux entraîneurs, encadrants, membres du CoDir et administrateurs.
  */
 #[IsGranted('ROLE_USER')]
 class StaffCheckInController extends AbstractController
