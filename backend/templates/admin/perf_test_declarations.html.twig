@@ -17,8 +17,10 @@
         .pd-time { font-weight:700; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; }
         .pd-note { font-size:12px; color:#64748b; }
         .pd-comment { max-width:320px; white-space:pre-wrap; }
-        .pd-act { display:flex; flex-direction:column; gap:6px; min-width:230px; }
-        .pd-act input[type=text] { padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; }
+        .pd-act { display:flex; flex-direction:column; gap:6px; min-width:260px; max-width:340px; }
+        .pd-act input[type=text], .pd-select { padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; width:100%; }
+        .pd-lab { font-size:12px; font-weight:600; color:#475569; margin:0; }
+        .pd-warn { font-size:12px; color:#b45309; }
         .pd-act .btns { display:flex; gap:6px; }
         .pd-ok { color:#15803d; font-weight:600; }
         .pd-ko { color:#b91c1c; font-weight:600; }
@@ -27,7 +29,7 @@
 
     <div class="pd-card pd-help">
         Les adhérents déclarent depuis l'appli un temps pris <strong>individuellement</strong> (onglet de l'épreuve, « Déclarer mon temps »).
-        <strong>Accepter</strong> enregistre le temps dans les classements, sur une séance « Temps individuels » créée pour l'épreuve et le jour indiqués ;
+        <strong>Accepter</strong> ajoute le temps à une prise de temps de l'épreuve : <strong>la plus récente par défaut</strong>, ou une plus ancienne si vous la choisissez dans la liste ;
         <strong>Refuser</strong> le laisse de côté (le motif est visible de l'adhérent dans l'appli).
     </div>
 
@@ -72,9 +74,20 @@
                                 <form method="post" action="{{ path('admin_perf_test_declaration_decide', {id: d.id}) }}" class="pd-act">
                                     <input type="hidden" name="_token" value="{{ csrf_token('perf_test_declaration') }}">
                                     <input type="hidden" name="filter" value="{{ filter }}">
+                                    {% set choices = sessionsFor[d.id] ?? [] %}
+                                    {% if choices is not empty %}
+                                        <label class="pd-lab">Ajouter à la prise de temps :</label>
+                                        <select name="session_id" class="pd-select">
+                                            {% for s in choices %}
+                                                <option value="{{ s.id }}">{{ s.datesLabel }}{% if s.notes %} — {{ s.notes }}{% endif %} · {{ s.resultsCount }} temps{% if loop.first %} (la plus récente){% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% else %}
+                                        <div class="pd-warn">Aucune prise de temps pour cette épreuve : créez-en une dans « Tests chronométrés » avant d'accepter.</div>
+                                    {% endif %}
                                     <input type="text" name="note" maxlength="255" placeholder="Motif (facultatif, visible de l'adhérent)">
                                     <div class="btns">
-                                        <button type="submit" name="decision" value="accept" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Accepter</button>
+                                        <button type="submit" name="decision" value="accept" class="btn btn-success btn-sm" {{ choices is empty ? 'disabled' : '' }}><i class="fa fa-check"></i> Accepter</button>
                                         <button type="submit" name="decision" value="reject" class="btn btn-outline-danger btn-sm"><i class="fa fa-xmark"></i> Refuser</button>
                                     </div>
                                 </form>

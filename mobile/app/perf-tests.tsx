@@ -484,7 +484,7 @@ function DeclareBox({
           {declarations.slice(0, 5).map((d) => (
             <View key={d.id} style={styles.declRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.evoDate}>{formatDates([d.date])} · {d.time}</Text>
+                <Text style={styles.evoDate}>{formatPeriod(d.date, null)} · {d.time}</Text>
                 <Text
                   style={[
                     styles.evoMeta,
@@ -560,7 +560,7 @@ function EvolutionCard({ group }: { group: PerfTestMineGroup }) {
       {visible.map((r) => (
         <View key={r.sessionId} style={styles.evoRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.evoDate}>{formatDates(r.dates)}</Text>
+            <Text style={styles.evoDate}>{formatPeriod(r.date, r.endDate)}</Text>
             <Text style={styles.evoMeta}>
               {rankLabel(r.rank)} sur {r.participants} · saison {r.seasonLabel}
             </Text>
@@ -605,7 +605,7 @@ function GroupCard({
           <Text style={styles.mineLabel}>Mon meilleur temps</Text>
           <Text style={styles.mineTime}>{group.mine.best.time}</Text>
           <Text style={styles.mineMeta}>
-            {group.mine.best.dates.length > 1 ? 'séance des ' : 'séance du '}{formatDates(group.mine.best.dates)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette saison
+            prise de temps {group.mine.best.endDate ? '' : 'du '}{formatPeriod(group.mine.best.date, group.mine.best.endDate)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette saison
           </Text>
         </View>
       ) : (
@@ -632,7 +632,7 @@ function SessionBlock({
     <View style={styles.session}>
       <Pressable onPress={onToggle} style={({ pressed }) => [styles.sessionHeader, pressed && { opacity: 0.7 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sessionDate}>{formatDates(session.dates)}</Text>
+          <Text style={styles.sessionDate}>{formatPeriod(session.date, session.endDate)}</Text>
           <Text style={styles.sessionMeta} numberOfLines={2}>
             {session.participants} participant{session.participants > 1 ? 's' : ''}
             {session.notes ? ` · ${session.notes}` : ''}
@@ -688,25 +688,25 @@ function seasonLabel(data: PerfTestsResponse): string {
   return data.seasons.find((s) => s.year === data.season)?.label ?? String(data.season);
 }
 
-function joinFr(parts: string[]): string {
-  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
-}
-
 /**
- * Dates d'une séance, en français : « 12 mars 2026 », « 12 et 14 mars 2026 »,
- * « 28 février et 2 mars 2026 » (année et mois donnés une seule fois si communs).
+ * Période d'une prise de temps, en français : « 12 mars 2026 » (un jour),
+ * « du 12 au 14 mars 2026 », « du 28 février au 2 mars 2026 », « du 28 décembre
+ * 2025 au 2 janvier 2026 » (mois et année donnés une seule fois si communs).
  */
-function formatDates(isos: string[]): string {
-  const dates = isos.map(fromIsoDate);
+function formatPeriod(startIso: string, endIso: string | null): string {
+  const start = fromIsoDate(startIso);
   const day = (d: Date) => (d.getDate() === 1 ? '1er' : String(d.getDate()));
   const month = (d: Date) => d.toLocaleDateString('fr-FR', { month: 'long' });
-  const sameYear = dates.every((d) => d.getFullYear() === dates[0].getFullYear());
-  const sameMonth = sameYear && dates.every((d) => d.getMonth() === dates[0].getMonth());
-  if (dates.length === 0) return '';
-  if (!sameYear) return joinFr(dates.map((d) => `${day(d)} ${month(d)} ${d.getFullYear()}`));
-  const year = dates[0].getFullYear();
-  if (sameMonth) return `${joinFr(dates.map(day))} ${month(dates[0])} ${year}`;
-  return `${joinFr(dates.map((d) => `${day(d)} ${month(d)}`))} ${year}`;
+  if (!endIso || endIso === startIso) return `${day(start)} ${month(start)} ${start.getFullYear()}`;
+
+  const end = fromIsoDate(endIso);
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `du ${day(start)} ${month(start)} ${start.getFullYear()} au ${day(end)} ${month(end)} ${end.getFullYear()}`;
+  }
+  if (start.getMonth() !== end.getMonth()) {
+    return `du ${day(start)} ${month(start)} au ${day(end)} ${month(end)} ${end.getFullYear()}`;
+  }
+  return `du ${day(start)} au ${day(end)} ${month(end)} ${end.getFullYear()}`;
 }
 
 function rankLabel(rank: number): string {

@@ -73,10 +73,11 @@ class PerfTestController extends AbstractController
                 $session = $r->getSession();
                 $all = $times[(int) $session->getId()] ?? [];
                 $t = $r->getTimeSeconds();
-                $dates = array_map(static fn (\DateTimeImmutable $d) => $d->format('Y-m-d'), $session->getDates());
                 $rows[] = [
                     'sessionId' => $session->getId(),
-                    'dates' => $dates,
+                    // Période de la prise de temps ; endDate null = une seule journée.
+                    'date' => $session->getDate()->format('Y-m-d'),
+                    'endDate' => $session->isSingleDay() ? null : $session->getPeriodEnd()->format('Y-m-d'),
                     'season' => PerfTestSessionRepository::seasonStartYear($session->getDate()),
                     'seasonLabel' => PerfTestSessionRepository::seasonLabel(PerfTestSessionRepository::seasonStartYear($session->getDate())),
                     'timeSeconds' => $t,
@@ -102,7 +103,8 @@ class PerfTestController extends AbstractController
                     'timeSeconds' => $best->getTimeSeconds(),
                     'time' => PerfTestResult::format($best->getTimeSeconds()),
                     'seasonLabel' => PerfTestSessionRepository::seasonLabel(PerfTestSessionRepository::seasonStartYear($bestSession->getDate())),
-                    'dates' => array_map(static fn (\DateTimeImmutable $d) => $d->format('Y-m-d'), $bestSession->getDates()),
+                    'date' => $bestSession->getDate()->format('Y-m-d'),
+                    'endDate' => $bestSession->isSingleDay() ? null : $bestSession->getPeriodEnd()->format('Y-m-d'),
                 ],
                 'results' => $rows,
             ];
@@ -152,7 +154,7 @@ class PerfTestController extends AbstractController
                     if ($row['mine']) {
                         $mineCount++;
                         if ($mineBest === null || $row['timeSeconds'] < $mineBest['timeSeconds']) {
-                            $mineBest = ['timeSeconds' => $row['timeSeconds'], 'time' => $row['time'], 'dates' => $serialized['dates']];
+                            $mineBest = ['timeSeconds' => $row['timeSeconds'], 'time' => $row['time'], 'date' => $serialized['date'], 'endDate' => $serialized['endDate']];
                         }
                     }
                 }
@@ -248,9 +250,9 @@ class PerfTestController extends AbstractController
 
         return [
             'id' => $session->getId(),
-            // Première date (tri) + toutes les dates de la séance (ex : 2 soirs).
+            // Période de la prise de temps (début → fin) ; endDate null = une seule journée.
             'date' => $session->getDate()->format('Y-m-d'),
-            'dates' => array_map(static fn (\DateTimeImmutable $d) => $d->format('Y-m-d'), $session->getDates()),
+            'endDate' => $session->isSingleDay() ? null : $session->getPeriodEnd()->format('Y-m-d'),
             'notes' => $session->getNotes(),
             'participants' => count($rows),
             'results' => $rows,

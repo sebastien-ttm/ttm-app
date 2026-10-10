@@ -11,9 +11,10 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
- * Séance de test chronométré (1500 m CAP, 400 m natation, montée 2 km
- * vélo) : les entraîneurs y saisissent le temps de chaque adhérent
- * testé (PerfTestResult).
+ * Prise de temps (test chronométré : 1500 m CAP, 400 m natation, montée 2 km
+ * vélo) sur une PÉRIODE — un seul jour ou plusieurs (ex : 2 soirs) : les
+ * entraîneurs y saisissent le temps de chaque adhérent testé
+ * (PerfTestResult), et y rattachent les temps déclarés par les adhérents.
  */
 #[ORM\Entity(repositoryClass: PerfTestSessionRepository::class)]
 #[ORM\Table(name: 'perf_test_session')]
@@ -21,9 +22,8 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class PerfTestSession
 {
     public const POOL_LENGTHS = [25, 50];
-    public const MAX_EXTRA_DATES = 10;
-    /** Notes des séances créées automatiquement pour les temps déclarés par les adhérents (une par épreuve et par jour). */
-    public const INDIVIDUAL_NOTES = 'Temps individuels (déclarés par les adhérents)';
+    /** Durée maximale d'une période (jours) : au-delà, c'est presque sûrement une faute de frappe. */
+    public const MAX_PERIOD_DAYS = 366;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -33,25 +33,13 @@ class PerfTestSession
     #[ORM\Column(length: 32, enumType: PerfTest::class)]
     private PerfTest $test = PerfTest::Run1500;
 
+    /** Début de la période (classe la séance dans une saison, sert au tri). */
     #[ORM\Column(name: 'test_date', type: 'date_immutable')]
     private \DateTimeImmutable $date;
 
-    /**
-     * Autres dates de la même séance quand elle s'étale sur plusieurs jours
-     * (ex : un 2e soir) — « Y-m-d », la date principale étant `date`.
-     *
-     * @var list<string>|null
-     */
-    #[ORM\Column(name: 'extra_dates', type: 'json', nullable: true)]
-    private ?array $extraDates = null;
-
-    /**
-     * Saisies illisibles du champ « autres dates » (formulaire admin) :
-     * non persistées, signalées à la validation.
-     *
-     * @var list<string>
-     */
-    private array $invalidExtraDates = [];
+    /** Fin de la période ; null = une seule journée (le jour de `date`). */
+    #[ORM\Column(name: 'end_date', type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $endDate = null;
 
     /** Longueur du bassin en mètres (natation uniquement). */
     #[ORM\Column(type: 'smallint', nullable: true)]
@@ -89,17 +77,18 @@ class PerfTestSession
     }
 
     #[Assert\Callback]
-    public function validateExtraDates(ExecutionContextInterface $context): void
+    public function validatePeriod(ExecutionContextInterface $context): void
     {
-        if ($this->invalidExtraDates !== []) {
-            $context->buildViolation('Date illisible : « {{ value }} ». Écrivez les dates au format JJ/MM/AAAA, séparées par des virgules.')
-                ->setParameter('{{ value }}', implode(', ', $this->invalidExtraDates))
-                ->atPath('extraDatesText')->addViolation();
+        if ($this->endDate === null) {
+            return;
         }
-        if (count($this->extraDates ?? []) > self::MAX_EXTRA_DATES) {
-            $context->buildViolation('Maximum {{ limit }} dates supplémentaires.')
-                ->setParameter('{{ limit }}', (string) self::MAX_EXTRA_DATES)
-                ->atPath('extraDatesText')->addViolation();
+        if ($this->endDate < $this->date) {
+            $context->buildViolation('La fin de la période ne peut pas précéder son début.')
+                ->atPath('endDate')->addViolation();
+        } elseif ($this->date->diff($this->endDate)->days > self::MAX_PERIOD_DAYS) {
+            $context->buildViolation('Période trop longue ({{ limit }} jours maximum).')
+                ->setParameter('{{ limit }}', (string) self::MAX_PERIOD_DAYS)
+                ->atPath('endDate')->addViolation();
         }
     }
 
@@ -115,88 +104,42 @@ class PerfTestSession
         return $this;
     }
 
+    /** Début de la période. */
     public function getDate(): \DateTimeImmutable { return $this->date; }
     public function setDate(\DateTimeImmutable $date): self { $this->date = $date; return $this; }
 
-    /**
-     * Toutes les dates de la séance (principale + autres), sans doublon,
-     * de la plus ancienne à la plus récente.
-     *
-     * @return list<\DateTimeImmutable>
-     */
-    public function getDates(): array
+    /** Fin de la période telle que saisie (null = une seule journée) — champ du formulaire. */
+    public function getEndDate(): ?\DateTimeImmutable { return $this->endDate; }
+    public function setEndDate(?\DateTimeImmutable $endDate): self
     {
-        $byKey = [$this->date->format('Y-m-d') => $this->date];
-        foreach ($this->extraDates ?? [] as $iso) {
-            $d = self::parseDate((string) $iso);
-            if ($d !== null) {
-                $byKey[$d->format('Y-m-d')] ??= $d;
-            }
-        }
-        ksort($byKey);
-        return array_values($byKey);
-    }
-
-    /**
-     * Libellé des dates : « 12/03/2026 », « 12/03 et 14/03/2026 »,
-     * « 12/03, 14/03 et 19/03/2026 » (année donnée une fois si commune).
-     */
-    public function getDatesLabel(): string
-    {
-        $dates = $this->getDates();
-        if (count($dates) === 1) {
-            return $dates[0]->format('d/m/Y');
-        }
-        $years = array_unique(array_map(static fn (\DateTimeImmutable $d) => $d->format('Y'), $dates));
-        $sameYear = count($years) === 1;
-        $parts = array_map(static fn (\DateTimeImmutable $d) => $d->format($sameYear ? 'd/m' : 'd/m/Y'), $dates);
-        $last = array_pop($parts);
-        return implode(', ', $parts).' et '.$last.($sameYear ? '/'.reset($years) : '');
-    }
-
-    /** Champ de formulaire : les dates AUTRES que la principale, « 14/03/2026, 21/03/2026 ». */
-    public function getExtraDatesText(): string
-    {
-        $main = $this->date->format('Y-m-d');
-        $others = array_filter($this->getDates(), static fn (\DateTimeImmutable $d) => $d->format('Y-m-d') !== $main);
-        return implode(', ', array_map(static fn (\DateTimeImmutable $d) => $d->format('d/m/Y'), $others));
-    }
-
-    /**
-     * Saisie libre de dates (JJ/MM/AAAA ou AAAA-MM-JJ) séparées par des
-     * virgules, points-virgules ou espaces. Les saisies illisibles sont
-     * mémorisées pour la validation (validateExtraDates).
-     */
-    public function setExtraDatesText(?string $text): self
-    {
-        $this->invalidExtraDates = [];
-        $keys = [];
-        foreach (preg_split('/[\s,;]+/', trim((string) $text), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $token) {
-            $d = self::parseDate($token);
-            if ($d === null) {
-                $this->invalidExtraDates[] = $token;
-                continue;
-            }
-            $keys[$d->format('Y-m-d')] = true;
-        }
-        ksort($keys);
-        $this->extraDates = $keys === [] ? null : array_keys($keys);
+        // Même jour que le début = une seule journée.
+        $this->endDate = $endDate !== null && $endDate->format('Y-m-d') === $this->date->format('Y-m-d') ? null : $endDate;
         return $this;
     }
 
-    private static function parseDate(string $raw): ?\DateTimeImmutable
+    /** Dernier jour de la période (le début pour une prise de temps d'une seule journée). */
+    public function getPeriodEnd(): \DateTimeImmutable
     {
-        if (preg_match('~^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$~', $raw, $m)) {
-            [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } elseif (preg_match('~^(\d{4})-(\d{1,2})-(\d{1,2})$~', $raw, $m)) {
-            [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } else {
-            return null;
+        return $this->endDate !== null && $this->endDate > $this->date ? $this->endDate : $this->date;
+    }
+
+    public function isSingleDay(): bool
+    {
+        return $this->getPeriodEnd()->format('Y-m-d') === $this->date->format('Y-m-d');
+    }
+
+    /**
+     * Libellé de la période : « 12/03/2026 » pour un jour, « du 12/03 au
+     * 14/03/2026 » sur plusieurs (année donnée une fois si commune).
+     */
+    public function getDatesLabel(): string
+    {
+        if ($this->isSingleDay()) {
+            return $this->date->format('d/m/Y');
         }
-        if ($year < 2000 || $year > 2100 || !checkdate($month, $day, $year)) {
-            return null;
-        }
-        return (new \DateTimeImmutable('today'))->setDate($year, $month, $day);
+        $end = $this->getPeriodEnd();
+        $sameYear = $this->date->format('Y') === $end->format('Y');
+        return 'du '.$this->date->format($sameYear ? 'd/m' : 'd/m/Y').' au '.$end->format('d/m/Y');
     }
 
     public function getPoolLength(): ?int { return $this->poolLength; }
@@ -230,6 +173,6 @@ class PerfTestSession
 
     public function __toString(): string
     {
-        return $this->getTestLabel().(count($this->getDates()) > 1 ? ' des ' : ' du ').$this->getDatesLabel();
+        return $this->getTestLabel().' — '.$this->getDatesLabel();
     }
 }

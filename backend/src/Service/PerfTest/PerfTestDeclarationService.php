@@ -12,8 +12,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Traitement par les entraîneurs / l'admin des temps déclarés par les
- * adhérents : accepter (le temps est enregistré sur la séance « individuelle »
- * de l'épreuve et du jour, créée au besoin) ou refuser.
+ * adhérents : accepter — le temps rejoint une prise de temps de l'épreuve
+ * (par défaut la plus récente, ou une plus ancienne au choix) — ou refuser.
  */
 class PerfTestDeclarationService
 {
@@ -25,44 +25,40 @@ class PerfTestDeclarationService
     }
 
     /**
-     * @return string|null message d'erreur (la demande reste en attente), null si acceptée
+     * Ajoute le temps déclaré à la prise de temps `$target`, ou à la plus
+     * récente de l'épreuve (et du bassin) si elle est omise.
+     *
+     * @return PerfTestSession|string la prise de temps utilisée, ou un message d'erreur (la demande reste en attente)
      */
-    public function accept(PerfTestDeclaration $declaration, User $by, ?string $note = null): ?string
+    public function accept(PerfTestDeclaration $declaration, User $by, ?PerfTestSession $target = null, ?string $note = null): PerfTestSession|string
     {
         if (!$declaration->isPending()) {
             return 'Cette demande a déjà été traitée.';
         }
 
-        $session = $this->sessions->findIndividualSession(
-            $declaration->getTest(),
-            $declaration->getPoolLength(),
-            $declaration->getPerformedOn(),
-        );
+        $session = $target ?? $this->sessions->findMostRecentForTest($declaration->getTest(), $declaration->getPoolLength());
         if ($session === null) {
-            $session = new PerfTestSession();
-            $session->setTest($declaration->getTest());
-            $session->setPoolLength($declaration->getPoolLength());
-            $session->setDate($declaration->getPerformedOn());
-            $session->setNotes(PerfTestSession::INDIVIDUAL_NOTES);
-            $session->setCreatedBy($by);
-            $this->em->persist($session);
-        } else {
-            $existing = $this->results->findOneBySessionAndUser($session, $declaration->getUser());
-            if ($existing !== null) {
-                return sprintf(
-                    '%s a déjà un temps enregistré (%s) sur la séance individuelle du %s : refusez cette demande ou corrigez le temps existant.',
-                    $declaration->getUser()->getFullName(),
-                    PerfTestResult::format($existing->getTimeSeconds()),
-                    $declaration->getPerformedOn()->format('d/m/Y'),
-                );
-            }
+            return 'Aucune prise de temps n\'existe pour cette épreuve : créez-en une d\'abord (Tests chronométrés).';
+        }
+        if ($session->getTest() !== $declaration->getTest() || $session->getPoolLength() !== $declaration->getPoolLength()) {
+            return 'Cette prise de temps ne correspond pas à l\'épreuve (ou au bassin) de la demande.';
+        }
+
+        $existing = $this->results->findOneBySessionAndUser($session, $declaration->getUser());
+        if ($existing !== null) {
+            return sprintf(
+                '%s a déjà un temps (%s) sur la prise de temps %s : choisissez-en une autre, ou refusez cette demande.',
+                $declaration->getUser()->getFullName(),
+                PerfTestResult::format($existing->getTimeSeconds()),
+                $session->getDatesLabel(),
+            );
         }
 
         $this->em->persist(new PerfTestResult($session, $declaration->getUser(), $declaration->getTimeSeconds(), $by));
         $declaration->accept($by, $note);
         $this->em->flush();
 
-        return null;
+        return $session;
     }
 
     public function reject(PerfTestDeclaration $declaration, User $by, ?string $note = null): void

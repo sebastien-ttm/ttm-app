@@ -35,17 +35,31 @@ class PerfTestSessionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Séance « individuelle » (temps déclarés par les adhérents) d'une
-     * épreuve, d'un bassin et d'un jour — null si elle n'existe pas encore.
+     * Prises de temps d'une épreuve (et d'un bassin en natation), la plus
+     * récente d'abord — pour choisir où rattacher un temps déclaré.
+     *
+     * @return list<PerfTestSession>
      */
-    public function findIndividualSession(PerfTest $test, ?int $poolLength, \DateTimeImmutable $date): ?PerfTestSession
+    public function findRecentForTest(PerfTest $test, ?int $poolLength, int $limit = 15): array
     {
-        return $this->findOneBy([
-            'test' => $test,
-            'poolLength' => $poolLength,
-            'date' => $date,
-            'notes' => PerfTestSession::INDIVIDUAL_NOTES,
-        ]);
+        $qb = $this->createQueryBuilder('s')
+            ->where('s.test = :test')->setParameter('test', $test)
+            ->orderBy('s.date', 'DESC')
+            ->addOrderBy('s.id', 'DESC')
+            ->setMaxResults($limit);
+        if ($poolLength === null) {
+            $qb->andWhere('s.poolLength IS NULL');
+        } else {
+            $qb->andWhere('s.poolLength = :pool')->setParameter('pool', $poolLength);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** La prise de temps la plus récente d'une épreuve (et d'un bassin en natation), ou null. */
+    public function findMostRecentForTest(PerfTest $test, ?int $poolLength): ?PerfTestSession
+    {
+        return $this->findRecentForTest($test, $poolLength, 1)[0] ?? null;
     }
 
     /**

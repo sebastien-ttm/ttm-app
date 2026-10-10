@@ -346,10 +346,10 @@ export type PerfTestResultRow = {
 
 export type PerfTestSessionView = {
   id: number;
-  /** Première date, YYYY-MM-DD. */
+  /** Début de la période de la prise de temps, YYYY-MM-DD. */
   date: string;
-  /** Toutes les dates de la séance (ex : 2 soirs), de la plus ancienne à la plus récente. */
-  dates: string[];
+  /** Fin de la période, YYYY-MM-DD ; null = une seule journée. */
+  endDate: string | null;
   notes: string | null;
   participants: number;
   results: PerfTestResultRow[];
@@ -365,7 +365,7 @@ export type PerfTestGroup = {
   icon: string;
   poolLength: number | null;
   /** Mes temps de la saison sur cette épreuve ; null si je n'ai pas été chronométré. */
-  mine: { count: number; best: { timeSeconds: number; time: string; dates: string[] } } | null;
+  mine: { count: number; best: { timeSeconds: number; time: string; date: string; endDate: string | null } } | null;
   sessions: PerfTestSessionView[];
 };
 
@@ -392,8 +392,9 @@ export type PerfTestDeclaration = {
 /** Un de mes temps (« Mon évolution »), toutes saisons confondues. */
 export type PerfTestMineResult = {
   sessionId: number;
-  /** Dates de la séance, YYYY-MM-DD (plusieurs si elle s'étale sur plusieurs jours). */
-  dates: string[];
+  /** Période de la prise de temps : début YYYY-MM-DD, fin (null = une seule journée). */
+  date: string;
+  endDate: string | null;
   /** Année de début de la saison (2025 = saison 2025-2026). */
   season: number;
   seasonLabel: string;
@@ -418,7 +419,7 @@ export type PerfTestMineGroup = {
   shortLabel?: string;
   icon: string;
   poolLength: number | null;
-  best: { timeSeconds: number; time: string; seasonLabel: string; dates: string[] };
+  best: { timeSeconds: number; time: string; seasonLabel: string; date: string; endDate: string | null };
   results: PerfTestMineResult[];
 };
 

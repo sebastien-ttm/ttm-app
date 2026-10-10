@@ -181,7 +181,7 @@ class PerfTestResultController extends AbstractController
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Épreuve', $session->getTestLabel()], ';');
-            fputcsv($out, ['Date(s)', $session->getDatesLabel()], ';');
+            fputcsv($out, ['Période', $session->getDatesLabel()], ';');
             if ($session->getNotes()) {
                 fputcsv($out, ['Notes', $session->getNotes()], ';');
             }
