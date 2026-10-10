@@ -22,7 +22,7 @@ options suivantes.
 | `icon-192.png` | 192×192 | Android Chrome icône PWA standard |
 | `icon-512.png` | 512×512 | Android Chrome splash + écran d'accueil HD |
 | `icon-maskable-512.png` | 512×512 | Android adaptative icon (avec marge intérieure ~10 %) |
-| `badge-96.png` | 96×96 | Petit pictogramme des notifications push (Android) : disque blanc transparent autour d'un « T » évidé. Seule la transparence compte — généré par `node scripts/generate-notification-badge.mjs` |
+| `badge-96.png` | 96×96 | Petit pictogramme des notifications push (Android) : silhouette blanche du logo du club sur fond transparent. Android n'en garde que la transparence (voir ci-dessous) |
 
 ## Comment les générer
 
@@ -51,6 +51,15 @@ magick icon.svg -resize 410x410 -gravity center -background "#D32F2F" -extent 51
 
 Le dernier ajoute une marge intérieure de ~10 % pour respecter la safe area des
 icônes adaptatives Android.
+
+## Pictogramme des notifications (`badge-96.png`)
+
+Android affiche ce pictogramme dans la barre d'état en ne gardant que son **canal alpha** : tout pixel
+opaque devient blanc. Une icône carrée pleine (comme `icon-192.png`) donne donc un carré blanc.
+`badge-96.png` est la silhouette du logo officiel (`assets/branding/logo.svg`) : pixels blancs là où
+le logo est rouge, transparents ailleurs, emblème recadré et centré avec ~6 px de marge. Pour le
+régénérer (changement de logo) : dessiner le logo sur un canvas blanc, passer chaque pixel en blanc
+avec pour alpha `(255 − vert) / 190` (borné à 0–1), puis exporter en PNG 96×96.
 
 ## Vérification après déploiement
 

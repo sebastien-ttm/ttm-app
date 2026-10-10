@@ -101,8 +101,8 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: data.icon || '/icons/icon-192.png',
-    // Petit pictogramme de la barre d'état Android : seule sa transparence compte (voir
-    // scripts/generate-notification-badge.mjs) — une icône pleine donnerait un carré blanc.
+    // Petit pictogramme de la barre d'état Android : seule sa transparence compte (silhouette
+    // blanche du logo, voir icons/README.md) — une icône pleine donnerait un carré blanc.
     badge: '/icons/badge-96.png',
     data: { url: data.url || '/' },
   };
