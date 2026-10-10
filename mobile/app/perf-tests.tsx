@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/api/client';
+import { ApiError, auth } from '@/api/client';
 import { perfTests as perfTestsApi } from '@/api/resources';
 import type {
   PerfTestGroup,
@@ -20,15 +20,18 @@ import { fromIsoDate } from '@/utils/week';
 
 /**
  * Tests chronométrés (onglet Entraînements) : pour une saison d'entraînement
- * (sept. → août), mes temps
- * et ceux de tous les adhérents, épreuve par épreuve puis séance par
- * séance. Les temps sont saisis par les entraîneurs côté backend.
+ * (sept. → août), un sous-onglet par épreuve avec mes temps et ceux de tous
+ * les adhérents séance par séance, un formulaire de rectification adressé
+ * aux entraîneurs, et mon évolution sur toutes les saisons. Les temps sont
+ * saisis par les entraîneurs côté backend.
  */
 export default function PerfTestsScreen() {
   const { user } = useAuth();
   const canSee = canSeeTraining(user);
 
   const [season, setSeason] = useState<number | undefined>(undefined);
+  // Sous-onglet (épreuve) choisi : clé de groupe ; retombe sur le premier disponible.
+  const [tab, setTab] = useState<string | null>(null);
   const [data, setData] = useState<PerfTestsResponse | null>(null);
   // « Mon évolution » : mes temps sur toutes les saisons (indépendant de la saison affichée).
   const [mine, setMine] = useState<PerfTestMineGroup[]>([]);
@@ -95,6 +98,11 @@ export default function PerfTestsScreen() {
     );
   }
 
+  const tabs = data ? buildTabs(data.groups, mine) : [];
+  const activeTab = tabs.find((t) => t.key === tab) ?? tabs[0];
+  const activeGroup = data && activeTab ? data.groups.find((g) => g.key === activeTab.key) : undefined;
+  const activeMine = activeTab ? mine.find((g) => g.key === activeTab.key) : undefined;
+
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
       <Stack.Screen options={{ title: 'Tests chronométrés' }} />
@@ -107,16 +115,6 @@ export default function PerfTestsScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
-          {mine.length > 0 && (
-            <>
-              <Text style={styles.sectionTitle}>📈 Mon évolution</Text>
-              {mine.map((g) => (
-                <EvolutionCard key={g.key} group={g} />
-              ))}
-              <Text style={styles.sectionTitle}>🏁 Classements par saison</Text>
-            </>
-          )}
-
           {data && (
             <>
               <Text style={styles.seasonTitle}>Saison {seasonLabel(data)}</Text>
@@ -138,23 +136,190 @@ export default function PerfTestsScreen() {
                   })}
                 </ScrollView>
               )}
-            </>
-          )}
 
-          {data && data.groups.length === 0 ? (
-            <EmptyState
-              icon="⏱️"
-              title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
-              message="Les temps saisis par les entraîneurs apparaîtront ici."
-            />
-          ) : (
-            data?.groups.map((g) => (
-              <GroupCard key={g.key} group={g} open={open} onToggle={toggle} />
-            ))
+              {tabs.length === 0 || !activeTab ? (
+                <EmptyState
+                  icon="⏱️"
+                  title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
+                  message="Les temps saisis par les entraîneurs apparaîtront ici."
+                />
+              ) : (
+                <>
+                  {tabs.length > 1 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+                      {tabs.map((t) => {
+                        const active = t.key === activeTab.key;
+                        return (
+                          <Pressable
+                            key={t.key}
+                            onPress={() => setTab(t.key)}
+                            style={[styles.tabChip, active && styles.tabChipActive]}
+                            accessibilityRole="tab"
+                            accessibilityState={{ selected: active }}
+                          >
+                            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.icon} {t.short}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+
+                  {activeGroup ? (
+                    <GroupCard key={activeGroup.key} group={activeGroup} open={open} onToggle={toggle} />
+                  ) : (
+                    <View style={styles.card}>
+                      <Text style={styles.cardTitle}>{activeTab.icon} {activeTab.label}</Text>
+                      <Text style={styles.noMine}>Aucun test sur cette épreuve pour la saison {seasonLabel(data)}.</Text>
+                    </View>
+                  )}
+
+                  <CorrectionBox
+                    key={`${activeTab.key}:${data.season}`}
+                    label={activeTab.label}
+                    season={seasonLabel(data)}
+                  />
+
+                  {activeMine && (
+                    <>
+                      <Text style={styles.sectionTitle}>📈 Mon évolution</Text>
+                      <EvolutionCard group={activeMine} />
+                    </>
+                  )}
+                </>
+              )}
+            </>
           )}
         </ScrollView>
       )}
     </SafeAreaView>
+  );
+}
+
+type PerfTab = { key: string; label: string; short: string; icon: string; test: string; pool: number | null };
+
+const TEST_ORDER = ['run_1500', 'swim_400', 'bike_climb_2k'];
+
+/**
+ * Sous-onglets : une épreuve (et un bassin en natation) par onglet, réunion
+ * des épreuves de la saison affichée et de celles où j'ai déjà un temps
+ * (pour que « Mon évolution » reste accessible), dans l'ordre course / nage / vélo.
+ */
+function buildTabs(groups: PerfTestGroup[], mine: PerfTestMineGroup[]): PerfTab[] {
+  const byKey = new Map<string, PerfTab>();
+  for (const g of [...groups, ...mine]) {
+    if (!byKey.has(g.key)) {
+      byKey.set(g.key, {
+        key: g.key,
+        label: g.label,
+        short: g.shortLabel ?? g.label,
+        icon: g.icon,
+        test: g.test,
+        pool: g.poolLength,
+      });
+    }
+  }
+  const rank = (t: PerfTab) => {
+    const i = TEST_ORDER.indexOf(t.test);
+    return i === -1 ? TEST_ORDER.length : i;
+  };
+  return Array.from(byKey.values()).sort((a, b) => rank(a) - rank(b) || (a.pool ?? 0) - (b.pool ?? 0));
+}
+
+/**
+ * Rectification : l'adhérent décrit l'erreur dans une zone de texte ; le
+ * message part vers TOUS les entraîneurs (messagerie de l'appli + e-mail),
+ * avec l'épreuve et la saison en objet.
+ */
+function CorrectionBox({ label, season }: { label: string; season: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    const body = text.trim();
+    if (!body || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await auth.sendMessage({
+        scope: 'all_trainers',
+        subject: `Rectification de temps — ${label} · saison ${season}`.slice(0, 200),
+        body: `Épreuve : ${label}\nSaison : ${season}\n\n${body}`,
+      });
+      setSent(true);
+      setOpen(false);
+      setText('');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Envoi impossible. Réessayez plus tard.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <View style={styles.sentBox}>
+        <Text style={styles.sentLabel}>✅ Message envoyé aux entraîneurs. Merci !</Text>
+        <Pressable onPress={() => setSent(false)} hitSlop={8}>
+          <Text style={styles.correctionLink}>Envoyer un autre message</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!open) {
+    return (
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.correctionLinkBox, pressed && { opacity: 0.7 }]}
+      >
+        <Ionicons name="create-outline" size={18} color={COLORS.secondaryDark} />
+        <Text style={[styles.correctionLink, { flex: 1 }]}>Un temps est incorrect ? Signaler une rectification</Text>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>✏️ Rectification — {label}</Text>
+      <Text style={styles.correctionHint}>
+        Décrivez l'erreur (séance concernée, temps attendu…). Votre message est envoyé aux entraîneurs.
+      </Text>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder="Ex : mon temps du 12 mars est 5:38 et non 5:48"
+        placeholderTextColor={COLORS.textSubtle}
+        multiline
+        maxLength={2000}
+        editable={!sending}
+        style={styles.correctionInput}
+      />
+      {error && <Text style={styles.correctionError}>{error}</Text>}
+      <View style={styles.correctionActions}>
+        <Pressable
+          onPress={() => { setOpen(false); setError(null); }}
+          disabled={sending}
+          style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.cancelBtnLabel}>Annuler</Text>
+        </Pressable>
+        <Pressable
+          onPress={send}
+          disabled={sending || text.trim() === ''}
+          style={({ pressed }) => [
+            styles.sendBtn,
+            (sending || text.trim() === '') && { opacity: 0.5 },
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnLabel}>Envoyer aux entraîneurs</Text>}
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -380,6 +545,40 @@ const styles = StyleSheet.create({
   evoDeltaWorse: { color: COLORS.error },
   showAll: { alignItems: 'center', paddingVertical: 8 },
   showAllLabel: { fontSize: 14, fontWeight: '600', color: COLORS.secondaryDark },
+  tabs: { gap: SPACING.sm, paddingVertical: 2 },
+  tabChip: {
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  tabChipActive: { backgroundColor: COLORS.brandNavy, borderColor: COLORS.brandNavy },
+  tabLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  tabLabelActive: { color: '#fff' },
+  correctionLinkBox: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.secondarySoft,
+  },
+  correctionLink: { fontSize: 14, fontWeight: '600', color: COLORS.secondaryDark },
+  correctionHint: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
+  correctionInput: {
+    minHeight: 100, textAlignVertical: 'top',
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    padding: SPACING.md, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.surfaceAlt,
+  },
+  correctionError: { fontSize: 13, color: COLORS.error },
+  correctionActions: { flexDirection: 'row', gap: SPACING.sm, justifyContent: 'flex-end' },
+  cancelBtn: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: RADIUS.md },
+  cancelBtnLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+  sendBtn: {
+    paddingHorizontal: 16, paddingVertical: 11, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary, minWidth: 150, alignItems: 'center',
+  },
+  sendBtnLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  sentBox: {
+    padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: '#d1fae5',
+    gap: SPACING.xs,
+  },
+  sentLabel: { fontSize: 14, fontWeight: '600', color: '#065f46' },
   seasonTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   seasons: { gap: SPACING.sm, paddingVertical: 2 },
   seasonChip: {

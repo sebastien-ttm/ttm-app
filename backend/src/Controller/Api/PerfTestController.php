@@ -95,6 +95,7 @@ class PerfTestController extends AbstractController
                 'key' => $key,
                 'test' => $g['test']->value,
                 'label' => $g['test']->label().($g['pool'] !== null ? ' — bassin '.$g['pool'].' m' : ''),
+                'shortLabel' => $g['test']->shortLabel().($g['pool'] !== null ? ' · '.$g['pool'].' m' : ''),
                 'icon' => $g['test']->icon(),
                 'poolLength' => $g['pool'],
                 'best' => [
@@ -161,6 +162,7 @@ class PerfTestController extends AbstractController
                 'key' => $key,
                 'test' => $g['test']->value,
                 'label' => $label,
+                'shortLabel' => $g['test']->shortLabel().($g['pool'] !== null ? ' · '.$g['pool'].' m' : ''),
                 'icon' => $g['test']->icon(),
                 'poolLength' => $g['pool'],
                 'mine' => $mineCount === 0 ? null : ['count' => $mineCount, 'best' => $mineBest],

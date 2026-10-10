@@ -20,6 +20,16 @@ enum PerfTest: string
         };
     }
 
+    /** Libellé court (sous-onglets de l'appli). */
+    public function shortLabel(): string
+    {
+        return match ($this) {
+            self::Run1500 => '1500 m',
+            self::Swim400 => '400 m nage',
+            self::BikeClimb2k => 'Montée 2 km',
+        };
+    }
+
     public function icon(): string
     {
         return match ($this) {

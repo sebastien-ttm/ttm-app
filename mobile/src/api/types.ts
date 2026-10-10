@@ -359,6 +359,8 @@ export type PerfTestGroup = {
   key: string;
   test: string;
   label: string;
+  /** Libellé court (sous-onglets) ; absent sur un backend antérieur. */
+  shortLabel?: string;
   icon: string;
   poolLength: number | null;
   /** Mes temps de la saison sur cette épreuve ; null si je n'ai pas été chronométré. */
@@ -391,6 +393,8 @@ export type PerfTestMineGroup = {
   key: string;
   test: string;
   label: string;
+  /** Libellé court (sous-onglets) ; absent sur un backend antérieur. */
+  shortLabel?: string;
   icon: string;
   poolLength: number | null;
   best: { timeSeconds: number; time: string; seasonLabel: string; dates: string[] };
