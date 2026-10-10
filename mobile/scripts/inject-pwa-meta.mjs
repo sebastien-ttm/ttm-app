@@ -70,7 +70,8 @@ const HEAD_INJECTION = `
     <meta name="apple-mobile-web-app-title" content="TTM" />
 
     <!-- === Favicon (onglet navigateur) : emblème du club ===
-         Pas de favicon SVG : icon.svg reste le monogramme TTM (source des icônes PWA). -->
+         Pas de favicon SVG : icon.svg a un fond blanc plein, alors que les PNG transparents
+         restent lisibles dans un onglet clair comme sombre. -->
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />

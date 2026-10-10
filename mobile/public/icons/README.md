@@ -3,62 +3,54 @@
 Ce dossier contient les icônes utilisées pour :
 - l'onglet du navigateur (favicon)
 - l'icône « Ajouter à l'écran d'accueil » sur smartphone (Android Chrome + iOS Safari)
-- la splash screen Android d'une PWA installée
+- l'écran de démarrage (splash) Android d'une PWA installée : icône du manifeste centrée sur `background_color`
+- la grande icône des notifications push
 
-`icon.svg` (source) est commité — c'est le logo TTM officiel reconstitué en SVG (fond rouge club + monogramme blanc + bandeau bleu inférieur). Identique au logo de la page de login.
+Toutes reprennent l'**emblème officiel du club** (`assets/branding/logo.svg`, rouge `#E32636`).
+
+`icon.svg` (source) est commité : l'emblème **retracé en vectoriel** (le logo officiel n'est qu'une image
+de 100×125 px, trop petite pour des icônes nettes de 512 px) sur fond blanc. C'est la source des icônes
+PNG ci-dessous : emblème centré sur toute la hauteur à 70 % pour les icônes « any » et l'icône iOS, à 56 %
+pour l'icône « maskable » (zone sûre des icônes adaptatives Android, qui découpent un cercle ou un carré arrondi).
 
 ## Fichiers (commités)
 
-Les PNG ci-dessous sont **dans le dépôt** (générés depuis `icon.svg`, rendu Arial gras
-du navigateur). Si le logo change, régénérez-les à partir de `icon.svg` avec l'une des
-options suivantes.
-
 | Fichier | Taille | Usage |
 |---------|--------|-------|
-| `icon.svg` | vectoriel | Favicon SVG (navigateurs modernes), source pour générer les PNG |
+| `icon.svg` | vectoriel | Source des icônes PNG ; icône « any » du manifeste |
 | `favicon-16.png` | 16×16 | Favicon onglet : emblème du club sur fond transparent |
 | `favicon-32.png` | 32×32 | Favicon onglet (la plupart des navigateurs), emblème du club |
 | `../favicon.ico` | 16/32/48 | Favicon à la racine du site : demandé par défaut par les navigateurs et par l'administration (EasyAdmin) — emblème du club |
-| `apple-touch-icon.png` | 180×180 | iOS Safari « Ajouter à l'écran d'accueil » |
-| `icon-192.png` | 192×192 | Android Chrome icône PWA standard |
+| `apple-touch-icon.png` | 180×180 | iOS Safari « Ajouter à l'écran d'accueil » (fond opaque obligatoire) |
+| `icon-192.png` | 192×192 | Android Chrome icône PWA standard + grande icône des notifications |
 | `icon-512.png` | 512×512 | Android Chrome splash + écran d'accueil HD |
-| `icon-maskable-512.png` | 512×512 | Android adaptative icon (avec marge intérieure ~10 %) |
+| `icon-maskable-512.png` | 512×512 | Android adaptative icon (emblème réduit pour rester dans la zone sûre) |
 | `badge-96.png` | 96×96 | Petit pictogramme des notifications push (Android) : silhouette blanche du logo du club sur fond transparent. Android n'en garde que la transparence (voir ci-dessous) |
 
-## Comment les générer
+## Comment les régénérer
 
-**Option recommandée — outil web tout-en-un** :
-
-1. Va sur https://realfavicongenerator.net/
-2. Upload `icon.svg` (ou un PNG 512×512 généré depuis le SVG)
-3. Configure :
-   - iOS : marge à 0, background `#D32F2F`
-   - Android : « Adaptive icon » → background `#D32F2F`, padding 10 %
-   - Web App Manifest : nom « Triathlon Toulouse Métropole », short name « TTM », theme `#D32F2F`, background `#0d2148`
-4. Télécharge le zip et place les fichiers ci-dessus dans ce dossier
-   (le `manifest.json` est déjà dans `mobile/public/manifest.webmanifest`, ne pas remplacer)
-
-**Option locale — ImageMagick** :
+**Option locale — ImageMagick** (à partir de `icon.svg`, emblème à 70 %) :
 
 ```bash
 cd mobile/public/icons
-magick icon.svg -resize 16x16   favicon-16.png
-magick icon.svg -resize 32x32   favicon-32.png
 magick icon.svg -resize 180x180 apple-touch-icon.png
 magick icon.svg -resize 192x192 icon-192.png
 magick icon.svg -resize 512x512 icon-512.png
-magick icon.svg -resize 410x410 -gravity center -background "#D32F2F" -extent 512x512 icon-maskable-512.png
+magick icon.svg -resize 410x410 -gravity center -background "#FFFFFF" -extent 512x512 icon-maskable-512.png
 ```
 
-Le dernier ajoute une marge intérieure de ~10 % pour respecter la safe area des
-icônes adaptatives Android.
+Le dernier réduit à 80 % (soit un emblème à 56 %) avec marge blanche : zone sûre des icônes adaptatives Android.
+
+Si le logo change : retracer l'emblème (contour d'après le canvas du logo, simplifié) pour refaire `icon.svg`,
+puis relancer les commandes ci-dessus.
 
 ## Favicons (onglet du navigateur)
 
 Les favicons (`favicon-16.png`, `favicon-32.png`, `../favicon.ico`) sont l'**emblème du club** (rouge, fond
 transparent, ~6 % de marge) tiré de `mobile/assets/branding/logo-mark.png`, lui-même issu du logo officiel
-`assets/branding/logo.svg`. Ils ne dérivent donc pas de `icon.svg` (monogramme TTM, source des icônes PWA
-et de l'écran d'accueil). Le `.ico` contient les PNG 16, 32 et 48 px.
+`assets/branding/logo.svg`. Ils sont volontairement sur fond transparent (lisibles dans un onglet clair
+comme sombre) ; c'est pourquoi `icon.svg`, à fond blanc, n'est pas déclaré comme favicon. Le `.ico` contient
+les PNG 16, 32 et 48 px.
 
 ## Pictogramme des notifications (`badge-96.png`)
 
@@ -71,11 +63,17 @@ avec pour alpha `(255 − vert) / 190` (borné à 0–1), puis exporter en PNG 9
 
 ## Vérification après déploiement
 
+Une icône d'appli **déjà installée** ne change pas toute seule tout de suite : Android ne met à jour
+l'icône (et l'écran de démarrage) qu'à la prochaine mise à jour de l'appli installée, parfois après un
+jour. Pour voir le changement immédiatement : désinstaller l'appli puis la réinstaller (bouton
+« Installer l'application » du profil). Sur iPhone/iPad : supprimer l'icône de l'écran d'accueil et
+l'ajouter de nouveau.
+
 Sur mobile :
-- **Android Chrome** : ouvre l'app, menu (⋮) → « Ajouter à l'écran d'accueil ».
-  Tu dois voir l'icône TTM et le nom « TTM ».
+- **Android Chrome** : ouvre l'app, menu (⋮) → « Installer l'application » ou « Ajouter à l'écran d'accueil ».
+  Tu dois voir l'emblème du club et le nom « TTM ».
 - **iOS Safari** : ouvre l'app, bouton partage → « Sur l'écran d'accueil ».
-  L'icône TTM apparaît dans l'aperçu avant ajout.
+  L'emblème du club apparaît dans l'aperçu avant ajout.
 
 Sur desktop :
 - Ouvre les DevTools → Application → Manifest → toutes les icônes doivent charger
