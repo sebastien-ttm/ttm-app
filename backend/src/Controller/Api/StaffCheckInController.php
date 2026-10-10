@@ -42,9 +42,10 @@ class StaffCheckInController extends AbstractController
     }
 
     /**
-     * Événements soumis au vote à émarger : à venir et en cours d'abord (du plus
-     * proche au plus lointain), puis les terminés des 60 derniers jours (du plus
-     * récent au plus ancien) — même fenêtre que la page « Votes de présence » du backend.
+     * Événements soumis au vote à émarger aujourd'hui, dans l'ordre chronologique :
+     * ceux du jour et, pour un événement sur plusieurs jours, tous les jours de sa
+     * durée (il disparaît le lendemain de sa dernière journée). Les événements
+     * passés ou futurs restent consultables dans le backend.
      */
     #[Route('/api/staff/check-in/events', methods: ['GET'])]
     public function events(): JsonResponse
@@ -53,35 +54,27 @@ class StaffCheckInController extends AbstractController
         $viewer = $this->getUser();
         $this->denyUnlessCheckIn($viewer);
 
-        $events = $this->events->findVotable((new \DateTimeImmutable('today'))->modify('-60 days'));
+        $today = new \DateTimeImmutable('today');
+        $tomorrow = $today->modify('+1 day');
+
+        // findVotable trie par début croissant : l'ordre chronologique est conservé.
+        $events = array_values(array_filter(
+            $this->events->findVotable($today),
+            static fn (Event $e) => $e->getStartsAt() < $tomorrow && self::lastDay($e) >= $today,
+        ));
         $ids = array_map(static fn (Event $e) => (int) $e->getId(), $events);
         $votes = $this->attendances->countsForEvents($ids);
         $checked = $this->checkIns->countsForEvents($ids);
 
-        $now = new \DateTimeImmutable();
-        $current = [];
-        $past = [];
+        $rows = [];
         foreach ($events as $e) {
-            // Sans heure de fin, l'événement reste « en cours » jusqu'à la fin de sa journée.
-            $end = $e->getEndsAt() ?? $e->getStartsAt()->setTime(23, 59, 59);
-            $row = [
-                'id' => $e->getId(),
-                'title' => $e->getTitle(),
-                'startsAt' => $e->getStartsAt()->format(\DATE_ATOM),
-                'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
-                'isAllDay' => $e->isAllDay(),
-                'location' => $e->getLocation(),
+            $rows[] = self::eventPayload($e) + [
                 'votes' => $votes[$e->getId()] ?? ['yes' => 0, 'maybe' => 0, 'no' => 0],
                 'checkedCount' => $checked[$e->getId()] ?? 0,
             ];
-            if ($end < $now) {
-                $past[] = $row;
-            } else {
-                $current[] = $row;
-            }
         }
-        // findVotable trie par début croissant : les terminés sont à inverser.
-        return new JsonResponse(['data' => array_merge($current, array_reverse($past))]);
+
+        return new JsonResponse(['data' => $rows]);
     }
 
     /** Feuille d'émargement d'un événement : tous les adhérents, avec leur vote et leur état. */
@@ -121,14 +114,7 @@ class StaffCheckInController extends AbstractController
             <=> [self::VOTE_ORDER[$b['vote']], mb_strtolower($b['nom']), mb_strtolower($b['prenom'])]);
 
         return new JsonResponse([
-            'event' => [
-                'id' => $event->getId(),
-                'title' => $event->getTitle(),
-                'startsAt' => $event->getStartsAt()->format(\DATE_ATOM),
-                'endsAt' => $event->getEndsAt()?->format(\DATE_ATOM),
-                'isAllDay' => $event->isAllDay(),
-                'location' => $event->getLocation(),
-            ],
+            'event' => self::eventPayload($event),
             'checkedCount' => count($checkIns),
             'data' => $rows,
         ]);
@@ -171,6 +157,40 @@ class StaffCheckInController extends AbstractController
             throw $this->createNotFoundException('Événement introuvable ou non soumis au vote.');
         }
         return $event;
+    }
+
+    /**
+     * Dernier jour de l'événement (à minuit) : le jour de fin, ou celui du début
+     * sans fin. Une fin à minuit pile sur un événement horaire appartient à la
+     * veille (22h → 00h = une seule soirée).
+     */
+    private static function lastDay(Event $e): \DateTimeImmutable
+    {
+        $start = $e->getStartsAt();
+        $end = $e->getEndsAt();
+        if ($end === null || $end <= $start) {
+            return $start->setTime(0, 0);
+        }
+        if (!$e->isAllDay() && $end->format('H:i:s') === '00:00:00') {
+            $end = $end->modify('-1 day');
+        }
+
+        return max($start->setTime(0, 0), $end->setTime(0, 0));
+    }
+
+    /** @return array<string, mixed> */
+    private static function eventPayload(Event $e): array
+    {
+        return [
+            'id' => $e->getId(),
+            'title' => $e->getTitle(),
+            'startsAt' => $e->getStartsAt()->format(\DATE_ATOM),
+            'endsAt' => $e->getEndsAt()?->format(\DATE_ATOM),
+            // Dernier jour (AAAA-MM-JJ) : différent du jour de début pour un événement sur plusieurs jours.
+            'lastDay' => self::lastDay($e)->format('Y-m-d'),
+            'isAllDay' => $e->isAllDay(),
+            'location' => $e->getLocation(),
+        ];
     }
 
     /** @return array{checked: bool, checkedAt: ?string, checkedBy: ?string} */

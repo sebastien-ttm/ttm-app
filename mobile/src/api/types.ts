@@ -396,6 +396,8 @@ export type StaffCheckInEvent = {
   title: string;
   startsAt: string;
   endsAt: string | null;
+  /** Dernier jour (AAAA-MM-JJ) : différent du jour de début pour un événement sur plusieurs jours. */
+  lastDay: string;
   isAllDay: boolean;
   location: string | null;
   votes: { yes: number; maybe: number; no: number };

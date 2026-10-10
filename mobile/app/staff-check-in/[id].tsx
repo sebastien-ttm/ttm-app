@@ -18,7 +18,7 @@ import { ApiError } from '@/api/client';
 import { staffCheckIn } from '@/api/resources';
 import type { CheckInRow, CheckInSheet, CheckInVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { formatEventWhen } from '@/components/gestion/EmargementTab';
+import { formatEventPeriod } from '@/components/gestion/EmargementTab';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { canCheckIn } from '@/utils/profile';
@@ -146,7 +146,7 @@ export default function StaffCheckInScreen() {
       <View style={styles.header}>
         <Text style={styles.eventTitle} numberOfLines={2}>{sheet.event.title}</Text>
         <Text style={styles.eventSub}>
-          {formatEventWhen(sheet.event.startsAt, sheet.event.isAllDay)}
+          {formatEventPeriod(sheet.event)}
           {sheet.event.location ? ` · ${sheet.event.location}` : ''}
         </Text>
         <Text style={styles.counter}>

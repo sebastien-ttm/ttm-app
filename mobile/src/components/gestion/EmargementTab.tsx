@@ -24,6 +24,26 @@ export function formatEventWhen(startsAt: string, isAllDay: boolean): string {
   return isAllDay ? day : `${day} · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+/** « lun. 12 octobre » pour une date AAAA-MM-JJ (construite en local : pas de décalage de fuseau). */
+function formatYmd(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' });
+}
+
+/**
+ * Quand a lieu l'événement : « sam. 12 octobre · 18:30 » le temps d'un jour,
+ * « du sam. 12 octobre au lun. 14 octobre » sur plusieurs jours (l'événement
+ * reste proposé à l'émargement chaque jour de sa durée).
+ */
+export function formatEventPeriod(event: { startsAt: string; lastDay: string; isAllDay: boolean }): string {
+  // Jour de début tel qu'enregistré par le serveur (les 10 premiers caractères de la date ISO).
+  const firstDay = event.startsAt.slice(0, 10);
+  if (event.lastDay > firstDay) {
+    return `du ${formatYmd(firstDay)} au ${formatYmd(event.lastDay)}`;
+  }
+  return formatEventWhen(event.startsAt, event.isAllDay);
+}
+
 /**
  * Onglet « Émargements » de l'espace Staff : feuille de présence des
  * événements soumis au vote (entraîneurs et CoDir), remise des bonnets du club
@@ -128,10 +148,10 @@ export function EmargementTab() {
         <>
           <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
           <Text style={styles.hint}>
-            Événements soumis au vote de présence : émargez les adhérents présents sur place, même sans vote.
+            Événements du jour soumis au vote de présence (un événement sur plusieurs jours reste proposé chaque jour) : émargez les adhérents présents sur place, même sans vote.
           </Text>
           {events.length === 0 ? (
-            <EmptyState icon="📅" title="Aucun événement à émarger" message="Les événements soumis au vote apparaîtront ici." />
+            <EmptyState icon="📅" title="Aucun événement aujourd'hui" message="Les événements du jour soumis au vote de présence apparaîtront ici." />
           ) : (
             events.map((e) => (
               <Pressable
@@ -142,7 +162,7 @@ export function EmargementTab() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.title} numberOfLines={2}>{e.title}</Text>
                   <Text style={styles.sub}>
-                    {formatEventWhen(e.startsAt, e.isAllDay)}{e.location ? ` · ${e.location}` : ''}
+                    {formatEventPeriod(e)}{e.location ? ` · ${e.location}` : ''}
                   </Text>
                   <Text style={styles.votes}>
                     Votes : ✅ {e.votes.yes} · ❓ {e.votes.maybe} · ❌ {e.votes.no}
