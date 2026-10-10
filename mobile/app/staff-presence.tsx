@@ -553,7 +553,8 @@ function StaffLine({
       {people.length === 0 ? (
         <Text style={styles.staffEmpty}>—</Text>
       ) : (
-        <Text style={styles.staffNames} numberOfLines={2}>
+        // Pas de limite de lignes : tous les noms doivent rester visibles, quelle que soit la longueur de la liste.
+        <Text style={styles.staffNames}>
           {people.map((p) => p.fullName).join(', ')}
         </Text>
       )}
