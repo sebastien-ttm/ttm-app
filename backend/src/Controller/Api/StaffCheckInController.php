@@ -9,6 +9,7 @@ use App\Repository\EventAttendanceRepository;
 use App\Repository\EventCheckInRepository;
 use App\Repository\EventRepository;
 use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -41,6 +42,7 @@ class StaffCheckInController extends AbstractController
         private readonly EventCheckInRepository $checkIns,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -123,6 +125,8 @@ class StaffCheckInController extends AbstractController
                 'id' => $userId,
                 'nom' => $p['user']->getNom(),
                 'prenom' => $p['user']->getPrenom(),
+                // URL publique de la photo (carrée), null si l'adhérent n'en a pas : sert à le reconnaître.
+                'avatarUrl' => $this->avatars->urlFor($p['user']),
                 'vote' => $p['vote'],
             ] + self::state($checkIns[$userId] ?? null);
         }

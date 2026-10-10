@@ -413,6 +413,8 @@ export type CheckInRow = CheckInState & {
   id: number;
   nom: string;
   prenom: string;
+  /** URL publique de la photo de l'adhérent ; null s'il n'en a pas. */
+  avatarUrl: string | null;
   vote: CheckInVote;
 };
 

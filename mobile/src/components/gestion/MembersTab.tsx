@@ -19,6 +19,7 @@ import { ApiError } from '@/api/client';
 import { staffDirectory } from '@/api/resources';
 import type { StaffDirectorySeason, StaffMember } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatPhoneFr, telHref } from '@/utils/phone';
 
@@ -177,7 +178,7 @@ export function MembersTab() {
         )}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <MemberAvatar member={item} onPress={() => setZoomed(item)} />
+            <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} onPress={() => setZoomed(item)} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
@@ -227,33 +228,8 @@ export function MembersTab() {
   );
 }
 
-/** Photo ronde de l'adhérent (appui = agrandir) ; ses initiales à défaut de photo. */
-function MemberAvatar({ member, onPress }: { member: StaffMember; onPress: () => void }) {
-  if (!member.avatarUrl) {
-    const initials = ((member.prenom[0] ?? '') + (member.nom[0] ?? '')).toUpperCase() || '?';
-    return (
-      <View style={[styles.avatar, styles.avatarPlaceholder]} accessibilityElementsHidden importantForAccessibility="no">
-        <Text style={styles.avatarInitials}>{initials}</Text>
-      </View>
-    );
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="imagebutton"
-      accessibilityLabel={`Agrandir la photo de ${member.prenom} ${member.nom}`}
-      style={({ pressed }) => pressed && { opacity: 0.8 }}
-    >
-      <Image source={{ uri: member.avatarUrl }} style={styles.avatar} contentFit="cover" />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.surfaceAlt },
-  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandNavy },
-  avatarInitials: { color: '#fff', fontSize: 17, fontWeight: '700' },
   zoomBackdrop: {
     flex: 1,
     alignItems: 'center',

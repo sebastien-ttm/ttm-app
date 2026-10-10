@@ -20,6 +20,7 @@ import type { CheckInRow, CheckInSheet, CheckInVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { formatEventPeriod } from '@/components/gestion/EmargementTab';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { canCheckIn } from '@/utils/profile';
 
@@ -245,6 +246,8 @@ export default function StaffCheckInScreen() {
             accessibilityLabel={`${item.prenom} ${item.nom}`}
             style={({ pressed }) => [styles.row, item.checked && styles.rowChecked, pressed && { opacity: 0.75 }]}
           >
+            {/* Photo non cliquable ici : un appui n'importe où sur la ligne coche / décoche. */}
+            <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} size={48} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
