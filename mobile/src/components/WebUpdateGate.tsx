@@ -13,13 +13,22 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  *     (SHA git court + timestamp) et injecte le même SHA dans une
  *     `<meta name="app-version" content="...">` du index.html.
  *  2. Au démarrage, on lit la version « chargée » depuis la meta tag.
- *  3. Au retour de background après > 60 s, on fetch `/version.json?ts=…`
- *     no-cache. Si le SHA diffère → un banner discret propose de recharger.
+ *  3. À chaque « reprise » de l'appli (retour au premier plan, focus, retour du
+ *     réseau, prise de contrôle d'un nouveau service worker), puis toutes les 5 min
+ *     au premier plan, on fetch `/version.json?ts=…` sans cache. Si le SHA
+ *     diffère → un banner discret propose de recharger.
+ *
+ * Une appli installée (PWA) reste vivante en mémoire des jours : c'est elle qui
+ * doit avertir, sinon l'adhérent garde l'ancienne version jusqu'à ce qu'il la
+ * ferme complètement. Les événements de reprise varient selon le navigateur
+ * (AppState, visibilitychange, focus, pageshow) : on les écoute tous, avec un
+ * délai minimal entre deux contrôles pour ne pas spammer le réseau.
  *
  * Ne se monte que sur web — no-op sur natif (le bundle est figé dans
  * l'APK/IPA, on utilise EAS Update pour ça).
  */
-const INACTIVITY_MS = 60 * 1000;
+/** Délai minimal entre deux contrôles déclenchés par une reprise (jamais deux d'affilée). */
+const MIN_CHECK_GAP_MS = 20 * 1000;
 /**
  * Poll périodique pendant qu'une session reste au premier plan (sans
  * jamais passer en background). 5 min = compromis entre réactivité
@@ -31,7 +40,7 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000;
 export function WebUpdateGate() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const loadedVersionRef = useRef<string | null>(null);
-  const backgroundedAtRef = useRef<number | null>(null);
+  const lastCheckAtRef = useRef(0);
   const checkingRef = useRef(false);
 
   useEffect(() => {
@@ -46,9 +55,19 @@ export function WebUpdateGate() {
     }
     loadedVersionRef.current = loaded;
 
+    const serviceWorker = typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    const hadController = !!serviceWorker?.controller; // faux à la toute première installation
+
+    /** Demande au navigateur de revérifier sw.js (une version par déploiement) sans attendre ses 24 h. */
+    function pingServiceWorker() {
+      serviceWorker?.getRegistration('/').then((registration) => registration?.update()).catch(() => undefined);
+    }
+
     async function check() {
       if (checkingRef.current) return;
       checkingRef.current = true;
+      lastCheckAtRef.current = Date.now();
+      pingServiceWorker();
       try {
         const resp = await fetch('/version.json?ts=' + Date.now(), {
           cache: 'no-store',
@@ -63,37 +82,29 @@ export function WebUpdateGate() {
       finally { checkingRef.current = false; }
     }
 
-    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
-      if (next === 'background' || next === 'inactive') {
-        if (backgroundedAtRef.current === null) backgroundedAtRef.current = Date.now();
-        return;
-      }
-      if (next === 'active') {
-        const bgAt = backgroundedAtRef.current;
-        backgroundedAtRef.current = null;
-        if (bgAt === null) return;
-        if (Date.now() - bgAt < INACTIVITY_MS) return;
-        void check();
-      }
-    });
-
-    // Web-only : listener visibilitychange (couvre le cas onglet en
-    // arrière-plan sans passage en background au sens RN).
-    const onVisibility = () => {
-      if (typeof document === 'undefined') return;
-      if (document.visibilityState !== 'visible') {
-        if (backgroundedAtRef.current === null) backgroundedAtRef.current = Date.now();
-        return;
-      }
-      const bgAt = backgroundedAtRef.current;
-      backgroundedAtRef.current = null;
-      if (bgAt === null) return;
-      if (Date.now() - bgAt < INACTIVITY_MS) return;
+    /** Contrôle déclenché par une reprise de l'appli, au plus toutes les MIN_CHECK_GAP_MS. */
+    function onResume() {
+      if (Date.now() - lastCheckAtRef.current < MIN_CHECK_GAP_MS) return;
       void check();
-    };
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibility);
     }
+
+    const appStateSub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') onResume();
+    });
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onResume();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    // Selon le navigateur / l'OS, une appli installée reprise de la mémoire ne déclenche
+    // pas toujours visibilitychange : focus, pageshow et online prennent le relais.
+    window.addEventListener('focus', onResume);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('online', onResume);
+    // Un nouveau service worker prend la main sur une page déjà contrôlée : un déploiement a
+    // eu lieu. On vérifie la version au lieu de conclure directement — à un démarrage à froid
+    // la page vient justement de se charger à jour (pas de bannière à afficher).
+    const onControllerChange = () => { if (hadController) void check(); };
+    serviceWorker?.addEventListener('controllerchange', onControllerChange);
 
     // Poll périodique pour les sessions qui restent au premier plan
     // (l'user reste actif toute la journée sur l'appli).
@@ -103,17 +114,19 @@ export function WebUpdateGate() {
     const pollTimer = setInterval(() => {
       // Skip si onglet en background (le retour via visibilitychange
       // s'en charge, pas la peine de spammer).
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible') return;
       void check();
     }, POLL_INTERVAL_MS);
 
     return () => {
-      sub.remove();
+      appStateSub.remove();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('pageshow', onResume);
+      window.removeEventListener('online', onResume);
+      serviceWorker?.removeEventListener('controllerchange', onControllerChange);
       clearTimeout(firstTimer);
       clearInterval(pollTimer);
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibility);
-      }
     };
   }, []);
 

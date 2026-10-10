@@ -83,8 +83,11 @@ DirectoryIndex index.html index.php
 # Cache-Control strict pour index.html + version.json — indispensable
 # pour que le WebUpdateGate détecte les nouveaux déploiements même
 # quand un CDN ou un cache navigateur agressif serait dans la boucle.
+# Idem pour le service worker (sw.js) et ses fichiers : un service worker
+# ne doit JAMAIS être mis en cache (le « 1 an » des .js ci-dessus retarderait
+# sa mise à jour), ni la page hors ligne ni le manifeste.
 <IfModule mod_headers.c>
-    <FilesMatch "^(index\.html|version\.json)$">
+    <FilesMatch "^(index\.html|version\.json|sw\.js|offline\.html|manifest\.webmanifest)$">
         Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
         Header set Pragma "no-cache"
         Header set Expires "0"
