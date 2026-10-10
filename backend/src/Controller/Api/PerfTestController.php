@@ -15,8 +15,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Tests chronométrés (1500 m, 400 m natation, montée 2 km vélo) côté
- * mobile, onglet Entraînements : pour une année, les temps de TOUS les
- * adhérents classés par séance, avec le meilleur temps du viewer.
+ * mobile, onglet Entraînements : pour une saison d'entraînement, les temps
+ * de TOUS les adhérents classés par séance, avec le meilleur temps du viewer.
  *
  * Réservé aux adhérents licenciés (même règle que l'onglet côté appli).
  * Les temps sont saisis par les entraîneurs (voir PerfTestResultController).
@@ -30,8 +30,10 @@ class PerfTestController extends AbstractController
     }
 
     /**
-     * GET /api/perf-tests?year=2026 — par défaut l'année la plus récente
-     * qui a des temps (à défaut, l'année en cours).
+     * GET /api/perf-tests?season=2025 — saison d'entraînement identifiée par
+     * son année de début (2025 = saison 2025-2026, du 1er sept. au 31 août).
+     * Par défaut la saison la plus récente qui a des temps (à défaut, la
+     * saison en cours).
      */
     #[Route('/api/perf-tests', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -42,17 +44,17 @@ class PerfTestController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $years = $this->sessions->findYearsWithResults();
-        $requested = (int) $request->query->get('year', 0);
-        $year = $requested >= 2000 && $requested <= 2100
+        $seasons = $this->sessions->findSeasonsWithResults();
+        $requested = (int) $request->query->get('season', 0);
+        $season = $requested >= 2000 && $requested <= 2100
             ? $requested
-            : ($years[0] ?? (int) date('Y'));
+            : ($seasons[0] ?? PerfTestSessionRepository::seasonStartYear(new \DateTimeImmutable('today')));
 
         // Une épreuve par groupe ; en natation, un groupe par longueur de
         // bassin (25 m et 50 m ne sont pas comparables).
         /** @var array<string, array{test: PerfTest, pool: ?int, sessions: list<PerfTestSession>}> $groups */
         $groups = [];
-        foreach ($this->sessions->findWithResultsForYear($year) as $session) {
+        foreach ($this->sessions->findWithResultsForSeason($season) as $session) {
             $key = $session->getTest()->value.($session->getPoolLength() !== null ? '_'.$session->getPoolLength() : '');
             $groups[$key] ??= ['test' => $session->getTest(), 'pool' => $session->getPoolLength(), 'sessions' => []];
             $groups[$key]['sessions'][] = $session;
@@ -91,10 +93,18 @@ class PerfTestController extends AbstractController
             ];
         }
 
+        // La saison affichée figure toujours dans le sélecteur, même sans temps.
+        if (!in_array($season, $seasons, true)) {
+            $seasons[] = $season;
+            rsort($seasons);
+        }
+
         return new JsonResponse([
-            'year' => $year,
-            // L'année demandée figure toujours dans le sélecteur, même vide.
-            'years' => in_array($year, $years, true) ? $years : array_values(array_unique([$year, ...$years])),
+            'season' => $season,
+            'seasons' => array_map(
+                static fn (int $y) => ['year' => $y, 'label' => PerfTestSessionRepository::seasonLabel($y)],
+                $seasons,
+            ),
             'groups' => $out,
         ]);
     }

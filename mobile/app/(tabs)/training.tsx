@@ -245,7 +245,7 @@ function TrainingScreenInner() {
               </View>
               )}
 
-              {/* Tests chronométrés : mon temps et ceux de tous les adhérents, par année. */}
+              {/* Tests chronométrés : mon temps et ceux de tous les adhérents, par saison. */}
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>⏱️ Tests chronométrés</Text>
                 <Pressable
@@ -257,7 +257,7 @@ function TrainingScreenInner() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={stylesPerf.title}>Mes temps et ceux du club</Text>
-                    <Text style={stylesPerf.sub}>1500 m course à pied · 400 m natation · montée vélo — par année</Text>
+                    <Text style={stylesPerf.sub}>1500 m course à pied · 400 m natation · montée vélo — par saison</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
                 </Pressable>

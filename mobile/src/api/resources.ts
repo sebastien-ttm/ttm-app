@@ -75,9 +75,10 @@ export const trainingPlans = {
   get: (id: number) => api.get<TrainingPlan>(`/api/training-plans/${id}`),
 };
 
-/** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par année. */
+/** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par saison d'entraînement. */
 export const perfTests = {
-  list: (year?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${year ? `?year=${year}` : ''}`),
+  /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */
+  list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
 };
 
 export const trainingSchedule = {

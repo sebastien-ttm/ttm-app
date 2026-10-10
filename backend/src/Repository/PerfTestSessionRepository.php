@@ -17,12 +17,29 @@ class PerfTestSessionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Années (décroissantes) où au moins une séance a des temps saisis —
-     * pour le sélecteur d'année de l'appli mobile.
+     * Saison d'entraînement d'une date, identifiée par son année de
+     * début : du 1er septembre au 31 août (le 12 mars 2026 → 2025, le
+     * 15 octobre 2026 → 2026).
+     */
+    public static function seasonStartYear(\DateTimeInterface $date): int
+    {
+        $year = (int) $date->format('Y');
+        return (int) $date->format('n') >= 9 ? $year : $year - 1;
+    }
+
+    /** « 2025-2026 » pour la saison qui démarre en 2025. */
+    public static function seasonLabel(int $startYear): string
+    {
+        return $startYear.'-'.($startYear + 1);
+    }
+
+    /**
+     * Saisons (début d'année, décroissant) où au moins une séance a des
+     * temps saisis — pour le sélecteur de l'appli mobile.
      *
      * @return list<int>
      */
-    public function findYearsWithResults(): array
+    public function findSeasonsWithResults(): array
     {
         $rows = $this->createQueryBuilder('s')
             ->select('DISTINCT s.date AS d')
@@ -31,26 +48,29 @@ class PerfTestSessionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getScalarResult();
 
-        $years = [];
+        $seasons = [];
         foreach ($rows as $row) {
-            $years[(int) substr((string) $row['d'], 0, 4)] = true;
+            $seasons[self::seasonStartYear(new \DateTimeImmutable((string) $row['d']))] = true;
         }
-        return array_keys($years);
+        $years = array_keys($seasons);
+        rsort($years);
+        return $years;
     }
 
     /**
-     * Séances d'une année civile qui ont au moins un temps, avec leurs
-     * temps et adhérents chargés en une requête, la plus récente d'abord.
+     * Séances d'une saison (1er sept. → 31 août) qui ont au moins un temps,
+     * avec leurs temps et adhérents chargés en une requête, la plus
+     * récente d'abord.
      *
      * @return list<PerfTestSession>
      */
-    public function findWithResultsForYear(int $year): array
+    public function findWithResultsForSeason(int $startYear): array
     {
         return $this->createQueryBuilder('s')
             ->innerJoin('s.results', 'r')->addSelect('r')
             ->innerJoin('r.user', 'u')->addSelect('u')
-            ->where('s.date >= :from')->setParameter('from', sprintf('%04d-01-01', $year))
-            ->andWhere('s.date <= :to')->setParameter('to', sprintf('%04d-12-31', $year))
+            ->where('s.date >= :from')->setParameter('from', sprintf('%04d-09-01', $startYear))
+            ->andWhere('s.date <= :to')->setParameter('to', sprintf('%04d-08-31', $startYear + 1))
             ->orderBy('s.date', 'DESC')
             ->addOrderBy('s.id', 'DESC')
             ->getQuery()

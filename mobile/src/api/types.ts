@@ -352,22 +352,23 @@ export type PerfTestSessionView = {
   results: PerfTestResultRow[];
 };
 
-/** Une épreuve (en natation : une par longueur de bassin) sur l'année choisie. */
+/** Une épreuve (en natation : une par longueur de bassin) sur la saison choisie. */
 export type PerfTestGroup = {
   key: string;
   test: string;
   label: string;
   icon: string;
   poolLength: number | null;
-  /** Mes temps de l'année sur cette épreuve ; null si je n'ai pas été chronométré. */
+  /** Mes temps de la saison sur cette épreuve ; null si je n'ai pas été chronométré. */
   mine: { count: number; best: { timeSeconds: number; time: string; date: string } } | null;
   sessions: PerfTestSessionView[];
 };
 
 export type PerfTestsResponse = {
-  year: number;
-  /** Années disponibles, la plus récente d'abord. */
-  years: number[];
+  /** Saison affichée, par son année de début (2025 = saison 2025-2026, sept. → août). */
+  season: number;
+  /** Saisons disponibles, la plus récente d'abord. */
+  seasons: { year: number; label: string }[];
   groups: PerfTestGroup[];
 };
 

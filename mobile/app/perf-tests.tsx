@@ -14,7 +14,8 @@ import { canSeeTraining } from '@/utils/profile';
 import { fromIsoDate } from '@/utils/week';
 
 /**
- * Tests chronométrés (onglet Entraînements) : pour une année, mes temps
+ * Tests chronométrés (onglet Entraînements) : pour une saison d'entraînement
+ * (sept. → août), mes temps
  * et ceux de tous les adhérents, épreuve par épreuve puis séance par
  * séance. Les temps sont saisis par les entraîneurs côté backend.
  */
@@ -22,7 +23,7 @@ export default function PerfTestsScreen() {
   const { user } = useAuth();
   const canSee = canSeeTraining(user);
 
-  const [year, setYear] = useState<number | undefined>(undefined);
+  const [season, setSeason] = useState<number | undefined>(undefined);
   const [data, setData] = useState<PerfTestsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,10 +31,10 @@ export default function PerfTestsScreen() {
   // Séances dépliées (« groupe:séance ») : la plus récente de chaque épreuve par défaut.
   const [open, setOpen] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async (y: number | undefined) => {
+  const load = useCallback(async (s: number | undefined) => {
     try {
       setError(null);
-      const resp = await perfTestsApi.list(y);
+      const resp = await perfTestsApi.list(s);
       setData(resp);
       setOpen(new Set(resp.groups.flatMap((g) => (g.sessions[0] ? [`${g.key}:${g.sessions[0].id}`] : []))));
     } catch (err) {
@@ -46,19 +47,19 @@ export default function PerfTestsScreen() {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      await load(year);
+      await load(season);
       if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [canSee, year, load]);
+  }, [canSee, season, load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load(year);
+    await load(season);
     setRefreshing(false);
-  }, [load, year]);
+  }, [load, season]);
 
   function toggle(key: string) {
     setOpen((prev) => {
@@ -88,35 +89,40 @@ export default function PerfTestsScreen() {
       {loading ? (
         <FullScreenLoading />
       ) : error && !data ? (
-        <ErrorState message={error} onRetry={() => load(year)} />
+        <ErrorState message={error} onRetry={() => load(season)} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
-          {data && data.years.length > 1 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.years}>
-              {data.years.map((y) => {
-                const active = y === data.year;
-                return (
-                  <Pressable
-                    key={y}
-                    onPress={() => setYear(y)}
-                    style={[styles.yearChip, active && styles.yearChipActive]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{y}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+          {data && (
+            <>
+              <Text style={styles.seasonTitle}>Saison {seasonLabel(data)}</Text>
+              {data.seasons.length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.seasons}>
+                  {data.seasons.map((s) => {
+                    const active = s.year === data.season;
+                    return (
+                      <Pressable
+                        key={s.year}
+                        onPress={() => setSeason(s.year)}
+                        style={[styles.seasonChip, active && styles.seasonChipActive]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text style={[styles.seasonLabel, active && styles.seasonLabelActive]}>{s.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </>
           )}
 
           {data && data.groups.length === 0 ? (
             <EmptyState
               icon="⏱️"
-              title={`Aucun test chronométré en ${data.year}`}
+              title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
               message="Les temps saisis par les entraîneurs apparaîtront ici."
             />
           ) : (
@@ -146,11 +152,11 @@ function GroupCard({
           <Text style={styles.mineLabel}>Mon meilleur temps</Text>
           <Text style={styles.mineTime}>{group.mine.best.time}</Text>
           <Text style={styles.mineMeta}>
-            le {formatDay(group.mine.best.date)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette année
+            le {formatDay(group.mine.best.date)} · {group.mine.count} test{group.mine.count > 1 ? 's' : ''} cette saison
           </Text>
         </View>
       ) : (
-        <Text style={styles.noMine}>Vous n'avez pas de temps enregistré sur cette épreuve cette année.</Text>
+        <Text style={styles.noMine}>Vous n'avez pas de temps enregistré sur cette épreuve cette saison.</Text>
       )}
 
       {group.sessions.map((s) => {
@@ -204,6 +210,10 @@ function SessionBlock({
   );
 }
 
+function seasonLabel(data: PerfTestsResponse): string {
+  return data.seasons.find((s) => s.year === data.season)?.label ?? String(data.season);
+}
+
 function formatDay(iso: string): string {
   return fromIsoDate(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -215,15 +225,16 @@ function rankLabel(rank: number): string {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl, gap: SPACING.md },
-  years: { gap: SPACING.sm, paddingVertical: 2 },
-  yearChip: {
+  seasonTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  seasons: { gap: SPACING.sm, paddingVertical: 2 },
+  seasonChip: {
     paddingHorizontal: 16, paddingVertical: 8,
     borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
   },
-  yearChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  yearLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  yearLabelActive: { color: '#fff' },
+  seasonChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  seasonLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  seasonLabelActive: { color: '#fff' },
   card: {
     backgroundColor: COLORS.surface, borderRadius: RADIUS.md,
     padding: SPACING.lg, gap: SPACING.md,
