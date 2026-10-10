@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -16,12 +16,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { staffCheckIn } from '@/api/resources';
-import type { CheckInRow, CheckInSheet, CheckInVote } from '@/api/types';
+import type { CheckInLive, CheckInRow, CheckInSheet, CheckInVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { formatEventPeriod } from '@/components/gestion/EmargementTab';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { LiveStatus } from '@/components/LiveStatus';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useFlashRows, useLiveSync } from '@/hooks/useLiveSync';
 import { canCheckIn } from '@/utils/profile';
 
 const VOTE_TITLES: Record<CheckInVote, string> = {
@@ -67,6 +69,13 @@ export default function StaffCheckInScreen() {
   // Adhérents émargés / décochés pendant cette session : ils restent dans « Inscrits »
   // même si on les décoche, pour que la ligne ne disparaisse pas sous le doigt.
   const [touched, setTouched] = useState<Set<number>>(new Set());
+  // Appuis en cours d'enregistrement (copie en ref lisible par la synchronisation) : leurs lignes ne
+  // sont pas écrasées par l'état du serveur le temps que la réponse arrive.
+  const pendingRef = useRef<Set<number>>(new Set());
+  const sheetRef = useRef<CheckInSheet | null>(null);
+  sheetRef.current = sheet;
+  // Lignes modifiées par quelqu'un d'autre : surlignées un instant.
+  const { flashed, flash } = useFlashRows();
 
   const load = useCallback(async () => {
     try {
@@ -86,6 +95,42 @@ export default function StaffCheckInScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  // Synchronisation en direct : émargements et votes des autres, sans rafraîchir la page.
+  const onLiveState = useCallback((state: CheckInLive) => {
+    const checkedById = new Map(state.checked.map((c) => [c.id, c]));
+    const voteById = new Map<number, CheckInVote>(state.votes);
+    const current = sheetRef.current;
+    const changed = current
+      ? current.data
+        .filter((r) => !pendingRef.current.has(r.id) && r.checked !== checkedById.has(r.id))
+        .map((r) => r.id)
+      : [];
+
+    setSheet((sheetNow) => {
+      if (!sheetNow) return sheetNow;
+      let modified = false;
+      const data = sheetNow.data.map((r) => {
+        if (pendingRef.current.has(r.id)) return r;
+        const c = checkedById.get(r.id);
+        const vote = voteById.get(r.id) ?? 'none';
+        const checked = c !== undefined;
+        const same = r.checked === checked && r.vote === vote
+          && (!checked || (r.checkedAt === c.checkedAt && r.checkedBy === c.checkedBy));
+        if (same) return r;
+        modified = true;
+        return { ...r, vote, checked, checkedAt: c?.checkedAt ?? null, checkedBy: c?.checkedBy ?? null };
+      });
+      return modified ? { ...sheetNow, data, checkedCount: data.filter((r) => r.checked).length } : sheetNow;
+    });
+    flash(changed);
+  }, [flash]);
+
+  const { online, resync } = useLiveSync<CheckInLive>({
+    enabled: sheet !== null,
+    fetchState: (version) => staffCheckIn.state(eventId, version),
+    onState: onLiveState,
+  });
 
   /** Inscrit = a voté « présent » ; un adhérent déjà émargé (ou touché ici) reste visible. */
   const isRegistered = useCallback(
@@ -114,6 +159,7 @@ export default function StaffCheckInScreen() {
   async function toggle(row: CheckInRow) {
     if (pending.has(row.id) || !sheet) return;
     const next = !row.checked;
+    pendingRef.current.add(row.id);
     setPending((p) => new Set(p).add(row.id));
     setTouched((t) => new Set(t).add(row.id));
     // Optimiste : l'appui se voit tout de suite ; retour arrière si le serveur refuse.
@@ -127,6 +173,8 @@ export default function StaffCheckInScreen() {
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Émargement non enregistré', msg);
     } finally {
+      pendingRef.current.delete(row.id);
+      resync(); // recale la feuille sur le serveur au prochain passage (retour arrière, ou autre appui entre-temps)
       setPending((p) => {
         const copy = new Set(p);
         copy.delete(row.id);
@@ -171,9 +219,12 @@ export default function StaffCheckInScreen() {
           {formatEventPeriod(sheet.event)}
           {sheet.event.location ? ` · ${sheet.event.location}` : ''}
         </Text>
-        <Text style={styles.counter}>
-          <Text style={styles.counterNumber}>{sheet.checkedCount}</Text> émargé{sheet.checkedCount > 1 ? 's' : ''}
-        </Text>
+        <View style={styles.counterRow}>
+          <Text style={styles.counter}>
+            <Text style={styles.counterNumber}>{sheet.checkedCount}</Text> émargé{sheet.checkedCount > 1 ? 's' : ''}
+          </Text>
+          <LiveStatus online={online} />
+        </View>
       </View>
 
       <View style={styles.searchWrap}>
@@ -214,6 +265,7 @@ export default function StaffCheckInScreen() {
 
       <SectionList
         sections={sections}
+        extraData={flashed}
         keyExtractor={(r) => String(r.id)}
         stickySectionHeadersEnabled
         keyboardShouldPersistTaps="handled"
@@ -244,7 +296,7 @@ export default function StaffCheckInScreen() {
             accessibilityRole="checkbox"
             accessibilityState={{ checked: item.checked }}
             accessibilityLabel={`${item.prenom} ${item.nom}`}
-            style={({ pressed }) => [styles.row, item.checked && styles.rowChecked, pressed && { opacity: 0.75 }]}
+            style={({ pressed }) => [styles.row, item.checked && styles.rowChecked, flashed.has(item.id) && styles.rowFlash, pressed && { opacity: 0.75 }]}
           >
             {/* Photo non cliquable ici : un appui n'importe où sur la ligne coche / décoche. */}
             <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} size={48} />
@@ -275,7 +327,8 @@ const styles = StyleSheet.create({
   header: { padding: SPACING.md, paddingBottom: SPACING.sm, gap: 2 },
   eventTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   eventSub: { fontSize: 13, color: COLORS.textMuted },
-  counter: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
+  counterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  counter: { fontSize: 14, color: COLORS.textMuted },
   counterNumber: { fontSize: 20, fontWeight: '800', color: COLORS.success },
   searchWrap: {
     flexDirection: 'row',
@@ -321,6 +374,8 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   rowChecked: { backgroundColor: '#f0fdf4' },
+  // Modifiée à l'instant par quelqu'un d'autre.
+  rowFlash: { backgroundColor: '#fef9c3' },
   name: { fontSize: 16, color: COLORS.text },
   nom: { fontWeight: '700' },
   checkedInfo: { fontSize: 12, color: '#166534', marginTop: 2 },

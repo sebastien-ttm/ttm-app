@@ -17,10 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { staffPerfTests } from '@/api/resources';
-import type { PerfTestSheetRow, StaffPerfTestSheet } from '@/api/types';
+import type { PerfTestSheetRow, PerfTestsLive, StaffPerfTestSheet } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { LiveStatus } from '@/components/LiveStatus';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useFlashRows, useLiveSync } from '@/hooks/useLiveSync';
 import { canManageCapsAndTimes } from '@/utils/profile';
 
 type TimeFilter = 'all' | 'todo' | 'done';
@@ -54,6 +56,13 @@ export default function StaffPerfTestSheetScreen() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<TimeFilter>('all');
+  // Enregistrements en cours (adhérents) : leurs lignes ne sont pas écrasées par l'état du serveur
+  // le temps que la réponse arrive.
+  const pendingRef = useRef<Set<number>>(new Set());
+  const sheetRef = useRef<StaffPerfTestSheet | null>(null);
+  sheetRef.current = sheet;
+  // Lignes modifiées par quelqu'un d'autre : surlignées un instant.
+  const { flashed, flash } = useFlashRows();
 
   const load = useCallback(async () => {
     try {
@@ -74,8 +83,44 @@ export default function StaffPerfTestSheetScreen() {
     setRefreshing(false);
   }, [load]);
 
+  // Synchronisation en direct : temps saisis par les autres chronométreurs, sans rafraîchir la page.
+  const onLiveState = useCallback((state: PerfTestsLive) => {
+    const byId = new Map(state.results.map((result) => [result.id, result]));
+    const current = sheetRef.current;
+    const changed = current
+      ? current.data
+        .filter((r) => !pendingRef.current.has(r.id) && r.time !== (byId.get(r.id)?.time ?? null))
+        .map((r) => r.id)
+      : [];
+
+    setSheet((sheetNow) => {
+      if (!sheetNow) return sheetNow;
+      let modified = false;
+      const data = sheetNow.data.map((r) => {
+        if (pendingRef.current.has(r.id)) return r;
+        const server = byId.get(r.id);
+        const seconds = server?.seconds ?? null;
+        const time = server?.time ?? null;
+        const by = server?.by ?? null;
+        const warning = server?.warning ?? null;
+        if (r.seconds === seconds && r.time === time && r.by === by && r.warning === warning) return r;
+        modified = true;
+        return { ...r, seconds, time, by, warning };
+      });
+      return modified ? { ...sheetNow, data, enteredCount: data.filter((r) => r.time !== null).length } : sheetNow;
+    });
+    flash(changed);
+  }, [flash]);
+
+  const { online, resync } = useLiveSync<PerfTestsLive>({
+    enabled: sheet !== null,
+    fetchState: (version) => staffPerfTests.state(sessionId, version),
+    onState: onLiveState,
+  });
+
   /** Enregistre un temps ; renvoie un message d'erreur, ou null si c'est enregistré. */
   const save = useCallback(async (userId: number, value: string): Promise<string | null> => {
+    pendingRef.current.add(userId);
     try {
       const state = await staffPerfTests.saveTime(sessionId, userId, value);
       setSheet((current) => {
@@ -86,8 +131,11 @@ export default function StaffPerfTestSheetScreen() {
       return null;
     } catch (e) {
       return e instanceof ApiError ? e.message : 'Enregistrement impossible. Réessayez.';
+    } finally {
+      pendingRef.current.delete(userId);
+      resync(); // recale la feuille sur le serveur au prochain passage
     }
-  }, [sessionId]);
+  }, [sessionId, resync]);
 
   const rows = useMemo(() => {
     if (!sheet) return [];
@@ -131,10 +179,13 @@ export default function StaffPerfTestSheetScreen() {
           <Text style={styles.sessionSub}>
             {session.datesLabel}{session.notes ? ` · ${session.notes}` : ''}
           </Text>
-          <Text style={styles.counter}>
-            <Text style={styles.counterNumber}>{sheet.enteredCount}</Text> temps saisi{sheet.enteredCount > 1 ? 's' : ''}
-            {sheet.legacyCount > 0 ? ` · +${sheet.legacyCount} ancien${sheet.legacyCount > 1 ? 's' : ''} adhérent${sheet.legacyCount > 1 ? 's' : ''} (backend)` : ''}
-          </Text>
+          <View style={styles.counterRow}>
+            <Text style={styles.counter}>
+              <Text style={styles.counterNumber}>{sheet.enteredCount}</Text> temps saisi{sheet.enteredCount > 1 ? 's' : ''}
+              {sheet.legacyCount > 0 ? ` · +${sheet.legacyCount} ancien${sheet.legacyCount > 1 ? 's' : ''} adhérent${sheet.legacyCount > 1 ? 's' : ''} (backend)` : ''}
+            </Text>
+            <LiveStatus online={online} />
+          </View>
         </View>
 
         <View style={styles.searchWrap}>
@@ -183,7 +234,8 @@ export default function StaffPerfTestSheetScreen() {
               {query !== '' ? 'Aucun adhérent trouvé.' : filter === 'todo' ? 'Tous les temps sont saisis. 🎉' : 'Aucun temps saisi pour l\'instant.'}
             </Text>
           }
-          renderItem={({ item }) => <TimeRow row={item} onSave={save} />}
+          extraData={flashed}
+          renderItem={({ item }) => <TimeRow row={item} flash={flashed.has(item.id)} onSave={save} />}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -197,34 +249,50 @@ export default function StaffPerfTestSheetScreen() {
  */
 const TimeRow = memo(function TimeRow({
   row,
+  flash,
   onSave,
 }: {
   row: PerfTestSheetRow;
+  /** Modifiée à l'instant par quelqu'un d'autre. */
+  flash: boolean;
   onSave: (userId: number, value: string) => Promise<string | null>;
 }) {
   const [draft, setDraft] = useState(row.time ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
+  // Champ en cours de frappe, ou saisie pas encore enregistrée : l'état du serveur ne doit jamais
+  // l'écraser (un autre chronométreur peut saisir ce même adhérent pendant qu'on tape).
+  const focused = useRef(false);
+  const dirty = useRef(false);
 
-  // Le serveur renvoie le temps normalisé (« 5.42 » → « 5:42 ») : on l'affiche.
-  useEffect(() => { setDraft(row.time ?? ''); }, [row.time]);
+  // Le serveur renvoie le temps normalisé (« 5.42 » → « 5:42 ») : on l'affiche, sauf si on est en train de saisir.
+  useEffect(() => {
+    if (!focused.current && !dirty.current) setDraft(row.time ?? '');
+  }, [row.time]);
 
   async function commit() {
     const value = draft.trim();
     if (inFlight.current) return;
-    if (value === (row.time ?? '')) {
+    // Rien saisi : on reprend simplement la valeur du serveur (qui a pu changer pendant le focus)
+    // au lieu de la réécrire avec l'ancienne.
+    if (!dirty.current || value === (row.time ?? '')) {
+      dirty.current = false;
       setDraft(row.time ?? '');
       setError(null);
       return;
     }
     inFlight.current = true;
+    dirty.current = false; // la valeur part au serveur
     setSaving(true);
     setError(null);
     const failure = await onSave(row.id, value);
     inFlight.current = false;
     setSaving(false);
-    if (failure) setError(failure);
+    if (failure) {
+      dirty.current = true; // on garde la saisie pour la corriger
+      setError(failure);
+    }
   }
 
   const hint = [
@@ -234,7 +302,7 @@ const TimeRow = memo(function TimeRow({
   ].filter(Boolean).join(' · ');
 
   return (
-    <View style={[styles.row, row.time !== null && !error && styles.rowDone]}>
+    <View style={[styles.row, row.time !== null && !error && styles.rowDone, flash && styles.rowFlash]}>
       <View style={styles.rowMain}>
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
@@ -255,8 +323,9 @@ const TimeRow = memo(function TimeRow({
         </View>
         <TextInput
           value={draft}
-          onChangeText={(t) => { setDraft(t); if (error) setError(null); }}
-          onBlur={commit}
+          onChangeText={(t) => { dirty.current = true; setDraft(t); if (error) setError(null); }}
+          onFocus={() => { focused.current = true; }}
+          onBlur={() => { focused.current = false; void commit(); }}
           onSubmitEditing={commit}
           placeholder="m:ss"
           placeholderTextColor={COLORS.textSubtle}
@@ -280,7 +349,8 @@ const styles = StyleSheet.create({
   header: { padding: SPACING.md, paddingBottom: SPACING.sm, gap: 2 },
   sessionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   sessionSub: { fontSize: 13, color: COLORS.textMuted },
-  counter: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  counterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  counter: { fontSize: 13, color: COLORS.textMuted },
   counterNumber: { fontSize: 20, fontWeight: '800', color: COLORS.secondaryDark },
   searchWrap: {
     flexDirection: 'row',
@@ -317,6 +387,8 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   rowDone: { backgroundColor: '#f0fdf4' },
+  // Modifiée à l'instant par quelqu'un d'autre.
+  rowFlash: { backgroundColor: '#fef9c3' },
   rowMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   name: { fontSize: 16, color: COLORS.text },
   nom: { fontWeight: '700' },

@@ -428,6 +428,18 @@ export type CheckInSheet = {
 
 /** Remises de bonnet d'un adhérent (la dernière en date). */
 export type CapState = { count: number; lastAt: string | null; lastBy: string | null };
+// ---- États en direct (actualisation automatique des écrans du Staff) ----
+
+export type CheckInLive = {
+  checkedCount: number;
+  checked: { id: number; checkedAt: string | null; checkedBy: string | null }[];
+  /** [id adhérent, vote] pour ceux qui ont voté. */
+  votes: [number, CheckInVote][];
+};
+/** Adhérents qui ont reçu au moins un bonnet ; les autres n'y figurent pas. */
+export type CapsLive = { rows: ({ id: number } & CapState)[] };
+export type PerfTestsLive = { results: ({ id: number } & PerfTestEntryState)[] };
+
 export type CapRow = CapState & {
   id: number;
   nom: string;

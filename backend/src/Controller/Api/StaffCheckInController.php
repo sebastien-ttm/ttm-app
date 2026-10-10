@@ -29,6 +29,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class StaffCheckInController extends AbstractController
 {
     use StaffOnlyTrait;
+    use StaffLiveStateTrait;
 
     /** Ordre d'affichage : les « oui » d'abord, puis peut-être, non, et ceux qui n'ont pas voté. */
     private const VOTE_ORDER = ['yes' => 0, 'maybe' => 1, 'no' => 2, 'none' => 3];
@@ -138,6 +139,34 @@ class StaffCheckInController extends AbstractController
             'checkedCount' => count($checkIns),
             'data' => $rows,
         ]);
+    }
+
+    /**
+     * État en direct de la feuille (voir StaffLiveStateTrait) : les adhérents émargés (heure et
+     * auteur) et les votes de présence. Interrogé toutes les quelques secondes par l'appli pour
+     * que plusieurs personnes voient en direct le travail des autres.
+     */
+    #[Route('/api/staff/check-in/events/{id}/state', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function live(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $this->denyUnlessCheckIn($viewer);
+        $event = $this->findEvent($id);
+
+        $checked = [];
+        foreach ($this->checkIns->findByEventIndexedByUser($event) as $userId => $checkIn) {
+            $checked[] = ['id' => $userId] + self::state($checkIn);
+        }
+        usort($checked, static fn (array $a, array $b) => $a['id'] <=> $b['id']);
+
+        $votes = [];
+        foreach ($this->attendances->findByEventWithUser($event) as $attendance) {
+            $votes[] = [$attendance->getUser()->getId(), $attendance->getStatus()->value];
+        }
+        usort($votes, static fn (array $a, array $b) => $a[0] <=> $b[0]);
+
+        return $this->liveState($request, ['checkedCount' => count($checked), 'checked' => $checked, 'votes' => $votes]);
     }
 
     /** Coche ou décoche la présence d'un adhérent. Body : { checked: bool }. Idempotent. */

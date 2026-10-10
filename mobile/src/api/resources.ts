@@ -1,3 +1,5 @@
+import type { LiveState } from '@/hooks/useLiveSync';
+
 import { api } from './client';
 import type {
   AdminNotice,
@@ -30,8 +32,11 @@ import type {
   PerfTestEntryState,
   CapRow,
   CapState,
+  CapsLive,
+  CheckInLive,
   CheckInSheet,
   CheckInState,
+  PerfTestsLive,
   StaffCheckInEvent,
   StaffDirectorySeason,
   StaffMember,
@@ -106,6 +111,9 @@ export const perfTests = {
 export const staffCheckIn = {
   events: () => api.get<{ data: StaffCheckInEvent[] }>('/api/staff/check-in/events'),
   sheet: (eventId: number) => api.get<CheckInSheet>(`/api/staff/check-in/events/${eventId}`),
+  /** État en direct (émargés et votes) ; version = dernière reçue, pour ne rien renvoyer si rien n'a changé. */
+  state: (eventId: number, version: string | null) =>
+    api.get<LiveState<CheckInLive>>(`/api/staff/check-in/events/${eventId}/state${version ? `?v=${version}` : ''}`),
   setChecked: (eventId: number, userId: number, checked: boolean) =>
     api.put<CheckInState>(`/api/staff/check-in/events/${eventId}/members/${userId}`, { checked }),
 };
@@ -113,14 +121,21 @@ export const staffCheckIn = {
 /** Émargement de la remise des bonnets du club — entraîneurs uniquement. */
 export const staffCaps = {
   list: () => api.get<{ data: CapRow[]; total: number; received: number }>('/api/staff/caps'),
-  give: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/give`, {}),
-  undo: (userId: number) => api.post<CapState>(`/api/staff/caps/${userId}/undo`, {}),
+  /** État en direct (adhérents ayant reçu un bonnet). */
+  state: (version: string | null) =>
+    api.get<LiveState<CapsLive>>(`/api/staff/caps/state${version ? `?v=${version}` : ''}`),
+  /** expectedCount = remises affichées à l'écran : si un autre est passé entre-temps, le serveur refuse (409) au lieu de compter deux bonnets. */
+  give: (userId: number, expectedCount?: number) => api.post<CapState>(`/api/staff/caps/${userId}/give`, { expectedCount }),
+  undo: (userId: number, expectedCount?: number) => api.post<CapState>(`/api/staff/caps/${userId}/undo`, { expectedCount }),
 };
 
 /** Saisie des temps des tests chronométrés en cours ou récents — entraîneurs uniquement. */
 export const staffPerfTests = {
   list: () => api.get<{ data: StaffPerfTestSession[] }>('/api/staff/perf-tests'),
   sheet: (sessionId: number) => api.get<StaffPerfTestSheet>(`/api/staff/perf-tests/${sessionId}`),
+  /** État en direct (temps saisis). */
+  state: (sessionId: number, version: string | null) =>
+    api.get<LiveState<PerfTestsLive>>(`/api/staff/perf-tests/${sessionId}/state${version ? `?v=${version}` : ''}`),
   /** time vide = efface le temps ; 422 « Temps illisible » si le format n'est pas reconnu. */
   saveTime: (sessionId: number, userId: number, time: string) =>
     api.put<PerfTestEntryState>(`/api/staff/perf-tests/${sessionId}/results/${userId}`, { time }),

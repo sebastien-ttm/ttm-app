@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, Stack } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +17,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { staffCaps } from '@/api/resources';
-import type { CapRow, CapState } from '@/api/types';
+import type { CapRow, CapsLive, CapState } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { LiveStatus } from '@/components/LiveStatus';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { useFlashRows, useLiveSync } from '@/hooks/useLiveSync';
 import { confirmAction } from '@/utils/confirm';
 import { canManageCapsAndTimes } from '@/utils/profile';
 
@@ -46,6 +48,13 @@ export default function StaffCapsScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<CapFilter>('all');
   const [busyId, setBusyId] = useState<number | null>(null);
+  // Copies en ref lisibles par la synchronisation : la ligne dont l'action est en cours n'est pas
+  // écrasée par l'état du serveur le temps que la réponse arrive.
+  const busyRef = useRef<number | null>(null);
+  const rowsRef = useRef<CapRow[]>([]);
+  rowsRef.current = rows;
+  // Lignes modifiées par quelqu'un d'autre : surlignées un instant.
+  const { flashed, flash } = useFlashRows();
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +74,36 @@ export default function StaffCapsScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  // Synchronisation en direct : remises enregistrées par les autres, sans rafraîchir la page.
+  const onLiveState = useCallback((state: CapsLive) => {
+    const byId = new Map(state.rows.map((row) => [row.id, row]));
+    const changed = rowsRef.current
+      .filter((row) => row.id !== busyRef.current && (byId.get(row.id)?.count ?? 0) !== row.count)
+      .map((row) => row.id);
+
+    setRows((now) => {
+      let modified = false;
+      const next = now.map((row) => {
+        if (row.id === busyRef.current) return row;
+        const server = byId.get(row.id);
+        const count = server?.count ?? 0;
+        const lastAt = server?.lastAt ?? null;
+        const lastBy = server?.lastBy ?? null;
+        if (row.count === count && row.lastAt === lastAt && row.lastBy === lastBy) return row;
+        modified = true;
+        return { ...row, count, lastAt, lastBy };
+      });
+      return modified ? next : now;
+    });
+    flash(changed);
+  }, [flash]);
+
+  const { online, resync } = useLiveSync<CapsLive>({
+    enabled: !loading,
+    fetchState: (version) => staffCaps.state(version),
+    onState: onLiveState,
+  });
 
   const received = rows.filter((r) => r.count > 0).length;
 
@@ -102,17 +141,28 @@ export default function StaffCapsScreen() {
 
   async function run(row: CapRow, action: () => Promise<CapState>) {
     if (busyId !== null) return;
+    busyRef.current = row.id;
     setBusyId(row.id);
     try {
       apply(row.id, await action());
     } catch (e) {
+      // 409 : un autre membre du staff est passé avant nous (voir StaffCapController) — le serveur
+      // n'a rien enregistré et renvoie l'état actuel, qu'on affiche avec son explication.
+      if (e instanceof ApiError && e.status === 409) {
+        const current = (e.body as { state?: CapState } | null)?.state;
+        if (current) apply(row.id, current);
+      }
       fail(e);
     } finally {
+      busyRef.current = null;
+      resync(); // recale l'écran sur le serveur au prochain passage
       setBusyId(null);
     }
   }
 
-  const give = (row: CapRow) => run(row, () => staffCaps.give(row.id));
+  // expectedCount = remises affichées à l'instant de l'appui : si quelqu'un d'autre vient de
+  // remettre le bonnet, le serveur refuse au lieu d'en compter deux.
+  const give = (row: CapRow) => run(row, () => staffCaps.give(row.id, row.count));
 
   async function replace(row: CapRow) {
     const ok = await confirmAction(
@@ -120,7 +170,7 @@ export default function StaffCapsScreen() {
       `${row.prenom} ${row.nom} a déjà reçu un bonnet. Enregistrer une nouvelle remise (bonnet perdu ou abîmé) ?`,
       'Nouvelle remise',
     );
-    if (ok) await run(row, () => staffCaps.give(row.id));
+    if (ok) await run(row, () => staffCaps.give(row.id, row.count));
   }
 
   async function undo(row: CapRow) {
@@ -129,7 +179,7 @@ export default function StaffCapsScreen() {
       `Retirer la dernière remise de bonnet de ${row.prenom} ${row.nom} (appui par erreur) ?`,
       'Annuler la remise',
     );
-    if (ok) await run(row, () => staffCaps.undo(row.id));
+    if (ok) await run(row, () => staffCaps.undo(row.id, row.count));
   }
 
   if (loading) {
@@ -163,6 +213,9 @@ export default function StaffCapsScreen() {
         <Text style={styles.counter}>
           <Text style={styles.counterNumber}>{received}</Text> / {rows.length} adhérents ont reçu leur bonnet
         </Text>
+        <View style={{ marginTop: 4 }}>
+          <LiveStatus online={online} />
+        </View>
       </View>
 
       <View style={styles.searchWrap}>
@@ -202,6 +255,7 @@ export default function StaffCapsScreen() {
 
       <SectionList
         sections={sections}
+        extraData={flashed}
         keyExtractor={(r) => String(r.id)}
         stickySectionHeadersEnabled
         keyboardShouldPersistTaps="handled"
@@ -216,7 +270,7 @@ export default function StaffCapsScreen() {
         renderItem={({ item }) => {
           const busy = busyId === item.id;
           return (
-            <View style={styles.row}>
+            <View style={[styles.row, flashed.has(item.id) && styles.rowFlash]}>
               <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} size={44} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name} numberOfLines={2}>
@@ -305,6 +359,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
+  // Modifiée à l'instant par quelqu'un d'autre.
+  rowFlash: { backgroundColor: '#fef9c3' },
   name: { fontSize: 15, color: COLORS.text },
   nom: { fontWeight: '700' },
   cat: { fontSize: 12, color: COLORS.textSubtle },

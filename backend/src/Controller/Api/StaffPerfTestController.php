@@ -28,6 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class StaffPerfTestController extends AbstractController
 {
     use StaffOnlyTrait;
+    use StaffLiveStateTrait;
 
     /** Une prise de temps terminée depuis moins de ce délai reste proposée à la saisie. */
     private const RECENT_DAYS = 45;
@@ -105,6 +106,28 @@ class StaffPerfTestController extends AbstractController
             'legacyCount' => count($this->results->findLegacyBySession($session)),
             'data' => $rows,
         ]);
+    }
+
+    /**
+     * État en direct de la feuille (voir StaffLiveStateTrait) : les temps déjà saisis. Interrogé
+     * toutes les quelques secondes par l'appli pour que plusieurs chronométreurs voient en direct
+     * les temps saisis par les autres.
+     */
+    #[Route('/api/staff/perf-tests/{id}/state', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function live(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $this->denyUnlessCapsAndTimes($viewer);
+        $session = $this->findSession($id);
+
+        $rows = [];
+        foreach ($this->results->findBySessionIndexedByUser($session) as $userId => $result) {
+            $rows[] = ['id' => $userId] + self::state($result, $session);
+        }
+        usort($rows, static fn (array $a, array $b) => $a['id'] <=> $b['id']);
+
+        return $this->liveState($request, ['results' => $rows]);
     }
 
     /**
