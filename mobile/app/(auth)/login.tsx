@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -79,11 +80,15 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <View style={styles.logoMark}>
-              <Text style={styles.logoLetters}>TTM</Text>
-              <View style={styles.logoUnderline} />
+              <Image
+                source={require('../../assets/branding/logo-mark.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+                accessibilityLabel="Logo du club Triathlon Toulouse Métropole"
+              />
             </View>
             <Text style={styles.brandTitle}>{APP_NAME}</Text>
-            <Text style={styles.brandSubtitle}>Espace adhérents</Text>
+            <Text style={styles.brandSubtitle}>Appli Adhérents</Text>
           </View>
 
           <View style={styles.card}>
@@ -190,30 +195,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.brandNavy },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: SPACING.xl, maxWidth: 480, width: '100%', alignSelf: 'center' },
   brand: { alignItems: 'center', marginBottom: SPACING.xxl },
+  // Pastille blanche : l'emblème rouge du club ressort sur le fond bleu de la page.
   logoMark: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.lg,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.5,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    overflow: 'hidden',
   },
-  logoLetters: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: 1 },
-  logoUnderline: {
-    // Bandeau bleu en bas du logo (clin d'œil à la natation / triathlon)
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 6,
-    backgroundColor: COLORS.secondary,
-  },
+  // Proportions de l'image (187 × 288).
+  logoImage: { width: 38, height: 58 },
   brandTitle: { color: '#fff', fontSize: 19, fontWeight: '700', textAlign: 'center', letterSpacing: -0.2 },
   brandSubtitle: { color: '#93c5fd', fontSize: 13, marginTop: 6, letterSpacing: 0.5, fontWeight: '600', textTransform: 'uppercase' },
   card: {
