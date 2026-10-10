@@ -26,7 +26,7 @@ function normalize(text: string): string {
 }
 
 /**
- * Onglet « Adhérents » de l'espace Gestion : tous les adhérents actifs avec
+ * Onglet « Adhérents » de l'espace Staff : tous les adhérents actifs avec
  * nom, prénom et téléphone, et un bouton d'appel (urgences). Regroupés par
  * initiale du nom, avec une recherche. Réservé au staff (le serveur
  * revérifie le profil).

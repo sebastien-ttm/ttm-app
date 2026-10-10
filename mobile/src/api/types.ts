@@ -369,7 +369,7 @@ export type PerfTestGroup = {
   sessions: PerfTestSessionView[];
 };
 
-/** Un adhérent de l'annuaire du staff (espace « Gestion ») : identité et téléphone, rien d'autre. */
+/** Un adhérent de l'annuaire du staff (espace « Staff ») : identité et téléphone, rien d'autre. */
 export type StaffMember = {
   id: number;
   nom: string;

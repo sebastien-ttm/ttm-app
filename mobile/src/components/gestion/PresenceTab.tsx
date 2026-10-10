@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
- * Onglet « Présences » de l'espace Gestion : tout ce qui concerne la
+ * Onglet « Présences » de l'espace Staff : tout ce qui concerne la
  * présence du staff aux créneaux (indiquer / confirmer, semaine type).
  * Ces entrées étaient auparavant dans l'onglet Entraînements (« Mes
  * encadrements »).

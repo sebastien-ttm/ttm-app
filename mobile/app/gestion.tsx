@@ -17,8 +17,9 @@ const TABS: { key: GestionTab; label: string }[] = [
 ];
 
 /**
- * Espace « Gestion » du staff sportif (profils Entraîneur / Encadrant),
- * ouvert depuis le bouton de l'en-tête. Deux onglets :
+ * Espace « Staff » du staff sportif (profils Entraîneur / Encadrant), ouvert
+ * depuis le bouton de l'en-tête. Route /gestion : /staff est déjà le
+ * trombinoscope du Club. Deux onglets :
  *  - Présences : indiquer / confirmer ses présences, semaine type ;
  *  - Adhérents : annuaire (nom, prénom, téléphone) avec appel en un geste.
  * `?tab=adherents` ouvre directement l'annuaire.
@@ -35,7 +36,7 @@ export default function GestionScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Gestion' }} />
+      <Stack.Screen options={{ title: 'Staff' }} />
 
       <View style={styles.tabs}>
         {TABS.map((t) => {

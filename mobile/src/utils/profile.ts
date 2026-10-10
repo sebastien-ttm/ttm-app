@@ -131,7 +131,7 @@ export function canSeeTrainingTab(user: AuthenticatedUser | null | undefined): b
 
 /**
  * Staff sportif : profil Entraîneur ou Encadrant. Donne accès à l'espace
- * « Gestion » (présences, annuaire des adhérents). Le back-end revérifie
+ * « Staff » (présences, annuaire des adhérents). Le back-end revérifie
  * (StaffMembersController) — ceci ne fait que masquer le bouton.
  */
 export function isStaffMember(user: AuthenticatedUser | null | undefined): boolean {

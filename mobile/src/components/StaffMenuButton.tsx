@@ -7,7 +7,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
 import { isStaffMember } from '@/utils/profile';
 
 /**
- * Bouton « Gestion » de l'en-tête, à gauche du changement de profil lié :
+ * Bouton « Staff » de l'en-tête, à gauche du changement de profil lié :
  * ouvre l'espace staff (présences, annuaire des adhérents). Visible
  * uniquement pour les profils Entraîneur et Encadrant.
  */
@@ -23,11 +23,11 @@ export function StaffMenuButton() {
     <Pressable
       onPress={() => router.push('/gestion' as never)}
       accessibilityRole="button"
-      accessibilityLabel="Gestion : présences et annuaire des adhérents"
+      accessibilityLabel="Staff : présences et annuaire des adhérents"
       style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed]}
     >
       <Ionicons name="briefcase" size={15} color={COLORS.secondary} />
-      <Text style={styles.label} numberOfLines={1}>Gestion</Text>
+      <Text style={styles.label} numberOfLines={1}>Staff</Text>
     </Pressable>
   );
 }

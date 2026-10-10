@@ -83,7 +83,7 @@ function TabsInner() {
         },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '700', fontSize: 17, color: '#fff' },
-        // « Gestion » (staff uniquement) à GAUCHE du changement de profil lié.
+        // « Staff » (profils entraîneur / encadrant uniquement) à GAUCHE du changement de profil lié.
         headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <StaffMenuButton />
