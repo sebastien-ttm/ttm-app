@@ -81,44 +81,64 @@ class PerfTestImportService
 
     /**
      * Enregistre les lignes reconnues, plus les lignes à confirmer ou non
-     * reconnues pour lesquelles un adhérent a été choisi à la main
-     * (`$choices` : n° de ligne => id d'adhérent).
+     * reconnues pour lesquelles un choix a été fait à la main
+     * (`$choices` : n° de ligne => id d'adhérent, ou « legacy » pour garder
+     * le nom d'un ancien adhérent sans compte).
      *
      * @param list<User>                 $users
-     * @param array<int, PerfTestResult> $existing
+     * @param array<int, PerfTestResult> $existing       temps déjà saisis, par id d'adhérent
+     * @param list<PerfTestResult>       $existingLegacy temps déjà saisis d'anciens adhérents (sans compte)
      * @param array<int|string, mixed>   $choices
      *
-     * @return array{created: int, updated: int, unchanged: int, skipped: int}
+     * @return array{created: int, updated: int, unchanged: int, skipped: int, legacy: int}
      */
-    public function commit(PerfTestSession $session, string $text, array $users, array $existing, array $choices, ?User $by): array
+    public function commit(PerfTestSession $session, string $text, array $users, array $existing, array $existingLegacy, array $choices, ?User $by): array
     {
-        $summary = ['created' => 0, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0];
+        $summary = ['created' => 0, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0, 'legacy' => 0];
         $done = [];
+        $doneLegacy = [];
         $byId = [];
         foreach ($users as $candidateUser) {
             $byId[$candidateUser->getId()] = $candidateUser;
         }
+        $legacyByKey = [];
+        foreach ($existingLegacy as $legacyResult) {
+            $legacyByKey[implode(' ', $this->tokens((string) $legacyResult->getLegacyName()))] = $legacyResult;
+        }
 
         foreach ($this->analyse($session, $text, $users, $existing) as $row) {
-            $user = null;
-            if ($row['status'] === 'ok') {
-                $user = $row['candidates'][0];
-            } elseif (in_array($row['status'], ['fuzzy', 'ambiguous', 'unknown'], true)) {
-                $chosenId = (int) ($choices[$row['line']] ?? 0);
-                if ($row['status'] === 'ambiguous') {
-                    // Homonymes : le choix se fait parmi eux uniquement.
-                    foreach ($row['candidates'] as $candidate) {
-                        if ($candidate->getId() === $chosenId) {
-                            $user = $candidate;
-                        }
-                    }
-                } else {
-                    // Nom approchant ou non reconnu : n'importe quel adhérent actif.
-                    $user = $byId[$chosenId] ?? null;
-                }
+            if ($row['seconds'] === null) {
+                $summary['skipped']++;
+                continue;
             }
 
-            if ($user === null || $row['seconds'] === null || isset($done[$user->getId()])) {
+            $user = null;
+            $choice = $row['status'] === 'ok' ? '' : (string) ($choices[$row['line']] ?? '');
+
+            if ($row['status'] === 'ok') {
+                $user = $row['candidates'][0];
+            } elseif ($row['status'] === 'ambiguous') {
+                // Homonymes : le choix se fait parmi eux uniquement.
+                foreach ($row['candidates'] as $candidate) {
+                    if ($candidate->getId() === (int) $choice) {
+                        $user = $candidate;
+                    }
+                }
+            } elseif ($row['status'] === 'fuzzy' || $row['status'] === 'unknown') {
+                if ($choice === 'legacy') {
+                    // Ancien adhérent : on garde le nom tel qu'écrit dans la feuille, sans compte.
+                    if ($this->commitLegacy($session, $row, $legacyByKey, $doneLegacy, $by, $summary)) {
+                        $summary['legacy']++;
+                    } else {
+                        $summary['skipped']++;
+                    }
+                    continue;
+                }
+                // Nom approchant ou non reconnu : n'importe quel adhérent actif.
+                $user = $byId[(int) $choice] ?? null;
+            }
+
+            if ($user === null || isset($done[$user->getId()])) {
                 $summary['skipped']++;
                 continue;
             }
@@ -138,6 +158,39 @@ class PerfTestImportService
         $this->em->flush();
 
         return $summary;
+    }
+
+    /**
+     * Enregistre (ou met à jour, ou laisse tel quel) le temps d'un ancien
+     * adhérent identifié par son nom. Un même nom n'est pris qu'une fois par import.
+     *
+     * @param array{line: int, name: string, seconds: ?int}         $row
+     * @param array<string, PerfTestResult>                          $legacyByKey
+     * @param array<string, true>                                    $doneLegacy
+     * @param array{created: int, updated: int, unchanged: int, skipped: int, legacy: int} $summary
+     *
+     * @return bool false si la ligne est ignorée (nom vide ou doublon dans la liste)
+     */
+    private function commitLegacy(PerfTestSession $session, array $row, array $legacyByKey, array &$doneLegacy, ?User $by, array &$summary): bool
+    {
+        $name = mb_substr(trim((string) preg_replace('/\s+/u', ' ', $row['name'])), 0, 160);
+        $key = implode(' ', $this->tokens($name));
+        if ($name === '' || $key === '' || isset($doneLegacy[$key]) || $row['seconds'] === null) {
+            return false;
+        }
+        $doneLegacy[$key] = true;
+
+        $current = $legacyByKey[$key] ?? null;
+        if ($current === null) {
+            $this->em->persist(new PerfTestResult($session, null, $row['seconds'], $by, $name));
+            $summary['created']++;
+        } elseif ($current->getTimeSeconds() !== $row['seconds']) {
+            $current->setTime($row['seconds'], $by);
+            $summary['updated']++;
+        } else {
+            $summary['unchanged']++;
+        }
+        return true;
     }
 
     /**

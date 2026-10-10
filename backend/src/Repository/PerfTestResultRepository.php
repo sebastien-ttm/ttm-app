@@ -80,9 +80,44 @@ class PerfTestResultRepository extends ServiceEntityRepository
             ->getResult();
         $out = [];
         foreach ($rows as $row) {
-            $out[$row->getUser()->getId()] = $row;
+            // Les anciens adhérents (sans compte) n'ont pas d'id : voir findLegacyBySession().
+            if ($row->getUser() !== null) {
+                $out[$row->getUser()->getId()] = $row;
+            }
         }
         return $out;
+    }
+
+    /**
+     * Temps des anciens adhérents (sans compte) d'une séance, du plus rapide au plus lent.
+     *
+     * @return list<PerfTestResult>
+     */
+    public function findLegacyBySession(PerfTestSession $session): array
+    {
+        return $this->createQueryBuilder('r')
+            ->where('r.session = :s')->setParameter('s', $session)
+            ->andWhere('r.user IS NULL')
+            ->orderBy('r.timeSeconds', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * TOUS les temps d'une séance (adhérents et anciens adhérents), du plus rapide au plus lent.
+     *
+     * @return list<PerfTestResult>
+     */
+    public function findAllBySession(PerfTestSession $session): array
+    {
+        return $this->createQueryBuilder('r')
+            ->leftJoin('r.user', 'u')->addSelect('u')
+            ->where('r.session = :s')->setParameter('s', $session)
+            ->orderBy('r.timeSeconds', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -108,6 +143,9 @@ class PerfTestResultRepository extends ServiceEntityRepository
 
         $out = [];
         foreach ($qb->getQuery()->getResult() as $r) {
+            if ($r->getUser() === null) {
+                continue; // ancien adhérent sans compte : pas d'historique individuel
+            }
             $uid = $r->getUser()->getId();
             if (!isset($out[$uid])) {
                 $out[$uid] = ['last' => $r, 'best' => $r];

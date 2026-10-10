@@ -8,10 +8,14 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Temps d'un adhérent sur une séance de test, en secondes.
  * Un seul temps par (séance, adhérent).
+ *
+ * Un ancien adhérent sans compte (temps importés des saisons passées) n'a
+ * pas de `user` : seul son nom est conservé dans `legacyName`.
  */
 #[ORM\Entity(repositoryClass: PerfTestResultRepository::class)]
 #[ORM\Table(name: 'perf_test_result')]
 #[ORM\UniqueConstraint(name: 'uniq_perf_result_session_user', columns: ['session_id', 'user_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_perf_result_session_legacy', columns: ['session_id', 'legacy_name'])]
 class PerfTestResult
 {
     #[ORM\Id]
@@ -23,9 +27,14 @@ class PerfTestResult
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private PerfTestSession $session;
 
+    /** Null pour un ancien adhérent sans compte (voir legacyName). */
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $user;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+    private ?User $user;
+
+    /** Nom d'un ancien adhérent sans compte, tel qu'écrit dans la feuille importée ; null quand `user` est renseigné. */
+    #[ORM\Column(length: 160, nullable: true)]
+    private ?string $legacyName = null;
 
     #[ORM\Column]
     private int $timeSeconds;
@@ -38,16 +47,30 @@ class PerfTestResult
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
-    public function __construct(PerfTestSession $session, User $user, int $timeSeconds, ?User $enteredBy)
+    public function __construct(PerfTestSession $session, ?User $user, int $timeSeconds, ?User $enteredBy, ?string $legacyName = null)
     {
         $this->session = $session;
         $this->user = $user;
+        $this->legacyName = $user === null ? $legacyName : null;
         $this->setTime($timeSeconds, $enteredBy);
     }
 
     public function getId(): ?int { return $this->id; }
     public function getSession(): PerfTestSession { return $this->session; }
-    public function getUser(): User { return $this->user; }
+    public function getUser(): ?User { return $this->user; }
+    public function getLegacyName(): ?string { return $this->legacyName; }
+
+    /** Nom à afficher : celui de l'adhérent, ou le nom conservé d'un ancien adhérent. */
+    public function getDisplayName(): string
+    {
+        return $this->user !== null ? $this->user->getFullName() : (string) $this->legacyName;
+    }
+
+    /** Clé de tri alphabétique (à égalité de temps). */
+    public function getSortName(): string
+    {
+        return $this->user !== null ? $this->user->getNom() : (string) $this->legacyName;
+    }
     public function getTimeSeconds(): int { return $this->timeSeconds; }
     public function getEnteredBy(): ?User { return $this->enteredBy; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }

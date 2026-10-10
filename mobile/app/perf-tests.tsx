@@ -456,8 +456,8 @@ function SessionBlock({
 
       {isOpen && (
         <View>
-          {session.results.map((r) => (
-            <View key={r.userId} style={[styles.row, r.mine && styles.rowMine]}>
+          {session.results.map((r, i) => (
+            <View key={r.userId ?? `ancien-${i}`} style={[styles.row, r.mine && styles.rowMine]}>
               <Text style={[styles.rank, r.mine && styles.rowMineText]}>{r.rank}</Text>
               <Text style={[styles.name, r.mine && styles.rowMineText]} numberOfLines={1}>
                 {r.fullName}{r.mine ? ' (moi)' : ''}

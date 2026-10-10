@@ -114,17 +114,19 @@ class PerfTestImportController extends AbstractController
             $text,
             $this->users->findActiveAdherentsForRecap(),
             $this->results->findBySessionIndexedByUser($session),
+            $this->results->findLegacyBySession($session),
             $request->request->all('choices'),
             $by instanceof User ? $by : null,
         );
         $request->getSession()->remove($sessionKey);
 
         $this->addFlash('success', sprintf(
-            'Import terminé : %d temps ajouté(s), %d mis à jour, %d inchangé(s), %d ligne(s) ignorée(s).',
+            'Import terminé : %d temps ajouté(s), %d mis à jour, %d inchangé(s), %d ligne(s) ignorée(s)%s.',
             $summary['created'],
             $summary['updated'],
             $summary['unchanged'],
             $summary['skipped'],
+            $summary['legacy'] > 0 ? sprintf(' — dont %d ancien(s) adhérent(s) conservé(s) par leur nom', $summary['legacy']) : '',
         ));
 
         return $this->redirect($this->forwardUrl('admin_perf_test_sheet', ['id' => $id]));

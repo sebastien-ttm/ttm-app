@@ -68,7 +68,7 @@ class PerfTestSessionRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('s')
             ->innerJoin('s.results', 'r')->addSelect('r')
-            ->innerJoin('r.user', 'u')->addSelect('u')
+            ->leftJoin('r.user', 'u')->addSelect('u') // left : les anciens adhérents n'ont pas de compte
             ->where('s.date >= :from')->setParameter('from', sprintf('%04d-09-01', $startYear))
             ->andWhere('s.date <= :to')->setParameter('to', sprintf('%04d-08-31', $startYear + 1))
             ->orderBy('s.date', 'DESC')

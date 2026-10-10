@@ -334,7 +334,8 @@ export type WeeklySchedule = {
 export type PerfTestResultRow = {
   /** Ex æquo = même rang. */
   rank: number;
-  userId: number;
+  /** null pour un ancien adhérent sans compte (son nom est conservé tel quel). */
+  userId: number | null;
   fullName: string;
   timeSeconds: number;
   /** « 5:42 » ou « 1:02:15 ». */

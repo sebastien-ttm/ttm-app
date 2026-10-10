@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -86,6 +87,12 @@ class PerfTestResultController extends AbstractController
             'session' => $session,
             'rows' => $rows,
             'enteredCount' => count($results),
+            // Anciens adhérents (sans compte) importés : lecture seule, suppression possible.
+            'legacy' => array_map(static fn (PerfTestResult $r) => [
+                'id' => $r->getId(),
+                'name' => $r->getLegacyName(),
+                'time' => PerfTestResult::format($r->getTimeSeconds()),
+            ], $this->results->findLegacyBySession($session)),
             'csvUrl' => $this->adminRoute('admin_perf_test_csv', ['id' => $session->getId()]),
             'importUrl' => $this->adminRoute('admin_perf_test_import', ['id' => $session->getId()]),
             'indexUrl' => $this->adminUrlGenerator->unsetAll()
@@ -138,13 +145,36 @@ class PerfTestResultController extends AbstractController
         return new JsonResponse(self::state($result));
     }
 
+    /** Supprime le temps d'un ancien adhérent (sans compte) importé par erreur. */
+    #[Route('/admin/tests/{id}/anciens/{resultId}/supprimer', name: 'admin_perf_test_legacy_delete', methods: ['POST'], requirements: ['id' => '\d+', 'resultId' => '\d+'])]
+    public function deleteLegacy(int $id, int $resultId, Request $request): RedirectResponse
+    {
+        if (!$this->isCsrfTokenValid(self::CSRF_INTENT, (string) $request->request->get('_token', ''))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
+        $session = $this->findSession($id);
+        $result = $this->results->find($resultId);
+        // Uniquement un temps d'ancien adhérent de CETTE séance (jamais celui d'un adhérent).
+        if ($result !== null && $result->getSession()->getId() === $session->getId() && $result->getUser() === null) {
+            $name = $result->getLegacyName();
+            $this->em->remove($result);
+            $this->em->flush();
+            $this->addFlash('success', sprintf('Temps de « %s » supprimé.', $name));
+        }
+
+        return $this->redirect($this->generateUrl('admin_dashboard', [
+            'routeName' => 'admin_perf_test_sheet',
+            'routeParams' => ['id' => $id],
+        ]));
+    }
+
     /** Temps de la séance, du plus rapide au plus lent. */
     #[Route('/admin/tests/{id}/temps.csv', name: 'admin_perf_test_csv', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function csv(int $id): StreamedResponse
     {
         $session = $this->findSession($id);
-        $results = array_values($this->results->findBySessionIndexedByUser($session));
-        usort($results, fn (PerfTestResult $a, PerfTestResult $b) => $a->getTimeSeconds() <=> $b->getTimeSeconds());
+        // Adhérents ET anciens adhérents (sans compte), du plus rapide au plus lent.
+        $results = $this->results->findAllBySession($session);
         $history = $this->results->findHistoryBefore($session);
 
         $response = new StreamedResponse(function () use ($session, $results, $history): void {
@@ -159,12 +189,12 @@ class PerfTestResultController extends AbstractController
             fputcsv($out, ['Rang', 'Nom', 'Prénom', 'Catégorie', 'Temps', 'Secondes', 'Temps précédent', 'Écart (s)', 'Record précédent'], ';');
             foreach ($results as $i => $r) {
                 $u = $r->getUser();
-                $h = $history[$u->getId()] ?? null;
+                $h = $u !== null ? ($history[$u->getId()] ?? null) : null;
                 fputcsv($out, [
                     $i + 1,
-                    $u->getNom(),
-                    $u->getPrenom(),
-                    $u->getCategorieFFTri(),
+                    $u !== null ? $u->getNom() : $r->getLegacyName(),
+                    $u !== null ? $u->getPrenom() : '',
+                    $u !== null ? $u->getCategorieFFTri() : 'ancien adhérent',
                     PerfTestResult::format($r->getTimeSeconds()),
                     $r->getTimeSeconds(),
                     $h ? PerfTestResult::format($h['last']->getTimeSeconds()) : '',

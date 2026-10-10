@@ -53,7 +53,7 @@
             <div class="pi-chips">
                 <span class="pi-chip ok">✅ {{ ready }} prêt(s)</span>
                 <span class="pi-chip check">⚠️ {{ toCheck }} à vérifier</span>
-                <span class="pi-chip check">❓ {{ unknown }} non reconnu(s)</span>
+                <span class="pi-chip check">❓ {{ unknown }} non reconnu(s) → anciens adhérents</span>
                 <span class="pi-chip ignored">⛔ {{ ignored }} ignoré(s)</span>
             </div>
 
@@ -91,6 +91,9 @@
                                         {% elseif row.status == 'fuzzy' or row.status == 'ambiguous' %}
                                             <select name="choices[{{ row.line }}]" class="pi-select">
                                                 <option value="">— Ignorer cette ligne —</option>
+                                                {% if row.status == 'fuzzy' %}
+                                                    <option value="legacy">👤 Ancien adhérent — garder « {{ row.name }} »</option>
+                                                {% endif %}
                                                 {% for c in row.candidates %}
                                                     <option value="{{ c.id }}" {{ row.status == 'fuzzy' and row.candidates|length == 1 ? 'selected' : '' }}>
                                                         {{ c.prenom }} {{ c.nom|upper }}{% if c.categorieFFTri %} ({{ c.categorieFFTri }}){% endif %}
@@ -112,12 +115,15 @@
                                             </div>
                                         {% elseif row.status == 'unknown' %}
                                             <select name="choices[{{ row.line }}]" class="pi-select">
+                                                <option value="legacy" selected>👤 Ancien adhérent — garder « {{ row.name }} »</option>
                                                 <option value="">— Ignorer cette ligne —</option>
-                                                {% for u in users %}
-                                                    <option value="{{ u.id }}">{{ u.nom|upper }} {{ u.prenom }}{% if u.categorieFFTri %} ({{ u.categorieFFTri }}){% endif %}</option>
-                                                {% endfor %}
+                                                <optgroup label="Adhérent actuel">
+                                                    {% for u in users %}
+                                                        <option value="{{ u.id }}">{{ u.nom|upper }} {{ u.prenom }}{% if u.categorieFFTri %} ({{ u.categorieFFTri }}){% endif %}</option>
+                                                    {% endfor %}
+                                                </optgroup>
                                             </select>
-                                            <div class="pi-note">Nom non reconnu : choisissez l'adhérent dans la liste (tapez les premières lettres du nom pour y accéder), ou laissez « Ignorer ».</div>
+                                            <div class="pi-note">Nom non reconnu : par défaut le temps est conservé au nom de l'ancien adhérent (sans compte). Si c'est un adhérent actuel, choisissez-le dans la liste (tapez les premières lettres de son nom), ou « Ignorer ».</div>
                                         {% elseif row.status == 'duplicate' %}
                                             ⚠️ {{ row.message }}
                                         {% else %}
@@ -132,7 +138,7 @@
                     <div class="pi-actions">
                         {% if ready + toCheck + unknown > 0 %}
                             <button type="submit" class="btn btn-success"><i class="fa fa-check"></i> Importer les temps</button>
-                            <span class="pi-note">Seules les lignes ✅ et celles où vous avez choisi un adhérent sont enregistrées.</span>
+                            <span class="pi-note">Sont enregistrées : les lignes ✅, celles où vous avez choisi un adhérent et celles gardées comme anciens adhérents (nom conservé). Les lignes « Ignorer » ne le sont pas.</span>
                         {% else %}
                             <span class="pi-note">Rien à importer : corrigez le texte ci-dessus puis relancez l'analyse.</span>
                         {% endif %}

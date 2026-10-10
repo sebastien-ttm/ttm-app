@@ -225,7 +225,7 @@ class PerfTestController extends AbstractController
     {
         $results = $session->getResults()->toArray();
         usort($results, static fn (PerfTestResult $a, PerfTestResult $b) => $a->getTimeSeconds() <=> $b->getTimeSeconds()
-            ?: strcmp($a->getUser()->getNom(), $b->getUser()->getNom()));
+            ?: strcmp($a->getSortName(), $b->getSortName()));
 
         $rows = [];
         $rank = 0;
@@ -237,11 +237,12 @@ class PerfTestController extends AbstractController
             }
             $rows[] = [
                 'rank' => $rank,
-                'userId' => $r->getUser()->getId(),
-                'fullName' => $r->getUser()->getFullName(),
+                // null pour un ancien adhérent sans compte (nom conservé tel quel).
+                'userId' => $r->getUser()?->getId(),
+                'fullName' => $r->getDisplayName(),
                 'timeSeconds' => $r->getTimeSeconds(),
                 'time' => PerfTestResult::format($r->getTimeSeconds()),
-                'mine' => $r->getUser()->getId() === $viewer->getId(),
+                'mine' => $r->getUser() !== null && $r->getUser()->getId() === $viewer->getId(),
             ];
         }
 
