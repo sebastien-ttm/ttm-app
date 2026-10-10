@@ -6,7 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { perfTests as perfTestsApi } from '@/api/resources';
-import type { PerfTestGroup, PerfTestSessionView, PerfTestsResponse } from '@/api/types';
+import type {
+  PerfTestGroup,
+  PerfTestMineGroup,
+  PerfTestSessionView,
+  PerfTestsResponse,
+} from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
@@ -25,6 +30,8 @@ export default function PerfTestsScreen() {
 
   const [season, setSeason] = useState<number | undefined>(undefined);
   const [data, setData] = useState<PerfTestsResponse | null>(null);
+  // « Mon évolution » : mes temps sur toutes les saisons (indépendant de la saison affichée).
+  const [mine, setMine] = useState<PerfTestMineGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +41,13 @@ export default function PerfTestsScreen() {
   const load = useCallback(async (s: number | undefined) => {
     try {
       setError(null);
-      const resp = await perfTestsApi.list(s);
+      // « Mon évolution » est secondaire : son échec ne doit pas masquer le classement.
+      const [resp, mineResp] = await Promise.all([
+        perfTestsApi.list(s),
+        perfTestsApi.mine().catch(() => null),
+      ]);
       setData(resp);
+      if (mineResp) setMine(mineResp.groups);
       setOpen(new Set(resp.groups.flatMap((g) => (g.sessions[0] ? [`${g.key}:${g.sessions[0].id}`] : []))));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erreur de chargement');
@@ -95,6 +107,16 @@ export default function PerfTestsScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         >
+          {mine.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>📈 Mon évolution</Text>
+              {mine.map((g) => (
+                <EvolutionCard key={g.key} group={g} />
+              ))}
+              <Text style={styles.sectionTitle}>🏁 Classements par saison</Text>
+            </>
+          )}
+
           {data && (
             <>
               <Text style={styles.seasonTitle}>Saison {seasonLabel(data)}</Text>
@@ -133,6 +155,80 @@ export default function PerfTestsScreen() {
         </ScrollView>
       )}
     </SafeAreaView>
+  );
+}
+
+/** Mes temps sur une épreuve, saison après saison : record, mini-graphique, liste avec écarts. */
+function EvolutionCard({ group }: { group: PerfTestMineGroup }) {
+  const [showAll, setShowAll] = useState(false);
+  const results = group.results; // du plus ancien au plus récent
+  const newestFirst = [...results].reverse();
+  const visible = showAll ? newestFirst : newestFirst.slice(0, 4);
+
+  const chart = results.slice(-8);
+  const times = chart.map((r) => r.timeSeconds);
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{group.icon} {group.label}</Text>
+
+      <View style={styles.mineBox}>
+        <Text style={styles.mineLabel}>🏅 Mon record</Text>
+        <Text style={styles.mineTime}>{group.best.time}</Text>
+        <Text style={styles.mineMeta}>
+          saison {group.best.seasonLabel} · {results.length} test{results.length > 1 ? 's' : ''} au total
+        </Text>
+      </View>
+
+      {chart.length > 1 && (
+        <View>
+          <View style={styles.chart}>
+            {chart.map((r) => {
+              const height = 14 + (max === min ? 18 : ((r.timeSeconds - min) / (max - min)) * 46);
+              return (
+                <View key={r.sessionId} style={styles.chartCol}>
+                  <Text style={styles.chartTime} numberOfLines={1}>{r.time}</Text>
+                  <View style={[styles.chartBar, { height }, r.isBest && styles.chartBarBest]} />
+                  <Text style={styles.chartSeason}>{shortSeason(r.seasonLabel)}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <Text style={styles.chartHint}>Barre plus courte = temps plus rapide · en vert : mon record</Text>
+        </View>
+      )}
+
+      {visible.map((r) => (
+        <View key={r.sessionId} style={styles.evoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.evoDate}>{formatDates(r.dates)}</Text>
+            <Text style={styles.evoMeta}>
+              {rankLabel(r.rank)} sur {r.participants} · saison {r.seasonLabel}
+            </Text>
+          </View>
+          <Text style={[styles.evoTime, r.isBest && styles.evoTimeBest]}>{r.time}</Text>
+          <Text
+            style={[
+              styles.evoDelta,
+              r.deltaSeconds !== null && r.deltaSeconds < 0 && styles.evoDeltaBetter,
+              r.deltaSeconds !== null && r.deltaSeconds > 0 && styles.evoDeltaWorse,
+            ]}
+          >
+            {formatDelta(r.deltaSeconds)}
+          </Text>
+        </View>
+      ))}
+
+      {newestFirst.length > 4 && (
+        <Pressable onPress={() => setShowAll((v) => !v)} style={({ pressed }) => [styles.showAll, pressed && { opacity: 0.7 }]}>
+          <Text style={styles.showAllLabel}>
+            {showAll ? 'Réduire' : `Voir tous mes temps (${newestFirst.length})`}
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -210,6 +306,27 @@ function SessionBlock({
   );
 }
 
+/** « 2025-2026 » → « 25-26 » (légende du graphique). */
+function shortSeason(label: string): string {
+  return label.replace(/^\d{2}(\d{2})-\d{2}(\d{2})$/, '$1-$2');
+}
+
+function formatSeconds(total: number): string {
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+/** Écart avec le test précédent : « −12 s », « +1:05 », « = », « — » pour le premier test. */
+function formatDelta(delta: number | null): string {
+  if (delta === null) return '—';
+  if (delta === 0) return '=';
+  const abs = Math.abs(delta);
+  return `${delta < 0 ? '−' : '+'}${abs < 60 ? `${abs} s` : formatSeconds(abs)}`;
+}
+
 function seasonLabel(data: PerfTestsResponse): string {
   return data.seasons.find((s) => s.year === data.season)?.label ?? String(data.season);
 }
@@ -242,6 +359,27 @@ function rankLabel(rank: number): string {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl, gap: SPACING.md },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingTop: 4 },
+  chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
+  chartTime: { fontSize: 10, color: COLORS.textMuted, fontVariant: ['tabular-nums'] },
+  chartBar: { width: '70%', borderRadius: 4, backgroundColor: COLORS.secondary },
+  chartBarBest: { backgroundColor: COLORS.success },
+  chartSeason: { fontSize: 10, color: COLORS.textSubtle },
+  chartHint: { fontSize: 11, color: COLORS.textSubtle, marginTop: 6 },
+  evoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border,
+  },
+  evoDate: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  evoMeta: { fontSize: 12, color: COLORS.textMuted },
+  evoTime: { fontSize: 16, fontWeight: '700', color: COLORS.text, fontVariant: ['tabular-nums'] },
+  evoTimeBest: { color: COLORS.success },
+  evoDelta: { width: 62, textAlign: 'right', fontSize: 13, fontWeight: '600', color: COLORS.textMuted, fontVariant: ['tabular-nums'] },
+  evoDeltaBetter: { color: COLORS.success },
+  evoDeltaWorse: { color: COLORS.error },
+  showAll: { alignItems: 'center', paddingVertical: 8 },
+  showAllLabel: { fontSize: 14, fontWeight: '600', color: COLORS.secondaryDark },
   seasonTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   seasons: { gap: SPACING.sm, paddingVertical: 2 },
   seasonChip: {

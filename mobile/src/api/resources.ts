@@ -26,6 +26,7 @@ import type {
   MarketplaceMessage,
   MenuItem,
   Paginated,
+  PerfTestsMineResponse,
   PerfTestsResponse,
   PhotoAlbum,
   PhotoAlbumPage,
@@ -77,6 +78,8 @@ export const trainingPlans = {
 
 /** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par saison d'entraînement. */
 export const perfTests = {
+  /** « Mon évolution » : tous mes temps, toutes saisons, par épreuve. */
+  mine: () => api.get<PerfTestsMineResponse>('/api/perf-tests/mine'),
   /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
 };

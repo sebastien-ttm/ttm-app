@@ -29,6 +29,21 @@ enum PerfTest: string
         };
     }
 
+    /**
+     * Fourchette de temps plausible, en secondes [min, max] — sert à repérer
+     * un temps mal lu à l'import (ex : « 5:42 » interprété comme 5 h 42).
+     *
+     * @return array{int, int}
+     */
+    public function plausibleSeconds(): array
+    {
+        return match ($this) {
+            self::Run1500 => [180, 1500],
+            self::Swim400 => [180, 1500],
+            self::BikeClimb2k => [60, 2400],
+        };
+    }
+
     /** Seule la natation dépend de la longueur du bassin (25 / 50 m). */
     public function needsPoolLength(): bool
     {

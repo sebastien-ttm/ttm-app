@@ -1,0 +1,127 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Importer des temps — {{ session.testLabel }}{% endblock %}
+{% block content_title %}Importer des temps — {{ session.test.icon }} {{ session.testLabel }} · {{ session.datesLabel }}{% endblock %}
+
+{% block main %}
+    <style>
+        .pi-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 20px; margin-bottom:16px; }
+        .pi-card h3 { margin:0 0 8px 0; font-size:16px; }
+        .pi-help { font-size:13px; color:#475569; line-height:1.55; }
+        .pi-help code { background:#f1f5f9; padding:1px 6px; border-radius:4px; }
+        .pi-text { width:100%; min-height:220px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:6px; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:14px; }
+        .pi-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+        .pi-chips { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .pi-chip { padding:6px 12px; border-radius:999px; font-size:13px; font-weight:600; }
+        .pi-chip.ok { background:#dcfce7; color:#166534; }
+        .pi-chip.check { background:#ffedd5; color:#9a3412; }
+        .pi-chip.ignored { background:#fee2e2; color:#991b1b; }
+        .pi-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .pi-table th { text-align:left; background:#f8fafc; color:#475569; padding:8px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .pi-table td { padding:8px 10px; border-bottom:1px solid #eef2f7; vertical-align:middle; }
+        .pi-table tr.ok td { background:#f0fdf4; }
+        .pi-table tr.fuzzy td, .pi-table tr.ambiguous td { background:#fff7ed; }
+        .pi-table tr.unknown td, .pi-table tr.invalid td, .pi-table tr.duplicate td { background:#fef2f2; }
+        .pi-time { font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .pi-note { font-size:12px; color:#64748b; }
+        .pi-select { max-width:360px; width:100%; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; }
+    </style>
+
+    <div class="pi-card">
+        <h3>Coller les temps depuis Excel</h3>
+        <div class="pi-help">
+            Sélectionnez les cellules dans Excel (une ligne par adhérent), copiez-les (<strong>Ctrl+C</strong>) puis collez-les ci-dessous (<strong>Ctrl+V</strong>).<br>
+            Colonnes : <code>Nom</code> <code>Prénom</code> <code>Temps</code> — le <strong>temps doit être la dernière colonne</strong>, au format <code>5:42</code> (min:s) ou <code>1:02:15</code> (h:min:s).
+            L'ordre Nom/Prénom, les accents et les majuscules n'ont pas d'importance ; une colonne de rang en tête et la ligne de titres sont ignorées.
+            Si la colonne est au format « heure » d'Excel, passez-la en texte (ou en mm:ss) avant de copier.<br>
+            Les temps déjà saisis pour un adhérent sont <strong>remplacés</strong> ; les autres sont conservés.
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('admin_perf_test_import_preview', {id: session.id}) }}" class="pi-card">
+        <input type="hidden" name="_token" value="{{ csrf_token('perf_test_import') }}">
+        <textarea name="text" class="pi-text" placeholder="DUPONT&#9;Jean&#9;5:42&#10;MARTIN&#9;Julie&#9;6:10" spellcheck="false">{{ text }}</textarea>
+        <div class="pi-actions">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-magnifying-glass"></i> Analyser</button>
+            <a href="{{ sheetUrl }}" class="btn btn-secondary">← Feuille de saisie</a>
+        </div>
+    </form>
+
+    {% if rows is not null %}
+        <div class="pi-card">
+            <h3>Aperçu</h3>
+            <div class="pi-chips">
+                <span class="pi-chip ok">✅ {{ ready }} prêt(s)</span>
+                <span class="pi-chip check">⚠️ {{ toCheck }} à vérifier</span>
+                <span class="pi-chip ignored">⛔ {{ ignored }} ignoré(s)</span>
+            </div>
+
+            {% if rows is empty %}
+                <div class="pi-note">Aucune ligne exploitable dans le texte collé.</div>
+            {% else %}
+                <form method="post" action="{{ path('admin_perf_test_import_confirm', {id: session.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('perf_test_import') }}">
+                    <input type="hidden" name="text_hash" value="{{ textHash }}">
+
+                    <table class="pi-table">
+                        <thead>
+                            <tr>
+                                <th>Ligne</th>
+                                <th>Lu dans Excel</th>
+                                <th>Temps</th>
+                                <th>Adhérent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr class="{{ row.status }}">
+                                    <td>{{ row.line }}</td>
+                                    <td>{{ row.name ?: row.raw }}</td>
+                                    <td class="pi-time">{{ row.time ?? '—' }}</td>
+                                    <td>
+                                        {% if row.status == 'ok' %}
+                                            {% set u = row.candidates[0] %}
+                                            ✅ <strong>{{ u.prenom }} {{ u.nom|upper }}</strong>
+                                            {% if row.existing %}
+                                                <span class="pi-note">
+                                                    {% if row.existing == row.time %}— déjà enregistré, inchangé{% else %}— remplace {{ row.existing }}{% endif %}
+                                                </span>
+                                            {% endif %}
+                                        {% elseif row.status == 'fuzzy' or row.status == 'ambiguous' %}
+                                            <select name="choices[{{ row.line }}]" class="pi-select">
+                                                <option value="">— Ignorer cette ligne —</option>
+                                                {% for c in row.candidates %}
+                                                    <option value="{{ c.id }}" {{ row.status == 'fuzzy' and row.candidates|length == 1 ? 'selected' : '' }}>
+                                                        {{ c.prenom }} {{ c.nom|upper }}{% if c.categorieFFTri %} ({{ c.categorieFFTri }}){% endif %}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="pi-note">
+                                                {% if row.status == 'ambiguous' %}Plusieurs adhérents portent ce nom : choisissez.{% else %}Nom approchant : vérifiez avant d'importer.{% endif %}
+                                            </div>
+                                        {% elseif row.status == 'unknown' %}
+                                            ❌ Introuvable parmi les adhérents actifs — ligne ignorée.
+                                        {% elseif row.status == 'duplicate' %}
+                                            ⚠️ {{ row.message }}
+                                        {% else %}
+                                            ⛔ {{ row.message }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div class="pi-actions">
+                        {% if ready + toCheck > 0 %}
+                            <button type="submit" class="btn btn-success"><i class="fa fa-check"></i> Importer les temps</button>
+                            <span class="pi-note">Seules les lignes ✅ et celles où vous avez choisi un adhérent sont enregistrées.</span>
+                        {% else %}
+                            <span class="pi-note">Rien à importer : corrigez le texte ci-dessus puis relancez l'analyse.</span>
+                        {% endif %}
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

@@ -366,6 +366,41 @@ export type PerfTestGroup = {
   sessions: PerfTestSessionView[];
 };
 
+/** Un de mes temps (« Mon évolution »), toutes saisons confondues. */
+export type PerfTestMineResult = {
+  sessionId: number;
+  /** Dates de la séance, YYYY-MM-DD (plusieurs si elle s'étale sur plusieurs jours). */
+  dates: string[];
+  /** Année de début de la saison (2025 = saison 2025-2026). */
+  season: number;
+  seasonLabel: string;
+  timeSeconds: number;
+  /** « 5:42 » ou « 1:02:15 ». */
+  time: string;
+  /** Mon rang dans la séance (ex æquo = même rang) et nombre de participants. */
+  rank: number;
+  participants: number;
+  /** Écart avec mon test précédent sur la même épreuve (négatif = plus rapide) ; null pour le premier. */
+  deltaSeconds: number | null;
+  /** True pour mon record sur cette épreuve. */
+  isBest: boolean;
+};
+
+/** Mes temps sur une épreuve (en natation : par longueur de bassin), du plus ancien au plus récent. */
+export type PerfTestMineGroup = {
+  key: string;
+  test: string;
+  label: string;
+  icon: string;
+  poolLength: number | null;
+  best: { timeSeconds: number; time: string; seasonLabel: string; dates: string[] };
+  results: PerfTestMineResult[];
+};
+
+export type PerfTestsMineResponse = {
+  groups: PerfTestMineGroup[];
+};
+
 export type PerfTestsResponse = {
   /** Saison affichée, par son année de début (2025 = saison 2025-2026, sept. → août). */
   season: number;

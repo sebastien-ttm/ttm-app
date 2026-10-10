@@ -87,6 +87,7 @@ class PerfTestResultController extends AbstractController
             'rows' => $rows,
             'enteredCount' => count($results),
             'csvUrl' => $this->adminRoute('admin_perf_test_csv', ['id' => $session->getId()]),
+            'importUrl' => $this->adminRoute('admin_perf_test_import', ['id' => $session->getId()]),
             'indexUrl' => $this->adminUrlGenerator->unsetAll()
                 ->setController(PerfTestSessionCrudController::class)->generateUrl(),
         ]);

@@ -45,10 +45,15 @@ class PerfTestSessionCrudController extends AbstractCrudController
             ->linkToRoute('admin_perf_test_sheet', fn (PerfTestSession $s) => ['id' => $s->getId()])
             ->displayIf(fn (PerfTestSession $s) => $s->getId() !== null);
 
+        $importTimes = Action::new('importTimes', 'Importer depuis Excel', 'fa fa-paste')
+            ->linkToRoute('admin_perf_test_import', fn (PerfTestSession $s) => ['id' => $s->getId()])
+            ->displayIf(fn (PerfTestSession $s) => $s->getId() !== null);
+
         return $actions
             ->add(Crud::PAGE_INDEX, $enterTimes)
+            ->add(Crud::PAGE_INDEX, $importTimes)
             ->add(Crud::PAGE_EDIT, $enterTimes)
-            ->reorder(Crud::PAGE_INDEX, ['enterTimes', Action::EDIT, Action::DELETE]);
+            ->reorder(Crud::PAGE_INDEX, ['enterTimes', 'importTimes', Action::EDIT, Action::DELETE]);
     }
 
     public function configureAssets(Assets $assets): Assets

@@ -24,6 +24,48 @@ class PerfTestResultRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tous les temps d'un adhérent, toutes saisons, du plus ancien au plus
+     * récent, avec leur séance (« Mon évolution » dans l'appli).
+     *
+     * @return list<PerfTestResult>
+     */
+    public function findByUserWithSession(User $user): array
+    {
+        return $this->createQueryBuilder('r')
+            ->join('r.session', 's')->addSelect('s')
+            ->where('r.user = :u')->setParameter('u', $user)
+            ->orderBy('s.date', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Temps (en secondes) de TOUS les participants des séances données,
+     * par id de séance — pour calculer rang et nombre de participants.
+     *
+     * @param list<int> $sessionIds
+     * @return array<int, list<int>>
+     */
+    public function findTimesBySessionIds(array $sessionIds): array
+    {
+        if ($sessionIds === []) {
+            return [];
+        }
+        $rows = $this->createQueryBuilder('r')
+            ->select('IDENTITY(r.session) AS sid', 'r.timeSeconds AS t')
+            ->where('r.session IN (:ids)')->setParameter('ids', $sessionIds)
+            ->getQuery()
+            ->getScalarResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['sid']][] = (int) $row['t'];
+        }
+        return $out;
+    }
+
+    /**
      * Temps d'une séance, indexés par id d'adhérent.
      *
      * @return array<int, PerfTestResult>
