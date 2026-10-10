@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
+import { StaffMenuButton } from '@/components/StaffMenuButton';
 import { COLORS } from '@/config';
 import { UnansweredSurveysProvider, useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { UnreadMessagesProvider, useUnreadMessages } from '@/lib/useUnreadMessages';
@@ -82,7 +83,13 @@ function TabsInner() {
         },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '700', fontSize: 17, color: '#fff' },
-        headerRight: () => <ProfileSwitcher />,
+        // « Gestion » (staff uniquement) à GAUCHE du changement de profil lié.
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <StaffMenuButton />
+            <ProfileSwitcher />
+          </View>
+        ),
       }}
     >
       <Tabs.Screen

@@ -369,6 +369,17 @@ export type PerfTestGroup = {
   sessions: PerfTestSessionView[];
 };
 
+/** Un adhérent de l'annuaire du staff (espace « Gestion ») : identité et téléphone, rien d'autre. */
+export type StaffMember = {
+  id: number;
+  nom: string;
+  prenom: string;
+  /** null si aucun numéro n'est renseigné (ni pour l'adhérent, ni pour un parent). */
+  telephone: string | null;
+  /** Nom du parent quand le numéro est le sien (enfant sans téléphone) ; sinon null. */
+  telephoneOf: string | null;
+};
+
 export type PerfTestDeclarationStatus = 'pending' | 'accepted' | 'rejected';
 
 /** Un temps que j'ai déclaré (prise de temps individuelle) : à valider par les entraîneurs. */

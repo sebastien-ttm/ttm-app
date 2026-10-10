@@ -27,6 +27,7 @@ import type {
   MenuItem,
   Paginated,
   PerfTestDeclaration,
+  StaffMember,
   PerfTestsMineResponse,
   PerfTestsResponse,
   PhotoAlbum,
@@ -90,6 +91,11 @@ export const perfTests = {
   mine: () => api.get<PerfTestsMineResponse>('/api/perf-tests/mine'),
   /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
+};
+
+/** Annuaire des adhérents (nom, prénom, téléphone) — réservé aux profils entraîneur / encadrant. */
+export const staffDirectory = {
+  list: () => api.get<{ data: StaffMember[]; total: number }>('/api/staff/members'),
 };
 
 /** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */

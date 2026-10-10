@@ -406,6 +406,25 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
+    /**
+     * Annuaire des adhérents actifs pour le staff (appli mobile) : triés par
+     * nom puis prénom, avec leurs parents chargés en même temps (le numéro
+     * d'un parent sert d'appel d'urgence pour un enfant sans téléphone).
+     *
+     * @return list<User>
+     */
+    public function findAdherentsForStaffDirectory(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->leftJoin('u.parents', 'p')->addSelect('p')
+            ->where('u.isActive = true')
+            ->andWhere("u.type = 'adherent'")
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         if (!$user instanceof User) {

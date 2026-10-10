@@ -128,3 +128,13 @@ export function canSeeGouter(user: AuthenticatedUser | null | undefined): boolea
 export function canSeeTrainingTab(user: AuthenticatedUser | null | undefined): boolean {
   return canSeeTraining(user) || canSeeGouter(user);
 }
+
+/**
+ * Staff sportif : profil Entraîneur ou Encadrant. Donne accès à l'espace
+ * « Gestion » (présences, annuaire des adhérents). Le back-end revérifie
+ * (StaffMembersController) — ceci ne fait que masquer le bouton.
+ */
+export function isStaffMember(user: AuthenticatedUser | null | undefined): boolean {
+  if (!user) return false;
+  return user.profiles.includes('entraineur') || user.profiles.includes('encadrant');
+}

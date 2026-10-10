@@ -37,7 +37,6 @@ export default function TrainingScreen() {
 function TrainingScreenInner() {
   const router = useRouter();
   const { user } = useAuth();
-  const isStaff = !!user && (user.profiles.includes('encadrant') || user.profiles.includes('entraineur'));
   const showPool = canSeePoolBadge(user);
   const showGouter = canSeeGouter(user);
   // Vue « entraînement » = plans + créneaux + piscine + staff. Un parent
@@ -176,42 +175,6 @@ function TrainingScreenInner() {
                 <View style={{ flex: 1 }}>
                   <Text style={stylesPool.title}>QR Code</Text>
                   <Text style={stylesPool.sub}>à scanner au portique</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </Pressable>
-            </View>
-          )}
-
-          {/* Raccourci Mes Présences (encadrant / entraîneur uniquement) —
-              affiche aussi les entraîneurs / encadrants positionnés sur
-              chaque créneau. */}
-          {isStaff && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ Mes encadrements</Text>
-              <Pressable
-                style={({ pressed }) => [stylesStaff.card, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push('/staff-presence' as never)}
-              >
-                <View style={stylesStaff.iconWrap}>
-                  <Ionicons name="checkmark-circle" size={22} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={stylesStaff.title}>Indiquer / Confirmer</Text>
-                  <Text style={stylesStaff.sub}>pour les créneaux de la semaine et des suivantes</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [stylesStaff.card, stylesStaff.cardMuted, pressed && { opacity: 0.7 }]}
-                onPress={() => router.push('/staff-presence-template' as never)}
-              >
-                <View style={[stylesStaff.iconWrap, stylesStaff.iconWrapMuted]}>
-                  <Ionicons name="settings" size={20} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={stylesStaff.title}>Ma semaine type</Text>
-                  <Text style={stylesStaff.sub}>Créneaux où vous êtes présent(e) habituellement</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>
@@ -766,32 +729,6 @@ const stylesHistory = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.secondaryDark,
   },
-});
-
-const stylesStaff = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-  },
-  cardMuted: { borderLeftColor: COLORS.textMuted, marginBottom: 0 },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: COLORS.brandNavy,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrapMuted: { backgroundColor: COLORS.textMuted },
-  title: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  sub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });
 
 const stylesPool = StyleSheet.create({
