@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
@@ -125,7 +125,40 @@ function isBrowserViewable(att: TrainingSlotAttachment): boolean {
   return mime === 'application/pdf' || mime.startsWith('image/') || /\.(pdf|jpe?g|png|gif|webp)$/i.test(att.name);
 }
 
+/** Durée pendant laquelle « Téléchargement en cours » reste affiché avant de passer à « téléchargé ». */
+const DOWNLOAD_FEEDBACK_MS = 2500;
+
+/** Redemande confirmation avant de retélécharger un fichier déjà téléchargé (évite les doublons). */
+function confirmRedownload(name: string): Promise<boolean> {
+  const message = `« ${name} » a déjà été téléchargé : vous le trouverez dans les Téléchargements de votre téléphone. Le télécharger à nouveau créerait un doublon.`;
+  if (Platform.OS === 'web') {
+    return Promise.resolve(window.confirm(`${message}\n\nLe télécharger à nouveau ?`));
+  }
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Déjà téléchargé',
+      message,
+      [
+        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Télécharger à nouveau', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) {
+  // Les PDF / images s'affichent ; GPX & co sont envoyés en téléchargement par le
+  // serveur — sans retour visuel du navigateur, d'où l'état ci-dessous : l'adhérent
+  // voit que ça charge, puis où retrouver le fichier, et n'appuie plus deux fois.
+  const isDownload = !isBrowserViewable(attachment);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
   function notifyError() {
     const msg = `Le fichier « ${attachment.name} » n'a pas pu être ouvert. Réessayez plus tard.`;
     // Alert.alert ne fait rien sur le web.
@@ -145,23 +178,54 @@ function AttachmentLink({ attachment }: { attachment: TrainingSlotAttachment }) 
    * système pour les fichiers non affichables (l'intégré ne télécharge pas).
    */
   async function open() {
+    if (status === 'loading') return;
+    if (isDownload && status === 'done' && !(await confirmRedownload(attachment.name))) return;
+
+    if (isDownload) {
+      if (timer.current) clearTimeout(timer.current);
+      setStatus('loading');
+    }
     try {
-      if (Platform.OS !== 'web' && !isBrowserViewable(attachment)) {
+      if (Platform.OS !== 'web' && isDownload) {
         await Linking.openURL(buildUrl(await storage.getItem(STORAGE_KEYS.accessToken)));
-        return;
+      } else {
+        await openAttachment(buildUrl);
       }
-      await openAttachment(buildUrl);
+      if (isDownload) {
+        timer.current = setTimeout(() => setStatus('done'), DOWNLOAD_FEEDBACK_MS);
+      }
     } catch {
+      setStatus('idle');
       notifyError();
     }
   }
 
   return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.attachmentChip, pressed && { opacity: 0.85 }]}>
-      <Text style={styles.attachmentIcon}>{/\.gpx$/i.test(attachment.name) ? '🗺️' : '📎'}</Text>
-      <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
-      <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
-    </Pressable>
+    <View style={styles.attachmentWrap}>
+      <Pressable
+        onPress={open}
+        disabled={status === 'loading'}
+        style={({ pressed }) => [styles.attachmentChip, (pressed || status === 'loading') && { opacity: 0.85 }]}
+      >
+        <Text style={styles.attachmentIcon}>{/\.gpx$/i.test(attachment.name) ? '🗺️' : '📎'}</Text>
+        <Text style={styles.attachmentName} numberOfLines={1}>{attachment.name}</Text>
+        {status === 'loading' ? (
+          <ActivityIndicator size="small" color={COLORS.secondaryDark} />
+        ) : status === 'done' ? (
+          <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+        ) : (
+          <Text style={styles.attachmentSize}>{attachment.humanSize}</Text>
+        )}
+      </Pressable>
+      {status === 'loading' && (
+        <Text style={styles.attachmentStatus}>⏳ Téléchargement en cours…</Text>
+      )}
+      {status === 'done' && (
+        <Text style={[styles.attachmentStatus, { color: COLORS.success }]}>
+          ✅ Fichier téléchargé : retrouvez-le dans les Téléchargements de votre téléphone.
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -211,6 +275,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
+  attachmentWrap: { gap: 4 },
+  attachmentStatus: { fontSize: 12, color: COLORS.textMuted, paddingHorizontal: 4 },
   attachmentIcon: { fontSize: 14 },
   attachmentName: { flex: 1, fontSize: 14, color: COLORS.secondaryDark, fontWeight: '500' },
   attachmentSize: { fontSize: 12, color: COLORS.textMuted },
