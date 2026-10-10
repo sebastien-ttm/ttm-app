@@ -319,7 +319,7 @@ export default function ContactScreen() {
                         <Text style={styles.surveyCardMeta}>
                           {s.sectionCount} question{s.sectionCount > 1 ? 's' : ''}
                           {s.answered
-                            ? ' · Répondu — modifiez si besoin'
+                            ? ` · Répondu${s.responseCount != null ? ` · ${s.responseCount} réponse${s.responseCount > 1 ? 's' : ''}` : ''} — modifiez si besoin`
                             : s.dismissed
                               ? ' · Non concerné(e) — touchez la coche pour annuler'
                               : ' · Donnez votre avis · Pas concerné(e) ? Touchez le crayon'}

@@ -153,6 +153,12 @@ export default function SurveyScreen() {
             </View>
           )}
 
+          {survey.responseCount != null && (
+            <Text style={styles.responseCount}>
+              👥 {survey.responseCount} réponse{survey.responseCount > 1 ? 's' : ''} à ce sondage
+            </Text>
+          )}
+
           {survey.description && (
             <View style={styles.intro}>
               <RichContent html={survey.description} style={styles.introBody} />
@@ -317,6 +323,7 @@ const styles = StyleSheet.create({
     padding: 10, marginBottom: SPACING.md,
   },
   savedLabel: { color: '#065f46', fontSize: 13, flex: 1 },
+  responseCount: { color: COLORS.textMuted, fontSize: 13, marginBottom: SPACING.md },
   intro: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md },
   introBody: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
   qCard: {

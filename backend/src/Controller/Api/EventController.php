@@ -126,7 +126,8 @@ class EventController extends AbstractController
         return new JsonResponse([
             'ok' => true,
             'myVote' => $status?->value,
-            'voteCounts' => $this->attendances->countsForEvent($event),
+            // Vote retiré : plus de participation, donc plus de résultats.
+            'voteCounts' => $status !== null ? $this->attendances->countsForEvent($event) : null,
         ]);
     }
 

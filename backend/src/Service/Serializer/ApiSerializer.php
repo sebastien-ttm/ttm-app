@@ -247,7 +247,9 @@ class ApiSerializer
             'contentAudience' => $e->getContentAudience(),
             'voteEnabled' => $e->isVoteEnabled(),
             'myVote' => $myVote, // 'yes' | 'no' | 'maybe' | null
-            'voteCounts' => $voteCounts, // {yes,no,maybe} ou null si non soumis au vote
+            // {yes,no,maybe}, ou null si l'événement n'est pas soumis au vote OU si le
+            // viewer n'y a pas participé : seuls les votants voient les résultats.
+            'voteCounts' => $myVote !== null ? $voteCounts : null,
             'carpoolingEnabled' => $e->isCarpoolingEnabled(),
             'externalRegistrationUrl' => $e->getExternalRegistrationUrl(),
         ];

@@ -203,7 +203,7 @@ export const events = {
   get: (id: number) => api.get<EventItem>(`/api/events/${id}`),
   /** status=null retire le vote (l'user redevient indéterminé). */
   setAttendance: (id: number, status: 'yes' | 'no' | 'maybe' | null) =>
-    api.post<{ ok: boolean; myVote: string | null; voteCounts: { yes: number; no: number; maybe: number } }>(
+    api.post<{ ok: boolean; myVote: string | null; voteCounts: { yes: number; no: number; maybe: number } | null }>(
       `/api/events/${id}/attendance`,
       { status },
     ),

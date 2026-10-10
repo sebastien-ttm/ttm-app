@@ -33,6 +33,28 @@ class SurveyResponseRepository extends ServiceEntityRepository
     }
 
     /**
+     * Nombre de réponses par sondage, en une requête (liste mobile).
+     *
+     * @param list<int> $surveyIds
+     * @return array<int, int> id sondage => nombre de réponses
+     */
+    public function countBySurveyIds(array $surveyIds): array
+    {
+        if ($surveyIds === []) return [];
+        $rows = $this->createQueryBuilder('r')
+            ->select('IDENTITY(r.survey) AS sid', 'COUNT(r.id) AS n')
+            ->where('r.survey IN (:ids)')->setParameter('ids', $surveyIds)
+            ->groupBy('r.survey')
+            ->getQuery()
+            ->getScalarResult();
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['sid']] = (int) $r['n'];
+        }
+        return $out;
+    }
+
+    /**
      * @return list<SurveyResponse>
      */
     public function findBySurveyWithUser(Survey $survey): array

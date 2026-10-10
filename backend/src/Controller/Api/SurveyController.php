@@ -70,10 +70,16 @@ class SurveyController extends AbstractController
         $ids = array_map(fn (Survey $s) => (int) $s->getId(), $rows);
         $answered = $this->responses->findAnsweredSurveyIds($user, $ids);
         $dismissed = $this->dismissals->findDismissedSurveyIds($user, $ids);
+        $counts = $this->responses->countBySurveyIds(array_keys($answered));
 
         return new JsonResponse([
             'data' => array_map(
-                fn (Survey $s) => $this->serializeSummary($s, isset($answered[$s->getId()]), isset($dismissed[$s->getId()])),
+                fn (Survey $s) => $this->serializeSummary(
+                    $s,
+                    isset($answered[$s->getId()]),
+                    isset($dismissed[$s->getId()]),
+                    $counts[$s->getId()] ?? null,
+                ),
                 $rows,
             ),
         ]);
@@ -204,7 +210,7 @@ class SurveyController extends AbstractController
     /**
      * @return array<string, mixed>
      */
-    private function serializeSummary(Survey $s, bool $answered, bool $dismissed): array
+    private function serializeSummary(Survey $s, bool $answered, bool $dismissed, ?int $responseCount = null): array
     {
         return [
             'id' => $s->getId(),
@@ -216,6 +222,8 @@ class SurveyController extends AbstractController
             'answered' => $answered,
             // Coche « pas concerné » posée par l'adhérent (sans réponse).
             'dismissed' => !$answered && $dismissed,
+            // Nombre total de réponses : visible uniquement par ceux qui ont répondu.
+            'responseCount' => $answered ? $responseCount : null,
         ];
     }
 
@@ -231,6 +239,8 @@ class SurveyController extends AbstractController
             'publishedAt' => $s->getPublishedAt()?->format(\DATE_ATOM),
             'closesAt' => $s->getClosesAt()?->format(\DATE_ATOM),
             'isClosed' => $s->isClosed(),
+            // Nombre total de réponses : visible uniquement par ceux qui ont répondu.
+            'responseCount' => $mine === null ? null : $this->responses->countForSurvey($s),
             'sections' => $s->getSections() ?? [],
             'myResponse' => $mine === null ? null : [
                 'answers' => $mine->getAnswers(),

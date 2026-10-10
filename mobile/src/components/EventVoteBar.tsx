@@ -22,6 +22,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  */
 export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 'xs' | 'sm' | 'lg' }) {
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
+  const [counts, setCounts] = useState(event.voteCounts);
   const [voting, setVoting] = useState(false);
 
   /**
@@ -42,7 +43,9 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
     const previous = myVote;
     setMyVote(target);
     try {
-      await eventsApi.setAttendance(event.id, target);
+      const res = await eventsApi.setAttendance(event.id, target);
+      // Résultats à jour (null quand le vote est retiré : réservés aux votants).
+      setCounts(res.voteCounts);
     } catch {
       setMyVote(previous);
     } finally {
@@ -52,8 +55,13 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
 
   const s = size === 'lg' ? largeStyles : size === 'xs' ? xsStyles : smallStyles;
   const iconOnly = size === 'xs';
+  // Résultats du vote visibles seulement une fois qu'on a voté (et pas en mode
+  // icônes seules, où il n'y a pas la place).
+  const total = counts ? counts.yes + counts.maybe + counts.no : 0;
+  const showCounts = !iconOnly && myVote !== null && counts !== null && total > 0;
 
   return (
+    <>
     <View style={s.bar}>
       {event.externalRegistrationUrl ? (
         <VoteBtn
@@ -83,6 +91,12 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
       <VoteBtn label="Pas là" shortLabel="Non" icon="close" active={myVote === 'no'} disabled={voting}
         onPress={() => castVote('no')} accent={COLORS.error} styles={s} iconOnly={iconOnly} />
     </View>
+    {showCounts && counts && (
+      <Text style={size === 'lg' ? countStyles.lg : countStyles.sm}>
+        {total} réponse{total > 1 ? 's' : ''} · {counts.yes} oui · {counts.maybe} peut-être · {counts.no} non
+      </Text>
+    )}
+    </>
   );
 }
 
@@ -119,6 +133,11 @@ function VoteBtn({
     </Pressable>
   );
 }
+
+const countStyles = StyleSheet.create({
+  sm: { fontSize: 12, color: COLORS.textMuted, paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm },
+  lg: { fontSize: 13, color: COLORS.textMuted, marginBottom: SPACING.md },
+});
 
 // xs = icon only, compact — pour tenir sur la même ligne que le titre
 // (« Prochainement » sur la home). Boutons carrés ~28×28.

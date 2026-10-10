@@ -168,7 +168,7 @@ export type EventItem = {
   voteEnabled: boolean;
   /** Le vote actuel du viewer, ou null s'il n'a pas voté. */
   myVote: AttendanceStatus | null;
-  /** Compteurs agrégés (null si voteEnabled=false). */
+  /** Compteurs agrégés — null si voteEnabled=false ou si le viewer n'a pas voté (réservés aux votants). */
   voteCounts: { yes: number; no: number; maybe: number } | null;
   /** True = covoiturage activé sur cet événement (page dédiée /event/{id}/carpool). */
   carpoolingEnabled: boolean;
@@ -237,6 +237,8 @@ export type SurveySummary = {
   answered: boolean;
   /** True si le viewer a coché « pas concerné » sans répondre (exclu du compteur). */
   dismissed: boolean;
+  /** Nombre total de réponses — renseigné uniquement si le viewer a répondu, sinon null. */
+  responseCount: number | null;
 };
 
 /** Détail complet + éventuelle réponse existante du viewer. */
@@ -247,6 +249,8 @@ export type Survey = {
   publishedAt: string | null;
   closesAt: string | null;
   isClosed: boolean;
+  /** Nombre total de réponses — renseigné uniquement si le viewer a répondu, sinon null. */
+  responseCount: number | null;
   sections: SurveyQuestion[];
   myResponse: {
     /** Indexé par question id. Valeurs : string | string[] selon le type. */
