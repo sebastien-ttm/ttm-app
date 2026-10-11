@@ -20,7 +20,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  *  - `size="sm"` (défaut) : compact, adapté aux cards de la home.
  *  - `size="lg"`           : plus grand, adapté à une page détail.
  */
-export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 'xs' | 'sm' | 'lg' }) {
+export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem; size?: 'xs' | 'sm' | 'lg'; onVoted?: () => void }) {
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
   const [counts, setCounts] = useState(event.voteCounts);
   const [voting, setVoting] = useState(false);
@@ -46,6 +46,7 @@ export function EventVoteBar({ event, size = 'sm' }: { event: EventItem; size?: 
       const res = await eventsApi.setAttendance(event.id, target);
       // Résultats à jour (null quand le vote est retiré : réservés aux votants).
       setCounts(res.voteCounts);
+      onVoted?.(); // ex : recharger la liste « Qui vient ? »
     } catch {
       setMyVote(previous);
     } finally {

@@ -12,6 +12,7 @@ use App\Repository\CommentRepository;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
+use App\Service\AvatarService;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Serializer\ApiSerializer;
 use App\Service\Training\WeeklyScheduleService;
@@ -37,6 +38,7 @@ class EventController extends AbstractController
         private readonly CommentRepository $comments,
         private readonly ValidatorInterface $validator,
         private readonly WeeklyScheduleService $schedule,
+        private readonly AvatarService $avatars,
     ) {
     }
 
@@ -70,6 +72,39 @@ class EventController extends AbstractController
         // liste de la semaine (l'appli ouvre directement son écran détail).
         $data['trainingSlot'] = $this->schedule->linkedSlotForEvent($event, $viewer);
         return new JsonResponse($data);
+    }
+
+    /**
+     * Qui vient ? Les adhérents ayant voté « présent », « peut-être » et « absent » à un événement
+     * soumis au vote, par ordre alphabétique. Visible par tous ceux qui voient l'événement (voteurs
+     * ou non) ; seuls le nom, le prénom et la photo sont exposés. Comptes désactivés exclus.
+     *
+     * Réponse : { yes: [...], maybe: [...], no: [...] } — chaque entrée { id, prenom, nom, avatarUrl }.
+     */
+    #[Route('/api/events/{id}/attendees', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function attendees(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $event = $this->findVisibleOr404($id, $viewer);
+
+        $groups = ['yes' => [], 'maybe' => [], 'no' => []];
+        if ($event->isVoteEnabled()) {
+            foreach ($this->attendances->findByEventWithUser($event) as $attendance) {
+                $user = $attendance->getUser();
+                if (!$user->isActive()) {
+                    continue;
+                }
+                $groups[$attendance->getStatus()->value][] = [
+                    'id' => $user->getId(),
+                    'prenom' => $user->getPrenom(),
+                    'nom' => $user->getNom(),
+                    'avatarUrl' => $this->avatars->urlFor($user),
+                ];
+            }
+        }
+
+        return new JsonResponse($groups);
     }
 
     /**

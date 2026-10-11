@@ -9,6 +9,7 @@ import { comments as commentsApi, events as api } from '@/api/resources';
 import type { Comment, EventItem } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { CommentThread } from '@/components/CommentThread';
+import { EventAttendees } from '@/components/EventAttendees';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
@@ -65,6 +66,8 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Change après un vote ou une actualisation : recharge la liste « Qui vient ? ».
+  const [attendeesKey, setAttendeesKey] = useState(0);
 
   const load = useCallback(async () => {
     if (!id) { setError('Identifiant d\'événement invalide.'); return; }
@@ -99,6 +102,7 @@ export default function EventDetailScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
+    setAttendeesKey((k) => k + 1);
     setRefreshing(false);
   }, [load]);
 
@@ -221,7 +225,8 @@ export default function EventDetailScreen() {
 
         {/* Vote de présence — même comportement que sur la home
             (« Je m'inscris » si externalRegistrationUrl est renseignée). */}
-        {event.voteEnabled && <EventVoteBar event={event} size="lg" />}
+        {event.voteEnabled && <EventVoteBar event={event} size="lg" onVoted={() => setAttendeesKey((k) => k + 1)} />}
+        {event.voteEnabled && <EventAttendees eventId={event.id} reloadKey={attendeesKey} />}
 
         {event.carpoolingEnabled && (
           <Pressable

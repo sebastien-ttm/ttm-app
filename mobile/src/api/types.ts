@@ -137,6 +137,10 @@ export type MenuItem = {
 
 export type AttendanceStatus = 'yes' | 'no' | 'maybe';
 
+/** Un adhérent ayant voté pour un événement (liste « Qui vient ? »). */
+export type EventAttendee = { id: number; prenom: string; nom: string; avatarUrl: string | null };
+export type EventAttendees = Record<AttendanceStatus, EventAttendee[]>;
+
 /**
  * Tag événement — libellé + couleur configurables côté backend
  * (entité EventTag). Renvoyés dans EventItem.tags dans l'ordre
