@@ -148,6 +148,18 @@ class Event implements OwnedContentInterface
     public function setIsAllDay(bool $v): self { $this->isAllDay = $v; return $this; }
     public function isVoteEnabled(): bool { return $this->voteEnabled; }
     public function setVoteEnabled(bool $v): self { $this->voteEnabled = $v; return $this; }
+
+    /**
+     * L'événement a-t-il commencé ? À l'heure de début, ou dès minuit du premier jour pour un événement
+     * « toute la journée ». Les adhérents ne peuvent alors plus voter ni modifier leur vote de présence
+     * (l'administrateur, lui, peut toujours le surcharger depuis le backend).
+     */
+    public function isVoteLocked(?\DateTimeImmutable $now = null): bool
+    {
+        $start = $this->isAllDay ? $this->startsAt->setTime(0, 0) : $this->startsAt;
+
+        return ($now ?? new \DateTimeImmutable()) >= $start;
+    }
     public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
     public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }
 

@@ -2,9 +2,23 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ApiError } from '@/api/client';
 import { events as eventsApi } from '@/api/resources';
 import type { AttendanceStatus, EventItem } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
+
+/**
+ * L'événement a-t-il commencé ? À l'heure de début, ou dès minuit du premier jour pour un événement
+ * « toute la journée ». Le serveur fait foi (`voteLocked`, 403 au vote) ; ce calcul local évite
+ * seulement d'afficher des boutons actifs sur une liste restée ouverte.
+ */
+function hasStarted(event: EventItem): boolean {
+  if (event.isAllDay) {
+    const [y, m, d] = event.startsAt.slice(0, 10).split('-').map(Number);
+    return Date.now() >= new Date(y, m - 1, d).getTime();
+  }
+  return Date.now() >= new Date(event.startsAt).getTime();
+}
 
 /**
  * Barre des 3 boutons de vote de présence sur un événement.
@@ -16,6 +30,9 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  * Re-tap sur le vote actif → l'efface (undo). Optimistic UI : le state
  * change immédiatement, rollback en cas d'erreur réseau.
  *
+ * Une fois l'événement commencé, le vote est figé : les boutons sont désactivés (le vote enregistré
+ * reste affiché) et seul un administrateur peut encore le modifier, depuis le backend.
+ *
  * Deux modes d'affichage :
  *  - `size="sm"` (défaut) : compact, adapté aux cards de la home.
  *  - `size="lg"`           : plus grand, adapté à une page détail.
@@ -24,7 +41,9 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
   const [counts, setCounts] = useState(event.voteCounts);
   const [voting, setVoting] = useState(false);
+  const [serverLocked, setServerLocked] = useState(false);
   const votingRef = useRef(false);
+  const locked = event.voteLocked === true || serverLocked || hasStarted(event);
 
   // Le vote affiché doit suivre les données de l'événement : la liste « Prochainement » est rechargée
   // au retour sur l'accueil, et le vote a pu changer entre-temps (ex : sur la page détail). Sans cette
@@ -46,7 +65,7 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
    *                     l'URL externe sans perdre son vote « oui »).
    */
   async function castVote(next: AttendanceStatus, allowUnvote = true) {
-    if (voting) return;
+    if (voting || locked) return;
     const target: AttendanceStatus | null =
       allowUnvote && myVote === next ? null : next;
     // Optimisation : si aucun changement à envoyer (déjà à cette valeur
@@ -61,8 +80,10 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
       // Résultats à jour (null quand le vote est retiré : réservés aux votants).
       setCounts(res.voteCounts);
       onVoted?.(); // ex : recharger la liste « Qui vient ? »
-    } catch {
+    } catch (e) {
       setMyVote(previous);
+      // Le serveur a refusé : l'événement vient de commencer (horloge de l'appareil en retard, liste restée ouverte).
+      if (e instanceof ApiError && e.status === 403) setServerLocked(true);
     } finally {
       votingRef.current = false;
       setVoting(false);
@@ -85,7 +106,8 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
           shortLabel="Inscription"
           icon="open-outline"
           active={myVote === 'yes'}
-          disabled={voting}
+          disabled={voting || locked}
+          locked={locked}
           onPress={() => {
             // Pas de toggle : un reclick maintient l'engagement « oui »
             // et ré-ouvre l'URL pour finaliser l'inscription. Les autres
@@ -99,14 +121,19 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
           iconOnly={iconOnly}
         />
       ) : (
-        <VoteBtn label="J'y serai" shortLabel="Oui" icon="checkmark" active={myVote === 'yes'} disabled={voting}
+        <VoteBtn label="J'y serai" shortLabel="Oui" icon="checkmark" active={myVote === 'yes'} disabled={voting || locked} locked={locked}
           onPress={() => castVote('yes')} accent={COLORS.success} styles={s} iconOnly={iconOnly} />
       )}
-      <VoteBtn label="Peut-être" shortLabel="?" icon="help" active={myVote === 'maybe'} disabled={voting}
+      <VoteBtn label="Peut-être" shortLabel="?" icon="help" active={myVote === 'maybe'} disabled={voting || locked} locked={locked}
         onPress={() => castVote('maybe')} accent={COLORS.warning ?? COLORS.textMuted} styles={s} iconOnly={iconOnly} />
-      <VoteBtn label="Pas là" shortLabel="Non" icon="close" active={myVote === 'no'} disabled={voting}
+      <VoteBtn label="Pas là" shortLabel="Non" icon="close" active={myVote === 'no'} disabled={voting || locked} locked={locked}
         onPress={() => castVote('no')} accent={COLORS.error} styles={s} iconOnly={iconOnly} />
     </View>
+    {locked && !iconOnly && (
+      <Text style={size === 'lg' ? countStyles.lg : countStyles.sm}>
+        🔒 Votes clos : l'événement a commencé.
+      </Text>
+    )}
     {showCounts && counts && (
       <Text style={size === 'lg' ? countStyles.lg : countStyles.sm}>
         {total} réponse{total > 1 ? 's' : ''} · {counts.yes} oui · {counts.maybe} peut-être · {counts.no} non
@@ -117,13 +144,15 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
 }
 
 function VoteBtn({
-  label, shortLabel, icon, active, disabled, onPress, accent, styles: s, iconOnly,
+  label, shortLabel, icon, active, disabled, locked, onPress, accent, styles: s, iconOnly,
 }: {
   label: string;
   shortLabel: string;
   icon: 'checkmark' | 'help' | 'close' | 'open-outline';
   active: boolean;
   disabled: boolean;
+  /** Vote figé (événement commencé) : le choix actif reste visible, les autres s'estompent. */
+  locked: boolean;
   onPress: () => void;
   accent: string;
   styles: { btn: object; label: object };
@@ -137,6 +166,7 @@ function VoteBtn({
       style={({ pressed }) => [
         s.btn,
         active && { backgroundColor: accent, borderColor: accent },
+        locked && !active && { opacity: 0.45 },
         pressed && { opacity: 0.7 },
       ]}
     >

@@ -120,6 +120,14 @@ class EventController extends AbstractController
             return new JsonResponse(['error' => 'Cet événement n\'est pas soumis au vote.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // Une fois l'événement commencé, le vote est figé (seul l'admin peut le surcharger depuis le backend).
+        if ($event->isVoteLocked()) {
+            return new JsonResponse(
+                ['error' => 'Les votes sont clos : l\'événement a commencé.', 'locked' => true],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
         $payload = json_decode($request->getContent() ?: '{}', true);
         $raw = is_array($payload) ? ($payload['status'] ?? null) : null;
         $status = null;

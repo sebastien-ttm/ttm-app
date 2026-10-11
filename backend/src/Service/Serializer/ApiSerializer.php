@@ -246,6 +246,8 @@ class ApiSerializer
             'audience' => $e->getAudience(),
             'contentAudience' => $e->getContentAudience(),
             'voteEnabled' => $e->isVoteEnabled(),
+            // Vote verrouillé pour les adhérents dès que l'événement a commencé (l'admin peut toujours le surcharger).
+            'voteLocked' => $e->isVoteEnabled() && $e->isVoteLocked(),
             'myVote' => $myVote, // 'yes' | 'no' | 'maybe' | null
             // {yes,no,maybe}, ou null si l'événement n'est pas soumis au vote OU si le
             // viewer n'y a pas participé : seuls les votants voient les résultats.

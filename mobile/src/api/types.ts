@@ -170,6 +170,8 @@ export type EventItem = {
   isAllDay: boolean;
   /** True = admin a activé le vote de présence sur cet événement. */
   voteEnabled: boolean;
+  /** True = l'événement a commencé : les adhérents ne peuvent plus voter ni modifier leur vote. Absent des anciennes réponses. */
+  voteLocked?: boolean;
   /** Le vote actuel du viewer, ou null s'il n'a pas voté. */
   myVote: AttendanceStatus | null;
   /** Compteurs agrégés — null si voteEnabled=false ou si le viewer n'a pas voté (réservés aux votants). */
