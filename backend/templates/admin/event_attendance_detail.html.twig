@@ -37,14 +37,40 @@
         </div>
     </div>
 
+    {% if canOverride %}
+        <div style="background:#fff; padding:18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+            <div style="font-weight:700; margin-bottom:10px;">Ajouter ou modifier le vote d'un adhérent</div>
+            <form method="post" action="{{ voteUrl }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <input type="hidden" name="_token" value="{{ csrf_token('event_attendance_admin') }}">
+                <select name="user_id" required class="form-select" aria-label="Adhérent" style="max-width:360px;">
+                    <option value="">— Choisir un adhérent —</option>
+                    {% for m in members %}
+                        <option value="{{ m.id }}">{{ m.label }}{% if m.current %} (vote actuel : {{ m.current }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" required class="form-select" aria-label="Vote" style="max-width:200px;">
+                    <option value="yes">✓ Présent</option>
+                    <option value="maybe">? Peut-être</option>
+                    <option value="no">✗ Absent</option>
+                    <option value="none">Retirer le vote</option>
+                </select>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </form>
+            <p style="margin:10px 0 0 0; color:#888; font-size:12px;">
+                Le vote est enregistré comme si l'adhérent l'avait fait lui-même (le groupe de l'événement est mis à jour) ;
+                il peut ensuite le modifier depuis l'appli. Vous pouvez aussi changer un vote directement dans les listes ci-dessous.
+            </p>
+        </div>
+    {% endif %}
+
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
-        {{ _self.column('✓ Présents',   yes,   '#2E7D32', '#E8F5E9') }}
-        {{ _self.column('? Peut-être',  maybe, '#f59e0b', '#FFF8E1') }}
-        {{ _self.column('✗ Absents',    no,    '#C62828', '#FFEBEE') }}
+        {{ _self.column('✓ Présents',   yes,   '#2E7D32', '#E8F5E9', 'yes',   canOverride, voteUrl) }}
+        {{ _self.column('? Peut-être',  maybe, '#f59e0b', '#FFF8E1', 'maybe', canOverride, voteUrl) }}
+        {{ _self.column('✗ Absents',    no,    '#C62828', '#FFEBEE', 'no',    canOverride, voteUrl) }}
     </div>
 {% endblock %}
 
-{% macro column(title, rows, color, bg) %}
+{% macro column(title, rows, color, bg, key, canOverride, voteUrl) %}
     <div style="background:#fff; padding:16px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
         <div style="background:{{ bg }}; color:{{ color }}; padding:8px 12px; border-radius:6px; font-weight:700; margin:-16px -16px 12px -16px; display:flex; justify-content:space-between;">
             <span>{{ title }}</span>
@@ -62,6 +88,20 @@
                             {% if u.numLicence %}<span style="font-family:monospace;">{{ u.numLicence }}</span>{% endif %}
                             · voté le {{ a.updatedAt|date('d/m H:i') }}
                         </div>
+                        {% if canOverride %}
+                            <form method="post" action="{{ voteUrl }}" style="margin:6px 0 0 0;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('event_attendance_admin') }}">
+                                <input type="hidden" name="user_id" value="{{ u.id }}">
+                                <select name="status" class="form-select form-select-sm" aria-label="Vote de {{ u.fullName }}"
+                                        data-current="{{ key }}" style="max-width:190px; font-size:12px;"
+                                        onchange="if (this.value !== 'none' || confirm('Retirer le vote de cet adhérent ?')) { this.form.submit(); } else { this.value = this.dataset.current; }">
+                                    <option value="yes"{{ key == 'yes' ? ' selected' : '' }}>✓ Présent</option>
+                                    <option value="maybe"{{ key == 'maybe' ? ' selected' : '' }}>? Peut-être</option>
+                                    <option value="no"{{ key == 'no' ? ' selected' : '' }}>✗ Absent</option>
+                                    <option value="none">Retirer le vote</option>
+                                </select>
+                            </form>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

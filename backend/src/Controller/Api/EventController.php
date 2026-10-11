@@ -4,16 +4,14 @@ namespace App\Controller\Api;
 
 use App\Entity\Comment;
 use App\Entity\Event;
-use App\Entity\EventAttendance;
 use App\Entity\User;
 use App\Enum\AttendanceStatus;
-use App\Entity\MemberGroupMember;
 use App\Repository\CommentRepository;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\AvatarService;
-use App\Service\MemberGroup\MemberGroupService;
+use App\Service\Event\EventAttendanceService;
 use App\Service\Serializer\ApiSerializer;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,7 +32,7 @@ class EventController extends AbstractController
         private readonly EventAttendanceRepository $attendances,
         private readonly EntityManagerInterface $em,
         private readonly AudienceFilter $audienceFilter,
-        private readonly MemberGroupService $memberGroups,
+        private readonly EventAttendanceService $attendanceService,
         private readonly CommentRepository $comments,
         private readonly ValidatorInterface $validator,
         private readonly WeeklyScheduleService $schedule,
@@ -132,31 +130,8 @@ class EventController extends AbstractController
             }
         }
 
-        $existing = $this->attendances->findOneByUserAndEvent($viewer, $event);
-        if ($status === null) {
-            // Retire le vote (l'user hésite à nouveau) — supprime la ligne.
-            if ($existing !== null) {
-                $this->em->remove($existing);
-            }
-        } elseif ($existing !== null) {
-            $existing->setStatus($status);
-        } else {
-            $this->em->persist(new EventAttendance($viewer, $event, $status));
-        }
-
-        // Synchronise le groupe d'adhérents lié à l'événement :
-        //  - 'yes' → l'user est ajouté au groupe (créé au besoin).
-        //  - 'no' | 'maybe' | null (retrait) → l'user est retiré.
-        // Le groupe est créé à la volée (source=event) — pas besoin
-        // que l'admin le pré-crée. La cascade fait le reste.
-        $group = $this->memberGroups->ensureGroupForEvent($event);
-        if ($status === AttendanceStatus::Yes) {
-            $this->memberGroups->addMember($group, $viewer, MemberGroupMember::SOURCE_EVENT_VOTE);
-        } else {
-            $this->memberGroups->removeMember($group, $viewer);
-        }
-
-        $this->em->flush();
+        // Enregistre le vote et synchronise le groupe d'adhérents lié à l'événement.
+        $this->attendanceService->setVote($event, $viewer, $status);
 
         return new JsonResponse([
             'ok' => true,

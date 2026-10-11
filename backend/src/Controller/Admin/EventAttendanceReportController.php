@@ -8,8 +8,12 @@ use App\Enum\AttendanceStatus;
 use App\Repository\EventAttendanceRepository;
 use App\Repository\EventCheckInRepository;
 use App\Repository\EventRepository;
+use App\Repository\UserRepository;
+use App\Service\Event\EventAttendanceService;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,15 +25,26 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * - index (`/admin/event-attendance`) : liste des événements votables
  *   (à venir + terminés récemment) avec les 3 compteurs.
  * - detail (`/admin/event-attendance/{id}`) : 3 listes nominatives
- *   (présents / peut-être / absents) + export CSV.
+ *   (présents / peut-être / absents) + export CSV ; l'administrateur y surcharge
+ *   le vote de n'importe quel adhérent (change, ajoute ou retire).
  */
 #[IsGranted('ROLE_EDITEUR')]
 class EventAttendanceReportController extends AbstractController
 {
+    private const CSRF_INTENT = 'event_attendance_admin';
+
+    private const STATUS_LABELS = [
+        'yes' => 'Présent',
+        'maybe' => 'Peut-être',
+        'no' => 'Absent',
+    ];
+
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventAttendanceRepository $attendances,
         private readonly EventCheckInRepository $checkIns,
+        private readonly UserRepository $users,
+        private readonly EventAttendanceService $attendanceService,
         private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
@@ -95,8 +110,23 @@ class EventAttendanceReportController extends AbstractController
 
         $all = $this->attendances->findByEventWithUser($event);
         $lists = ['yes' => [], 'maybe' => [], 'no' => []];
+        $currentVotes = [];
         foreach ($all as $a) {
             $lists[$a->getStatus()->value][] = $a;
+            $currentVotes[$a->getUser()->getId()] = self::STATUS_LABELS[$a->getStatus()->value] ?? null;
+        }
+
+        // Surcharge réservée à l'administrateur : liste de tous les adhérents actifs (avec leur vote actuel).
+        $canOverride = $this->isGranted('ROLE_ADMIN');
+        $members = [];
+        if ($canOverride) {
+            foreach ($this->users->findActiveAdherentsForRecap() as $u) {
+                $members[] = [
+                    'id' => $u->getId(),
+                    'label' => mb_strtoupper((string) $u->getNom()).' '.$u->getPrenom(),
+                    'current' => $currentVotes[$u->getId()] ?? null,
+                ];
+            }
         }
 
         return $this->render('admin/event_attendance_detail.html.twig', [
@@ -105,11 +135,61 @@ class EventAttendanceReportController extends AbstractController
             'maybe' => $lists['maybe'],
             'no' => $lists['no'],
             'total' => count($all),
+            'canOverride' => $canOverride,
+            'members' => $members,
+            'voteUrl' => $this->generateUrl('admin_event_attendance_set_vote', ['id' => $event->getId()]),
             'indexUrl' => $this->adminRoute('admin_event_attendance_index'),
             'csvUrl' => $this->adminRoute('admin_event_attendance_detail_csv', ['id' => $event->getId()]),
             'checkInUrl' => $this->adminRoute('admin_event_check_in', ['id' => $event->getId()]),
             'checkedCount' => count($this->checkIns->findByEventIndexedByUser($event)),
         ]);
+    }
+
+    /**
+     * Surcharge par l'administrateur du vote de présence d'un adhérent : change, ajoute (l'adhérent n'avait pas
+     * voté) ou retire (`status` = none) son vote. Même effet que s'il l'avait fait lui-même depuis l'appli,
+     * y compris sur le groupe d'adhérents lié à l'événement.
+     */
+    #[Route('/admin/event-attendance/{id}/vote', name: 'admin_event_attendance_set_vote', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function setVote(int $id, Request $request): RedirectResponse
+    {
+        if (!$this->isCsrfTokenValid(self::CSRF_INTENT, (string) $request->request->get('_token', ''))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
+        $event = $this->events->find($id);
+        if ($event === null) {
+            throw $this->createNotFoundException('Événement introuvable.');
+        }
+        if (!$event->isVoteEnabled()) {
+            $this->addFlash('warning', 'Cet événement n\'est pas soumis au vote.');
+
+            return $this->redirect($this->adminRoute('admin_event_attendance_index'));
+        }
+        $back = $this->redirect($this->adminRoute('admin_event_attendance_detail', ['id' => $id]));
+
+        $user = $this->users->find((int) $request->request->get('user_id', 0));
+        if ($user === null) {
+            $this->addFlash('danger', 'Adhérent introuvable.');
+
+            return $back;
+        }
+
+        $raw = (string) $request->request->get('status', '');
+        $status = $raw === 'none' ? null : AttendanceStatus::tryFrom($raw);
+        if ($raw !== 'none' && $status === null) {
+            $this->addFlash('danger', 'Statut invalide.');
+
+            return $back;
+        }
+
+        $this->attendanceService->setVote($event, $user, $status);
+
+        $this->addFlash('success', $status === null
+            ? sprintf('Vote de %s retiré.', $user->getFullName())
+            : sprintf('Vote de %s : %s.', $user->getFullName(), self::STATUS_LABELS[$status->value] ?? $status->value));
+
+        return $back;
     }
 
     #[Route('/admin/event-attendance/{id}.csv', name: 'admin_event_attendance_detail_csv', requirements: ['id' => '\d+'])]
