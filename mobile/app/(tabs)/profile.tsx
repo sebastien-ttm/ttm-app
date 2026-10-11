@@ -360,6 +360,9 @@ export default function ProfileScreen() {
               trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
               ios_backgroundColor="#d4d4d8"
+              // Boule blanche aussi une fois activé (comme les deux autres interrupteurs) : propriété
+              // propre à react-native-web, absente des types de Switch, d'où le contournement.
+              {...({ activeThumbColor: '#fff' } as object)}
             />
           )}
         </View>
