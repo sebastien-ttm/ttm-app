@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { events as eventsApi } from '@/api/resources';
@@ -24,6 +24,19 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
   const [myVote, setMyVote] = useState<AttendanceStatus | null>(event.myVote);
   const [counts, setCounts] = useState(event.voteCounts);
   const [voting, setVoting] = useState(false);
+  const votingRef = useRef(false);
+
+  // Le vote affiché doit suivre les données de l'événement : la liste « Prochainement » est rechargée
+  // au retour sur l'accueil, et le vote a pu changer entre-temps (ex : sur la page détail). Sans cette
+  // resynchronisation, la barre gardait indéfiniment le vote affiché au premier rendu. Pas pendant un
+  // vote en cours : l'affichage optimiste ne doit pas être écrasé par d'anciennes données.
+  const { yes, maybe, no } = event.voteCounts ?? { yes: -1, maybe: -1, no: -1 };
+  useEffect(() => {
+    if (votingRef.current) return;
+    setMyVote(event.myVote);
+    setCounts(event.voteCounts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.myVote, yes, maybe, no]);
 
   /**
    * @param allowUnvote  true (défaut) = re-tap sur le vote actif l'efface
@@ -39,6 +52,7 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
     // Optimisation : si aucun changement à envoyer (déjà à cette valeur
     // avec allowUnvote=false), on ne fait pas de round-trip inutile.
     if (target === myVote) return;
+    votingRef.current = true;
     setVoting(true);
     const previous = myVote;
     setMyVote(target);
@@ -50,6 +64,7 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
     } catch {
       setMyVote(previous);
     } finally {
+      votingRef.current = false;
       setVoting(false);
     }
   }
