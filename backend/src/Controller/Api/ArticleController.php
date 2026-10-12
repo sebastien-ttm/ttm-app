@@ -17,6 +17,7 @@ use App\Service\Article\ArticleAttachmentService;
 use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -43,6 +44,7 @@ class ArticleController extends AbstractController
         private readonly ArticleAttachmentService $attachmentsService,
         private readonly EventAttendanceRepository $attendances,
         private readonly ArticleReadRepository $reads,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -65,8 +67,14 @@ class ArticleController extends AbstractController
         $total = count($paginator);
 
         $pageArticles = iterator_to_array($paginator, false);
-        // Articles déjà ouverts par le viewer : l'appli les présente autrement dans la liste.
-        $readIds = $this->reads->readIdsForUser($viewer, array_map(static fn (Article $a) => (int) $a->getId(), $pageArticles));
+        // Articles déjà ouverts par le viewer : l'appli les présente autrement dans la liste. Information annexe :
+        // si elle est indisponible (ex : migration de la table article_read pas encore appliquée), le fil reste servi.
+        try {
+            $readIds = $this->reads->readIdsForUser($viewer, array_map(static fn (Article $a) => (int) $a->getId(), $pageArticles));
+        } catch (\Throwable $e) {
+            $this->logger->warning('Suivi de lecture des articles indisponible', ['error' => $e->getMessage()]);
+            $readIds = [];
+        }
 
         $items = [];
         foreach ($pageArticles as $article) {
