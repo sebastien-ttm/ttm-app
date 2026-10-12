@@ -118,17 +118,28 @@ function TrainingScreenInner() {
     });
     return map;
   }, [data]);
-  const slotsByDay = useMemo(() => {
+  // Vue Liste : les créneaux maintenus (et les occasionnels) d'abord, par jour ; les créneaux annulés sont tous
+  // regroupés à la fin, en lignes compactes — en semaine de vacances, des dizaines de créneaux barrés au milieu du
+  // planning le rendaient illisible.
+  const { slotsByDay, cancelledSlots } = useMemo(() => {
     const now = Date.now();
     const map = new Map<number, TrainingSlot[]>();
+    const cancelled: TrainingSlot[] = [];
     for (const [day, slots] of slotsByDayFull) {
-      const future = slots.filter((s) => {
+      for (const s of slots) {
         const endMs = new Date(`${s.date}T${s.startTime}:00`).getTime() + s.durationMinutes * 60_000;
-        return !Number.isFinite(endMs) || endMs >= now;
-      });
-      if (future.length > 0) map.set(day, future);
+        if (Number.isFinite(endMs) && endMs < now) continue;
+        if (s.isCancelled) {
+          cancelled.push(s);
+        } else {
+          const arr = map.get(day) ?? [];
+          arr.push(s);
+          map.set(day, arr);
+        }
+      }
     }
-    return map;
+    cancelled.sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
+    return { slotsByDay: map, cancelledSlots: cancelled };
   }, [slotsByDayFull]);
 
   return (
@@ -240,7 +251,8 @@ function TrainingScreenInner() {
               </View>
 
               {(() => {
-                const chronoTotal = Array.from(slotsByDay.values()).reduce((n, arr) => n + arr.length, 0);
+                const maintainedTotal = Array.from(slotsByDay.values()).reduce((n, arr) => n + arr.length, 0);
+                const chronoTotal = maintainedTotal + cancelledSlots.length;
                 const gridTotal = Array.from(slotsByDayFull.values()).reduce((n, arr) => n + arr.length, 0);
                 // Vraiment aucun créneau dans la semaine (ni passé ni futur) → empty state.
                 if (gridTotal === 0) {
@@ -277,21 +289,37 @@ function TrainingScreenInner() {
                       chronoTotal === 0 ? (
                         <Text style={styles.planEmpty}>Tous les créneaux de cette semaine sont déjà terminés.</Text>
                       ) : (
-                        [1, 2, 3, 4, 5, 6, 7].map((day) => {
-                          const slots = slotsByDay.get(day) ?? [];
-                          if (slots.length === 0) return null;
-                          const dayDate = addDays(weekStart, day - 1);
-                          return (
-                            <View key={day} style={styles.dayBlock}>
-                              <Text style={styles.dayHeader}>
-                                {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                        <>
+                          {maintainedTotal === 0 && (
+                            <Text style={styles.planEmpty}>Aucun créneau maintenu pour le reste de la semaine.</Text>
+                          )}
+                          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                            const slots = slotsByDay.get(day) ?? [];
+                            if (slots.length === 0) return null;
+                            const dayDate = addDays(weekStart, day - 1);
+                            return (
+                              <View key={day} style={styles.dayBlock}>
+                                <Text style={styles.dayHeader}>
+                                  {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
+                                </Text>
+                                {slots.map((s, idx) => (
+                                  <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} onRegistrationChanged={onRegistrationChanged} />
+                                ))}
+                              </View>
+                            );
+                          })}
+                          {/* Tous les créneaux annulés de la semaine, à la fin. */}
+                          {cancelledSlots.length > 0 && (
+                            <View style={styles.dayBlock}>
+                              <Text style={[styles.dayHeader, styles.cancelledHeader]}>
+                                🚫 Créneaux annulés <Text style={styles.daySub}>· {cancelledSlots.length}</Text>
                               </Text>
-                              {slots.map((s, idx) => (
-                                <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} onRegistrationChanged={onRegistrationChanged} />
+                              {cancelledSlots.map((s, idx) => (
+                                <CancelledRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
                               ))}
                             </View>
-                          );
-                        })
+                          )}
+                        </>
                       )
                     ) : (
                       /* Vue Semaine : passe la map COMPLÈTE, y compris les
@@ -589,6 +617,27 @@ function SlotRow({ slot, onRegistrationChanged }: {
   );
 }
 
+/** Créneau annulé de la liste : une ligne compacte (jour, heure, titre barré), ouvre le détail. */
+function CancelledRow({ slot }: { slot: TrainingSlot }) {
+  const router = useRouter();
+  const d = fromIsoDate(slot.date);
+  const when = `${dayLabel(slot.dayOfWeek).slice(0, 3)}. ${d.getDate()}/${d.getMonth() + 1}`;
+
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
+      accessibilityLabel={`Annulé : ${slot.title}, ${when} à ${slot.startTime}`}
+      style={({ pressed }) => [styles.cancelledRow, pressed && styles.pressed]}
+    >
+      <Text style={styles.cancelledWhen}>{when}</Text>
+      <Text style={styles.cancelledTitle} numberOfLines={1}>
+        {slot.startTime} · {slot.sportIcon} {slot.title}
+      </Text>
+      <Ionicons name="chevron-forward" size={16} color={COLORS.textSubtle} />
+    </Pressable>
+  );
+}
+
 function Tag({ label, color, bg }: { label: string; color: string; bg?: string }) {
   return (
     <View style={[styles.tag, { borderColor: color, backgroundColor: bg ?? 'transparent' }]}>
@@ -682,6 +731,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   daySub: { color: COLORS.textMuted, fontWeight: '500', fontSize: 13 },
+  cancelledHeader: { color: '#991B1B' },
+  cancelledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 9,
+    marginBottom: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FCA5A5',
+  },
+  cancelledWhen: { width: 66, fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  cancelledTitle: { flex: 1, fontSize: 13, color: COLORS.textMuted, textDecorationLine: 'line-through' },
   slot: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
