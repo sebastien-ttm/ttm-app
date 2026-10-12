@@ -157,7 +157,7 @@ class StaffPresenceController extends AbstractController
 
     /**
      * Marque le user comme non-disponible sur cette semaine.
-     * Body : { week: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement", notes?: string }
+     * Body : { week: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement"|"formation"|"recuperation", notes?: string }
      * Idempotent (met à jour le motif/la note si déjà posé).
      */
     #[Route('/api/me/staff-presence/unavailable', name: 'api_staff_presence_set_unavailable', methods: ['POST'])]
@@ -179,7 +179,7 @@ class StaffPresenceController extends AbstractController
         }
         $reason = StaffAbsenceReason::tryFrom((string) ($payload['reason'] ?? ''));
         if ($reason === null) {
-            return new JsonResponse(['error' => 'Motif requis (maladie, vacances ou déplacement).'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Motif requis (maladie, vacances, déplacement club, formation ou récupération).'], Response::HTTP_BAD_REQUEST);
         }
         $monday = WeeklyScheduleService::snapToMonday($week);
         $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
@@ -347,7 +347,7 @@ class StaffPresenceController extends AbstractController
      * Marque le user comme non-disponible sur UNE journée précise, avec
      * motif obligatoire. Pose 'unavailable' sur les créneaux non annulés
      * de cette journée (voir StaffPresenceService::setDayUnavailable).
-     * Body : { date: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement", notes?: string }
+     * Body : { date: "YYYY-MM-DD", reason: "maladie"|"vacances"|"deplacement"|"formation"|"recuperation", notes?: string }
      */
     #[Route('/api/me/staff-presence/day-unavailable', name: 'api_staff_presence_set_day_unavailable', methods: ['POST'])]
     public function setDayUnavailable(Request $request): JsonResponse
@@ -371,7 +371,7 @@ class StaffPresenceController extends AbstractController
         }
         $reason = StaffAbsenceReason::tryFrom((string) ($payload['reason'] ?? ''));
         if ($reason === null) {
-            return new JsonResponse(['error' => 'Motif requis (maladie, vacances ou déplacement).'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Motif requis (maladie, vacances, déplacement club, formation ou récupération).'], Response::HTTP_BAD_REQUEST);
         }
         $notes = isset($payload['notes']) ? (string) $payload['notes'] : null;
 

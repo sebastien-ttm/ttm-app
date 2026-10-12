@@ -566,7 +566,7 @@ export type PerfTestsResponse = {
 
 export type StaffPresenceStatus = 'scheduled' | 'attended' | 'unavailable';
 
-export type StaffAbsenceReason = 'maladie' | 'vacances' | 'deplacement';
+export type StaffAbsenceReason = 'maladie' | 'vacances' | 'deplacement' | 'formation' | 'recuperation';
 
 export type StaffPresence = {
   id: number;

@@ -11,14 +11,19 @@ enum StaffAbsenceReason: string
 {
     case Maladie = 'maladie';
     case Vacances = 'vacances';
+    /** Déplacement pour le club (clé historique `deplacement`, conservée : elle est stockée en base). */
     case Deplacement = 'deplacement';
+    case Formation = 'formation';
+    case Recuperation = 'recuperation';
 
     public function label(): string
     {
         return match ($this) {
             self::Maladie => 'Maladie',
             self::Vacances => 'Vacances',
-            self::Deplacement => 'Déplacement',
+            self::Deplacement => 'Déplacement club',
+            self::Formation => 'Formation',
+            self::Recuperation => 'Récupération',
         };
     }
 
@@ -29,6 +34,8 @@ enum StaffAbsenceReason: string
             self::Maladie => '🤒',
             self::Vacances => '🏖️',
             self::Deplacement => '🚗',
+            self::Formation => '🎓',
+            self::Recuperation => '🛌',
         };
     }
 }

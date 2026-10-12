@@ -42,7 +42,9 @@ const SPORT_FILTERS: { key: SportKey | 'all'; label: string }[] = [
 const ABSENCE_REASONS: { key: StaffAbsenceReason; icon: string; label: string }[] = [
   { key: 'maladie', icon: '🤒', label: 'Maladie' },
   { key: 'vacances', icon: '🏖️', label: 'Vacances' },
-  { key: 'deplacement', icon: '🚗', label: 'Déplacement' },
+  { key: 'deplacement', icon: '🚗', label: 'Déplacement club' },
+  { key: 'formation', icon: '🎓', label: 'Formation' },
+  { key: 'recuperation', icon: '🛌', label: 'Récupération' },
 ];
 
 /** Cible d'une déclaration d'absence en attente de motif (semaine ou journée). */
