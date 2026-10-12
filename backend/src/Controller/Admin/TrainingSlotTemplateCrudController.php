@@ -6,7 +6,11 @@ use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
 use App\Enum\Sport;
 use App\Repository\TrainingSeasonRepository;
+use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
+use App\Service\Training\AttachmentService;
+use App\Service\Training\WeeklyScheduleService;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
@@ -49,6 +53,8 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         private readonly AdminUrlGenerator $adminUrlGenerator,
         private readonly TrainingSeasonRepository $seasons,
         private readonly TrainingSlotTemplateRepository $templates,
+        private readonly TrainingSlotRepository $slots,
+        private readonly AttachmentService $attachmentService,
     ) {
     }
 
@@ -206,6 +212,35 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         $template->setSeason($this->seasons->findCurrent());
 
         return $template;
+    }
+
+    /**
+     * Supprime la semaine type ET ses occurrences de la semaine en cours et des suivantes (overrides,
+     * annulations, créneaux créés pour porter des présences staff…). Sans cela, la clé étrangère
+     * (ON DELETE SET NULL) les transformait en créneaux « occasionnels » orphelins, un par semaine. Les semaines
+     * passées gardent leur historique (présences staff comprises) ; elles se retirent à part si besoin, depuis
+     * la page des créneaux de la semaine (« Toutes les semaines » sur un créneau occasionnel).
+     *
+     * @param mixed $entityInstance
+     */
+    public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof TrainingSlotTemplate) {
+            $monday = WeeklyScheduleService::snapToMonday(new \DateTimeImmutable('today'));
+            $removed = 0;
+            foreach ($this->slots->findByTemplateFromWeek($entityInstance, $monday) as $slot) {
+                foreach ($slot->getAttachments()->toArray() as $att) {
+                    $this->attachmentService->remove($att);
+                }
+                $entityManager->remove($slot);
+                ++$removed;
+            }
+            if ($removed > 0) {
+                $this->addFlash('info', sprintf('%d occurrence(s) de ce créneau supprimée(s) de la semaine en cours et des suivantes.', $removed));
+            }
+        }
+
+        parent::deleteEntity($entityManager, $entityInstance);
     }
 
     public function configureFields(string $pageName): iterable

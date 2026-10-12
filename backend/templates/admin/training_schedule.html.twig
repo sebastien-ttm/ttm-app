@@ -135,6 +135,23 @@
                                     {% endif %}
                                 {% endif %}
 
+                                {# Occasionnel qui se répète chaque semaine (ex. reliquat d'une semaine type supprimée) :
+                                   suppression de toutes ses occurrences en une fois. Deux confirmations : la 2e
+                                   décide si les semaines passées sont concernées. Pas d'apostrophe dans les
+                                   messages (attribut HTML entre guillemets). #}
+                                {% if r.isOccasional and r.id %}
+                                    <form method="post" action="{{ path('admin_training_schedule_delete_series') }}" style="display:inline;"
+                                          onsubmit="if (!confirm('Supprimer ce créneau de cette semaine ET de toutes les semaines suivantes ? Les présences staff et pièces jointes rattachées seront supprimées aussi. Action irréversible.')) { return false; } this.scope.value = confirm('Le supprimer aussi des semaines PASSÉES ?\nOK = oui, toutes les semaines (leurs présences staff seront perdues)\nAnnuler = non, on garde le passé') ? 'all' : 'from'; return true;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                                        <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                                        <input type="hidden" name="slotId" value="{{ r.id }}" />
+                                        <input type="hidden" name="scope" value="from" />
+                                        <button class="btn btn-sm btn-link" style="color:#991B1B;" title="Supprimer ce créneau de toutes les semaines">
+                                            <i class="fa fa-trash-can"></i> Toutes les semaines
+                                        </button>
+                                    </form>
+                                {% endif %}
+
                                 {# Supprimer définitivement (occasionnels seulement, action secondaire) #}
                                 {% if r.isOccasional and r.id %}
                                     <form method="post" action="{{ path('admin_training_schedule_delete') }}" style="display:inline;"

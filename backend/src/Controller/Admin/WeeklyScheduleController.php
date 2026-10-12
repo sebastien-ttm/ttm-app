@@ -365,6 +365,52 @@ class WeeklyScheduleController extends AbstractController
         return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
     }
 
+    /**
+     * Supprime un créneau occasionnel de TOUTES les semaines où il se répète (même jour, heure, durée, sport,
+     * titre et lieu) : cette semaine et les suivantes (`scope` = from), ou aussi les semaines passées (`scope` = all).
+     * Typiquement un créneau resté « occasionnel » chaque semaine après la suppression de sa semaine type.
+     * Les présences staff et pièces jointes rattachées à ces créneaux sont supprimées avec eux.
+     */
+    #[Route('/admin/training-schedule/delete-series', name: 'admin_training_schedule_delete_series', methods: ['POST'])]
+    public function deleteSeries(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'schedule_op');
+        $week = $this->parseWeek($request->request->get('week'));
+        $slot = $this->slots->find((int) $request->request->get('slotId'));
+        if ($slot === null) {
+            throw $this->createNotFoundException();
+        }
+        if ($slot->getTemplate() !== null) {
+            throw new \LogicException('Seuls les créneaux occasionnels se suppriment en série.');
+        }
+
+        $allWeeks = $request->request->get('scope') === 'all';
+        $fromWeek = $allWeeks ? null : $slot->getWeekStartsAt();
+        $twins = $this->slots->findOccasionalTwins($slot, $fromWeek);
+
+        $title = $slot->getTitle();
+        $presences = 0;
+        foreach ($twins as $twin) {
+            $presences += $this->presences->countForSlot($twin);
+            // Fichiers sur disque d'abord (la ligne BDD part avec le créneau).
+            foreach ($twin->getAttachments()->toArray() as $att) {
+                $this->attachmentService->remove($att);
+            }
+            $this->em->remove($twin);
+        }
+        $this->em->flush();
+
+        $this->addFlash('success', sprintf(
+            '%d créneau(x) « %s » supprimé(s) (%s)%s.',
+            count($twins),
+            $title,
+            $allWeeks ? 'toutes les semaines' : 'semaine du '.$slot->getWeekStartsAt()->format('d/m/Y').' et suivantes',
+            $presences > 0 ? sprintf(', avec %d présence(s) staff', $presences) : '',
+        ));
+
+        return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+    }
+
     // -------- helpers --------
 
     private function intOrNull(mixed $v): ?int
