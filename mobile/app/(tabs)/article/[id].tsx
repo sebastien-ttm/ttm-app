@@ -20,6 +20,7 @@ import { articles as articlesApi, comments as commentsApi } from '@/api/resource
 import type { Article, Comment } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { AttachmentLink } from '@/components/AttachmentLink';
+import { LinkedTrainingSlotCard } from '@/components/LinkedTrainingSlotCard';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ReactionBar } from '@/components/ReactionBar';
 import { RichContent } from '@/components/RichContent';
@@ -141,6 +142,17 @@ export default function ArticleScreen() {
                 </Text>
                 {article.events.map((e) => (
                   <EventRow key={e.id} event={e} inset={false} />
+                ))}
+              </View>
+            )}
+
+            {article.trainingSlots && article.trainingSlots.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {article.trainingSlots.length > 1 ? 'Entraînements' : 'Entraînement'}
+                </Text>
+                {article.trainingSlots.map((s, idx) => (
+                  <LinkedTrainingSlotCard key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
                 ))}
               </View>
             )}

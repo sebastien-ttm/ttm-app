@@ -16,6 +16,7 @@ use App\Repository\ReactionRepository;
 use App\Service\Article\ArticleAttachmentService;
 use App\Service\Audience\AudienceFilter;
 use App\Service\Serializer\ApiSerializer;
+use App\Service\Training\TrainingRegistrationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -45,6 +46,7 @@ class ArticleController extends AbstractController
         private readonly EventAttendanceRepository $attendances,
         private readonly ArticleReadRepository $reads,
         private readonly LoggerInterface $logger,
+        private readonly TrainingRegistrationService $trainingRegistrations,
     ) {
     }
 
@@ -98,6 +100,15 @@ class ArticleController extends AbstractController
         $this->ensureVisible($article, $viewer);
         $data = $this->serializer->article($article, $viewer);
         $data['events'] = $this->serializeEmbeddedEvents($article, $viewer);
+        // Créneaux d'entraînement occasionnels intégrés, au format de la liste de la semaine (avec leur inscription
+        // éventuelle : l'appli ouvre directement leur écran détail).
+        // Information annexe : une erreur (ex : migration pas encore appliquée) ne doit pas empêcher de lire l'article.
+        try {
+            $data['trainingSlots'] = $this->trainingRegistrations->decoratedSlots($article->getTrainingSlots(), $viewer);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Créneaux d\'entraînement de l\'article indisponibles', ['articleId' => $article->getId(), 'error' => $e->getMessage()]);
+            $data['trainingSlots'] = [];
+        }
 
         // Ouvrir l'article = le lire : la liste le présentera ensuite comme « lu ».
         $this->reads->markRead($viewer, $article);

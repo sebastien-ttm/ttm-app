@@ -11,6 +11,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { CommentThread } from '@/components/CommentThread';
 import { EventAttendees } from '@/components/EventAttendees';
 import { EventVoteBar } from '@/components/EventVoteBar';
+import { LinkedTrainingSlotCard } from '@/components/LinkedTrainingSlotCard';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
 import { RichContent } from '@/components/RichContent';
@@ -18,7 +19,6 @@ import { addEventToCalendar } from '@/lib/addToCalendar';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { fromIsoDate } from '@/utils/week';
 
 /**
  * Prépare la description pour RichContent :
@@ -195,41 +195,8 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        {/* Entraînements liés (un ou plusieurs créneaux occasionnels) : chacun ouvre son détail (même écran que
-            depuis l'onglet Entraînements). Anciennes réponses du serveur : un seul, dans `trainingSlot`. */}
-        {(event.trainingSlots ?? (event.trainingSlot ? [event.trainingSlot] : [])).map((slot, idx) => (
-          <Pressable
-            key={`${slot.id ?? 'v'}-${slot.templateId ?? 'o'}-${idx}`}
-            onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
-            style={({ pressed }) => [styles.slotCard, pressed && { opacity: 0.75 }]}
-            accessibilityLabel={`Ouvrir le créneau d'entraînement lié : ${slot.title || slot.sportLabel}`}
-          >
-            <Text style={styles.slotIcon}>{slot.sportIcon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.slotKicker}>Entraînement lié</Text>
-              <Text
-                style={[styles.slotTitle, slot.isCancelled && styles.slotCancelled]}
-                numberOfLines={1}
-              >
-                {slot.title || slot.sportLabel}
-              </Text>
-              <Text style={styles.slotMeta} numberOfLines={1}>
-                {fromIsoDate(slot.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                {' · '}{slot.startTime}
-                {slot.location ? ` · ${slot.location}` : ''}
-              </Text>
-              {slot.isCancelled && <Text style={styles.slotCancelledLabel}>Créneau annulé</Text>}
-              {/* Sur inscription : places prises et mon inscription (l'inscription se fait dans le détail du créneau). */}
-              {!slot.isCancelled && slot.registration && (
-                <Text style={styles.slotMeta} numberOfLines={1}>
-                  ✍️ Sur inscription · {slot.registration.count}{slot.registration.capacity !== null ? `/${slot.registration.capacity}` : ''}
-                  {slot.registration.mine ? ' · ✅ Vous êtes inscrit(e)' : slot.registration.full ? ' · Complet' : ''}
-                </Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-          </Pressable>
-        ))}
+        {/* Entraînement lié (un créneau occasionnel) : ouvre son détail (même écran que depuis l'onglet Entraînements). */}
+        {event.trainingSlot && <LinkedTrainingSlotCard slot={event.trainingSlot} />}
 
         {/* Vote de présence — même comportement que sur la home
             (« Je m'inscris » si externalRegistrationUrl est renseignée). */}
@@ -432,27 +399,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   carpoolBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  slotCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.md,
-  },
-  slotIcon: { fontSize: 26 },
-  slotKicker: {
-    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5,
-  },
-  slotTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginTop: 2 },
-  slotCancelled: { textDecorationLine: 'line-through', color: COLORS.textMuted },
-  slotMeta: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  slotCancelledLabel: { fontSize: 12, fontWeight: '700', color: '#991B1B', marginTop: 2 },
   backBtn: { alignItems: 'center', paddingVertical: 14, marginTop: SPACING.sm },
   backBtnLabel: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
 });

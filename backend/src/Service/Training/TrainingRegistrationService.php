@@ -2,7 +2,6 @@
 
 namespace App\Service\Training;
 
-use App\Entity\Event;
 use App\Entity\TrainingRegistrationUnlock;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotRegistration;
@@ -124,16 +123,19 @@ class TrainingRegistrationService
     }
 
     /**
-     * Créneaux d'entraînement (occasionnels) liés à un événement, au format de la liste de la semaine côté appli
-     * (avec `registration`), du plus proche au plus lointain. Un créneau que le viewer ne voit pas (audience) est omis.
+     * Créneaux d'entraînement occasionnels (liés à un événement ou à un article), au format de la liste de la semaine
+     * côté appli (avec `registration`), du plus proche au plus lointain. Un créneau que le viewer ne voit pas
+     * (audience) est omis.
+     *
+     * @param iterable<TrainingSlot> $slots
      *
      * @return list<array<string, mixed>>
      */
-    public function linkedSlotsForEvent(Event $event, User $viewer): array
+    public function decoratedSlots(iterable $slots, User $viewer): array
     {
-        // Une semaine à la fois : plusieurs créneaux liés tombent souvent la même semaine.
+        // Une semaine à la fois : plusieurs créneaux tombent souvent la même semaine.
         $byMonday = [];
-        foreach ($event->getTrainingSlots() as $slot) {
+        foreach ($slots as $slot) {
             $monday = WeeklyScheduleService::snapToMonday($slot->getWeekStartsAt());
             $byMonday[$monday->format('Y-m-d')]['monday'] = $monday;
             $byMonday[$monday->format('Y-m-d')]['ids'][] = $slot->getId();

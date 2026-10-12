@@ -97,22 +97,17 @@ class Event implements OwnedContentInterface
     private ?string $externalRegistrationUrl = null;
 
     /**
-     * Entraînements liés (optionnel) : créneaux OCCASIONNELS (hors semaine type), un ou plusieurs — l'appli les
-     * affiche sur la page de l'événement, chacun cliquable vers son détail (et son inscription éventuelle).
-     * Un créneau de la semaine type ne se lie pas à un événement.
-     *
-     * @var Collection<int, TrainingSlot>
+     * Entraînement lié (optionnel) : UN créneau OCCASIONNEL (hors semaine type) — l'appli l'affiche sur la page de
+     * l'événement, cliquable vers son détail (et son inscription éventuelle). Un créneau de la semaine type ne se lie
+     * pas à un événement.
      */
-    #[ORM\ManyToMany(targetEntity: TrainingSlot::class)]
-    #[ORM\JoinTable(name: 'event_training_slot')]
-    #[ORM\JoinColumn(name: 'event_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    #[ORM\InverseJoinColumn(name: 'training_slot_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-    private Collection $trainingSlots;
+    #[ORM\ManyToOne(targetEntity: TrainingSlot::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?TrainingSlot $trainingSlot = null;
 
     public function __construct()
     {
         $this->tags = new ArrayCollection();
-        $this->trainingSlots = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -167,34 +162,16 @@ class Event implements OwnedContentInterface
     public function getCreatedBy(): ?User { return $this->createdBy; }
     public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
 
-    /** @return Collection<int, TrainingSlot> */
-    public function getTrainingSlots(): Collection { return $this->trainingSlots; }
+    public function getTrainingSlot(): ?TrainingSlot { return $this->trainingSlot; }
+    public function setTrainingSlot(?TrainingSlot $s): self { $this->trainingSlot = $s; return $this; }
 
-    public function addTrainingSlot(TrainingSlot $slot): self
-    {
-        if (!$this->trainingSlots->contains($slot)) {
-            $this->trainingSlots->add($slot);
-        }
-        return $this;
-    }
-
-    public function removeTrainingSlot(TrainingSlot $slot): self
-    {
-        $this->trainingSlots->removeElement($slot);
-        return $this;
-    }
-
-    /** Seuls les créneaux occasionnels se lient à un événement. */
+    /** Seul un créneau occasionnel se lie à un événement. */
     #[Assert\Callback]
     public function validateTrainingLink(ExecutionContextInterface $context): void
     {
-        foreach ($this->trainingSlots as $slot) {
-            if ($slot->getTemplate() !== null) {
-                $context->buildViolation('Seuls les créneaux occasionnels peuvent être liés à un événement.')
-                    ->atPath('trainingSlots')->addViolation();
-
-                return;
-            }
+        if ($this->trainingSlot !== null && $this->trainingSlot->getTemplate() !== null) {
+            $context->buildViolation('Seul un créneau occasionnel peut être lié à un événement.')
+                ->atPath('trainingSlot')->addViolation();
         }
     }
 

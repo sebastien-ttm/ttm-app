@@ -10,6 +10,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ArticleRepository::class)]
 #[ORM\Table(name: 'article')]
@@ -111,6 +112,19 @@ class Article implements OwnedContentInterface
     private Collection $events;
 
     /**
+     * Créneaux d'entraînement OCCASIONNELS intégrés à l'article (hors semaine type), un ou plusieurs : l'appli les
+     * affiche en fin d'article, chacun cliquable vers son détail (et son inscription éventuelle). La suppression d'un
+     * créneau retire juste le lien.
+     *
+     * @var Collection<int, TrainingSlot>
+     */
+    #[ORM\ManyToMany(targetEntity: TrainingSlot::class)]
+    #[ORM\JoinTable(name: 'article_training_slot')]
+    #[ORM\JoinColumn(name: 'article_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'training_slot_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $trainingSlots;
+
+    /**
      * Uploads transitoires depuis le formulaire admin. Non persisté.
      * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
      */
@@ -125,6 +139,7 @@ class Article implements OwnedContentInterface
         $this->reactions = new ArrayCollection();
         $this->attachments = new ArrayCollection();
         $this->events = new ArrayCollection();
+        $this->trainingSlots = new ArrayCollection();
     }
 
     /** @return Collection<int, ArticleAttachment> */
@@ -145,6 +160,37 @@ class Article implements OwnedContentInterface
     {
         $this->events->removeElement($event);
         return $this;
+    }
+
+    /** @return Collection<int, TrainingSlot> */
+    public function getTrainingSlots(): Collection { return $this->trainingSlots; }
+
+    public function addTrainingSlot(TrainingSlot $slot): self
+    {
+        if (!$this->trainingSlots->contains($slot)) {
+            $this->trainingSlots->add($slot);
+        }
+        return $this;
+    }
+
+    public function removeTrainingSlot(TrainingSlot $slot): self
+    {
+        $this->trainingSlots->removeElement($slot);
+        return $this;
+    }
+
+    /** Seuls les créneaux occasionnels s'intègrent à un article. */
+    #[Assert\Callback]
+    public function validateTrainingSlots(ExecutionContextInterface $context): void
+    {
+        foreach ($this->trainingSlots as $slot) {
+            if ($slot->getTemplate() !== null) {
+                $context->buildViolation('Seuls les créneaux occasionnels peuvent être intégrés à un article.')
+                    ->atPath('trainingSlots')->addViolation();
+
+                return;
+            }
+        }
     }
 
     /** @return array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null */

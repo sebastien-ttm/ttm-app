@@ -46,6 +46,11 @@ export type Article = {
    * audience). Présent uniquement sur GET /api/articles/{id}.
    */
   events?: EventItem[];
+  /**
+   * Créneaux d'entraînement occasionnels intégrés à l'article, au format de la liste de la semaine (avec leur
+   * inscription éventuelle). Présent uniquement sur GET /api/articles/{id}.
+   */
+  trainingSlots?: TrainingSlot[];
 };
 
 export type Paginated<T> = {
@@ -188,11 +193,9 @@ export type EventItem = {
    */
   externalRegistrationUrl: string | null;
   /**
-   * Entraînements occasionnels liés (détail GET /api/events/{id} uniquement), au format de la liste de la semaine,
-   * du plus proche au plus lointain. Absent des listes et des anciennes réponses.
+   * Entraînement lié, un créneau occasionnel (détail GET /api/events/{id} uniquement), au format de la liste de la
+   * semaine. Absent des listes, null si aucun lien.
    */
-  trainingSlots?: TrainingSlot[];
-  /** Anciennes réponses : le premier entraînement lié (voir `trainingSlots`). */
   trainingSlot?: TrainingSlot | null;
 };
 

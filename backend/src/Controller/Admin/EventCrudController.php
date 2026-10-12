@@ -107,9 +107,9 @@ class EventCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setHelp('Optionnel. Pour un événement multi-jours, mettez la date de fin.');
         yield TextField::new('location', 'Lieu')->setRequired(false);
-        // Entraînements liés : l'appli affiche chaque créneau sur la page de l'événement (cliquable vers son détail).
-        // Uniquement des créneaux occasionnels (hors semaine type), un ou plusieurs.
-        yield AssociationField::new('trainingSlots', 'Entraînements liés (occasionnels)')
+        // Entraînement lié : l'appli affiche le créneau sur la page de l'événement (cliquable vers son détail).
+        // Uniquement un créneau occasionnel (hors semaine type), un seul.
+        yield AssociationField::new('trainingSlot', 'Entraînement lié (créneau occasionnel)')
             ->setRequired(false)
             ->hideOnIndex()
             ->setFormTypeOption('query_builder', fn (EntityRepository $r) => $r->createQueryBuilder('s')
@@ -126,7 +126,7 @@ class EventCrudController extends AbstractCrudController
                 $s->getTitle() !== '' ? $s->getTitle() : '?',
                 $s->getSport()->label(),
             ))
-            ->setHelp('Optionnel. Un ou plusieurs créneaux occasionnels (vacances, stage…), créés depuis « Créneaux de la semaine ». Les créneaux de la semaine type ne se lient pas à un événement.');
+            ->setHelp('Optionnel. Un créneau occasionnel (vacances, stage…), créé depuis « Créneaux de la semaine ». Les créneaux de la semaine type ne se lient pas à un événement.');
         // Rich text (TinyMCE) : permet d'insérer des liens hypertexte
         // (bouton `link` de la toolbar) et des boutons stylés (menu
         // « Bouton » — variantes primary/secondary/outline). Rendu côté

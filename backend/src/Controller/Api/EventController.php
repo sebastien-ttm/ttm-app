@@ -66,11 +66,12 @@ class EventController extends AbstractController
             ? $this->attendances->findOneByUserAndEvent($viewer, $event)?->getStatus()->value
             : null;
         $data = $this->serializer->event($event, $myVote, $counts);
-        // Détail uniquement : créneaux d'entraînement occasionnels liés, au format de la liste de la semaine (avec leur
-        // inscription éventuelle : l'appli ouvre directement leur écran détail).
-        $data['trainingSlots'] = $this->trainingRegistrations->linkedSlotsForEvent($event, $viewer);
-        // Anciennes versions de l'appli : le premier créneau lié, comme avant.
-        $data['trainingSlot'] = $data['trainingSlots'][0] ?? null;
+        // Détail uniquement : créneau d'entraînement occasionnel lié, au format de la liste de la semaine (avec son
+        // inscription éventuelle : l'appli ouvre directement son écran détail).
+        $linked = $event->getTrainingSlot();
+        $data['trainingSlot'] = $linked !== null
+            ? ($this->trainingRegistrations->decoratedSlots([$linked], $viewer)[0] ?? null)
+            : null;
         return new JsonResponse($data);
     }
 

@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Entity\TrainingSlot;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
@@ -136,6 +137,29 @@ class ArticleCrudController extends AbstractCrudController
             ])
             ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsAt', 'DESC'))
             ->setHelp('Sélectionnez un ou plusieurs événements déjà créés dans le calendrier. Ils s\'afficheront dans l\'article comme dans la section « Prochainement ».')
+            ->onlyOnForms();
+        // Créneaux d'entraînement OCCASIONNELS (hors semaine type) intégrés en fin d'article : l'appli les affiche avec
+        // leurs places et leur inscription éventuelle, chacun cliquable vers son détail.
+        yield AssociationField::new('trainingSlots', '🏊 Entraînements occasionnels intégrés')
+            ->setRequired(false)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'choice_label' => fn (TrainingSlot $s) => sprintf(
+                    '%s %s — %s (%s)',
+                    $s->getWeekStartsAt()->modify('+'.($s->getDayOfWeek() - 1).' days')->format('d/m/Y'),
+                    $s->getStartTime()->format('H:i'),
+                    $s->getTitle() !== '' ? $s->getTitle() : '?',
+                    $s->getSport()->label(),
+                ),
+            ])
+            ->setQueryBuilder(fn ($qb) => $qb
+                ->andWhere('entity.template IS NULL')
+                ->andWhere('entity.weekStartsAt >= :from')
+                ->setParameter('from', (new \DateTimeImmutable('monday this week'))->modify('-8 weeks')->format('Y-m-d'))
+                ->orderBy('entity.weekStartsAt', 'DESC')
+                ->addOrderBy('entity.dayOfWeek', 'ASC')
+                ->addOrderBy('entity.startTime', 'ASC'))
+            ->setHelp('Optionnel. Un ou plusieurs créneaux occasionnels (vacances, stage…), créés depuis « Créneaux de la semaine ». Ils s\'afficheront dans l\'article, avec l\'inscription s\'ils sont sur inscription. Les créneaux de la semaine type ne s\'intègrent pas à un article.')
             ->onlyOnForms();
         yield DateTimeField::new('createdAt', 'Créé le')->onlyOnIndex();
 
