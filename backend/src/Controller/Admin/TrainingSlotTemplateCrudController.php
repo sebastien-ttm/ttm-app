@@ -40,6 +40,7 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
     ];
 
     /** Valeurs spéciales pour le filtre saison. */
+    private const SEASON_ACTIVE = 'active'; // vue par défaut : tout ce qui est encore en vigueur (cf. createIndexQueryBuilder)
     private const SEASON_ALL = 'all';       // toutes les saisons + sans saison
     private const SEASON_NONE = 'none';     // uniquement sans saison rattachée
 
@@ -69,6 +70,9 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         $help = match ($this->currentSeasonFilter()) {
+            self::SEASON_ACTIVE => '✅ <strong>En cours</strong> — les créneaux de la saison courante ⭐ et tous ceux encore appliqués aux semaines à venir, '
+                .'y compris ceux sans saison ou d\'une autre saison. Les créneaux dont la fin de validité est dépassée sont masqués : '
+                .'retrouvez-les par saison ou avec « Toutes ».',
             self::SEASON_ALL => '📋 <strong>Toutes les saisons</strong> — historique complet, y compris les templates non rattachés.',
             self::SEASON_NONE => '❔ <strong>Sans saison</strong> — templates legacy à rattacher manuellement à une saison via le champ « Saison ».',
             default => '✅ Filtrage par saison. La saison qui contient aujourd\'hui est marquée ⭐ (fond bleu clair quand non sélectionnée).',
@@ -91,6 +95,13 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         // évidence même quand elle n'est pas sélectionnée.
         $today = $this->seasons->findCurrent();
         $todayId = $today?->getId();
+
+        // « En cours » : vue par défaut, ce qui est réellement projeté sur les semaines
+        $btnActive = Action::new('seasonActive', '✅ En cours')
+            ->linkToUrl($this->seasonUrl(self::SEASON_ACTIVE))
+            ->setCssClass('btn '.($current === self::SEASON_ACTIVE ? 'btn-primary' : 'btn-secondary'))
+            ->createAsGlobalAction();
+        $result->add(Crud::PAGE_INDEX, $btnActive);
 
         // Un bouton par saison (triées récentes d'abord)
         $seasons = $this->seasons->createQueryBuilder('s')
@@ -162,12 +173,39 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         if ($filter === self::SEASON_ALL) {
             return $qb;
         }
+        if ($filter === self::SEASON_ACTIVE) {
+            // La projection des semaines (WeeklyScheduleService) ignore la saison du créneau : elle applique tout
+            // créneau actif dont la fin de validité n'est pas dépassée. La vue par défaut doit donc montrer
+            // ces créneaux-là (même sans saison ou d'une autre saison), sinon un créneau projeté chaque semaine
+            // reste introuvable dans la semaine type — plus ceux de la saison courante (même terminés ou inactifs).
+            $orX = $qb->expr()->orX('entity.endsAt IS NULL', 'entity.endsAt >= :today');
+            $qb->setParameter('today', (new \DateTimeImmutable('today'))->format('Y-m-d'));
+            $current = $this->seasons->findCurrent();
+            if ($current !== null) {
+                $orX->add('entity.season = :currentSeason');
+                $qb->setParameter('currentSeason', $current->getId());
+            }
+
+            return $qb->andWhere($orX);
+        }
         if ($filter === self::SEASON_NONE) {
             return $qb->andWhere('entity.season IS NULL');
         }
         // Saison spécifique par id
         return $qb->andWhere('entity.season = :seasonId')
             ->setParameter('seasonId', (int) $filter);
+    }
+
+    /**
+     * Nouveau créneau : rattaché par défaut à la saison courante (modifiable dans le formulaire). Sans cela, le
+     * champ « Saison » restait vide et le créneau, sans saison, échappait aux vues filtrées par saison.
+     */
+    public function createEntity(string $entityFqcn): TrainingSlotTemplate
+    {
+        $template = new TrainingSlotTemplate();
+        $template->setSeason($this->seasons->findCurrent());
+
+        return $template;
     }
 
     public function configureFields(string $pageName): iterable
@@ -233,23 +271,20 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
     /**
      * Renvoie le filtre saison courant, sous forme de string :
      *   - "all" | "none" | id numérique en chaîne
-     * Défaut : la saison courante (findCurrent) si elle existe, sinon "all".
+     * Défaut : "active" (« En cours » : saison courante + créneaux encore appliqués aux semaines à venir).
      */
     private function currentSeasonFilter(): string
     {
         $req = $this->requestStack->getCurrentRequest();
         $raw = $req?->query->get('seasonFilter');
-        if ($raw === self::SEASON_ALL || $raw === self::SEASON_NONE) {
+        if ($raw === self::SEASON_ACTIVE || $raw === self::SEASON_ALL || $raw === self::SEASON_NONE) {
             return $raw;
         }
         if (is_string($raw) && ctype_digit($raw)) {
             return $raw;
         }
-        // Défaut : saison courante
-        $current = $this->seasons->findCurrent();
-        return $current !== null && $current->getId() !== null
-            ? (string) $current->getId()
-            : self::SEASON_ALL;
+
+        return self::SEASON_ACTIVE;
     }
 
     private function seasonUrl(string $filter): string
