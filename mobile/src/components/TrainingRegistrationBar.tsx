@@ -31,7 +31,11 @@ export function TrainingRegistrationBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lg = size === 'lg';
-  const { mine, closed, full, other, count, capacity } = registration;
+  const { mine, closed, full, count, capacity } = registration;
+  // Anciennes réponses du serveur : pas de limit / others / blocked (une seule inscription, `other` renseigné si bloqué).
+  const limit = registration.limit ?? 1;
+  const others = registration.others ?? (registration.other ? [registration.other] : []);
+  const blocked = registration.blocked ?? (registration.other != null);
   const places = capacity === null ? `${count} inscrit${count > 1 ? 's' : ''}` : `${count}/${capacity} places`;
 
   async function toggle() {
@@ -75,8 +79,7 @@ export function TrainingRegistrationBar({
   } else if (full) {
     action = <Text style={[styles.fullText, lg && styles.textLg]}>Complet</Text>;
   } else {
-    // Déjà inscrit ailleurs : le bouton est visible mais inactif, avec l'avertissement ci-dessous.
-    const blocked = other !== null;
+    // Limite d'inscriptions de la semaine atteinte : le bouton est visible mais inactif, avec l'avertissement ci-dessous.
     action = (
       <Pressable
         onPress={toggle}
@@ -98,11 +101,20 @@ export function TrainingRegistrationBar({
         </Text>
         {action}
       </View>
-      {!mine && !closed && other !== null && (
+      {!mine && !closed && blocked && others.length > 0 && (
         <View style={styles.warning}>
           <Text style={styles.warningText}>
-            ⚠️ Une seule inscription par semaine : vous êtes déjà inscrit(e) à « {other.title} » ({describe(other)}).
-            Désinscrivez-vous de ce créneau pour vous inscrire ici.
+            {limit <= 1
+              ? `⚠️ Une seule inscription par semaine : vous êtes déjà inscrit(e) à ${listOthers(others)}. Désinscrivez-vous de ce créneau pour vous inscrire ici.`
+              : `⚠️ ${limit} inscriptions maximum par semaine : vous êtes déjà inscrit(e) à ${listOthers(others)}. Désinscrivez-vous de l'un d'eux pour vous inscrire ici.`}
+          </Text>
+        </View>
+      )}
+      {/* Semaine débloquée par un entraîneur : une 2e inscription est possible. */}
+      {!mine && !closed && !full && !blocked && limit > 1 && others.length > 0 && (
+        <View style={styles.info}>
+          <Text style={styles.infoText}>
+            🔓 Inscriptions débloquées cette semaine : vous pouvez vous inscrire à un 2e entraînement (déjà inscrit(e) à {listOthers(others)}).
           </Text>
         </View>
       )}
@@ -112,9 +124,14 @@ export function TrainingRegistrationBar({
 }
 
 /** « lundi 14 octobre à 18:30 » */
-function describe(other: NonNullable<TrainingRegistration['other']>): string {
+function describe(other: { date: string; startTime: string | null }): string {
   const day = fromIsoDate(other.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   return other.startTime ? `${day} à ${other.startTime}` : day;
+}
+
+/** « « Natation » (lundi 14 octobre à 18:30) » ; plusieurs : reliés par « et ». */
+function listOthers(others: { title: string; date: string; startTime: string | null }[]): string {
+  return others.map((o) => `« ${o.title} » (${describe(o)})`).join(' et ');
 }
 
 const styles = StyleSheet.create({
@@ -149,5 +166,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   warningText: { fontSize: 12, color: '#92400E', lineHeight: 17 },
+  info: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+  },
+  infoText: { fontSize: 12, color: '#047857', lineHeight: 17 },
   errorText: { fontSize: 12, color: COLORS.error },
 });

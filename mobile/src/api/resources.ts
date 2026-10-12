@@ -39,6 +39,7 @@ import type {
   EventAttendees,
   PerfTestsLive,
   StaffCheckInEvent,
+  StaffCheckInTraining,
   StaffDirectorySeason,
   StaffMember,
   StaffPerfTestSession,
@@ -120,6 +121,14 @@ export const staffCheckIn = {
     api.get<LiveState<CheckInLive>>(`/api/staff/check-in/events/${eventId}/state${version ? `?v=${version}` : ''}`),
   setChecked: (eventId: number, userId: number, checked: boolean) =>
     api.put<CheckInState>(`/api/staff/check-in/events/${eventId}/members/${userId}`, { checked }),
+
+  // ---- Entraînements sur inscription : mêmes formes que pour les événements (`occ` désigne l'occurrence du créneau) ----
+  trainings: () => api.get<{ data: StaffCheckInTraining[] }>('/api/staff/check-in/trainings'),
+  trainingSheet: (occ: string) => api.get<CheckInSheet>(`/api/staff/check-in/trainings/${occ}`),
+  trainingState: (occ: string, version: string | null) =>
+    api.get<LiveState<CheckInLive>>(`/api/staff/check-in/trainings/${occ}/state${version ? `?v=${version}` : ''}`),
+  setTrainingChecked: (occ: string, userId: number, checked: boolean) =>
+    api.put<CheckInState>(`/api/staff/check-in/trainings/${occ}/members/${userId}`, { checked }),
 };
 
 /** Émargement de la remise des bonnets du club — entraîneurs uniquement. */

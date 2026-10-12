@@ -50,6 +50,32 @@
         </div>
     </div>
 
+    {% if hasRegistration %}
+        {# Déblocage des inscriptions : une seule inscription par adhérent et par semaine, ou deux. #}
+        <div style="background:{{ registrationUnlocked ? '#ECFDF5' : '#EFF6FF' }}; padding:14px 18px; border-radius:8px; margin-bottom:18px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+            <div style="flex:1; min-width:260px;">
+                <strong>✍️ Inscriptions aux entraînements :</strong>
+                {% if registrationUnlocked %}
+                    <span style="color:#047857; font-weight:600;">🔓 débloquées, 2 inscriptions par adhérent cette semaine</span>
+                    <div style="font-size:12px; color:#555; margin-top:2px;">Chacun peut s'inscrire à un 2e entraînement tant qu'il reste des places.</div>
+                {% else %}
+                    <span style="color:#1e40af; font-weight:600;">🔒 une seule inscription par adhérent cette semaine</span>
+                    <div style="font-size:12px; color:#555; margin-top:2px;">Débloquez-les si des créneaux ne sont pas pleins : chacun pourra s'inscrire à un 2e entraînement.</div>
+                {% endif %}
+            </div>
+            <form method="post" action="{{ path('admin_training_registrations_unlock') }}" style="margin:0;">
+                <input type="hidden" name="_token" value="{{ csrf_token('schedule_op') }}" />
+                <input type="hidden" name="week" value="{{ week|date('Y-m-d') }}" />
+                <input type="hidden" name="unlocked" value="{{ registrationUnlocked ? '0' : '1' }}" />
+                {% if registrationUnlocked %}
+                    <button class="btn btn-secondary"><i class="fa fa-lock"></i> Rétablir une seule inscription</button>
+                {% else %}
+                    <button class="btn btn-success"><i class="fa fa-lock-open"></i> Débloquer la 2e inscription</button>
+                {% endif %}
+            </form>
+        </div>
+    {% endif %}
+
     {% if rows|length == 0 %}
         <div style="background:#FFF8E1; color:#8D6E00; padding:14px; border-radius:6px;">
             Aucun créneau pour cette semaine. Définissez d'abord une <strong>semaine type</strong>
@@ -92,6 +118,7 @@
                                 {% if r.registrationRequired %}
                                     <div style="font-size:12px; margin-top:4px; color:#1e40af;">
                                         ✍️ Sur inscription · {{ r.registrantsCount }}{{ r.capacity ? '/' ~ r.capacity : '' }} inscrit{{ r.registrantsCount > 1 ? 's' : '' }}{% if r.registrants|length > 0 %} : {{ r.registrants|join(', ') }}{% endif %}
+                                        · <a href="{{ path('admin_training_registrations', {week: week|date('Y-m-d')}|merge(r.templateId ? {templateId: r.templateId} : {slotId: r.id})) }}">Gérer les inscrits</a>
                                     </div>
                                 {% endif %}
                             </div>

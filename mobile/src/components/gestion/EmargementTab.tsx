@@ -5,7 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 
 import { ApiError } from '@/api/client';
 import { staffCheckIn, staffPerfTests } from '@/api/resources';
-import type { StaffCheckInEvent, StaffPerfTestSession } from '@/api/types';
+import type { StaffCheckInEvent, StaffCheckInTraining, StaffPerfTestSession } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -56,6 +56,7 @@ export function EmargementTab() {
   const showCheckIn = canCheckIn(user);
   const showManage = canManageCapsAndTimes(user);
   const [events, setEvents] = useState<StaffCheckInEvent[]>([]);
+  const [trainings, setTrainings] = useState<StaffCheckInTraining[]>([]);
   const [sessions, setSessions] = useState<StaffPerfTestSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,14 +64,19 @@ export function EmargementTab() {
 
   const load = useCallback(async () => {
     setError(null);
-    // Deux sources indépendantes : l'échec de l'une ne vide pas l'autre.
-    const [ev, ses] = await Promise.allSettled([
+    // Sources indépendantes : l'échec de l'une ne vide pas les autres.
+    const [ev, tr, ses] = await Promise.allSettled([
       showCheckIn ? staffCheckIn.events() : Promise.resolve({ data: [] as StaffCheckInEvent[] }),
+      showCheckIn ? staffCheckIn.trainings() : Promise.resolve({ data: [] as StaffCheckInTraining[] }),
       showManage ? staffPerfTests.list() : Promise.resolve({ data: [] as StaffPerfTestSession[] }),
     ]);
     if (ev.status === 'fulfilled') setEvents(ev.value.data);
+    if (tr.status === 'fulfilled') setTrainings(tr.value.data);
     if (ses.status === 'fulfilled') setSessions(ses.value.data);
-    const failure = ev.status === 'rejected' ? ev.reason : ses.status === 'rejected' ? ses.reason : null;
+    const failure = ev.status === 'rejected' ? ev.reason
+      : tr.status === 'rejected' ? tr.reason
+      : ses.status === 'rejected' ? ses.reason
+      : null;
     if (failure) setError(failure instanceof ApiError ? failure.message : 'Erreur de chargement');
     setLoading(false);
   }, [showCheckIn, showManage]);
@@ -85,7 +91,7 @@ export function EmargementTab() {
   }, [load]);
 
   if (loading) return <FullScreenLoading />;
-  if (error && events.length === 0 && sessions.length === 0) return <ErrorState message={error} onRetry={load} />;
+  if (error && events.length === 0 && trainings.length === 0 && sessions.length === 0) return <ErrorState message={error} onRetry={load} />;
 
   return (
     <ScrollView
@@ -146,7 +152,38 @@ export function EmargementTab() {
 
       {showCheckIn && (
         <>
-          <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
+          <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>🏊 Présence aux entraînements</Text>
+          <Text style={styles.hint}>
+            Entraînements sur inscription : à venir (à partir de 5 jours avant), puis terminés depuis moins de 5 jours. Émargez les adhérents présents sur place, même sans inscription.
+          </Text>
+          {trainings.length === 0 ? (
+            <EmptyState icon="🏊" title="Aucun entraînement à émarger" message="Les entraînements sur inscription, à venir dans les 5 jours ou terminés depuis moins de 5 jours, apparaîtront ici." />
+          ) : (
+            trainings.map((t) => (
+              <Pressable
+                key={t.occ}
+                onPress={() => router.push({ pathname: '/staff-check-in/[id]', params: { id: t.occ, kind: 'training' } } as never)}
+                style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title} numberOfLines={2}>{t.sportIcon} {t.title}</Text>
+                  <Text style={styles.sub}>
+                    {formatEventPeriod(t)}{t.location ? ` · ${t.location}` : ''}
+                  </Text>
+                  <Text style={styles.votes}>
+                    Inscrits : {t.registered}{t.capacity !== null ? `/${t.capacity}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.checkedBox}>
+                  <Text style={styles.checkedNumber}>{t.checkedCount}</Text>
+                  <Text style={styles.checkedLabel}>émargé{t.checkedCount > 1 ? 's' : ''}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            ))
+          )}
+
+          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
           <Text style={styles.hint}>
             Événements soumis au vote de présence : à venir (à partir de 5 jours avant), puis terminés depuis moins de 5 jours. Émargez les adhérents présents sur place, même sans vote.
           </Text>

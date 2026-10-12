@@ -20,10 +20,15 @@ class TrainingSlotRegistrationRepository extends ServiceEntityRepository
         parent::__construct($registry, TrainingSlotRegistration::class);
     }
 
-    /** L'inscription (unique) de l'adhérent sur la semaine, quel que soit le créneau. */
-    public function findOneByUserAndWeek(User $user, \DateTimeImmutable $monday): ?TrainingSlotRegistration
+    /**
+     * Les inscriptions de l'adhérent sur la semaine, tous créneaux confondus (une, ou deux si la semaine est
+     * débloquée), dans l'ordre de leur rang.
+     *
+     * @return list<TrainingSlotRegistration>
+     */
+    public function findByUserAndWeek(User $user, \DateTimeImmutable $monday): array
     {
-        return $this->findOneBy(['user' => $user, 'weekStartsAt' => $this->monday($monday)]);
+        return $this->findBy(['user' => $user, 'weekStartsAt' => $this->monday($monday)], ['position' => 'ASC']);
     }
 
     /**

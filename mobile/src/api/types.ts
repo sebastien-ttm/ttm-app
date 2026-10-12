@@ -342,8 +342,14 @@ export type TrainingRegistration = {
   mine: boolean;
   /** Inscriptions closes : créneau annulé ou déjà commencé. */
   closed: boolean;
-  /** Mon inscription de la semaine sur un AUTRE créneau (une seule par semaine), sinon null. */
-  other: { title: string; date: string; startTime: string | null } | null;
+  /** Inscriptions autorisées par adhérent cette semaine : 1, ou 2 si un entraîneur a débloqué la semaine. Absent des anciennes réponses (= 1). */
+  limit?: number;
+  /** Mes inscriptions de la semaine sur d'AUTRES créneaux. Absent des anciennes réponses (voir `other`). */
+  others?: { title: string; date: string; startTime: string | null }[];
+  /** True = la limite d'inscriptions de la semaine m'empêche de m'inscrire ici. Absent des anciennes réponses (= `other` renseigné). */
+  blocked?: boolean;
+  /** Anciennes réponses : mon inscription sur un autre créneau quand elle m'empêche de m'inscrire ici. */
+  other?: { title: string; date: string; startTime: string | null } | null;
 };
 
 export type TrainingParticipant = {
@@ -443,6 +449,28 @@ export type StaffCheckInEvent = {
   isAllDay: boolean;
   location: string | null;
   votes: { yes: number; maybe: number; no: number };
+  checkedCount: number;
+};
+
+/**
+ * Entraînement sur inscription, à émarger. `occ` désigne l'occurrence du créneau (« t12.2026-10-12 » semaine type,
+ * « s5 » occasionnel) ; la feuille s'ouvre avec la même forme que celle d'un événement (CheckInSheet).
+ */
+export type StaffCheckInTraining = {
+  id: number;
+  occ: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  /** Jour de l'entraînement (AAAA-MM-JJ). */
+  lastDay: string;
+  isAllDay: boolean;
+  location: string | null;
+  sportIcon: string;
+  /** Nombre de places ; null = illimité. */
+  capacity: number | null;
+  /** Inscrits. */
+  registered: number;
   checkedCount: number;
 };
 

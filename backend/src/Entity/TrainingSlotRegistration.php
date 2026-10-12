@@ -13,12 +13,16 @@ use Doctrine\ORM\Mapping as ORM;
  *  - créneau occasionnel → `slot`.
  * Exactement l'un des deux est renseigné.
  *
- * L'unicité (user, weekStartsAt) garantit en base la règle « une seule inscription par semaine et par adhérent »,
- * tous créneaux sur inscription confondus, même en cas de requêtes simultanées.
+ * Règle « une seule inscription par semaine et par adhérent, tous créneaux sur inscription confondus » (deux quand un
+ * entraîneur a débloqué la semaine : TrainingRegistrationUnlock) : chaque inscription d'une semaine prend un rang
+ * (`position` 1 ou 2), et l'unicité (user, semaine, rang) l'impose en base même en cas de requêtes simultanées. Un
+ * adhérent ne peut pas non plus s'inscrire deux fois au même créneau (unicités par créneau).
  */
 #[ORM\Entity(repositoryClass: TrainingSlotRegistrationRepository::class)]
 #[ORM\Table(name: 'training_slot_registration')]
-#[ORM\UniqueConstraint(name: 'uniq_training_registration_user_week', columns: ['user_id', 'week_starts_at'])]
+#[ORM\UniqueConstraint(name: 'uniq_training_registration_user_week_position', columns: ['user_id', 'week_starts_at', 'position'])]
+#[ORM\UniqueConstraint(name: 'uniq_training_registration_user_template_week', columns: ['user_id', 'template_id', 'week_starts_at'])]
+#[ORM\UniqueConstraint(name: 'uniq_training_registration_user_slot', columns: ['user_id', 'slot_id'])]
 #[ORM\Index(name: 'idx_training_registration_template_week', columns: ['template_id', 'week_starts_at'])]
 #[ORM\Index(name: 'idx_training_registration_slot', columns: ['slot_id'])]
 class TrainingSlotRegistration
@@ -44,10 +48,14 @@ class TrainingSlotRegistration
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $weekStartsAt;
 
+    /** Rang de l'inscription dans la semaine pour cet adhérent : 1, ou 2 (semaine débloquée). */
+    #[ORM\Column(type: 'smallint', options: ['default' => 1])]
+    private int $position;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(User $user, ?TrainingSlotTemplate $template, ?TrainingSlot $slot, \DateTimeImmutable $weekStartsAt)
+    public function __construct(User $user, ?TrainingSlotTemplate $template, ?TrainingSlot $slot, \DateTimeImmutable $weekStartsAt, int $position = 1)
     {
         if (($template === null) === ($slot === null)) {
             throw new \InvalidArgumentException('Une inscription porte sur un créneau de la semaine type OU sur un créneau occasionnel.');
@@ -56,6 +64,7 @@ class TrainingSlotRegistration
         $this->template = $template;
         $this->slot = $slot;
         $this->weekStartsAt = $weekStartsAt->modify('monday this week')->setTime(0, 0, 0);
+        $this->position = $position;
         $this->createdAt = new \DateTimeImmutable();
     }
 
@@ -64,5 +73,6 @@ class TrainingSlotRegistration
     public function getTemplate(): ?TrainingSlotTemplate { return $this->template; }
     public function getSlot(): ?TrainingSlot { return $this->slot; }
     public function getWeekStartsAt(): \DateTimeImmutable { return $this->weekStartsAt; }
+    public function getPosition(): int { return $this->position; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
 }

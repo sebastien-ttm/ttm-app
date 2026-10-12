@@ -10,6 +10,7 @@ use App\Repository\StaffPresenceRepository;
 use App\Repository\TrainingSlotAttachmentRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
+use App\Repository\UserRepository;
 use App\Service\Training\AttachmentService;
 use App\Service\Training\TrainingRegistrationService;
 use App\Service\Training\WeeklyScheduleService;
@@ -40,6 +41,7 @@ class WeeklyScheduleController extends AbstractController
         private readonly AttachmentService $attachmentService,
         private readonly StaffPresenceRepository $presences,
         private readonly TrainingRegistrationService $registrationService,
+        private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -68,8 +70,11 @@ class WeeklyScheduleController extends AbstractController
             $row['registrantsCount'] = count($names);
         }
         unset($row);
+        $hasRegistration = array_filter($rows, static fn (array $r) => $r['registrationRequired']) !== [];
 
         return $this->render('admin/training_schedule.html.twig', [
+            'hasRegistration' => $hasRegistration,
+            'registrationUnlocked' => $hasRegistration && $this->registrationService->isUnlocked($week),
             'week' => $week,
             'weekIso' => $week->format('o-\WW'),
             'weekHuman' => $this->humanWeekLabel($week),
@@ -421,6 +426,105 @@ class WeeklyScheduleController extends AbstractController
         ));
 
         return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+    }
+
+    /**
+     * Débloque (`unlocked` = 1) ou rétablit (0) la règle d'inscription de la semaine : débloquée, chaque adhérent peut
+     * s'inscrire à DEUX entraînements sur inscription (tant qu'il reste des places) au lieu d'un seul.
+     */
+    #[Route('/admin/training-schedule/registrations/unlock', name: 'admin_training_registrations_unlock', methods: ['POST'])]
+    public function unlockRegistrations(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'schedule_op');
+        $week = $this->parseWeek($request->request->get('week'));
+
+        if ($request->request->get('unlocked') === '1') {
+            /** @var User|null $by */
+            $by = $this->getUser();
+            $this->registrationService->unlock($week, $by);
+            $this->addFlash('success', 'Inscriptions débloquées pour cette semaine : chaque adhérent peut s\'inscrire à deux entraînements, tant qu\'il reste des places.');
+        } else {
+            $this->registrationService->relock($week);
+            $this->addFlash('success', 'Une seule inscription par adhérent cette semaine (règle rétablie). Les adhérents déjà inscrits à deux entraînements les gardent.');
+        }
+
+        return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+    }
+
+    /**
+     * Inscrits d'un créneau sur inscription pour une semaine : liste, désinscription et inscription à la main d'un
+     * adhérent (par un entraîneur). Le créneau se désigne par `week` + `templateId` (semaine type) ou `slotId`.
+     */
+    #[Route('/admin/training-schedule/registrations', name: 'admin_training_registrations', methods: ['GET'])]
+    public function registrations(Request $request): Response
+    {
+        $week = $this->parseWeek($request->query->get('week'));
+        $templateId = $this->intOrNull($request->query->get('templateId'));
+        $slotId = $this->intOrNull($request->query->get('slotId'));
+
+        $row = $this->registrationService->findRow($this->schedule->buildWeek($week), $templateId, $slotId);
+        if ($row === null || !$row['registrationRequired']) {
+            $this->addFlash('warning', 'Ce créneau n\'est pas (ou plus) sur inscription pour cette semaine.');
+
+            return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
+        }
+
+        $registrations = $this->registrationService->registrationsOf($row, $week);
+        $registeredIds = array_map(static fn ($r) => $r->getUser()->getId(), $registrations);
+        $candidates = array_values(array_filter(
+            $this->users->findActiveAdherentsForRecap(),
+            static fn (User $u) => !in_array($u->getId(), $registeredIds, true),
+        ));
+
+        return $this->render('admin/training_registrations.html.twig', [
+            'week' => $week,
+            'weekHuman' => $this->humanWeekLabel($week),
+            'row' => $row,
+            'templateId' => $templateId,
+            'slotId' => $slotId,
+            'registrations' => $registrations,
+            'candidates' => $candidates,
+            'limit' => $this->registrationService->limitFor($week),
+        ]);
+    }
+
+    /**
+     * Inscrit (`registered` = 1) ou désinscrit (0) un adhérent à la main. `force` = 1 : dépasse le nombre de places.
+     * La limite d'inscriptions par adhérent et par semaine s'applique toujours (voir le déblocage de la semaine).
+     */
+    #[Route('/admin/training-schedule/registrations/set', name: 'admin_training_registrations_set', methods: ['POST'])]
+    public function setRegistration(Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request, 'schedule_op');
+        $week = $this->parseWeek($request->request->get('week'));
+        $templateId = $this->intOrNull($request->request->get('templateId'));
+        $slotId = $this->intOrNull($request->request->get('slotId'));
+        $params = ['week' => $week->format('Y-m-d')] + ($templateId !== null ? ['templateId' => $templateId] : ['slotId' => $slotId]);
+
+        $user = $this->users->find((int) $request->request->get('userId'));
+        if ($user === null) {
+            $this->addFlash('danger', 'Adhérent introuvable.');
+
+            return $this->redirectToAdminRoute('admin_training_registrations', $params);
+        }
+
+        $registered = $request->request->get('registered') === '1';
+        $refusal = $this->registrationService->setRegistered(
+            $user,
+            $week,
+            $templateId,
+            $slotId,
+            $registered,
+            asCoach: true,
+            ignoreCapacity: $registered && $request->request->get('force') === '1',
+        );
+        if ($refusal !== null) {
+            $this->addFlash('danger', $refusal['message']);
+        } else {
+            $this->addFlash('success', sprintf('%s %s.', $user->getFullName(), $registered ? 'inscrit(e)' : 'désinscrit(e)'));
+        }
+
+        return $this->redirectToAdminRoute('admin_training_registrations', $params);
     }
 
     // -------- helpers --------

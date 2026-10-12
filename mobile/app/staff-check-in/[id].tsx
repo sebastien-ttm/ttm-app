@@ -33,6 +33,13 @@ const VOTE_TITLES: Record<CheckInVote, string> = {
   none: 'Sans vote',
 };
 const VOTE_ORDER: CheckInVote[] = ['yes', 'maybe', 'no', 'none'];
+/** Entraînement sur inscription : on est inscrit (« yes ») ou non (« none »), pas de vote « peut-être » / « absent ». */
+const TRAINING_TITLES: Record<CheckInVote, string> = {
+  yes: '✅ Inscrits',
+  maybe: '❓ Peut-être',
+  no: '❌ Absents',
+  none: 'Sans inscription',
+};
 
 /** Pour la recherche : sans accents ni casse. */
 function normalize(text: string): string {
@@ -53,11 +60,29 @@ const FILTERS: { key: CheckInFilter; label: string }[] = [
  * (et ceux déjà émargés, pour ne jamais les perdre de vue) ; « Tous » montre tous
  * les adhérents, y compris ceux qui n'ont pas voté, pour émarger quelqu'un venu
  * sans s'être inscrit.
+ *
+ * La même feuille sert aux entraînements sur inscription (`kind=training`, `id` = jeton de
+ * l'occurrence du créneau) : les « inscrits » y sont ceux inscrits à l'entraînement.
  */
 export default function StaffCheckInScreen() {
   const { user } = useAuth();
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const { id: rawId, kind } = useLocalSearchParams<{ id: string; kind?: string }>();
+  const isTraining = kind === 'training';
   const eventId = Number(rawId);
+  const voteTitles = isTraining ? TRAINING_TITLES : VOTE_TITLES;
+
+  // Appels de la feuille : événement (id numérique) ou entraînement sur inscription (jeton d'occurrence).
+  const sheetApi = useMemo(() => (isTraining
+    ? {
+        sheet: () => staffCheckIn.trainingSheet(rawId),
+        state: (version: string | null) => staffCheckIn.trainingState(rawId, version),
+        setChecked: (userId: number, checked: boolean) => staffCheckIn.setTrainingChecked(rawId, userId, checked),
+      }
+    : {
+        sheet: () => staffCheckIn.sheet(eventId),
+        state: (version: string | null) => staffCheckIn.state(eventId, version),
+        setChecked: (userId: number, checked: boolean) => staffCheckIn.setChecked(eventId, userId, checked),
+      }), [isTraining, rawId, eventId]);
 
   const [sheet, setSheet] = useState<CheckInSheet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,13 +105,13 @@ export default function StaffCheckInScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      setSheet(await staffCheckIn.sheet(eventId));
+      setSheet(await sheetApi.sheet());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [sheetApi]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -128,7 +153,7 @@ export default function StaffCheckInScreen() {
 
   const { online, resync } = useLiveSync<CheckInLive>({
     enabled: sheet !== null,
-    fetchState: (version) => staffCheckIn.state(eventId, version),
+    fetchState: (version) => sheetApi.state(version),
     onState: onLiveState,
   });
 
@@ -148,9 +173,9 @@ export default function StaffCheckInScreen() {
       return q === '' || normalize(`${r.nom} ${r.prenom}`).includes(q) || normalize(`${r.prenom} ${r.nom}`).includes(q);
     });
     return VOTE_ORDER
-      .map((vote) => ({ vote, title: VOTE_TITLES[vote], data: rows.filter((r) => r.vote === vote) }))
+      .map((vote) => ({ vote, title: voteTitles[vote], data: rows.filter((r) => r.vote === vote) }))
       .filter((s) => s.data.length > 0);
-  }, [sheet, query, filter, isRegistered]);
+  }, [sheet, query, filter, isRegistered, voteTitles]);
 
   if (!canCheckIn(user)) {
     return <Redirect href="/(tabs)" />;
@@ -165,7 +190,7 @@ export default function StaffCheckInScreen() {
     // Optimiste : l'appui se voit tout de suite ; retour arrière si le serveur refuse.
     patch(row.id, { checked: next, checkedAt: null, checkedBy: null });
     try {
-      const state = await staffCheckIn.setChecked(eventId, row.id, next);
+      const state = await sheetApi.setChecked(row.id, next);
       patch(row.id, state);
     } catch (e) {
       patch(row.id, { checked: row.checked, checkedAt: row.checkedAt, checkedBy: row.checkedBy });
