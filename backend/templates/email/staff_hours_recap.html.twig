@@ -29,16 +29,20 @@
                                     {{ section.label }}
                                 </td>
                                 <td style="background:{{ section.key == 'entraineur' ? '#0d2148' : '#dc2626' }}; color:#fff; padding:9px 12px; text-align:right; font-size:13px; white-space:nowrap;">
-                                    {{ section.total }} · {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}
+                                    {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}
                                 </td>
                             </tr>
                             {% for r in section.rows %}
                                 <tr>
                                     <td style="padding:8px 12px; border-bottom:1px solid #eee; vertical-align:top;">
                                         <strong>{{ r.user.fullName }}</strong>
-                                        {% if r.details|length > 0 %}
-                                            <div style="margin-top:2px; font-size:12px; color:#777; line-height:1.4;">{{ r.details|join(' · ') }}</div>
-                                        {% endif %}
+                                        {# Un créneau par ligne, puis les absences déclarées. #}
+                                        {% for d in r.details %}
+                                            <div style="margin-top:2px; font-size:12px; color:#777; line-height:1.4;">{{ d }}</div>
+                                        {% endfor %}
+                                        {% for a in r.absences %}
+                                            <div style="margin-top:2px; font-size:12px; color:#b45309; line-height:1.4;">{{ a }}</div>
+                                        {% endfor %}
                                     </td>
                                     <td style="padding:8px 12px; border-bottom:1px solid #eee; text-align:right; white-space:nowrap; vertical-align:top; {{ r.minutes == 0 ? 'color:#bbb;' : 'font-weight:bold;' }}">
                                         {{ r.duration }}
@@ -51,6 +55,7 @@
 
                 <p style="margin-top:24px; font-size:12px; color:#888;">
                     Calculé d'après les présences cochées sur les créneaux d'entraînement (créneaux annulés et tâches hors entraînement exclus).
+                    Les absences indiquées sont celles déclarées par chacun pour la semaine.
                     Les séances du dimanche, pas encore passées, sont comptées d'après les présences déjà cochées.
                 </p>
             </td>

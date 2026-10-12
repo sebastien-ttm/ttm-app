@@ -18,7 +18,8 @@ use Symfony\Component\Mailer\MailerInterface;
 
 /**
  * Envoie aux responsables RH (rôle backend « Responsable RH ») le récap des heures encadrées par entraîneur sur la
- * semaine en cours : même contenu que le récap de la page « Présence entraînements ». À planifier par une tâche
+ * semaine en cours : même contenu que le récap de la page « Présence entraînements », sans les encadrants (la page,
+ * elle, les affiche aussi). À planifier par une tâche
  * cron chaque samedi soir (voir docs/DEPLOYMENT-O2SWITCH.md). Les séances du dimanche, pas encore passées, sont
  * comptées d'après les présences déjà cochées.
  */
@@ -57,13 +58,17 @@ class StaffHoursRecapCommand extends Command
         }
         $monday = WeeklyScheduleService::snapToMonday($day);
         $weekLabel = $this->recap->weekLabel($monday);
-        $recap = $this->recap->forWeek($monday);
+        // L'e-mail ne concerne que les entraîneurs (pas les encadrants).
+        $recap = $this->recap->forWeek($monday, includeEncadrants: false);
 
         $output->writeln(sprintf('%s : %s au total.', $weekLabel, $recap['total']));
         foreach ($recap['sections'] as $section) {
             $output->writeln(sprintf('  %s : %s (%d séance(s))', $section['label'], $section['total'], $section['totalSessions']));
             foreach ($section['rows'] as $row) {
                 $output->writeln(sprintf('    - %s : %s (%d séance(s))', $row['user']->getFullName(), $row['duration'], $row['sessions']));
+                foreach ($row['absences'] as $absence) {
+                    $output->writeln('        '.$absence);
+                }
             }
         }
         if ($input->getOption('dry-run')) {

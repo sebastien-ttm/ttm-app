@@ -68,6 +68,7 @@
         .pt-recap-table td { padding:7px 14px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
         .pt-recap-table th.num, .pt-recap-table td.num { text-align:right; white-space:nowrap; }
         .pt-recap-table td small { display:block; margin-top:2px; color:#64748b; font-size:11px; line-height:1.4; }
+        .pt-recap-table td small.abs { color:#b45309; }
         .pt-recap-table td.zero strong { color:#cbd5e1; font-weight:400; }
     </style>
 
@@ -75,43 +76,6 @@
         <a href="{{ prevUrl }}" class="btn btn-secondary">← Semaine précédente</a>
         <a href="{{ todayUrl }}" class="btn btn-secondary">Aujourd'hui</a>
         <a href="{{ nextUrl }}" class="btn btn-secondary">Semaine suivante →</a>
-    </div>
-
-    <div class="pt-recap">
-        <h3>⏱️ Heures encadrées de la semaine : {{ recap.total }}</h3>
-        <p class="pt-help">
-            D'après les présences cochées sur les créneaux d'entraînement (créneaux annulés et tâches hors entraînement
-            exclus). Ce récap est envoyé chaque samedi soir aux responsables RH.
-        </p>
-        <div class="pt-recap-grid">
-            {% for section in recap.sections %}
-                {% if section.rows|length > 0 %}
-                    <div class="pt-recap-card">
-                        <div class="pt-recap-head {{ section.key }}">
-                            <span style="font-size:inherit; font-weight:700;">{{ section.label }}</span>
-                            <span>{{ section.total }} · {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}</span>
-                        </div>
-                        <table class="pt-recap-table">
-                            <thead>
-                                <tr><th>Nom</th><th class="num">Séances</th><th class="num">Heures</th></tr>
-                            </thead>
-                            <tbody>
-                                {% for r in section.rows %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ r.user.fullName }}</strong>
-                                            {% if r.details|length > 0 %}<small>{{ r.details|join(' · ') }}</small>{% endif %}
-                                        </td>
-                                        <td class="num">{{ r.sessions }}</td>
-                                        <td class="num {{ r.minutes == 0 ? 'zero' : '' }}"><strong>{{ r.duration }}</strong></td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
     </div>
 
     {% if canEdit %}
@@ -216,6 +180,46 @@
             </table>
         </div>
     {% endif %}
+
+    {# Récap des heures encadrées : sous le tableau. Un créneau par ligne, puis les absences déclarées. #}
+    <div class="pt-recap">
+        <h3>⏱️ Heures encadrées de la semaine : {{ recap.total }}</h3>
+        <p class="pt-help">
+            D'après les présences cochées sur les créneaux d'entraînement (créneaux annulés et tâches hors entraînement
+            exclus). Les absences indiquées sont celles déclarées par chacun. Le récap des entraîneurs (sans les
+            encadrants) est envoyé chaque samedi soir aux responsables RH.
+        </p>
+        <div class="pt-recap-grid">
+            {% for section in recap.sections %}
+                {% if section.rows|length > 0 %}
+                    <div class="pt-recap-card">
+                        <div class="pt-recap-head {{ section.key }}">
+                            <span style="font-size:inherit; font-weight:700;">{{ section.label }}</span>
+                            <span>{{ section.total }} · {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}</span>
+                        </div>
+                        <table class="pt-recap-table">
+                            <thead>
+                                <tr><th>Nom</th><th class="num">Séances</th><th class="num">Heures</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for r in section.rows %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ r.user.fullName }}</strong>
+                                            {% for d in r.details %}<small>{{ d }}</small>{% endfor %}
+                                            {% for a in r.absences %}<small class="abs">{{ a }}</small>{% endfor %}
+                                        </td>
+                                        <td class="num">{{ r.sessions }}</td>
+                                        <td class="num {{ r.minutes == 0 ? 'zero' : '' }}"><strong>{{ r.duration }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
 
     {% if customTasks|length > 0 %}
         <div style="background:#fff; padding:14px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
