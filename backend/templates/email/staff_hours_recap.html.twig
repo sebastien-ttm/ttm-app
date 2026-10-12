@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Heures encadrées</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; color:#222;">
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="background:#fff; border-radius:8px; overflow:hidden;">
+        <tr>
+            <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                <h1 style="margin:0; font-size:22px;">Triathlon Toulouse Métropole</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:30px;">
+                <p>Bonjour{% if prenom %} <strong>{{ prenom }}</strong>{% endif %},</p>
+
+                <p>Voici le récap des <strong>heures encadrées</strong> par entraîneur : <strong>{{ weekLabel|lower }}</strong>.</p>
+
+                <p style="margin:18px 0; padding:12px 16px; background:#f9fafb; border-left:4px solid #D32F2F; font-size:15px;">
+                    Total de la semaine : <strong>{{ recap.total }}</strong>
+                </p>
+
+                {% for section in recap.sections %}
+                    {% if section.rows|length > 0 %}
+                        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:22px 0 0; font-size:14px; border-collapse:collapse;">
+                            <tr>
+                                <td style="background:{{ section.key == 'entraineur' ? '#0d2148' : '#dc2626' }}; color:#fff; padding:9px 12px; font-weight:bold;">
+                                    {{ section.label }}
+                                </td>
+                                <td style="background:{{ section.key == 'entraineur' ? '#0d2148' : '#dc2626' }}; color:#fff; padding:9px 12px; text-align:right; font-size:13px; white-space:nowrap;">
+                                    {{ section.total }} · {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}
+                                </td>
+                            </tr>
+                            {% for r in section.rows %}
+                                <tr>
+                                    <td style="padding:8px 12px; border-bottom:1px solid #eee; vertical-align:top;">
+                                        <strong>{{ r.user.fullName }}</strong>
+                                        {% if r.details|length > 0 %}
+                                            <div style="margin-top:2px; font-size:12px; color:#777; line-height:1.4;">{{ r.details|join(' · ') }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding:8px 12px; border-bottom:1px solid #eee; text-align:right; white-space:nowrap; vertical-align:top; {{ r.minutes == 0 ? 'color:#bbb;' : 'font-weight:bold;' }}">
+                                        {{ r.duration }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endif %}
+                {% endfor %}
+
+                <p style="margin-top:24px; font-size:12px; color:#888;">
+                    Calculé d'après les présences cochées sur les créneaux d'entraînement (créneaux annulés et tâches hors entraînement exclus).
+                    Les séances du dimanche, pas encore passées, sont comptées d'après les présences déjà cochées.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="background:#222; color:#aaa; padding:15px; text-align:center; font-size:12px;">
+                Triathlon Toulouse Métropole — message automatique, ne pas répondre
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

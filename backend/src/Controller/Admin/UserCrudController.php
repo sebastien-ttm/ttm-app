@@ -84,6 +84,7 @@ class UserCrudController extends AbstractCrudController
                     'Éditeur (communication)' => User::ROLE_EDITEUR,
                     'Entraîneur (entraînements)' => User::ROLE_ENTRAINEUR,
                     'Administrateur (tout)' => User::ROLE_ADMIN,
+                    'Responsable RH (présences staff)' => User::ROLE_RH,
                 ]))
             ->add('lastLoginAt');
     }
@@ -167,18 +168,23 @@ class UserCrudController extends AbstractCrudController
                 'Éditeur (communication + config)' => User::ROLE_EDITEUR,
                 'Entraîneur (éditeur + entraînements + présences)' => User::ROLE_ENTRAINEUR,
                 'Administrateur (tout, dont adhérents et charte)' => User::ROLE_ADMIN,
+                'Responsable RH (« Présence entraînements » + récap des heures)' => User::ROLE_RH,
             ])
             ->renderAsBadges([
                 User::ROLE_USER => 'secondary',
                 User::ROLE_EDITEUR => 'info',
                 User::ROLE_ENTRAINEUR => 'primary',
                 User::ROLE_ADMIN => 'danger',
+                User::ROLE_RH => 'warning',
             ])
             ->setHelp(
                 'Hiérarchie : Administrateur ⊃ Entraîneur ⊃ Éditeur ⊃ Utilisateur. '
                 .'« Éditeur » : articles, calendrier, pages, bannière, badge piscines. '
                 .'« Entraîneur » : tout l\'éditeur + créneaux, semaine type, plans, présences staff. '
-                .'« Administrateur » : tout l\'entraîneur + adhérents, import CSV, charte du club.'
+                .'« Administrateur » : tout l\'entraîneur + adhérents, import CSV, charte du club. '
+                .'« Responsable RH » : hors hiérarchie, accès au backend limité à « Présence entraînements » '
+                .'(lecture seule) et au récap des heures encadrées par entraîneur ; reçoit ce récap par e-mail '
+                .'chaque samedi soir.'
             );
 
         yield BooleanField::new('canManageTrainerSchedule', 'Entraîneur référent')

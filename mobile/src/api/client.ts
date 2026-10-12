@@ -169,7 +169,7 @@ export type UserSubType = 'club' | 'autre_club' | 'parent' | 'ami';
  * Niveau d'accès au backend (gate, pas permission fine).
  * 4 tiers hiérarchiques depuis Phase B.
  */
-export type UserRole = 'user' | 'editeur' | 'entraineur' | 'admin';
+export type UserRole = 'user' | 'editeur' | 'entraineur' | 'admin' | 'rh';
 
 export type AuthenticatedUser = {
   id: number;

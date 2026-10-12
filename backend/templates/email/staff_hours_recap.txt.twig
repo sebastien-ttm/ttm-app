@@ -1,0 +1,21 @@
+Bonjour{% if prenom %} {{ prenom }}{% endif %},
+
+Voici le récap des heures encadrées par entraîneur : {{ weekLabel|lower }}.
+
+Total de la semaine : {{ recap.total }}
+{% for section in recap.sections %}
+{% if section.rows|length > 0 %}
+
+{{ section.label|upper }} — {{ section.total }} · {{ section.totalSessions }} séance{{ section.totalSessions > 1 ? 's' : '' }}
+{% for r in section.rows %}
+  {{ r.user.fullName }} : {{ r.duration }}
+{% if r.details|length > 0 %}
+    {{ r.details|join(' · ') }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+Calculé d'après les présences cochées sur les créneaux d'entraînement (créneaux annulés et tâches hors entraînement exclus). Les séances du dimanche, pas encore passées, sont comptées d'après les présences déjà cochées.
+
+— Triathlon Toulouse Métropole (message automatique)

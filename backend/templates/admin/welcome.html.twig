@@ -3,6 +3,16 @@
 {% block content_title %}Bienvenue dans l'administration TTM{% endblock %}
 
 {% block main %}
+    {# Responsable RH : un seul accès, la page « Présence entraînements » (les raccourcis ci-dessous lui sont fermés). #}
+    {% if not is_granted('ROLE_EDITEUR') %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <h3 style="margin-top:0;">⏱️ Présence entraînements</h3>
+                <p style="color:#555;">Présences du staff sur les créneaux de la semaine et récap des heures encadrées par entraîneur.</p>
+                <a href="{{ path('admin_dashboard', {routeName: 'admin_staff_presence_trainings'}) }}" class="btn btn-primary">Ouvrir la page</a>
+            </div>
+        </div>
+    {% else %}
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
         <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <h3 style="margin-top:0;">📰 Publier un article</h3>
@@ -25,4 +35,5 @@
             <a href="{{ path('admin_csv_import') }}" class="btn btn-primary">Importer un CSV</a>
         </div>
     </div>
+    {% endif %}
 {% endblock %}

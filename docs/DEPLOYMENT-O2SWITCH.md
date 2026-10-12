@@ -62,6 +62,11 @@ TRUSTED_PROXIES=127.0.0.1
 
 # Nettoyage hebdo des magic link tokens expirés
 0 3 * * 0 cd /home/USER/ttm-app/backend && php bin/console app:tokens:cleanup
+
+# Récap des heures encadrées par entraîneur, envoyé aux responsables RH chaque samedi à 20 h
+# (rôle backend « Responsable RH » ; test : ajouter --dry-run pour afficher sans envoyer,
+#  ou --to=adresse@exemple.fr pour envoyer à une seule adresse ; --week=AAAA-MM-JJ pour une autre semaine)
+0 20 * * 6 cd /home/USER/ttm-app/backend && php bin/console app:staff-hours:send-recap --quiet
 ```
 
 ## Mobile — distribution

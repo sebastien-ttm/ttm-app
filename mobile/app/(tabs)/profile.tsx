@@ -106,11 +106,12 @@ export default function ProfileScreen() {
     }
   }
 
-  const hasBackendAccess = user.role === 'admin' || user.role === 'entraineur' || user.role === 'editeur';
+  const hasBackendAccess = user.role === 'admin' || user.role === 'entraineur' || user.role === 'editeur' || user.role === 'rh';
   const backendRoleLabel =
     user.role === 'admin' ? 'Admin'
     : user.role === 'entraineur' ? 'Entraîneur (backend)'
     : user.role === 'editeur' ? 'Éditeur (backend)'
+    : user.role === 'rh' ? 'Responsable RH (backend)'
     : null;
   const profiles = sortProfiles(user.profiles ?? []);
   // Section « Ma famille » : toujours visible pour un compte connecté.

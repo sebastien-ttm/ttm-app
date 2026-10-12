@@ -630,17 +630,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public const ROLE_EDITEUR = 'editeur';
     public const ROLE_ENTRAINEUR = 'entraineur';
     public const ROLE_ADMIN = 'admin';
+    /**
+     * Responsable RH : accès au backend limité à la page « Présence entraînements » (lecture seule) et à son
+     * récap des heures encadrées, reçu aussi par e-mail chaque samedi soir. Hors de la chaîne éditeur → entraîneur
+     * → admin : ROLE_RH est contenu dans ROLE_ENTRAINEUR (security.yaml), pas l'inverse.
+     */
+    public const ROLE_RH = 'rh';
     public const ALLOWED_ROLES = [
         self::ROLE_USER,
         self::ROLE_EDITEUR,
         self::ROLE_ENTRAINEUR,
         self::ROLE_ADMIN,
+        self::ROLE_RH,
     ];
 
     /**
      * Symfony Security : on dérive les rôles depuis le champ $role.
      * La hiérarchie (security.yaml) propage : ROLE_ADMIN > ROLE_ENTRAINEUR
-     * > ROLE_EDITEUR > ROLE_USER. On renvoie ROLE_USER + le tier courant.
+     * > ROLE_EDITEUR > ROLE_USER, et ROLE_ENTRAINEUR > ROLE_RH > ROLE_USER.
+     * On renvoie ROLE_USER + le tier courant.
      *
      * @return list<string>
      */
@@ -651,6 +659,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             self::ROLE_ADMIN => 'ROLE_ADMIN',
             self::ROLE_ENTRAINEUR => 'ROLE_ENTRAINEUR',
             self::ROLE_EDITEUR => 'ROLE_EDITEUR',
+            self::ROLE_RH => 'ROLE_RH',
             default => 'ROLE_USER',
         };
         // Tout membre du Comité Directeur reçoit automatiquement le
@@ -685,6 +694,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         if (in_array('ROLE_ADMIN', $roles, true))      return $this->setRole(self::ROLE_ADMIN);
         if (in_array('ROLE_ENTRAINEUR', $roles, true)) return $this->setRole(self::ROLE_ENTRAINEUR);
         if (in_array('ROLE_EDITEUR', $roles, true))    return $this->setRole(self::ROLE_EDITEUR);
+        if (in_array('ROLE_RH', $roles, true))         return $this->setRole(self::ROLE_RH);
         return $this->setRole(self::ROLE_USER);
     }
 
@@ -696,10 +706,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isAdmin(): bool { return $this->role === self::ROLE_ADMIN; }
     public function isEntraineurAdmin(): bool { return $this->role === self::ROLE_ENTRAINEUR; }
     public function isEditeur(): bool { return $this->role === self::ROLE_EDITEUR; }
+    public function isResponsableRh(): bool { return $this->role === self::ROLE_RH; }
     /** True si le user a un accès quelconque au backend. */
     public function hasBackendAccess(): bool
     {
-        if (in_array($this->role, [self::ROLE_EDITEUR, self::ROLE_ENTRAINEUR, self::ROLE_ADMIN], true)) {
+        if (in_array($this->role, [self::ROLE_EDITEUR, self::ROLE_ENTRAINEUR, self::ROLE_ADMIN, self::ROLE_RH], true)) {
             return true;
         }
         // Un membre du CoDir a implicitement ROLE_EDITEUR — cf. getRoles().

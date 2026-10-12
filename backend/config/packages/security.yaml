@@ -8,8 +8,12 @@ security:
         #   ROLE_EDITEUR    = + Communication & Configuration (backend)
         #   ROLE_ENTRAINEUR = + Entraînements & Présences staff
         #   ROLE_ADMIN      = + Adhérents & Charte du club (tout)
+        # + ROLE_RH (responsable RH) : accès backend limité à « Présence entraînements »
+        #   (lecture seule + récap des heures encadrées). Contenu dans ROLE_ENTRAINEUR :
+        #   entraîneurs et admins y accèdent aussi, mais un RH ne reçoit rien d'autre.
         ROLE_EDITEUR: ROLE_USER
-        ROLE_ENTRAINEUR: ROLE_EDITEUR
+        ROLE_RH: ROLE_USER
+        ROLE_ENTRAINEUR: [ROLE_EDITEUR, ROLE_RH]
         ROLE_ADMIN: ROLE_ENTRAINEUR
 
     providers:
@@ -75,10 +79,10 @@ security:
     access_control:
         - { path: ^/admin/login, roles: PUBLIC_ACCESS }
         - { path: ^/admin/logout, roles: PUBLIC_ACCESS }
-        # Accès au backend = tout user avec au moins ROLE_EDITEUR.
+        # Accès au backend = tout user avec au moins ROLE_EDITEUR (ou ROLE_RH).
         # Le filtrage section-par-section est fait par setEntityPermission
         # sur chaque CRUD et par setPermission sur les MenuItem.
-        - { path: ^/admin, roles: ROLE_EDITEUR }
+        - { path: ^/admin, roles: [ROLE_EDITEUR, ROLE_RH] }
         - { path: ^/api/auth, roles: PUBLIC_ACCESS }
         - { path: ^/api/banner/active, roles: PUBLIC_ACCESS }
         # Pages ouvertes aux visiteurs non connectés (ex : désinscription des mailings).

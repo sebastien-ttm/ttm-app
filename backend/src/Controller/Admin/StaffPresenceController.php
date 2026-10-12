@@ -11,6 +11,7 @@ use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Repository\UserRepository;
 use App\Security\StaffScheduleSupervisionVoter;
+use App\Service\Training\StaffHoursRecapService;
 use App\Service\Training\StaffPresenceService;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,8 +34,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Il n'y a plus de notion de « réservé » côté backend : présent (statut
  * scheduled ou attended) ou non. Décocher pose un « non dispo » explicite
  * pour que le mobile de la personne reflète le choix du référent.
+ *
+ * Un récap des heures encadrées par entraîneur / encadrant (StaffHoursRecapService, le même que l'e-mail du
+ * samedi soir) précède le tableau. La page est ouverte au responsable RH (ROLE_RH, contenu dans ROLE_ENTRAINEUR),
+ * en lecture seule ; la modification des présences reste réservée aux entraîneurs référents et aux admins.
  */
-#[IsGranted('ROLE_ENTRAINEUR')]
+#[IsGranted('ROLE_RH')]
 class StaffPresenceController extends AbstractController
 {
     use EnsureAdminContextTrait;
@@ -50,6 +55,7 @@ class StaffPresenceController extends AbstractController
         private readonly UserRepository $users,
         private readonly StaffPresenceService $service,
         private readonly WeeklyScheduleService $schedule,
+        private readonly StaffHoursRecapService $hoursRecap,
         private readonly EntityManagerInterface $em,
         private readonly StaffWeekUnavailabilityRepository $unavailabilities,
         private readonly StaffDayUnavailabilityRepository $dayUnavailabilities,
@@ -162,6 +168,7 @@ class StaffPresenceController extends AbstractController
             'sections' => $sections,
             'staffCount' => array_sum(array_map(fn (array $s) => count($s['staff']), $sections)),
             'days' => $days,
+            'recap' => $this->hoursRecap->forWeek($week),
             'weekAbsence' => $weekAbsence,
             'customTasks' => $customTasks,
             'canEdit' => $this->isGranted(StaffScheduleSupervisionVoter::ATTRIBUTE),
@@ -176,6 +183,7 @@ class StaffPresenceController extends AbstractController
      * present ("1"/"0"). Cocher = scheduled (et retire un éventuel « non
      * dispo cette semaine », comme côté mobile) ; décocher = unavailable.
      */
+    #[IsGranted('ROLE_ENTRAINEUR')]
     #[IsGranted(StaffScheduleSupervisionVoter::ATTRIBUTE)]
     #[Route('/admin/staff/presences/toggle', name: 'admin_staff_presence_toggle', methods: ['POST'])]
     public function toggle(Request $request): JsonResponse

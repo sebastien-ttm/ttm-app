@@ -203,7 +203,8 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
             ],
             'Présences staff' => [
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Présence entraînements', 'fa fa-people-group', 'admin_staff_presence_trainings')],
+                // ROLE_RH (responsable RH) est contenu dans ROLE_ENTRAINEUR : entraîneurs et admins la voient aussi.
+                ['ROLE_RH',         fn () => AdminMenuItem::linkToRoute('Présence entraînements', 'fa fa-people-group', 'admin_staff_presence_trainings')],
                 [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Semaines types entraîneurs', 'fa fa-table-cells', 'admin_staff_templates')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
             ],
