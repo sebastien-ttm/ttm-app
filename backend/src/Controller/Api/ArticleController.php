@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Entity\Reaction;
 use App\Entity\User;
 use App\Repository\ArticleAttachmentRepository;
+use App\Repository\ArticleReadRepository;
 use App\Repository\ArticleRepository;
 use App\Repository\CommentRepository;
 use App\Repository\EventAttendanceRepository;
@@ -41,6 +42,7 @@ class ArticleController extends AbstractController
         private readonly ArticleAttachmentRepository $attachmentsRepo,
         private readonly ArticleAttachmentService $attachmentsService,
         private readonly EventAttendanceRepository $attendances,
+        private readonly ArticleReadRepository $reads,
     ) {
     }
 
@@ -62,9 +64,13 @@ class ArticleController extends AbstractController
         $paginator = $this->articles->findPublishedPaginated($page, $limit, $viewer);
         $total = count($paginator);
 
+        $pageArticles = iterator_to_array($paginator, false);
+        // Articles déjà ouverts par le viewer : l'appli les présente autrement dans la liste.
+        $readIds = $this->reads->readIdsForUser($viewer, array_map(static fn (Article $a) => (int) $a->getId(), $pageArticles));
+
         $items = [];
-        foreach ($paginator as $article) {
-            $items[] = $this->serializer->article($article, $viewer);
+        foreach ($pageArticles as $article) {
+            $items[] = $this->serializer->article($article, $viewer) + ['read' => isset($readIds[$article->getId()])];
         }
 
         return new JsonResponse([
@@ -84,6 +90,11 @@ class ArticleController extends AbstractController
         $this->ensureVisible($article, $viewer);
         $data = $this->serializer->article($article, $viewer);
         $data['events'] = $this->serializeEmbeddedEvents($article, $viewer);
+
+        // Ouvrir l'article = le lire : la liste le présentera ensuite comme « lu ».
+        $this->reads->markRead($viewer, $article);
+        $data['read'] = true;
+
         return new JsonResponse($data);
     }
 

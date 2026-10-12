@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,10 +17,15 @@ import { formatRelativeFr } from '@/utils/html';
  * Pas de cover, pas d'excerpt : le résumé complet reste accessible en
  * tapant sur la carte (page /article/{id}). L'objectif est la densité
  * verticale pour voir plus d'articles sans scroller.
+ *
+ * Un article déjà lu (`article.read`) est présenté plus discrètement : carte aplatie (fond de page,
+ * sans ombre), titre en gris et poids normal, coche « lu ». Les non lus gardent le rendu habituel.
+ * `onOpen` permet à la liste de marquer l'article lu tout de suite, sans attendre le rechargement.
  */
-export function ArticleCard({ article }: { article: Article }) {
+export function ArticleCard({ article, onOpen }: { article: Article; onOpen?: (article: Article) => void }) {
   const router = useRouter();
   const reactionEntries = Object.entries(article.reactionCounts).filter(([, n]) => n > 0);
+  const read = article.read === true;
 
   return (
     <Pressable
@@ -27,15 +33,26 @@ export function ArticleCard({ article }: { article: Article }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       style={(state: any) => [
         styles.card,
+        read && styles.cardRead,
         state.hovered && styles.hovered,
         state.pressed && styles.pressed,
       ]}
-      onPress={() => router.push(`/article/${article.id}` as never)}
+      onPress={() => {
+        onOpen?.(article);
+        router.push(`/article/${article.id}` as never);
+      }}
     >
-      <Text style={styles.title} numberOfLines={1}>
-        {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
-        {article.title}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, read && styles.titleRead]} numberOfLines={1}>
+          {article.icon ? <Text style={styles.titleIcon}>{article.icon} </Text> : null}
+          {article.title}
+        </Text>
+        {read && (
+          <View accessible accessibilityLabel="Article lu" style={styles.readMark}>
+            <Ionicons name="checkmark-done" size={15} color={COLORS.textMuted} />
+          </View>
+        )}
+      </View>
 
       {/* Rang 2 toujours affiché : stats à gauche (peut être vide), auteur
           + date à droite pour ancrer visuellement chaque carte. */}
@@ -76,17 +93,27 @@ const styles = StyleSheet.create({
     // @ts-expect-error web-only transition for smooth hover
     transition: 'border-color 150ms ease, box-shadow 150ms ease',
   },
+  // Article déjà lu : carte aplatie (même fond que la page, sans ombre).
+  cardRead: {
+    backgroundColor: COLORS.background,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   hovered: {
     borderColor: COLORS.borderStrong,
     ...SHADOWS.md,
   },
   pressed: { opacity: 0.9 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.1,
   },
+  titleRead: { fontWeight: '500', color: '#4b5563' },
+  readMark: { flexShrink: 0 },
   titleIcon: { fontSize: 16 },
   footer: {
     flexDirection: 'row',

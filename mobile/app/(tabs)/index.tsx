@@ -80,6 +80,12 @@ export default function FeedScreen() {
     void fetchPage(1, 'replace');
   }, [fetchPage]));
 
+  // L'article qu'on ouvre est marqué lu tout de suite dans la liste (le serveur l'enregistre à l'ouverture,
+  // et le rechargement au retour sur l'onglet confirme).
+  const markRead = useCallback((opened: Article) => {
+    setItems((prev) => prev.map((a) => (a.id === opened.id && !a.read ? { ...a, read: true } : a)));
+  }, []);
+
   const onEndReached = useCallback(async () => {
     if (loadingMore || fetchingRef.current) return;
     if (page >= totalPages) return; // plus rien à charger
@@ -95,7 +101,7 @@ export default function FeedScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <ArticleCard article={item} />}
+        renderItem={({ item }) => <ArticleCard article={item} onOpen={markRead} />}
         ListHeaderComponent={
           <View>
             {/* BannerImage : temporairement masquée sur mobile.

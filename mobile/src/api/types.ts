@@ -39,6 +39,8 @@ export type Article = {
   reactionCounts: Record<string, number>;
   myReactions: string[];
   commentCount: number;
+  /** True si le viewer a déjà ouvert cet article (la liste le présente alors autrement). Absent des anciennes réponses. */
+  read?: boolean;
   /**
    * Événements du calendrier intégrés à l'article (déjà filtrés par
    * audience). Présent uniquement sur GET /api/articles/{id}.
