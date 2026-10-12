@@ -2,6 +2,7 @@
 
 namespace App\Service\Training;
 
+use App\Entity\Event;
 use App\Entity\TrainingRegistrationUnlock;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotRegistration;
@@ -118,6 +119,36 @@ class TrainingRegistrationService
             unset($row['registrationRequired'], $row['capacity']);
             $out[] = $row;
         }
+
+        return $out;
+    }
+
+    /**
+     * Créneaux d'entraînement (occasionnels) liés à un événement, au format de la liste de la semaine côté appli
+     * (avec `registration`), du plus proche au plus lointain. Un créneau que le viewer ne voit pas (audience) est omis.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function linkedSlotsForEvent(Event $event, User $viewer): array
+    {
+        // Une semaine à la fois : plusieurs créneaux liés tombent souvent la même semaine.
+        $byMonday = [];
+        foreach ($event->getTrainingSlots() as $slot) {
+            $monday = WeeklyScheduleService::snapToMonday($slot->getWeekStartsAt());
+            $byMonday[$monday->format('Y-m-d')]['monday'] = $monday;
+            $byMonday[$monday->format('Y-m-d')]['ids'][] = $slot->getId();
+        }
+
+        $out = [];
+        foreach ($byMonday as $week) {
+            $rows = $this->decorate($this->schedule->buildWeek($week['monday'], $viewer), $viewer, $week['monday']);
+            foreach ($rows as $row) {
+                if ($row['templateId'] === null && in_array($row['id'], $week['ids'], true)) {
+                    $out[] = $row;
+                }
+            }
+        }
+        usort($out, static fn (array $a, array $b) => [$a['date'], $a['startTime']] <=> [$b['date'], $b['startTime']]);
 
         return $out;
     }

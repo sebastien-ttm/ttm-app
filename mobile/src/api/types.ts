@@ -188,9 +188,11 @@ export type EventItem = {
    */
   externalRegistrationUrl: string | null;
   /**
-   * Entraînement lié (détail GET /api/events/{id} uniquement), au format
-   * de la liste de la semaine. Absent des listes, null si aucun lien.
+   * Entraînements occasionnels liés (détail GET /api/events/{id} uniquement), au format de la liste de la semaine,
+   * du plus proche au plus lointain. Absent des listes et des anciennes réponses.
    */
+  trainingSlots?: TrainingSlot[];
+  /** Anciennes réponses : le premier entraînement lié (voir `trainingSlots`). */
   trainingSlot?: TrainingSlot | null;
 };
 

@@ -195,33 +195,41 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        {/* Entraînement lié : ouvre le détail du créneau (même écran que
-            depuis l'onglet Entraînements). */}
-        {event.trainingSlot && (
+        {/* Entraînements liés (un ou plusieurs créneaux occasionnels) : chacun ouvre son détail (même écran que
+            depuis l'onglet Entraînements). Anciennes réponses du serveur : un seul, dans `trainingSlot`. */}
+        {(event.trainingSlots ?? (event.trainingSlot ? [event.trainingSlot] : [])).map((slot, idx) => (
           <Pressable
-            onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(event.trainingSlot) } })}
+            key={`${slot.id ?? 'v'}-${slot.templateId ?? 'o'}-${idx}`}
+            onPress={() => router.push({ pathname: '/training-slot', params: { slot: JSON.stringify(slot) } })}
             style={({ pressed }) => [styles.slotCard, pressed && { opacity: 0.75 }]}
-            accessibilityLabel="Ouvrir le créneau d'entraînement lié"
+            accessibilityLabel={`Ouvrir le créneau d'entraînement lié : ${slot.title || slot.sportLabel}`}
           >
-            <Text style={styles.slotIcon}>{event.trainingSlot.sportIcon}</Text>
+            <Text style={styles.slotIcon}>{slot.sportIcon}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.slotKicker}>Entraînement lié</Text>
               <Text
-                style={[styles.slotTitle, event.trainingSlot.isCancelled && styles.slotCancelled]}
+                style={[styles.slotTitle, slot.isCancelled && styles.slotCancelled]}
                 numberOfLines={1}
               >
-                {event.trainingSlot.title || event.trainingSlot.sportLabel}
+                {slot.title || slot.sportLabel}
               </Text>
               <Text style={styles.slotMeta} numberOfLines={1}>
-                {fromIsoDate(event.trainingSlot.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                {' · '}{event.trainingSlot.startTime}
-                {event.trainingSlot.location ? ` · ${event.trainingSlot.location}` : ''}
+                {fromIsoDate(slot.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {' · '}{slot.startTime}
+                {slot.location ? ` · ${slot.location}` : ''}
               </Text>
-              {event.trainingSlot.isCancelled && <Text style={styles.slotCancelledLabel}>Créneau annulé</Text>}
+              {slot.isCancelled && <Text style={styles.slotCancelledLabel}>Créneau annulé</Text>}
+              {/* Sur inscription : places prises et mon inscription (l'inscription se fait dans le détail du créneau). */}
+              {!slot.isCancelled && slot.registration && (
+                <Text style={styles.slotMeta} numberOfLines={1}>
+                  ✍️ Sur inscription · {slot.registration.count}{slot.registration.capacity !== null ? `/${slot.registration.capacity}` : ''}
+                  {slot.registration.mine ? ' · ✅ Vous êtes inscrit(e)' : slot.registration.full ? ' · Complet' : ''}
+                </Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
           </Pressable>
-        )}
+        ))}
 
         {/* Vote de présence — même comportement que sur la home
             (« Je m'inscris » si externalRegistrationUrl est renseignée). */}

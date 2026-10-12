@@ -13,7 +13,7 @@ use App\Service\Audience\AudienceFilter;
 use App\Service\AvatarService;
 use App\Service\Event\EventAttendanceService;
 use App\Service\Serializer\ApiSerializer;
-use App\Service\Training\WeeklyScheduleService;
+use App\Service\Training\TrainingRegistrationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,7 +35,7 @@ class EventController extends AbstractController
         private readonly EventAttendanceService $attendanceService,
         private readonly CommentRepository $comments,
         private readonly ValidatorInterface $validator,
-        private readonly WeeklyScheduleService $schedule,
+        private readonly TrainingRegistrationService $trainingRegistrations,
         private readonly AvatarService $avatars,
     ) {
     }
@@ -66,9 +66,11 @@ class EventController extends AbstractController
             ? $this->attendances->findOneByUserAndEvent($viewer, $event)?->getStatus()->value
             : null;
         $data = $this->serializer->event($event, $myVote, $counts);
-        // Détail uniquement : créneau d'entraînement lié, au format de la
-        // liste de la semaine (l'appli ouvre directement son écran détail).
-        $data['trainingSlot'] = $this->schedule->linkedSlotForEvent($event, $viewer);
+        // Détail uniquement : créneaux d'entraînement occasionnels liés, au format de la liste de la semaine (avec leur
+        // inscription éventuelle : l'appli ouvre directement leur écran détail).
+        $data['trainingSlots'] = $this->trainingRegistrations->linkedSlotsForEvent($event, $viewer);
+        // Anciennes versions de l'appli : le premier créneau lié, comme avant.
+        $data['trainingSlot'] = $data['trainingSlots'][0] ?? null;
         return new JsonResponse($data);
     }
 

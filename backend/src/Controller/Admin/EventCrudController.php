@@ -107,17 +107,9 @@ class EventCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setHelp('Optionnel. Pour un événement multi-jours, mettez la date de fin.');
         yield TextField::new('location', 'Lieu')->setRequired(false);
-        // Entraînement lié : l'appli affiche le créneau sur la page de
-        // l'événement (cliquable vers son détail). Récurrent OU occasionnel.
-        yield AssociationField::new('trainingSlotTemplate', 'Entraînement lié (semaine type)')
-            ->setRequired(false)
-            ->hideOnIndex()
-            ->setFormTypeOption('query_builder', fn (EntityRepository $r) => $r->createQueryBuilder('t')
-                ->where('t.isActive = true')
-                ->orderBy('t.dayOfWeek', 'ASC')
-                ->addOrderBy('t.startTime', 'ASC'))
-            ->setHelp('Optionnel. Le créneau affiché est celui de la semaine de l\'événement (avec ses modifications ou son annulation éventuelles) : choisissez un créneau du même jour.');
-        yield AssociationField::new('trainingSlot', 'ou entraînement occasionnel')
+        // Entraînements liés : l'appli affiche chaque créneau sur la page de l'événement (cliquable vers son détail).
+        // Uniquement des créneaux occasionnels (hors semaine type), un ou plusieurs.
+        yield AssociationField::new('trainingSlots', 'Entraînements liés (occasionnels)')
             ->setRequired(false)
             ->hideOnIndex()
             ->setFormTypeOption('query_builder', fn (EntityRepository $r) => $r->createQueryBuilder('s')
@@ -125,7 +117,8 @@ class EventCrudController extends AbstractCrudController
                 ->andWhere('s.weekStartsAt >= :from')
                 ->setParameter('from', (new \DateTimeImmutable('monday this week'))->modify('-8 weeks')->format('Y-m-d'))
                 ->orderBy('s.weekStartsAt', 'DESC')
-                ->addOrderBy('s.dayOfWeek', 'ASC'))
+                ->addOrderBy('s.dayOfWeek', 'ASC')
+                ->addOrderBy('s.startTime', 'ASC'))
             ->setFormTypeOption('choice_label', fn (TrainingSlot $s) => sprintf(
                 '%s %s — %s (%s)',
                 $s->getWeekStartsAt()->modify('+'.($s->getDayOfWeek() - 1).' days')->format('d/m/Y'),
@@ -133,7 +126,7 @@ class EventCrudController extends AbstractCrudController
                 $s->getTitle() !== '' ? $s->getTitle() : '?',
                 $s->getSport()->label(),
             ))
-            ->setHelp('Créneau hors semaine type (vacances, stage…). Laissez vide si vous avez choisi un créneau de la semaine type.');
+            ->setHelp('Optionnel. Un ou plusieurs créneaux occasionnels (vacances, stage…), créés depuis « Créneaux de la semaine ». Les créneaux de la semaine type ne se lient pas à un événement.');
         // Rich text (TinyMCE) : permet d'insérer des liens hypertexte
         // (bouton `link` de la toolbar) et des boutons stylés (menu
         // « Bouton » — variantes primary/secondary/outline). Rendu côté
