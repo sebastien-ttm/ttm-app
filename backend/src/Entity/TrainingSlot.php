@@ -76,6 +76,18 @@ class TrainingSlot
     private ?TrainingSlotTemplate $template = null;
 
     /**
+     * Sur inscription + nombre de places, pour un créneau OCCASIONNEL uniquement. Un créneau issu de la semaine
+     * type suit toujours les réglages de son modèle (TrainingSlotTemplate) : ces deux champs n'y sont pas utilisés,
+     * pour qu'un changement de places sur la semaine type s'applique tout de suite aux semaines déjà matérialisées.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $registrationRequired = false;
+
+    #[ORM\Column(type: 'smallint', nullable: true)]
+    #[Assert\Range(min: 1, max: 500)]
+    private ?int $capacity = null;
+
+    /**
      * @var Collection<int, TrainingSlotAttachment>
      */
     #[ORM\OneToMany(targetEntity: TrainingSlotAttachment::class, mappedBy: 'slot', cascade: ['remove'], orphanRemoval: true)]
@@ -135,6 +147,12 @@ class TrainingSlot
     public function setTemplate(?TrainingSlotTemplate $t): self { $this->template = $t; return $this; }
 
     public function isOccasional(): bool { return $this->template === null; }
+
+    public function isRegistrationRequired(): bool { return $this->registrationRequired; }
+    public function setRegistrationRequired(bool $b): self { $this->registrationRequired = $b; return $this; }
+
+    public function getCapacity(): ?int { return $this->capacity; }
+    public function setCapacity(?int $c): self { $this->capacity = $c; return $this; }
 
     /** Copie les valeurs courantes d'un template (pour matérialiser un override). */
     public function fillFromTemplate(TrainingSlotTemplate $tpl): self

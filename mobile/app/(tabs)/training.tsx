@@ -12,10 +12,11 @@ import {
 
 import { ApiError } from '@/api/client';
 import { trainingSchedule as scheduleApi } from '@/api/resources';
-import type { TrainingPlan, TrainingSlot, WeeklySchedule } from '@/api/types';
+import type { TrainingPlan, TrainingRegistration, TrainingSlot, WeeklySchedule } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { SportBadge } from '@/components/SportBadge';
+import { TrainingRegistrationBar } from '@/components/TrainingRegistrationBar';
 import { WeekNavigator } from '@/components/WeekNavigator';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
@@ -87,6 +88,18 @@ function TrainingScreenInner() {
   }, [weekStart, load]);
 
   useRefreshOnResume(() => { void load(toIsoDate(weekStart)); });
+
+  // Inscription / désinscription à un créneau sur inscription : on met la ligne à jour tout de suite, puis on recharge
+  // la semaine — l'avertissement « une seule inscription par semaine » des AUTRES créneaux en dépend.
+  const onRegistrationChanged = useCallback((slot: TrainingSlot, registration: TrainingRegistration | null) => {
+    setData((prev) => prev && {
+      ...prev,
+      slots: prev.slots.map((s) => (
+        s.id === slot.id && s.templateId === slot.templateId && s.date === slot.date ? { ...s, registration } : s
+      )),
+    });
+    void load(toIsoDate(weekStart));
+  }, [load, weekStart]);
 
   // Groupement par jour de la semaine.
   //  - Annulés : affichés (barrés dans SlotRow) — l'adhérent doit voir
@@ -274,7 +287,7 @@ function TrainingScreenInner() {
                                 {dayLabel(day)} <Text style={styles.daySub}>· {shortDayLabel(dayDate)}</Text>
                               </Text>
                               {slots.map((s, idx) => (
-                                <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} />
+                                <SlotRow key={`${s.id ?? 'v'}-${s.templateId ?? 'o'}-${idx}`} slot={s} onRegistrationChanged={onRegistrationChanged} />
                               ))}
                             </View>
                           );
@@ -482,7 +495,7 @@ function WeekGrid({ slotsByDay, weekStart }: {
                       ]}
                     >
                       <Text style={[gridStyles.slotTime, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={1}>
-                        {s.sportIcon} {s.startTime}
+                        {s.sportIcon} {s.startTime}{s.registration ? (s.registration.mine ? ' ✅' : ' ✍️') : ''}
                       </Text>
                       <Text style={[gridStyles.slotTitle, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={2}>
                         {s.title}
@@ -499,7 +512,10 @@ function WeekGrid({ slotsByDay, weekStart }: {
   );
 }
 
-function SlotRow({ slot }: { slot: TrainingSlot }) {
+function SlotRow({ slot, onRegistrationChanged }: {
+  slot: TrainingSlot;
+  onRegistrationChanged: (slot: TrainingSlot, registration: TrainingRegistration | null) => void;
+}) {
   const router = useRouter();
   const isCancelled = slot.isCancelled;
 
@@ -558,6 +574,15 @@ function SlotRow({ slot }: { slot: TrainingSlot }) {
         >
           📍 {slot.location}
         </Text>
+        {/* Créneau sur inscription : places, inscription / désinscription, comme le vote d'un événement. Rien pour un
+            créneau annulé (plus d'inscription possible, l'événement n'aura pas lieu). */}
+        {slot.registration && !isCancelled && (
+          <TrainingRegistrationBar
+            slot={slot}
+            registration={slot.registration}
+            onChanged={(reg) => onRegistrationChanged(slot, reg)}
+          />
+        )}
       </View>
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} style={{ alignSelf: 'center' }} />
     </Pressable>

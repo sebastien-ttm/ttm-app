@@ -7,6 +7,7 @@ use App\Enum\Sport;
 use App\Repository\TrainingSlotTemplateRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * Un créneau de la "semaine type" du club, défini par les entraîneurs.
@@ -84,6 +85,19 @@ class TrainingSlotTemplate
     #[ORM\JoinColumn(name: 'season_id', nullable: true, onDelete: 'SET NULL')]
     private ?TrainingSeason $season = null;
 
+    /**
+     * Entraînement sur inscription : les adhérents s'inscrivent depuis l'appli, dans la limite de `capacity` places,
+     * et une seule inscription par semaine et par adhérent (tous créneaux sur inscription confondus). Les inscriptions
+     * se rattachent à (ce créneau, la semaine) : voir TrainingSlotRegistration. S'applique à toutes les semaines.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $registrationRequired = false;
+
+    /** Nombre de places quand le créneau est sur inscription. */
+    #[ORM\Column(type: 'smallint', nullable: true)]
+    #[Assert\Range(min: 1, max: 500)]
+    private ?int $capacity = null;
+
     public function __construct()
     {
         $this->startTime = new \DateTimeImmutable('18:30:00');
@@ -112,6 +126,8 @@ class TrainingSlotTemplate
         $copy->setIsActive($this->isActive);
         $copy->setPosition($this->position);
         $copy->setAudience($this->getAudience());
+        $copy->setRegistrationRequired($this->registrationRequired);
+        $copy->setCapacity($this->capacity);
         $copy->setStartsAt($startsAt);
         $copy->setEndsAt($endsAt);
         $copy->setSeason($season);
@@ -161,6 +177,23 @@ class TrainingSlotTemplate
 
     public function getSeason(): ?TrainingSeason { return $this->season; }
     public function setSeason(?TrainingSeason $s): self { $this->season = $s; return $this; }
+
+    public function isRegistrationRequired(): bool { return $this->registrationRequired; }
+    public function setRegistrationRequired(bool $b): self { $this->registrationRequired = $b; return $this; }
+
+    public function getCapacity(): ?int { return $this->capacity; }
+    public function setCapacity(?int $c): self { $this->capacity = $c; return $this; }
+
+    /** Un créneau sur inscription doit dire combien de places il offre. */
+    #[Assert\Callback]
+    public function validateRegistration(ExecutionContextInterface $context): void
+    {
+        if ($this->registrationRequired && $this->capacity === null) {
+            $context->buildViolation('Indiquez le nombre de places d\'un créneau sur inscription.')
+                ->atPath('capacity')
+                ->addViolation();
+        }
+    }
 
     /** Renvoie true si ce créneau s'applique au lundi donné. */
     public function appliesOn(\DateTimeImmutable $monday): bool

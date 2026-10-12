@@ -62,6 +62,9 @@ import type {
   StaticPageNode,
   StaticPageSummary,
   TrainingPlan,
+  TrainingRegistration,
+  TrainingRegistrationDetail,
+  TrainingSlot,
   WeeklySchedule,
 } from './types';
 
@@ -162,6 +165,25 @@ export const trainingSchedule = {
     const qs = week ? `?week=${encodeURIComponent(week)}` : '';
     return api.get<WeeklySchedule>(`/api/training-schedule${qs}`);
   },
+};
+
+/** Entraînements sur inscription (places limitées, une seule inscription par semaine). Le créneau se désigne comme dans le planning. */
+type SlotRef = Pick<TrainingSlot, 'date' | 'id' | 'templateId'>;
+
+function slotRefParams(slot: SlotRef): { week: string; templateId?: number; slotId?: number } {
+  return slot.templateId !== null ? { week: slot.date, templateId: slot.templateId } : { week: slot.date, slotId: slot.id ?? undefined };
+}
+
+export const trainingRegistrations = {
+  /** État à jour du créneau (places, mon inscription…) et liste des inscrits. */
+  get: (slot: SlotRef) => {
+    const p = slotRefParams(slot);
+    const qs = `week=${encodeURIComponent(p.week)}${p.templateId !== undefined ? `&templateId=${p.templateId}` : `&slotId=${p.slotId}`}`;
+    return api.get<TrainingRegistrationDetail>(`/api/training-registrations?${qs}`);
+  },
+  /** Inscrit (registered=true) ou désinscrit. Refus (complet, déjà inscrit ailleurs…) : ApiError 409 portant `registration` à jour. */
+  set: (slot: SlotRef, registered: boolean) =>
+    api.post<{ registration: TrainingRegistration | null }>('/api/training-registrations', { ...slotRefParams(slot), registered }),
 };
 
 export const staffPresence = {

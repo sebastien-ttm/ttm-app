@@ -89,6 +89,11 @@
                                 {% if r.description %}
                                     <div style="font-size:12px; color:#888; margin-top:4px;">{{ r.description }}</div>
                                 {% endif %}
+                                {% if r.registrationRequired %}
+                                    <div style="font-size:12px; margin-top:4px; color:#1e40af;">
+                                        ✍️ Sur inscription · {{ r.registrantsCount }}{{ r.capacity ? '/' ~ r.capacity : '' }} inscrit{{ r.registrantsCount > 1 ? 's' : '' }}{% if r.registrants|length > 0 %} : {{ r.registrants|join(', ') }}{% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                 {# Modifier — on passe slotId si déjà matérialisé,

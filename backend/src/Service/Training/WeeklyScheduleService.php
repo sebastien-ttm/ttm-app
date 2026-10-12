@@ -189,6 +189,8 @@ class WeeklyScheduleService
             'isCancelled' => false,
             'isOverride' => false,
             'isOccasional' => false,
+            'registrationRequired' => $tpl->isRegistrationRequired(),
+            'capacity' => $tpl->getCapacity(),
             'attachments' => [],
         ];
     }
@@ -220,6 +222,9 @@ class WeeklyScheduleService
             // présence staff ou une pièce jointe ne passe pas en true.
             'isOverride' => $tpl !== null && $s->differsMateriallyFromTemplate(),
             'isOccasional' => $tpl === null,
+            // Un créneau de la semaine type suit les réglages de son modèle ; seul l'occasionnel porte les siens.
+            'registrationRequired' => $tpl !== null ? $tpl->isRegistrationRequired() : $s->isRegistrationRequired(),
+            'capacity' => $tpl !== null ? $tpl->getCapacity() : $s->getCapacity(),
             'attachments' => array_map(
                 fn ($att) => [
                     'id' => $att->getId(),

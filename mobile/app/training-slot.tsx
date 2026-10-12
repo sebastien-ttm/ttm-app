@@ -1,15 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { trainingSchedule as scheduleApi } from '@/api/resources';
-import type { TrainingSlot, TrainingSlotAttachment } from '@/api/types';
+import { trainingRegistrations as registrationsApi, trainingSchedule as scheduleApi } from '@/api/resources';
+import type { TrainingParticipant, TrainingRegistration, TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { FullScreenLoading } from '@/components/Loading';
 import { ShareButton } from '@/components/ShareButton';
 import { SportBadge } from '@/components/SportBadge';
+import { TrainingParticipants } from '@/components/TrainingParticipants';
+import { TrainingRegistrationBar } from '@/components/TrainingRegistrationBar';
 import { API_BASE_URL, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { openAttachment, withBearer } from '@/lib/openAttachment';
@@ -61,6 +63,33 @@ export default function TrainingSlotDetailScreen() {
 
   const slot: TrainingSlot | null = passed ?? fetched;
   const waiting = !slot && !passed && typeof date === 'string' && date !== '' && !lookupFailed;
+
+  // Inscription (créneau sur inscription) : le créneau passé en paramètre date de l'ouverture de la liste, l'état
+  // (places, mon inscription, inscrits) est donc relu à l'ouverture du détail puis après chaque changement.
+  const [registration, setRegistration] = useState<TrainingRegistration | null>(null);
+  const [participants, setParticipants] = useState<TrainingParticipant[] | null>(null);
+  const [participantsFailed, setParticipantsFailed] = useState(false);
+  const slotKey = slot ? `${slot.date}|${slot.id ?? ''}|${slot.templateId ?? ''}` : '';
+  const loadRegistration = useCallback(async () => {
+    if (!slot) return;
+    try {
+      const res = await registrationsApi.get(slot);
+      setRegistration(res.registration);
+      setParticipants(res.participants);
+      setParticipantsFailed(false);
+    } catch {
+      // Semaine passée ou réseau : on garde l'état connu (celui de la liste), sans la liste des inscrits.
+      setParticipantsFailed(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotKey]);
+  useEffect(() => {
+    setRegistration(slot?.registration ?? null);
+    setParticipants(null);
+    setParticipantsFailed(false);
+    if (slot?.registration) void loadRegistration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotKey]);
 
   if (waiting) {
     return (
@@ -132,6 +161,24 @@ export default function TrainingSlotDetailScreen() {
             <Text style={styles.metaValue}>{slot.location}</Text>
           </View>
         </View>
+
+        {/* Entraînement sur inscription : s'inscrire (une seule inscription par semaine) et voir les inscrits,
+            comme le vote de présence et « Qui vient ? » d'un événement. */}
+        {registration && !slot.isCancelled && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Inscription</Text>
+            <TrainingRegistrationBar
+              slot={slot}
+              registration={{ ...registration, closed: registration.closed || isPast }}
+              size="lg"
+              onChanged={(reg) => {
+                setRegistration(reg);
+                void loadRegistration();
+              }}
+            />
+          </View>
+        )}
+        {registration && !participantsFailed && <TrainingParticipants participants={participants} count={registration.count} capacity={registration.capacity} />}
 
         {slot.description ? (
           <View style={styles.card}>

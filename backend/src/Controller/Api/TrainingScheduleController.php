@@ -7,6 +7,7 @@ use App\Repository\TrainingPlanRepository;
 use App\Repository\TrainingSlotAttachmentRepository;
 use App\Service\Serializer\ApiSerializer;
 use App\Service\Training\AttachmentService;
+use App\Service\Training\TrainingRegistrationService;
 use App\Service\Training\WeeklyScheduleService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -36,6 +37,7 @@ class TrainingScheduleController extends AbstractController
 {
     public function __construct(
         private readonly WeeklyScheduleService $schedule,
+        private readonly TrainingRegistrationService $registrations,
         private readonly TrainingPlanRepository $plans,
         private readonly TrainingSlotAttachmentRepository $attachments,
         private readonly AttachmentService $attachmentService,
@@ -73,7 +75,8 @@ class TrainingScheduleController extends AbstractController
 
         /** @var \App\Entity\User $viewer */
         $viewer = $this->getUser();
-        $slots = $this->schedule->buildWeek($monday, $viewer);
+        // Chaque créneau porte `registration` (null s'il n'est pas sur inscription) : places, mon inscription…
+        $slots = $this->registrations->decorate($this->schedule->buildWeek($monday, $viewer), $viewer, $monday);
         $plans = array_map(
             fn (TrainingPlan $p) => $this->serializer->trainingPlan($p),
             $this->plans->findForWeek($monday, $viewer),

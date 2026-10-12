@@ -327,6 +327,36 @@ export type TrainingSlot = {
   isOverride: boolean;
   isOccasional: boolean;
   attachments: TrainingSlotAttachment[];
+  /** Créneau sur inscription : places, mon inscription… null (ou absent) si le créneau est en accès libre. */
+  registration?: TrainingRegistration | null;
+};
+
+/** Inscription à un entraînement sur inscription (places limitées, une seule inscription par semaine). */
+export type TrainingRegistration = {
+  /** Nombre de places ; null = illimité. */
+  capacity: number | null;
+  /** Places prises. */
+  count: number;
+  full: boolean;
+  /** True = je suis inscrit(e) à ce créneau. */
+  mine: boolean;
+  /** Inscriptions closes : créneau annulé ou déjà commencé. */
+  closed: boolean;
+  /** Mon inscription de la semaine sur un AUTRE créneau (une seule par semaine), sinon null. */
+  other: { title: string; date: string; startTime: string | null } | null;
+};
+
+export type TrainingParticipant = {
+  id: number;
+  prenom: string;
+  nom: string;
+  avatarUrl: string | null;
+};
+
+export type TrainingRegistrationDetail = {
+  registration: TrainingRegistration | null;
+  /** Inscrits, dans l'ordre d'inscription. */
+  participants: TrainingParticipant[];
 };
 
 export type WeeklySchedule = {

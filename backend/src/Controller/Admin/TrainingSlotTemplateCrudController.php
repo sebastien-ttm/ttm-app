@@ -279,6 +279,16 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
         yield BooleanField::new('isActive', 'Actif')
             ->setHelp('Décocher pour retirer ce créneau de la semaine type (sans le supprimer).');
 
+        yield BooleanField::new('registrationRequired', 'Sur inscription')
+            ->setHelp(
+                'Les adhérents s\'inscrivent depuis l\'appli (liste de la semaine et détail du créneau), dans la limite '
+                .'des places. Une seule inscription par semaine et par adhérent, tous créneaux sur inscription confondus.'
+            );
+
+        yield IntegerField::new('capacity', 'Places')
+            ->setRequired(false)
+            ->setHelp('Nombre maximum d\'inscrits par semaine — obligatoire quand le créneau est sur inscription.');
+
         yield IntegerField::new('position', 'Position')
             ->hideOnIndex()
             ->setHelp('Optionnel : ordre d\'affichage à heure égale (0 par défaut).');

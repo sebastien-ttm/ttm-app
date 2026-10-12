@@ -83,6 +83,20 @@
                     Marquer comme annulé pour cette semaine
                 </label>
             </div>
+        {% else %}
+            {# Sur inscription : réglé ici pour un créneau occasionnel ; un créneau de la semaine type suit les réglages de son modèle. #}
+            <div style="display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap;">
+                <label style="margin:0;">
+                    <input type="checkbox" name="registrationRequired" value="1" {{ slot.registrationRequired ? 'checked' : '' }} />
+                    Sur inscription
+                    <span style="display:block; font-size:12px; color:#666;">Une seule inscription par semaine et par adhérent, tous créneaux sur inscription confondus.</span>
+                </label>
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:4px;">Places</label>
+                    <input type="number" name="capacity" class="form-control" style="width:110px;"
+                           value="{{ slot.capacity }}" min="1" max="500" />
+                </div>
+            </div>
         {% endif %}
 
         <hr style="margin:8px 0; border:none; border-top:1px solid #eee;">

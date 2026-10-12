@@ -4,12 +4,14 @@ namespace App\Controller\Admin;
 
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
+use App\Entity\User;
 use App\Enum\Sport;
 use App\Repository\StaffPresenceRepository;
 use App\Repository\TrainingSlotAttachmentRepository;
 use App\Repository\TrainingSlotRepository;
 use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\AttachmentService;
+use App\Service\Training\TrainingRegistrationService;
 use App\Service\Training\WeeklyScheduleService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -37,6 +39,7 @@ class WeeklyScheduleController extends AbstractController
         private readonly TrainingSlotAttachmentRepository $attachments,
         private readonly AttachmentService $attachmentService,
         private readonly StaffPresenceRepository $presences,
+        private readonly TrainingRegistrationService $registrationService,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -56,6 +59,15 @@ class WeeklyScheduleController extends AbstractController
     {
         $week = $this->parseWeek($request->query->get('week'));
         $rows = $this->schedule->buildWeek($week);
+
+        // Créneaux sur inscription : inscrits de la semaine (noms, dans l'ordre d'inscription).
+        $registrants = $this->registrationService->registrantsForWeek($week);
+        foreach ($rows as &$row) {
+            $names = array_map(static fn (User $u) => $u->getFullName(), $registrants[TrainingRegistrationService::occurrenceKey($row)] ?? []);
+            $row['registrants'] = $names;
+            $row['registrantsCount'] = count($names);
+        }
+        unset($row);
 
         return $this->render('admin/training_schedule.html.twig', [
             'week' => $week,
@@ -450,6 +462,17 @@ class WeeklyScheduleController extends AbstractController
             ->setLocation(trim((string) $get('location', '')))
             ->setDescription(trim((string) $get('description', '')) ?: null)
             ->setIsCancelled((bool) $get('isCancelled', false));
+
+        // Sur inscription : réglé ici uniquement pour un créneau occasionnel (celui de la semaine type suit son modèle).
+        if ($slot->getTemplate() === null) {
+            $capacity = (int) $get('capacity', 0);
+            $required = (bool) $get('registrationRequired', false);
+            if ($required && $capacity < 1) {
+                $required = false;
+                $this->addFlash('warning', 'Indiquez le nombre de places pour une inscription : le créneau n\'a pas été mis sur inscription.');
+            }
+            $slot->setRegistrationRequired($required)->setCapacity($capacity >= 1 ? min(500, $capacity) : null);
+        }
     }
 
     private function validateCsrf(Request $request, string $intent): void
