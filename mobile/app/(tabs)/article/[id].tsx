@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -77,6 +77,18 @@ export default function ArticleScreen() {
       setLoading(false);
     }
   }, [id, router]);
+
+  // Au retour sur l'article (ex : détail d'un entraînement intégré, où l'on vient de s'inscrire ; ou d'un événement
+  // intégré, où l'on vient de voter), l'article est relu en silence : places, inscription et vote affichés ici doivent
+  // être à jour. Les commentaires, eux, ne sont pas touchés.
+  const articleRef = useRef<Article | null>(null);
+  articleRef.current = article;
+  useFocusEffect(useCallback(() => {
+    if (!articleRef.current || !Number.isFinite(id)) return; // 1er affichage : le chargement normal s'en charge
+    let cancelled = false;
+    articlesApi.get(id).then((art) => { if (!cancelled) setArticle(art); }).catch(() => { /* on garde l'affichage actuel */ });
+    return () => { cancelled = true; };
+  }, [id]));
 
   useEffect(() => {
     // Reset l'état à chaque changement d'id pour éviter le flash de

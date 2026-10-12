@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Redirect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -88,6 +88,17 @@ function TrainingScreenInner() {
   }, [weekStart, load]);
 
   useRefreshOnResume(() => { void load(toIsoDate(weekStart)); });
+
+  // Au retour d'un détail de créneau (où l'on a pu s'inscrire ou se désinscrire), la semaine est relue en silence :
+  // places et inscription affichées dans la liste doivent être à jour. Un échec réseau garde l'affichage actuel.
+  const dataRef = useRef<WeeklySchedule | null>(null);
+  dataRef.current = data;
+  useFocusEffect(useCallback(() => {
+    if (!dataRef.current) return; // 1er affichage : le chargement normal s'en charge
+    let cancelled = false;
+    scheduleApi.week(toIsoDate(weekStart)).then((resp) => { if (!cancelled) setData(resp); }).catch(() => { /* on garde l'affichage actuel */ });
+    return () => { cancelled = true; };
+  }, [weekStart]));
 
   // Inscription / désinscription à un créneau sur inscription : on met la ligne à jour tout de suite, puis on recharge
   // la semaine — l'avertissement « une seule inscription par semaine » des AUTRES créneaux en dépend.

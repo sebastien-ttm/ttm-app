@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -91,6 +91,17 @@ export default function EventDetailScreen() {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     }
   }, [id, router]);
+
+  // Au retour sur l'écran (ex : détail de l'entraînement lié, où l'on vient de s'inscrire), l'événement est relu en
+  // silence : les places et mon inscription affichées sur la carte de l'entraînement doivent être à jour.
+  const eventRef = useRef<EventItem | null>(null);
+  eventRef.current = event;
+  useFocusEffect(useCallback(() => {
+    if (!eventRef.current || !id) return; // 1er affichage : le chargement normal s'en charge
+    let cancelled = false;
+    api.get(id).then((resp) => { if (!cancelled) setEvent(resp); }).catch(() => { /* on garde l'affichage actuel */ });
+    return () => { cancelled = true; };
+  }, [id]));
 
   useEffect(() => {
     (async () => {
