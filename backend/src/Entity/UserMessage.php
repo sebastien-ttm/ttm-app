@@ -107,6 +107,13 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $senderArchivedAt = null;
 
+    /**
+     * Dernière ouverture du détail par l'expéditeur. La réponse reçue compte comme « non lue » (pastille de l'onglet
+     * Social) tant que cette date est absente ou antérieure à la réponse.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $senderReadAt = null;
+
     /** Dernière modification du message (objet / texte) par son expéditeur ; null = jamais modifié. */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $editedAt = null;
@@ -224,6 +231,17 @@ class UserMessage
     public function getSenderArchivedAt(): ?\DateTimeImmutable { return $this->senderArchivedAt; }
     public function setSenderArchivedAt(?\DateTimeImmutable $d): self { $this->senderArchivedAt = $d; return $this; }
     public function isSenderArchived(): bool { return $this->senderArchivedAt !== null; }
+
+    public function getSenderReadAt(): ?\DateTimeImmutable { return $this->senderReadAt; }
+    public function setSenderReadAt(?\DateTimeImmutable $d): self { $this->senderReadAt = $d; return $this; }
+
+    /** Une réponse est arrivée que l'expéditeur n'a pas encore ouverte (ni archivée). */
+    public function hasUnreadReplyForSender(): bool
+    {
+        return $this->hasReply()
+            && !$this->isSenderArchived()
+            && ($this->senderReadAt === null || $this->senderReadAt < $this->repliedAt);
+    }
 
     /** @return Collection<int, MessageReply> */
     public function getThreadReplies(): Collection { return $this->threadReplies; }

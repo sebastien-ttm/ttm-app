@@ -892,6 +892,8 @@ export type UserMessage = {
   hasReply: boolean;
   /** Horodatage d'archivage côté expéditeur (null = non archivé). */
   senderArchivedAt: string | null;
+  /** Réponse reçue que je n'ai pas encore ouverte (pastille « Nouveau »). Absent = non lu inconnu. */
+  unread?: boolean;
   /** Tours de conversation postés après la réponse verrouillée, dans l'ordre chronologique. */
   thread: ThreadEntry[];
   /** true dès que `hasReply` — l'expéditeur peut alors poursuivre la conversation sans limite. */
@@ -930,6 +932,8 @@ export type InboxMessage = {
   canReply: boolean;
   /** Horodatage d'archivage individuel du viewer (null = non archivé). */
   myArchivedAt: string | null;
+  /** Message que je n'ai pas encore ouvert (ni répondu, ni archivé) : pastille « Nouveau ». */
+  unread?: boolean;
   /** Tours de conversation postés après la réponse verrouillée, dans l'ordre chronologique. */
   thread: ThreadEntry[];
   /** true dès que `hasReply` — n'importe quel viewer éligible côté destinataire peut alors poursuivre la conversation sans limite. */

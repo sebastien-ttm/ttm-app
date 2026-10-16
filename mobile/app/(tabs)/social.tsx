@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,19 +14,13 @@ import {
 } from 'react-native';
 
 import { ApiError, auth } from '@/api/client';
-import {
-  bibs as bibsApi,
-  marketplace as marketplaceApi,
-  photos as photosApi,
-  races as racesApi,
-  surveys as surveysApi,
-} from '@/api/resources';
+import { surveys as surveysApi } from '@/api/resources';
 import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
-import { countUnseen, getLastSeenId, type SeenList } from '@/lib/seenListings';
+import { useSocialNews } from '@/lib/useSocialNews';
 import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
 
@@ -63,43 +57,11 @@ export default function ContactScreen() {
   const [archivedInbox, setArchivedInbox] = useState<InboxMessage[]>([]);
   const [openSurveys, setOpenSurveys] = useState<SurveySummary[]>([]);
 
-  // Bourse aux équipements : phase de test, entrée visible uniquement si le
-  // serveur autorise ce compte (voir MarketplaceAccess côté backend).
-  const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    setMarketplaceEnabled(false);
-    marketplaceApi.access()
-      .then((r) => { if (!cancelled) setMarketplaceEnabled(r.enabled); })
-      .catch(() => { /* pas d'entrée si on ne peut pas vérifier */ });
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
-  // Pastilles « nouveautés non vues » sur les cartes Courses / Bourse /
-  // Dossards (voir lib/seenListings). Silencieux en cas d'échec.
-  const [newCounts, setNewCounts] = useState({ photos: 0, races: 0, marketplace: 0, bibs: 0 });
-  const loadNewCounts = useCallback(async () => {
-    if (!user) return;
-    const uid = user.id;
-    const count = async (list: SeenList, fetchItems: () => Promise<{ id: number; authorId?: number }[]>) => {
-      try {
-        const [items, lastSeen] = await Promise.all([fetchItems(), getLastSeenId(list, uid)]);
-        return countUnseen(items, lastSeen, uid);
-      } catch {
-        return 0;
-      }
-    };
-    const [photos, races, marketplace, bibs] = await Promise.all([
-      count('photos', () => photosApi.albums().then((r) => r.data)),
-      count('races', () => racesApi.list().then((r) => r.data)),
-      marketplaceEnabled ? count('marketplace', () => marketplaceApi.list().then((r) => r.data)) : Promise.resolve(0),
-      marketplaceEnabled ? count('bibs', () => bibsApi.list().then((r) => r.data)) : Promise.resolve(0),
-    ]);
-    setNewCounts({ photos, races, marketplace, bibs });
-  }, [user, marketplaceEnabled]);
-
-  useFocusEffect(useCallback(() => { void loadNewCounts(); }, [loadNewCounts]));
-  useRefreshOnResume(() => { void loadNewCounts(); });
+  // Bourse aux équipements : phase de test, entrée visible uniquement si le serveur autorise ce compte (voir
+  // MarketplaceAccess côté backend). Pastilles « nouveautés non vues » sur les cartes Photos / Courses / Bourse /
+  // Dossards : calculées par le provider (lib/useSocialNews), qui alimente aussi la pastille de l'icône de l'onglet.
+  const { counts: newCounts, marketplaceEnabled, refresh: refreshNews } = useSocialNews();
+  useFocusEffect(useCallback(() => { void refreshNews(); }, [refreshNews]));
 
   // Les sondages cochés « pas concerné » ne comptent pas, pas plus que
   // ceux auxquels on a répondu (même règle que le compteur serveur).
@@ -533,7 +495,10 @@ function SentCard({ m, archived, onOpen, onArchive, onUnarchive }: {
           </Text>
           <ScopeChip scope={m.scope} recipientLabel={m.recipientLabel} />
         </View>
-        <Text style={styles.date}>{formatDateShort(sent)}</Text>
+        <View style={styles.dateCol}>
+          <Text style={styles.date}>{formatDateShort(sent)}</Text>
+          {m.unread && <UnreadPill />}
+        </View>
       </View>
       {m.subject && (
         <Text style={styles.subject}>
@@ -584,7 +549,10 @@ function InboxCard({ m, archived, onOpen, onArchive, onUnarchive }: {
           </Text>
           <ScopeChip scope={m.scope} recipientLabel={m.scopeLabel} received />
         </View>
-        <Text style={styles.date}>{formatDateShort(sent)}</Text>
+        <View style={styles.dateCol}>
+          <Text style={styles.date}>{formatDateShort(sent)}</Text>
+          {m.unread && <UnreadPill />}
+        </View>
       </View>
       {m.subject && (
         <Text style={styles.subject}>
@@ -617,6 +585,15 @@ function InboxCard({ m, archived, onOpen, onArchive, onUnarchive }: {
         )}
       </View>
     </Pressable>
+  );
+}
+
+/** « Nouveau » : message (réponse reçue / message reçu) pas encore ouvert. Disparaît dès l'ouverture du détail. */
+function UnreadPill() {
+  return (
+    <View style={styles.unreadPill} accessibilityLabel="Non lu">
+      <Text style={styles.unreadPillLabel}>Nouveau</Text>
+    </View>
   );
 }
 
@@ -812,6 +789,9 @@ const styles = StyleSheet.create({
   toLabel: { fontSize: 12, color: COLORS.textMuted },
   toTarget: { fontWeight: '700', color: COLORS.text },
   date: { fontSize: 11, color: COLORS.textMuted },
+  dateCol: { alignItems: 'flex-end', gap: 4 },
+  unreadPill: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  unreadPillLabel: { color: '#fff', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   subject: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginTop: 6 },
   body: { fontSize: 14, color: COLORS.text, marginTop: 6, lineHeight: 20 },
   replyBox: {

@@ -62,12 +62,17 @@ export default function InboxDetailScreen() {
         setError('Message introuvable ou vous n\'y avez plus accès.');
       }
       setMsg(found);
+      // Ouvrir le détail = lire : le message ne compte plus comme non lu (pastille de l'onglet Social), sans
+      // attendre la réponse ni l'archivage. Échec sans gravité : la pastille sera juste en retard.
+      if (found?.unread) {
+        auth.markInboxRead(id).then(() => refreshUnread()).catch(() => { /* ignoré */ });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, refreshUnread]);
 
   useEffect(() => { void load(); }, [load]);
 

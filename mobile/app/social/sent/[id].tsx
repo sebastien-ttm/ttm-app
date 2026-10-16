@@ -45,12 +45,17 @@ export default function SentDetailScreen() {
         setError('Message introuvable ou vous n\'y avez plus accès.');
       }
       setMsg(found);
+      // Ouvrir le détail = lire : la réponse ne compte plus comme non lue (pastille de l'onglet Social), sans
+      // attendre l'archivage. Échec sans gravité : la pastille sera juste en retard.
+      if (found?.unread) {
+        auth.markSentRead(id).then(() => refreshUnread()).catch(() => { /* ignoré */ });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, refreshUnread]);
 
   useEffect(() => { void load(); }, [load]);
 

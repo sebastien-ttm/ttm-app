@@ -1,27 +1,31 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, useRouter } from 'expo-router';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import { ProfileSwitcher } from '@/components/ProfileSwitcher';
 import { StaffMenuButton } from '@/components/StaffMenuButton';
 import { COLORS } from '@/config';
+import { SocialNewsProvider, useSocialNews } from '@/lib/useSocialNews';
 import { UnansweredSurveysProvider, useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { UnreadMessagesProvider, useUnreadMessages } from '@/lib/useUnreadMessages';
 import { canSeeTrainingTab } from '@/utils/profile';
 
 /**
- * Racine des onglets. Fournit les contextes « messages non lus » et
- * « sondages non répondus » à tous les écrans enfants (utile pour
- * rafraîchir les badges après une action côté Contact — archivage,
- * réponse, soumission de sondage, etc.).
+ * Racine des onglets. Fournit les contextes « messages non lus »,
+ * « sondages non répondus » et « nouveautés des listes Social » à tous
+ * les écrans enfants (utile pour rafraîchir la pastille de l'onglet Social
+ * après une action — ouverture d'un message, archivage, réponse,
+ * soumission de sondage, etc.).
  */
 export default function TabsLayout() {
   const { user } = useAuth();
   return (
     <UnreadMessagesProvider enabled={user !== null}>
       <UnansweredSurveysProvider enabled={user !== null}>
-        <TabsInner />
+        <SocialNewsProvider>
+          <TabsInner />
+        </SocialNewsProvider>
       </UnansweredSurveysProvider>
     </UnreadMessagesProvider>
   );
@@ -31,8 +35,10 @@ function TabsInner() {
   const { user } = useAuth();
   const router = useRouter();
   const showTraining = canSeeTrainingTab(user);
-  const { total: unreadCount } = useUnreadMessages();
+  const { total: unreadMessages } = useUnreadMessages();
   const { count: unansweredSurveys } = useUnansweredSurveys();
+  const { total: socialNews } = useSocialNews();
+  const hasSocialUnread = unreadMessages > 0 || unansweredSurveys > 0 || socialNews > 0;
 
   // Boutons flèche retour manuels : Tabs n'injecte pas de retour
   // automatique sur les écrans hébergés hors barre principale.
@@ -126,24 +132,13 @@ function TabsInner() {
         name="social"
         options={{
           title: 'Social',
-          // Pas de tabBarBadge natif (un seul badge supporté) : on
-          // superpose 2 badges chiffrés dans tabBarIcon —
-          // messages non lus (rouge, réponses reçues non archivées +
-          // inbox à traiter pour les staff) et sondages non répondus
-          // (ambre, couleur distincte). >99 → « 99+ » sur chacun.
+          // L'onglet réunit messages, sondages, photos, courses, bourses… : plutôt qu'un compteur, une simple
+          // pastille signale qu'il y a du non lu — message ou réponse pas encore ouvert (l'ouverture suffit, pas
+          // besoin d'archiver), sondage sans réponse, nouveauté dans une liste (détail dans l'onglet).
           tabBarIcon: ({ color, focused }) => (
             <View>
               <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} color={color} size={22} />
-              {unreadCount > 0 && (
-                <View style={[styles.badge, styles.badgeMessages]}>
-                  <Text style={styles.badgeLabel}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                </View>
-              )}
-              {unansweredSurveys > 0 && (
-                <View style={[styles.badge, styles.badgeSurveys, unreadCount > 0 && styles.badgeSurveysShifted]}>
-                  <Text style={styles.badgeLabel}>{unansweredSurveys > 99 ? '99+' : unansweredSurveys}</Text>
-                </View>
-              )}
+              {hasSocialUnread && <View style={styles.dot} accessibilityLabel="Éléments non lus" />}
             </View>
           ),
         }}
@@ -176,23 +171,15 @@ function TabsInner() {
 }
 
 const styles = StyleSheet.create({
-  badge: {
+  dot: {
     position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
+    top: -3,
+    right: -6,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
     borderWidth: 1.5,
     borderColor: COLORS.surface,
   },
-  badgeMessages: { backgroundColor: COLORS.primary },
-  badgeSurveys: { backgroundColor: COLORS.warning },
-  // Décale le badge sondages à gauche du badge messages quand les 2
-  // sont affichés en même temps, pour éviter qu'ils se chevauchent.
-  badgeSurveysShifted: { right: -22 },
-  badgeLabel: { color: '#fff', fontSize: 10, fontWeight: '700', lineHeight: 13 },
 });

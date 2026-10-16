@@ -186,6 +186,27 @@ class MessageController extends AbstractController
         return $this->toggleSenderArchive($id, false);
     }
 
+    /**
+     * L'expéditeur vient d'ouvrir son message : la réponse reçue ne compte plus comme non lue (pastille de
+     * l'onglet Social), sans attendre l'archivage. Une réponse postée APRÈS cette date redevient non lue.
+     */
+    #[Route('/api/me/messages/{id}/read', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function markSentRead(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $msg = $this->messages->find($id);
+        if ($msg === null) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        if ($msg->getSender()->getId() !== $user->getId()) {
+            return new JsonResponse(['error' => 'Vous n\'êtes pas l\'expéditeur de ce message.'], Response::HTTP_FORBIDDEN);
+        }
+        $msg->setSenderReadAt(new \DateTimeImmutable());
+        $this->em->flush();
+        return new JsonResponse(['ok' => true]);
+    }
+
     private function toggleSenderArchive(int $id, bool $archive): JsonResponse
     {
         /** @var User $user */
@@ -236,7 +257,9 @@ class MessageController extends AbstractController
             if ($isArchived !== $archived) {
                 continue;
             }
-            $out[] = $this->serializeInbox($m, $viewer, $state?->getArchivedAt());
+            // Non lu : ni répondu, ni archivé, ni ouvert (même règle que le compteur de la pastille).
+            $unread = !$m->hasReply() && !$isArchived && $state?->getReadAt() === null;
+            $out[] = $this->serializeInbox($m, $viewer, $state?->getArchivedAt(), $unread);
         }
         return new JsonResponse(['data' => $out]);
     }
@@ -449,6 +472,28 @@ class MessageController extends AbstractController
         return $this->toggleInboxArchive($id, false);
     }
 
+    /**
+     * Le destinataire vient d'ouvrir ce message reçu : il ne compte plus dans la pastille de l'onglet Social, même
+     * sans réponse ni archivage. Lecture propre à chaque destinataire (messages « tous les entraîneurs » / « club »).
+     */
+    #[Route('/api/me/inbox/{id}/read', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function markInboxRead(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->messages->find($id);
+        if ($msg === null || !$this->canView($msg, $viewer)) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        $state = $this->states->findOrCreate($viewer, $msg);
+        $state->setReadAt(new \DateTimeImmutable());
+        if ($state->getId() === null) {
+            $this->em->persist($state);
+        }
+        $this->em->flush();
+        return new JsonResponse(['ok' => true]);
+    }
+
     private function toggleInboxArchive(int $id, bool $archive): JsonResponse
     {
         /** @var User $viewer */
@@ -521,6 +566,8 @@ class MessageController extends AbstractController
             'repliedByLabel' => $m->getRepliedBy()?->getFullName(),
             'hasReply' => $m->hasReply(),
             'senderArchivedAt' => $m->getSenderArchivedAt()?->format(\DATE_ATOM),
+            // Réponse reçue pas encore ouverte (pastille « Nouveau » de la liste).
+            'unread' => $m->hasUnreadReplyForSender(),
             'thread' => array_map(
                 fn (MessageReply $r) => $this->serializeThreadEntry($r),
                 $m->getThreadReplies()->toArray(),
@@ -536,7 +583,7 @@ class MessageController extends AbstractController
      *
      * @return array<string, mixed>
      */
-    private function serializeInbox(UserMessage $m, User $viewer, ?\DateTimeImmutable $myArchivedAt): array
+    private function serializeInbox(UserMessage $m, User $viewer, ?\DateTimeImmutable $myArchivedAt, bool $unread = false): array
     {
         $scope = $m->getScope();
         $scopeLabel = match ($scope) {
@@ -566,6 +613,8 @@ class MessageController extends AbstractController
             'hasReply' => $m->hasReply(),
             'canReply' => !$m->hasReply(),
             'myArchivedAt' => $myArchivedAt?->format(\DATE_ATOM),
+            // Message pas encore ouvert (pastille « Nouveau » de la liste).
+            'unread' => $unread,
             'thread' => array_map(
                 fn (MessageReply $r) => $this->serializeThreadEntry($r),
                 $m->getThreadReplies()->toArray(),

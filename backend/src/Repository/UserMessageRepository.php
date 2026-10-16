@@ -129,24 +129,27 @@ class UserMessageRepository extends ServiceEntityRepository
      *  - inbox   : messages qu'il voit dans sa boîte de réception
      *              (mêmes filtres de scope que findInboxFor), sans
      *              réponse ET non archivés dans son propre état
-     *              (UserMessageRecipientState.archivedAt IS NULL).
-     *              L'archivage est le geste explicite « je m'en suis
-     *              occupé » → il fait disparaître le badge, même si
-     *              aucune réponse formelle n'a été postée.
+     *              (UserMessageRecipientState.archivedAt IS NULL) et
+     *              jamais ouverts par lui (readAt IS NULL). Ouvrir le
+     *              détail ou archiver suffit à le faire disparaître du
+     *              badge, même si aucune réponse formelle n'a été postée.
      *  - replies : messages qu'il a envoyés et qui ont reçu une
-     *              réponse sans être archivés côté expéditeur.
+     *              réponse, sans être archivés côté expéditeur, tant
+     *              qu'il n'a pas ouvert le message depuis cette réponse
+     *              (senderReadAt absent ou antérieur à repliedAt).
      *
      * @return array{inbox: int, replies: int}
      */
     public function countUnreadFor(User $viewer): array
     {
         // 1) Répliques reçues sur mes envois (sender = viewer, reply
-        //    présent, senderArchivedAt null).
+        //    présent, senderArchivedAt null) pas encore ouvertes depuis.
         $replies = (int) $this->createQueryBuilder('m')
             ->select('COUNT(m.id)')
             ->andWhere('m.sender = :viewer')
             ->andWhere('m.reply IS NOT NULL')
             ->andWhere('m.senderArchivedAt IS NULL')
+            ->andWhere('(m.senderReadAt IS NULL OR m.senderReadAt < m.repliedAt)')
             ->setParameter('viewer', $viewer)
             ->getQuery()
             ->getSingleScalarResult();
@@ -168,6 +171,7 @@ class UserMessageRepository extends ServiceEntityRepository
                 )
                 ->andWhere('m.reply IS NULL')
                 ->andWhere('st.archivedAt IS NULL')
+                ->andWhere('st.readAt IS NULL')
                 ->setParameter('viewer', $viewer);
 
             $orExpr = $qb->expr()->orX();

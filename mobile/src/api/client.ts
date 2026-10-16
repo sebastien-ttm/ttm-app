@@ -358,9 +358,9 @@ export const auth = {
     api.get<{ data: UserMessage[] }>(`/api/me/messages${archived ? '?archived=1' : ''}`),
 
   /**
-   * Compteur agrégé pour le badge de l'onglet Contact :
-   *  - inbox : messages à répondre (staff uniquement)
-   *  - replies : réponses reçues sur mes envois, non archivées
+   * Compteur agrégé pour la pastille de l'onglet Social :
+   *  - inbox : messages reçus pas encore ouverts, ni répondus, ni archivés (staff uniquement)
+   *  - replies : réponses reçues sur mes envois, pas encore ouvertes ni archivées
    *  - total : somme des deux
    */
   unreadMessagesCount: () =>
@@ -375,6 +375,10 @@ export const auth = {
     /** Défaut 'general' côté serveur si omis. */
     category?: MessageCategory;
   }) => api.post<UserMessage>('/api/me/messages', payload),
+
+  /** Je viens d'ouvrir ce message (envoyé / reçu) : il ne compte plus comme non lu, sans avoir à l'archiver. */
+  markSentRead: (id: number) => api.post<{ ok: boolean }>(`/api/me/messages/${id}/read`, {}),
+  markInboxRead: (id: number) => api.post<{ ok: boolean }>(`/api/me/inbox/${id}/read`, {}),
 
   archiveSentMessage: (id: number) =>
     api.post<{ ok: boolean; senderArchivedAt: string | null }>(`/api/me/messages/${id}/archive`, {}),

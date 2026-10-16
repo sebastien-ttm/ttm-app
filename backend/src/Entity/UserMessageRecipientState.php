@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * État individuel d'un destinataire vis-à-vis d'un UserMessage :
- * uniquement l'horodatage d'archivage pour l'instant. Nécessaire pour
+ * horodatages d'archivage et de lecture. Nécessaire pour
  * les messages multi-destinataires (scope=Club → tous les admins,
  * scope=AllTrainers → tous les entraîneurs) où chacun archive dans sa
  * propre boîte indépendamment des autres.
@@ -38,6 +38,10 @@ class UserMessageRecipientState
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $archivedAt = null;
 
+    /** Dernière ouverture du détail par ce destinataire ; null = jamais ouvert. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $readAt = null;
+
     public function __construct(User $user, UserMessage $message)
     {
         $this->user = $user;
@@ -52,4 +56,7 @@ class UserMessageRecipientState
     public function setArchivedAt(?\DateTimeImmutable $d): self { $this->archivedAt = $d; return $this; }
 
     public function isArchived(): bool { return $this->archivedAt !== null; }
+
+    public function getReadAt(): ?\DateTimeImmutable { return $this->readAt; }
+    public function setReadAt(?\DateTimeImmutable $d): self { $this->readAt = $d; return $this; }
 }
