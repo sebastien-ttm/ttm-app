@@ -122,9 +122,20 @@ export default function RaceDetailScreen() {
               <Text style={styles.captainText}>
                 <Text style={{ fontWeight: '700' }}>{race.authorFirstName} se propose d'être capitaine</Text>
                 {' '}: il/elle prend contact avec l'organisateur pour pouvoir proposer une inscription groupée.
+                {race.registrationDeadline ? (
+                  race.votesClosed
+                    ? <Text style={{ fontWeight: '700', color: COLORS.error }}>{'\n'}Les réponses sont closes : la date limite ({formatRaceDate(race.registrationDeadline, false)}) est dépassée.</Text>
+                    : <Text style={{ fontWeight: '700' }}>{'\n'}⏳ Merci de répondre avant le {formatRaceDate(race.registrationDeadline, false)}.</Text>
+                ) : null}
               </Text>
             </View>
           )}
+
+          {race.description ? (
+            <View style={styles.descriptionBox}>
+              <Text style={styles.descriptionText}>{race.description}</Text>
+            </View>
+          ) : null}
 
           {race.carpoolingEnabled && (
             <Pressable
@@ -157,7 +168,7 @@ export default function RaceDetailScreen() {
               count={race.interestedCount}
               active={race.myVote === 'interested'}
               onPress={() => void vote('interested')}
-              disabled={busy}
+              disabled={busy || race.votesClosed === true}
             />
             <VoteBtn
               icon="help-circle"
@@ -165,7 +176,7 @@ export default function RaceDetailScreen() {
               count={race.maybeCount}
               active={race.myVote === 'maybe'}
               onPress={() => void vote('maybe')}
-              disabled={busy}
+              disabled={busy || race.votesClosed === true}
             />
           </View>
 
@@ -295,6 +306,15 @@ const styles = StyleSheet.create({
   },
   captainEmoji: { fontSize: 20 },
   captainText: { flex: 1, color: '#92400e', fontSize: 13, lineHeight: 19 },
+  descriptionBox: {
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  descriptionText: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
   carpoolBtn: {
     flexDirection: 'row',
     alignItems: 'center',

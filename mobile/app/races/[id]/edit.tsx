@@ -53,7 +53,9 @@ export default function RaceEditScreen() {
               name: race.name,
               raceDate: race.raceDate,
               url: race.url ?? '',
+              description: race.description ?? '',
               captain: race.captain,
+              registrationDeadline: race.registrationDeadline ?? '',
               carpoolingEnabled: race.carpoolingEnabled,
               type: race.type,
             }}

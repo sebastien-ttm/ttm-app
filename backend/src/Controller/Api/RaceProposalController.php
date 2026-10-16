@@ -51,7 +51,10 @@ class RaceProposalController extends AbstractController
         return new JsonResponse($this->serialize($this->findOr404($id), $viewer));
     }
 
-    /** Création. JSON : name, raceDate (AAAA-MM-JJ), url?, captain, type. */
+    /**
+     * Création. JSON : name, raceDate (AAAA-MM-JJ), url?, description?, captain, registrationDeadline? (capitaine :
+     * date limite de réponse AAAA-MM-JJ), type.
+     */
     #[Route('/api/races', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
@@ -124,6 +127,14 @@ class RaceProposalController extends AbstractController
             return new JsonResponse(['error' => 'Statut invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Date limite de réponse du capitaine dépassée : les réponses sont figées (il peut la repousser).
+        if ($proposal->isVotingClosed()) {
+            return new JsonResponse(
+                ['error' => sprintf('Les réponses sont closes depuis le %s.', $proposal->getRegistrationDeadline()?->modify('+1 day')->format('d/m/Y'))],
+                Response::HTTP_CONFLICT,
+            );
+        }
+
         $existing = $this->votes->findOneByProposalAndUser($proposal, $user);
         if ($status === null) {
             if ($existing !== null) {
@@ -188,8 +199,41 @@ class RaceProposalController extends AbstractController
             $proposal->setUrl($url);
         }
 
+        if (array_key_exists('description', $payload)) {
+            $description = trim((string) ($payload['description'] ?? ''));
+            if (mb_strlen($description) > 3000) {
+                return 'Description trop longue (3000 caractères max).';
+            }
+            $proposal->setDescription($description);
+        }
+
         if (array_key_exists('captain', $payload)) {
             $proposal->setCaptain((bool) $payload['captain']);
+        }
+
+        // Date limite de réponse (capitaine uniquement) : AAAA-MM-JJ, vide = aucune. Une date inchangée n'est pas
+        // revalidée : on doit pouvoir modifier la proposition après que la date limite est passée.
+        if (array_key_exists('registrationDeadline', $payload)) {
+            $raw = trim((string) ($payload['registrationDeadline'] ?? ''));
+            if ($raw === '') {
+                $proposal->setRegistrationDeadline(null);
+            } else {
+                $deadline = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+                if ($deadline === false || $deadline->format('Y-m-d') !== $raw) {
+                    return 'Date limite de réponse invalide.';
+                }
+                $unchanged = $proposal->getRegistrationDeadline()?->format('Y-m-d') === $raw;
+                if (!$unchanged && $deadline < new \DateTimeImmutable('today')) {
+                    return 'La date limite de réponse est déjà passée.';
+                }
+                $proposal->setRegistrationDeadline($deadline);
+            }
+        }
+        if (!$proposal->isCaptain()) {
+            // Pas de capitaine, pas d'inscription groupée : pas de date limite.
+            $proposal->setRegistrationDeadline(null);
+        } elseif ($proposal->getRegistrationDeadline() !== null && $proposal->getRegistrationDeadline() > $proposal->getRaceDate()) {
+            return 'La date limite de réponse doit être au plus tard le jour de la course.';
         }
 
         if (array_key_exists('carpoolingEnabled', $payload)) {
@@ -258,7 +302,11 @@ class RaceProposalController extends AbstractController
             'name' => $r->getName(),
             'raceDate' => $r->getRaceDate()->format('Y-m-d'),
             'url' => $r->getUrl(),
+            'description' => $r->getDescription(),
             'captain' => $r->isCaptain(),
+            // Capitaine : date limite de réponse (AAAA-MM-JJ, incluse) ; réponses figées une fois dépassée.
+            'registrationDeadline' => $r->getRegistrationDeadline()?->format('Y-m-d'),
+            'votesClosed' => $r->isVotingClosed(),
             'carpoolingEnabled' => $r->isCarpoolingEnabled(),
             'type' => $r->getType()->value,
             'typeLabel' => $r->getType()->label(),

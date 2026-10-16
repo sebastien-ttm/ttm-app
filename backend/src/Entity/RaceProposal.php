@@ -42,8 +42,21 @@ class RaceProposal
     #[Assert\Length(max: 500)]
     private ?string $url = null;
 
+    /** Texte libre de présentation de la course (distance, parcours, contexte…), facultatif. */
+    #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 3000)]
+    private ?string $description = null;
+
     #[ORM\Column]
     private bool $captain = false;
+
+    /**
+     * Capitaine uniquement : date limite (incluse) pour répondre à la proposition, avant l'inscription groupée.
+     * Passée, les adhérents ne peuvent plus changer leur réponse ; le capitaine peut la repousser en modifiant sa
+     * proposition. null = pas de date limite.
+     */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $registrationDeadline = null;
 
     /**
      * Covoiturage activé : les adhérents peuvent proposer des places
@@ -95,8 +108,27 @@ class RaceProposal
         return $this;
     }
 
+    public function getDescription(): ?string { return $this->description; }
+    public function setDescription(?string $description): self
+    {
+        $description = $description !== null ? trim($description) : null;
+        $this->description = ($description === null || $description === '') ? null : $description;
+        return $this;
+    }
+
     public function isCaptain(): bool { return $this->captain; }
     public function setCaptain(bool $captain): self { $this->captain = $captain; return $this; }
+
+    public function getRegistrationDeadline(): ?\DateTimeImmutable { return $this->registrationDeadline; }
+    public function setRegistrationDeadline(?\DateTimeImmutable $d): self { $this->registrationDeadline = $d; return $this; }
+
+    /** Date limite de réponse dépassée (capitaine avec date limite) : plus de changement de réponse possible. */
+    public function isVotingClosed(?\DateTimeImmutable $today = null): bool
+    {
+        return $this->captain
+            && $this->registrationDeadline !== null
+            && ($today ?? new \DateTimeImmutable('today')) > $this->registrationDeadline;
+    }
 
     public function isCarpoolingEnabled(): bool { return $this->carpoolingEnabled; }
     public function setCarpoolingEnabled(bool $v): self { $this->carpoolingEnabled = $v; return $this; }

@@ -125,14 +125,14 @@ export default function RacesScreen() {
                     label={(item.captain ? 'Intéressé(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
                     active={item.myVote === 'interested'}
                     onPress={() => void vote(item, 'interested')}
-                    disabled={busyId === item.id}
+                    disabled={busyId === item.id || item.votesClosed === true}
                   />
                   <ActionBtn
                     icon={item.myVote === 'maybe' ? 'help-circle' : 'help-circle-outline'}
                     label={'Peut-être · ' + item.maybeCount}
                     active={item.myVote === 'maybe'}
                     onPress={() => void vote(item, 'maybe')}
-                    disabled={busyId === item.id}
+                    disabled={busyId === item.id || item.votesClosed === true}
                   />
                 </>
               ) : (
@@ -201,6 +201,14 @@ function RaceCard({ item, busy, onOpen, footer }: {
           {!item.captain && (
             <Text style={styles.cardMeta}>proposée par {item.authorFirstName}</Text>
           )}
+          {/* Capitaine : date limite de réponse avant l'inscription groupée. */}
+          {item.captain && item.registrationDeadline ? (
+            <Text style={[styles.cardMeta, item.votesClosed && styles.deadlineClosed]}>
+              {item.votesClosed
+                ? 'Réponses closes : date limite dépassée (' + formatRaceDate(item.registrationDeadline, false) + ')'
+                : '⏳ Répondre avant le ' + formatRaceDate(item.registrationDeadline, false)}
+            </Text>
+          ) : null}
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
       </Pressable>
@@ -291,6 +299,7 @@ const styles = StyleSheet.create({
   typeBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#fff' },
   captainBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   captainBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#92400e' },
+  deadlineClosed: { color: COLORS.error, fontWeight: '600' },
   cardActions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

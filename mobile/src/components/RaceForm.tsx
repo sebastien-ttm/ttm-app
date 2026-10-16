@@ -32,7 +32,9 @@ export const formatRaceDate = formatIsoDate;
 
 /**
  * Formulaire commun création / édition d'une course proposée : nom,
- * date, site Internet, type, case « Je me propose d'être capitaine ».
+ * date, site Internet, description libre, type, case « Je me propose d'être
+ * capitaine » (avec, dans ce cas, la date limite de réponse avant l'inscription
+ * groupée) et covoiturage.
  */
 export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   initial?: RaceProposalInput;
@@ -43,8 +45,11 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   const [name, setName] = useState(initial?.name ?? '');
   const [isoDate, setIsoDate] = useState<string | null>(initial?.raceDate ?? null);
   const [url, setUrl] = useState(initial?.url ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
   const [type, setType] = useState<RaceType | null>(initial?.type ?? null);
   const [captain, setCaptain] = useState(initial?.captain ?? false);
+  // Date limite de réponse (capitaine) : null = aucune ou saisie incomplète.
+  const [deadlineIso, setDeadlineIso] = useState<string | null>(initial?.registrationDeadline || null);
   const [carpoolingEnabled, setCarpoolingEnabled] = useState(initial?.carpoolingEnabled ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,9 +61,24 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
     if (name.trim() === '') { setError('Le nom de la course ne peut pas être vide.'); return; }
     if (isoDate === null) { setError('Date invalide (JJ/MM/AAAA).'); return; }
     if (type === null) { setError('Choisissez le type de course.'); return; }
+    // La date limite n'a de sens que pour un capitaine ; elle ne peut pas dépasser le jour de la course.
+    const deadline = captain ? deadlineIso : null;
+    if (deadline !== null && deadline > isoDate) {
+      setError('La date limite de réponse doit être au plus tard le jour de la course.');
+      return;
+    }
     setBusy(true);
     try {
-      await onSubmit({ name: name.trim(), raceDate: isoDate, url: url.trim(), captain, carpoolingEnabled, type });
+      await onSubmit({
+        name: name.trim(),
+        raceDate: isoDate,
+        url: url.trim(),
+        description: description.trim(),
+        captain,
+        registrationDeadline: deadline ?? '',
+        carpoolingEnabled,
+        type,
+      });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
     } finally {
@@ -95,6 +115,19 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
         style={styles.input}
         editable={!busy}
       />
+
+      <Text style={styles.label}>Description (facultative)</Text>
+      <TextInput
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Distances, parcours, niveau, hébergement, contexte…"
+        placeholderTextColor={COLORS.textSubtle}
+        multiline
+        maxLength={3000}
+        style={[styles.input, styles.textarea]}
+        editable={!busy}
+      />
+      <Text style={styles.counter}>{description.length} / 3000</Text>
 
       <Text style={styles.label}>Type de course</Text>
       <View style={styles.typeGrid}>
@@ -137,6 +170,22 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
           </Text>
         </View>
       </Pressable>
+
+      {captain && (
+        <View style={styles.deadlineBox}>
+          <Text style={styles.deadlineLabel}>Date limite de réponse (facultative)</Text>
+          <DateField
+            initialIso={initial?.registrationDeadline || undefined}
+            onChange={setDeadlineIso}
+            disabled={busy}
+            minIso={todayIso()}
+          />
+          <Text style={styles.captainHint}>
+            Les adhérents doivent répondre avant cette date (incluse) pour l'inscription groupée ; ensuite leurs
+            réponses sont figées. Vous pourrez la repousser en modifiant la proposition.
+          </Text>
+        </View>
+      )}
 
       <Pressable
         onPress={() => setCarpoolingEnabled((c) => !c)}
@@ -186,6 +235,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  textarea: { minHeight: 110, textAlignVertical: 'top' },
+  counter: { textAlign: 'right', fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
+  deadlineBox: {
+    marginTop: SPACING.sm, padding: SPACING.md,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
+  },
+  deadlineLabel: { color: COLORS.text, fontWeight: '600', fontSize: 13, marginBottom: 6 },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

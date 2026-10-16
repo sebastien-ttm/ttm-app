@@ -15,6 +15,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\UrlField;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
@@ -64,6 +65,15 @@ class RaceProposalCrudController extends AbstractCrudController
         yield BooleanField::new('captain', 'Capitaine')
             ->renderAsSwitch(false)
             ->setHelp('L\'auteur se propose comme capitaine (organise l\'inscription groupée, le déplacement…).');
+        yield DateField::new('registrationDeadline', 'Date limite de réponse')
+            ->setFormat('d MMM yyyy')
+            ->setRequired(false)
+            ->hideOnIndex()
+            ->setHelp('Capitaine uniquement : passée, les adhérents ne peuvent plus changer leur réponse.');
+        yield TextareaField::new('description', 'Description')
+            ->setRequired(false)
+            ->setNumOfRows(5)
+            ->hideOnIndex();
         yield BooleanField::new('carpoolingEnabled', 'Covoiturage activé')
             ->renderAsSwitch(false)
             ->hideOnIndex();

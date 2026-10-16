@@ -1044,8 +1044,14 @@ export type RaceProposal = {
   /** AAAA-MM-JJ */
   raceDate: string;
   url: string | null;
+  /** Texte libre de présentation (distance, parcours, contexte…). Absent des anciennes réponses. */
+  description?: string | null;
   /** L'auteur contacte l'organisateur et propose une inscription groupée. */
   captain: boolean;
+  /** Capitaine : date limite de réponse (AAAA-MM-JJ, incluse) avant l'inscription groupée ; null = aucune. Absent des anciennes réponses. */
+  registrationDeadline?: string | null;
+  /** True = la date limite est dépassée : les réponses sont figées. Absent des anciennes réponses. */
+  votesClosed?: boolean;
   /** Covoiturage activé par l'auteur (conducteur/passager, mise en relation WhatsApp). */
   carpoolingEnabled: boolean;
   type: RaceType;
@@ -1066,7 +1072,11 @@ export type RaceProposalInput = {
   name: string;
   raceDate: string;
   url: string;
+  /** Texte libre ('' = aucun). */
+  description: string;
   captain: boolean;
+  /** Capitaine : date limite de réponse AAAA-MM-JJ ('' = aucune). */
+  registrationDeadline: string;
   carpoolingEnabled: boolean;
   type: RaceType;
 };
