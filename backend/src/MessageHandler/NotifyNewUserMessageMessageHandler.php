@@ -56,11 +56,12 @@ class NotifyNewUserMessageMessageHandler
         }
 
         // Push web (appli installée / navigateur) en plus du mail ; le clic ouvre le
-        // message dans l'appli (boîte de réception).
+        // message dans l'appli (boîte de réception). Ni le push ni le mail ne reprennent l'objet ou le texte :
+        // un message peut être modifié par son expéditeur, le texte à jour se lit dans l'appli.
         $this->webPush->notifyUsers(
             array_map(static fn (User $recipient) => (int) $recipient->getId(), $recipients),
             sprintf('Nouveau message de %s', $msg->getSender()->getFullName()),
-            $msg->getSubject() ?? $msg->getBody(),
+            'Ouvrez le message dans l\'application pour le lire.',
             '/social/inbox/'.$msg->getId(),
             'message-'.$msg->getId(),
         );

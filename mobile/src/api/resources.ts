@@ -459,6 +459,12 @@ export const marketplace = {
       `/api/marketplace/conversations/${conversationId}/messages`,
       { content },
     ),
+  /** Corrige un de MES messages (aucune notification renvoyée : le texte n'est jamais dans les e-mails). */
+  editMessage: (conversationId: number, messageId: number, content: string) =>
+    api.patch<{ ok: boolean; message: MarketplaceMessage }>(
+      `/api/marketplace/conversations/${conversationId}/messages/${messageId}`,
+      { content },
+    ),
 };
 
 /** Photos du club : albums de la galerie Piwigo, via le backend. */

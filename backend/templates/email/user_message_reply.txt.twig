@@ -1,21 +1,11 @@
 Bonjour {{ sender.prenom }},
 
-{{ message.repliedBy.fullName }}{% if message.recipient is null %} (équipe du club){% endif %} a répondu à votre message{% if message.subject %} « {{ message.subject }} »{% endif %}.
+{{ message.repliedBy.fullName }}{% if message.recipient is null %} (équipe du club){% endif %} a répondu à votre message.
 
-Sa réponse :
----
-{{ message.reply }}
----
-
-Pour rappel, votre message initial :
----
-{{ message.body }}
----
-
-Voir dans l'application :
+Lire la réponse dans l'application :
 {{ messagesUrl }}
 
-Vous pouvez poursuivre la conversation directement depuis l'application.
+Le texte de la réponse n'est pas repris dans cet e-mail : son auteur peut le modifier, lisez-la directement dans l'application, où vous pouvez aussi poursuivre la conversation.
 
 Réponse envoyée le {{ message.repliedAt|date('d/m/Y à H:i') }}.
 

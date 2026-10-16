@@ -5,9 +5,10 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
-import type { MessageScope, UserMessage } from '@/api/types';
+import type { MessageScope, ThreadEntry, UserMessage } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { EditableText } from '@/components/EditableText';
 import { MessageThread } from '@/components/MessageThread';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
@@ -58,6 +59,16 @@ export default function SentDetailScreen() {
     setMsg((prev) => (prev ? { ...prev, thread: [...prev.thread, resp.entry] } : prev));
     void refreshUnread();
     return resp.entry;
+  }
+
+  async function saveBody(next: string) {
+    const resp = await auth.editSentMessage(id, next);
+    setMsg((prev) => (prev ? { ...prev, body: resp.message.body, editedAt: resp.message.editedAt } : prev));
+  }
+
+  async function saveThreadEntry(entry: ThreadEntry, content: string) {
+    const resp = await auth.editThreadEntry(id, entry.id, content);
+    setMsg((prev) => (prev ? { ...prev, thread: prev.thread.map((t) => (t.id === entry.id ? resp.entry : t)) } : prev));
   }
 
   async function toggleArchive() {
@@ -122,7 +133,15 @@ export default function SentDetailScreen() {
           </View>
         )}
         {msg.subject && <Text style={styles.subject}>{msg.subject}</Text>}
-        <Text style={styles.body}>{msg.body}</Text>
+        {/* Mon message : je peux le corriger (le destinataire voit alors « modifié »). */}
+        <EditableText
+          text={msg.body}
+          editedAt={msg.editedAt}
+          canEdit
+          maxLength={5000}
+          textStyle={styles.body}
+          onSave={saveBody}
+        />
 
         {msg.hasReply && msg.reply ? (
           <View style={styles.replyBox}>
@@ -144,6 +163,7 @@ export default function SentDetailScreen() {
           currentUserId={user?.id ?? null}
           canReply={msg.canThreadReply}
           onSubmit={submitThreadReply}
+          onEdit={saveThreadEntry}
         />
 
         <View style={styles.footer}>

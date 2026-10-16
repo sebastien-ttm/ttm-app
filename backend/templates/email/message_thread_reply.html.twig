@@ -17,18 +17,18 @@
 
                 <p>
                     <strong>{{ reply.author.fullName }}</strong>
-                    a répondu dans votre conversation
-                    {% if message.subject %} « {{ message.subject }} »{% endif %}.
+                    a répondu dans votre conversation.
                 </p>
-
-                <div style="margin:18px 0; padding:14px; background:#f0fdf4; border-left:4px solid #16a34a; border-radius:4px; font-size:14px; color:#0d2148; line-height:1.5;">
-                    {{ reply.content|nl2br }}
-                </div>
 
                 <p style="text-align:center; margin:30px 0;">
                     <a href="{{ threadUrl }}" style="display:inline-block; background:#D32F2F; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; font-weight:bold;">
-                        Voir et répondre
+                        Lire le message et répondre
                     </a>
+                </p>
+
+                <p style="font-size:12px; color:#888;">
+                    Le texte du message n'est pas repris dans cet e-mail : son auteur peut le modifier, lisez-le
+                    directement dans l'application.
                 </p>
 
                 <hr style="border:none; border-top:1px solid #eee; margin:30px 0;">

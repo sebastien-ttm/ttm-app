@@ -54,11 +54,12 @@ class NotifyMarketplaceMessageMessageHandler
             return;
         }
 
-        // Push web (appli installée / navigateur) en plus du mail.
+        // Push web (appli installée / navigateur) en plus du mail. Ni le mail ni le push ne reprennent le texte du
+        // message : un message peut être modifié par son auteur, le texte à jour se lit dans la discussion.
         $this->webPush->notifyUsers(
             [(int) $recipient->getId()],
             sprintf('Message de %s', $author->getFullName()),
-            $message->getContent(),
+            sprintf('Nouveau message à propos de « %s ».', $conversation->getSubjectTitle()),
             '/marketplace/conversation/'.$conversation->getId(),
             'marketplace-'.$conversation->getId(),
         );

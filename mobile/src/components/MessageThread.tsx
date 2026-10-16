@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { ApiError } from '@/api/client';
 import type { ThreadEntry } from '@/api/types';
+import { EditableText } from '@/components/EditableText';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
@@ -10,15 +11,18 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  * d'un UserMessage. Affiche chaque tour en bulle chat (les miens à
  * droite, ceux de l'autre partie à gauche) puis, si `canReply`, un
  * composer permanent — sans limite de tours, ouvert aux deux parties.
+ * Chacun peut corriger SES messages (`onEdit`) : la bulle affiche alors « modifié ».
  */
 type Props = {
   thread: ThreadEntry[];
   currentUserId: number | null;
   canReply: boolean;
   onSubmit: (content: string) => Promise<ThreadEntry>;
+  /** Enregistre la correction d'un de mes messages (la promesse rejetée garde l'éditeur ouvert). */
+  onEdit?: (entry: ThreadEntry, content: string) => Promise<void>;
 };
 
-export function MessageThread({ thread, currentUserId, canReply, onSubmit }: Props) {
+export function MessageThread({ thread, currentUserId, canReply, onSubmit, onEdit }: Props) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -54,7 +58,14 @@ export function MessageThread({ thread, currentUserId, canReply, onSubmit }: Pro
                   <Text style={styles.bubbleAuthor}>{entry.authorLabel}</Text>
                   <Text style={styles.bubbleTime}>{formatDateShort(new Date(entry.createdAt))}</Text>
                 </View>
-                <Text style={styles.bubbleBody}>{entry.content}</Text>
+                <EditableText
+                  text={entry.content}
+                  editedAt={entry.editedAt}
+                  canEdit={isMine && onEdit !== undefined}
+                  maxLength={5000}
+                  textStyle={styles.bubbleBody}
+                  onSave={(content) => (onEdit ? onEdit(entry, content) : Promise.resolve())}
+                />
               </View>
             );
           })}

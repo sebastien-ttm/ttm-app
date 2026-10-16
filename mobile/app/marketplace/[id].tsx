@@ -187,8 +187,8 @@ export default function MarketplaceDetailScreen() {
             <View style={styles.contactBox}>
               <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {listing.authorFullName}</Text>
               <Text style={styles.contactHint}>
-                {listing.authorFullName} reçoit votre message dans l'application et par e-mail,
-                et pourra vous répondre ici.
+                {listing.authorFullName} est prévenu(e) par e-mail (sans le texte de votre message) et pourra vous
+                répondre ici. Vous pourrez modifier vos messages après envoi.
               </Text>
               <TextInput
                 value={draft}

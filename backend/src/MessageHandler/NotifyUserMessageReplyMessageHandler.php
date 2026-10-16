@@ -55,11 +55,12 @@ class NotifyUserMessageReplyMessageHandler
         // route « /profile/messages » qui n'a jamais existé côté mobile.
         $messagesUrl = rtrim($this->publicUrl, '/').'/social/sent/'.$msg->getId();
 
-        // Push web (appli installée / navigateur) en plus du mail.
+        // Push web (appli installée / navigateur) en plus du mail. Ni l'un ni l'autre ne reprennent le texte de la
+        // réponse : elle peut être modifiée par son auteur, le texte à jour se lit dans l'appli.
         $this->webPush->notifyUsers(
             [(int) $sender->getId()],
             sprintf('Réponse de %s à votre message', $msg->getRepliedBy()?->getFullName() ?? 'l\'équipe TTM'),
-            (string) $msg->getReply(),
+            'Ouvrez l\'application pour lire la réponse.',
             '/social/sent/'.$msg->getId(),
             'reply-'.$msg->getId(),
         );

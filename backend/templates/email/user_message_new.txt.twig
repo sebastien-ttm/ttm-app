@@ -2,14 +2,12 @@ Bonjour {{ recipient.prenom }},
 
 Vous avez reçu un nouveau message{% if message.recipient is null %} adressé au club{% endif %} de la part de {{ message.sender.fullName }}.
 
-{% if message.subject %}Objet : {{ message.subject }}
-
-{% endif %}---
-{{ message.body }}
----
-
-Répondez depuis le backend :
+Lire le message et répondre :
 {{ adminUrl }}
+
+Le texte du message n'est pas repris dans cet e-mail : son expéditeur peut le modifier, lisez-le directement dans l'application (boîte de réception) ou dans le backend.
+
+Vous ne pourrez répondre qu'une seule fois depuis le backend — prenez le temps de rédiger une réponse complète. L'expéditeur la verra dans l'app mobile.
 
 Message envoyé le {{ message.sentAt|date('d/m/Y à H:i') }}.
 

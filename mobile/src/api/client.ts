@@ -400,4 +400,15 @@ export const auth = {
    */
   threadReply: (id: number, content: string) =>
     api.post<{ ok: boolean; entry: ThreadEntry }>(`/api/me/messages/${id}/thread-reply`, { content }),
+
+  // ---- Modification de MES messages (aucune notification renvoyée : le texte n'est jamais dans les e-mails) ----
+  /** Corrige un message que j'ai envoyé (texte, et objet s'il est fourni). */
+  editSentMessage: (id: number, body: string, subject?: string) =>
+    api.patch<{ ok: boolean; message: UserMessage }>(`/api/me/messages/${id}`, subject === undefined ? { body } : { body, subject }),
+  /** Corrige MA réponse à un message reçu (seul celui qui l'a postée le peut). */
+  editInboxReply: (id: number, reply: string) =>
+    api.patch<{ ok: boolean; message: InboxMessage }>(`/api/me/inbox/${id}/reply`, { reply }),
+  /** Corrige un de mes messages de la suite de conversation. */
+  editThreadEntry: (id: number, entryId: number, content: string) =>
+    api.patch<{ ok: boolean; entry: ThreadEntry }>(`/api/me/messages/${id}/thread/${entryId}`, { content }),
 };

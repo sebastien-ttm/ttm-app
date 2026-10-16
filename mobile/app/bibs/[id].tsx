@@ -180,8 +180,8 @@ export default function BibDetailScreen() {
             <View style={styles.contactBox}>
               <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {offer.authorFullName}</Text>
               <Text style={styles.contactHint}>
-                {offer.authorFullName} reçoit votre message dans l'application et par e-mail,
-                et pourra vous répondre ici.
+                {offer.authorFullName} est prévenu(e) par e-mail (sans le texte de votre message) et pourra vous
+                répondre ici. Vous pourrez modifier vos messages après envoi.
               </Text>
               <TextInput
                 value={draft}

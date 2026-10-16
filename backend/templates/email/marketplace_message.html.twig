@@ -17,20 +17,20 @@
 
                 {% if recipientIsSeller %}
                     <p><strong>{{ author.fullName }}</strong> vous a écrit à propos de votre {{ subjectNoun|default('annonce') }}
-                       <strong>« {{ listing.title }} »</strong> dans {{ bourseLabel|default('la bourse aux équipements') }} :</p>
+                       <strong>« {{ listing.title }} »</strong> dans {{ bourseLabel|default('la bourse aux équipements') }}.</p>
                 {% else %}
                     <p><strong>{{ author.fullName }}</strong> vous a répondu à propos de l'{{ subjectNoun|default('annonce') }}
-                       <strong>« {{ listing.title }} »</strong> :</p>
+                       <strong>« {{ listing.title }} »</strong>.</p>
                 {% endif %}
-
-                <div style="margin:18px 0; padding:14px; background:#f0fdf4; border-left:4px solid #16a34a; border-radius:4px; font-size:14px; color:#0d2148; line-height:1.5;">
-                    {{ message.content|nl2br }}
-                </div>
 
                 <p style="text-align:center; margin:30px 0;">
                     <a href="{{ conversationUrl }}" style="display:inline-block; background:#D32F2F; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; font-weight:bold;">
-                        Voir la discussion et répondre
+                        Lire le message et répondre
                     </a>
+                </p>
+
+                <p style="font-size:12px; color:#888;">
+                    Le texte du message n'est pas repris dans cet e-mail : son auteur peut le modifier, lisez-le directement dans l'application.
                 </p>
 
                 <hr style="border:none; border-top:1px solid #eee; margin:30px 0;">

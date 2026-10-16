@@ -52,6 +52,10 @@ class MessageReply
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $notifiedAt = null;
 
+    /** Date de la dernière modification du texte par son auteur ; null = jamais modifié. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $editedAt = null;
+
     public function __construct(UserMessage $message, User $author, string $content)
     {
         $this->message = $message;
@@ -64,6 +68,18 @@ class MessageReply
     public function getMessage(): UserMessage { return $this->message; }
     public function getAuthor(): User { return $this->author; }
     public function getContent(): string { return $this->content; }
+
+    /** L'auteur corrige son message. */
+    public function edit(string $content): self
+    {
+        if ($content !== $this->content) {
+            $this->content = $content;
+            $this->editedAt = new \DateTimeImmutable();
+        }
+        return $this;
+    }
+
+    public function getEditedAt(): ?\DateTimeImmutable { return $this->editedAt; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getNotifiedAt(): ?\DateTimeImmutable { return $this->notifiedAt; }
     public function setNotifiedAt(?\DateTimeImmutable $d): self { $this->notifiedAt = $d; return $this; }

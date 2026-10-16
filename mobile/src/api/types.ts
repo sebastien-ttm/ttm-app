@@ -860,6 +860,8 @@ export type ThreadEntry = {
   authorLabel: string;
   content: string;
   createdAt: string;
+  /** Dernière modification par son auteur ; null / absent = jamais modifié. */
+  editedAt?: string | null;
 };
 
 /** Message envoyé depuis l'app (côté expéditeur). */
@@ -878,9 +880,13 @@ export type UserMessage = {
   subject: string | null;
   body: string;
   sentAt: string;
+  /** Dernière modification du message par moi ; null / absent = jamais modifié. */
+  editedAt?: string | null;
   /** Réponse (text) si reçue. */
   reply: string | null;
   repliedAt: string | null;
+  /** Dernière modification de la réponse par son auteur ; null / absent = jamais modifiée. */
+  replyEditedAt?: string | null;
   /** Nom de l'admin/entraîneur qui a répondu. */
   repliedByLabel: string | null;
   hasReply: boolean;
@@ -911,8 +917,12 @@ export type InboxMessage = {
   subject: string | null;
   body: string;
   sentAt: string;
+  /** Dernière modification du message par son expéditeur ; null / absent = jamais modifié. */
+  editedAt?: string | null;
   reply: string | null;
   repliedAt: string | null;
+  /** Dernière modification de la réponse par son auteur ; null / absent = jamais modifiée. */
+  replyEditedAt?: string | null;
   repliedById: number | null;
   repliedByLabel: string | null;
   hasReply: boolean;
@@ -1004,6 +1014,8 @@ export type MarketplaceMessage = {
   authorFirstName: string;
   content: string;
   createdAt: string;
+  /** Dernière modification par son auteur ; null / absent = jamais modifié. */
+  editedAt?: string | null;
 };
 
 export type MarketplaceConversation = {

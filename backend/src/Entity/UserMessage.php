@@ -107,6 +107,14 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $senderArchivedAt = null;
 
+    /** Dernière modification du message (objet / texte) par son expéditeur ; null = jamais modifié. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $editedAt = null;
+
+    /** Dernière modification de la 1re réponse par celui qui l'a postée ; null = jamais modifiée. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $replyEditedAt = null;
+
     /**
      * @var Collection<int, MessageReply>
      */
@@ -142,6 +150,32 @@ class UserMessage
 
     public function getSentAt(): \DateTimeImmutable { return $this->sentAt; }
     public function setSentAt(\DateTimeImmutable $d): self { $this->sentAt = $d; return $this; }
+
+    /** L'expéditeur corrige son message (texte, et objet s'il est fourni). */
+    public function editMessage(string $body, ?string $subject, bool $changeSubject): self
+    {
+        $newSubject = $changeSubject ? ($subject !== null ? (trim($subject) ?: null) : null) : $this->subject;
+        if ($body !== $this->body || $newSubject !== $this->subject) {
+            $this->body = $body;
+            $this->subject = $newSubject;
+            $this->editedAt = new \DateTimeImmutable();
+        }
+        return $this;
+    }
+
+    public function getEditedAt(): ?\DateTimeImmutable { return $this->editedAt; }
+
+    /** Celui qui a posté la 1re réponse la corrige. */
+    public function editReply(string $reply): self
+    {
+        if ($this->repliedAt !== null && $reply !== $this->reply) {
+            $this->reply = $reply;
+            $this->replyEditedAt = new \DateTimeImmutable();
+        }
+        return $this;
+    }
+
+    public function getReplyEditedAt(): ?\DateTimeImmutable { return $this->replyEditedAt; }
 
     public function getReply(): ?string { return $this->reply; }
 

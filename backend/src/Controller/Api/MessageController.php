@@ -341,6 +341,102 @@ class MessageController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
+    /**
+     * Modifie UN DE MES messages envoyés (texte, et objet s'il est fourni). Les e-mails et notifications d'origine ne
+     * contiennent pas le texte, qui reste à jour dans l'appli (« modifié »). Aucune nouvelle notification.
+     * Body : { body, subject? }.
+     */
+    #[Route('/api/me/messages/{id}', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function editSent(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->messages->find($id);
+        if ($msg === null || $msg->getSender()->getId() !== $viewer->getId()) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $body = trim((string) ($payload['body'] ?? ''));
+        if ($body === '') {
+            return new JsonResponse(['error' => 'Le message ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($body) > 5000) {
+            return new JsonResponse(['error' => 'Message trop long (5000 caractères max).'], Response::HTTP_BAD_REQUEST);
+        }
+        $changeSubject = array_key_exists('subject', $payload);
+        $subject = $changeSubject ? trim((string) $payload['subject']) : null;
+        if ($subject !== null && mb_strlen($subject) > 200) {
+            return new JsonResponse(['error' => 'Objet trop long (200 caractères max).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $msg->editMessage($body, $subject, $changeSubject);
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true, 'message' => $this->serializeMessage($msg)]);
+    }
+
+    /**
+     * Modifie MA réponse (la 1re réponse du destinataire) : seul celui qui l'a postée peut la corriger.
+     * Body : { reply }.
+     */
+    #[Route('/api/me/inbox/{id}/reply', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function editReply(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->messages->find($id);
+        if ($msg === null || !$msg->hasReply() || $msg->getRepliedBy()?->getId() !== $viewer->getId()) {
+            return new JsonResponse(['error' => 'Réponse introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        $reply = is_array($payload) ? trim((string) ($payload['reply'] ?? '')) : '';
+        if ($reply === '') {
+            return new JsonResponse(['error' => 'La réponse ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($reply) > 5000) {
+            return new JsonResponse(['error' => 'Réponse trop longue (5000 caractères max).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $msg->editReply($reply);
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true, 'message' => $this->serializeInbox($msg, $viewer, null)]);
+    }
+
+    /**
+     * Modifie UN DE MES messages de la suite de conversation (au-delà du 2e échange). Body : { content }.
+     */
+    #[Route('/api/me/messages/{id}/thread/{entryId}', methods: ['PATCH'], requirements: ['id' => '\d+', 'entryId' => '\d+'])]
+    public function editThreadEntry(int $id, int $entryId, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->messages->find($id);
+        $entry = $msg === null ? null : $msg->getThreadReplies()->filter(fn (MessageReply $r) => $r->getId() === $entryId)->first();
+        if ($msg === null || !$entry instanceof MessageReply || $entry->getAuthor()->getId() !== $viewer->getId()) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
+        if ($content === '') {
+            return new JsonResponse(['error' => 'Le message ne peut pas être vide.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($content) > 5000) {
+            return new JsonResponse(['error' => 'Message trop long (5000 caractères max).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $entry->edit($content);
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true, 'entry' => $this->serializeThreadEntry($entry)]);
+    }
+
     #[Route('/api/me/inbox/{id}/archive', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function archiveInbox(int $id): JsonResponse
     {
@@ -416,8 +512,12 @@ class MessageController extends AbstractController
             'subject' => $m->getSubject(),
             'body' => $m->getBody(),
             'sentAt' => $m->getSentAt()->format(\DATE_ATOM),
+            // Dernière modification du message par moi ; null = jamais modifié.
+            'editedAt' => $m->getEditedAt()?->format(\DATE_ATOM),
             'reply' => $m->getReply(),
             'repliedAt' => $m->getRepliedAt()?->format(\DATE_ATOM),
+            'replyEditedAt' => $m->getReplyEditedAt()?->format(\DATE_ATOM),
+            'repliedById' => $m->getRepliedBy()?->getId(),
             'repliedByLabel' => $m->getRepliedBy()?->getFullName(),
             'hasReply' => $m->hasReply(),
             'senderArchivedAt' => $m->getSenderArchivedAt()?->format(\DATE_ATOM),
@@ -456,8 +556,11 @@ class MessageController extends AbstractController
             'subject' => $m->getSubject(),
             'body' => $m->getBody(),
             'sentAt' => $m->getSentAt()->format(\DATE_ATOM),
+            // Dernière modification du message par son expéditeur ; null = jamais modifié.
+            'editedAt' => $m->getEditedAt()?->format(\DATE_ATOM),
             'reply' => $m->getReply(),
             'repliedAt' => $m->getRepliedAt()?->format(\DATE_ATOM),
+            'replyEditedAt' => $m->getReplyEditedAt()?->format(\DATE_ATOM),
             'repliedById' => $m->getRepliedBy()?->getId(),
             'repliedByLabel' => $m->getRepliedBy()?->getFullName(),
             'hasReply' => $m->hasReply(),
@@ -482,6 +585,8 @@ class MessageController extends AbstractController
             'authorLabel' => $r->getAuthor()->getFullName(),
             'content' => $r->getContent(),
             'createdAt' => $r->getCreatedAt()->format(\DATE_ATOM),
+            // Dernière modification par son auteur ; null = jamais modifié.
+            'editedAt' => $r->getEditedAt()?->format(\DATE_ATOM),
         ];
     }
 }

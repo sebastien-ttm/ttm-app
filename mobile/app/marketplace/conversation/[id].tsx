@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { marketplace as marketplaceApi } from '@/api/resources';
 import type { MarketplaceConversation } from '@/api/types';
+import { EditableText } from '@/components/EditableText';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatRelativeFr } from '@/utils/html';
@@ -27,8 +28,9 @@ const POLL_INTERVAL_MS = 20_000;
 
 /**
  * Discussion entre un acheteur potentiel et le vendeur à propos d'une
- * annonce de la bourse. Chaque message envoyé part aussi par e-mail à
- * l'interlocuteur, qui revient ici pour répondre.
+ * annonce de la bourse. Chaque message envoyé prévient l'interlocuteur par
+ * e-mail (sans le texte), qui revient ici pour le lire et répondre. Chacun peut
+ * corriger ses propres messages (mention « modifié »).
  */
 export default function MarketplaceConversationScreen() {
   const router = useRouter();
@@ -158,7 +160,20 @@ export default function MarketplaceConversationScreen() {
         >
           {conversation.messages.map((m) => (
             <View key={m.id} style={[styles.bubble, m.mine ? styles.bubbleMine : styles.bubbleOther]}>
-              <Text style={[styles.bubbleText, m.mine && styles.bubbleTextMine]}>{m.content}</Text>
+              <EditableText
+                text={m.content}
+                editedAt={m.editedAt}
+                canEdit={m.mine}
+                maxLength={2000}
+                tone={m.mine ? 'onDark' : 'default'}
+                textStyle={[styles.bubbleText, m.mine && styles.bubbleTextMine]}
+                onSave={async (next) => {
+                  const resp = await marketplaceApi.editMessage(conversation.id, m.id, next);
+                  setConversation((prev) => (prev
+                    ? { ...prev, messages: prev.messages.map((x) => (x.id === m.id ? resp.message : x)) }
+                    : prev));
+                }}
+              />
               <Text style={[styles.bubbleTime, m.mine && styles.bubbleTimeMine]}>
                 {formatRelativeFr(m.createdAt)}
               </Text>

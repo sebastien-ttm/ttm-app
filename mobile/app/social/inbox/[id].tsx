@@ -16,9 +16,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
-import type { InboxMessage, MessageScope } from '@/api/types';
+import type { InboxMessage, MessageScope, ThreadEntry } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { EditableText } from '@/components/EditableText';
 import { MessageThread } from '@/components/MessageThread';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
@@ -94,6 +95,16 @@ export default function InboxDetailScreen() {
     return resp.entry;
   }
 
+  async function saveReply(next: string) {
+    const resp = await auth.editInboxReply(id, next);
+    setMsg(resp.message);
+  }
+
+  async function saveThreadEntry(entry: ThreadEntry, content: string) {
+    const resp = await auth.editThreadEntry(id, entry.id, content);
+    setMsg((prev) => (prev ? { ...prev, thread: prev.thread.map((t) => (t.id === entry.id ? resp.entry : t)) } : prev));
+  }
+
   async function toggleArchive() {
     if (!msg) return;
     setBusy(true);
@@ -157,7 +168,15 @@ export default function InboxDetailScreen() {
             </View>
           )}
           {msg.subject && <Text style={styles.subject}>{msg.subject}</Text>}
-          <Text style={styles.body}>{msg.body}</Text>
+          {/* Le texte affiché est toujours la version à jour : l'expéditeur peut le corriger après coup. */}
+          <EditableText
+            text={msg.body}
+            editedAt={msg.editedAt}
+            canEdit={false}
+            maxLength={5000}
+            textStyle={styles.body}
+            onSave={async () => undefined}
+          />
 
           {msg.hasReply && msg.reply && (
             <View style={styles.replyBox}>
@@ -168,8 +187,15 @@ export default function InboxDetailScreen() {
                   {msg.repliedAt ? ' · ' + formatDateShort(new Date(msg.repliedAt)) : ''}
                 </Text>
               </View>
-              <Text style={styles.replyBody}>{msg.reply}</Text>
-              {!msg.canReply && msg.repliedByLabel && (
+              <EditableText
+                text={msg.reply}
+                editedAt={msg.replyEditedAt}
+                canEdit={msg.repliedById !== null && msg.repliedById === user?.id}
+                maxLength={5000}
+                textStyle={styles.replyBody}
+                onSave={saveReply}
+              />
+              {!msg.canReply && msg.repliedByLabel && msg.repliedById !== user?.id && (
                 <Text style={styles.replyLockNote}>
                   Un seul destinataire peut poster cette première réponse. Vous voyez la réponse en lecture seule.
                 </Text>
@@ -182,6 +208,7 @@ export default function InboxDetailScreen() {
             currentUserId={user?.id ?? null}
             canReply={msg.canThreadReply}
             onSubmit={submitThreadReply}
+            onEdit={saveThreadEntry}
           />
 
           {msg.canReply && (

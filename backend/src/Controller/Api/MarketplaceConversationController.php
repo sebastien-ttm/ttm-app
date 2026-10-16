@@ -163,6 +163,34 @@ class MarketplaceConversationController extends AbstractController
         return new JsonResponse(['ok' => true, 'message' => $this->serializeMessage($message, $user)], Response::HTTP_CREATED);
     }
 
+    /**
+     * Modifie un de MES messages (le texte, pas la date). Aucune notification n'est renvoyée : l'e-mail et la
+     * notification d'origine ne contiennent pas le texte, qui reste à jour dans la discussion (« modifié »).
+     * Body : { content }. 404 si le message n'est pas à moi (masque son existence).
+     */
+    #[Route('/api/marketplace/conversations/{id}/messages/{messageId}', methods: ['PATCH'], requirements: ['id' => '\d+', 'messageId' => '\d+'])]
+    public function editMessage(int $id, int $messageId, Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $conversation = $this->findParticipantOr404($id, $user);
+        $message = $this->messages->find($messageId);
+        if ($message === null
+            || $message->getConversation()->getId() !== $conversation->getId()
+            || $message->getAuthor()->getId() !== $user->getId()) {
+            throw $this->createNotFoundException('Message introuvable.');
+        }
+
+        $content = $this->parseContent($request);
+        if ($content instanceof JsonResponse) {
+            return $content;
+        }
+        $message->edit($content);
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true, 'message' => $this->serializeMessage($message, $user)]);
+    }
+
     private function appendMessage(MarketplaceConversation $conversation, User $author, string $content): MarketplaceMessage
     {
         $message = new MarketplaceMessage($conversation, $author, $content);
@@ -182,6 +210,22 @@ class MarketplaceConversationController extends AbstractController
      */
     private function readContent(Request $request, User $author): string|JsonResponse
     {
+        $content = $this->parseContent($request);
+        if ($content instanceof JsonResponse) {
+            return $content;
+        }
+        if ($this->messages->countByAuthorSince($author, new \DateTimeImmutable('-1 hour')) >= self::MAX_MESSAGES_PER_HOUR) {
+            return new JsonResponse(
+                ['error' => 'Trop de messages envoyés en peu de temps. Réessayez dans un moment.'],
+                Response::HTTP_TOO_MANY_REQUESTS,
+            );
+        }
+        return $content;
+    }
+
+    /** Texte du message : non vide, MAX_LENGTH caractères au plus (corps JSON { content }). */
+    private function parseContent(Request $request): string|JsonResponse
+    {
         $payload = json_decode($request->getContent(), true);
         $content = is_array($payload) ? trim((string) ($payload['content'] ?? '')) : '';
         if ($content === '') {
@@ -193,12 +237,7 @@ class MarketplaceConversationController extends AbstractController
                 Response::HTTP_BAD_REQUEST,
             );
         }
-        if ($this->messages->countByAuthorSince($author, new \DateTimeImmutable('-1 hour')) >= self::MAX_MESSAGES_PER_HOUR) {
-            return new JsonResponse(
-                ['error' => 'Trop de messages envoyés en peu de temps. Réessayez dans un moment.'],
-                Response::HTTP_TOO_MANY_REQUESTS,
-            );
-        }
+
         return $content;
     }
 
@@ -278,6 +317,8 @@ class MarketplaceConversationController extends AbstractController
             'authorFirstName' => $m->getAuthor()->getPrenom(),
             'content' => $m->getContent(),
             'createdAt' => $m->getCreatedAt()->format(\DATE_ATOM),
+            // Date de la dernière modification par l'auteur ; null = jamais modifié.
+            'editedAt' => $m->getEditedAt()?->format(\DATE_ATOM),
         ];
     }
 }

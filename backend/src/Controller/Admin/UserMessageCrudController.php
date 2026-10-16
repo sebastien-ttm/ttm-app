@@ -147,6 +147,14 @@ class UserMessageCrudController extends AbstractCrudController
             ->setNumOfRows(6)
             ->hideOnForm();
 
+        // L'expéditeur peut corriger son message depuis l'appli : le texte affiché ici est toujours le texte à jour.
+        yield DateTimeField::new('editedAt', 'Message modifié le')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->hideOnForm()
+            ->hideOnIndex()
+            ->setRequired(false)
+            ->setHelp('Renseigné si l\'expéditeur a modifié son message depuis l\'application : le texte ci-dessus est la version à jour.');
+
         yield TextareaField::new('reply', $isReplied ? 'Votre réponse (envoyée)' : 'Répondre')
             ->setNumOfRows(6)
             ->setRequired(false)

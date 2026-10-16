@@ -1,13 +1,11 @@
 Bonjour {{ target.prenom }},
 
-{{ reply.author.fullName }} a répondu dans votre conversation{% if message.subject %} « {{ message.subject }} »{% endif %} :
+{{ reply.author.fullName }} a répondu dans votre conversation.
 
----
-{{ reply.content }}
----
-
-Voir toute la conversation et répondre dans l'application :
+Lire le message et répondre dans l'application :
 {{ threadUrl }}
+
+Le texte du message n'est pas repris dans cet e-mail : son auteur peut le modifier, lisez-le directement dans l'application.
 
 ---
 Triathlon Toulouse Métropole — message automatique, ne pas répondre.
