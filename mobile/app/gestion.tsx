@@ -27,7 +27,7 @@ const TABS: { key: GestionTab; label: string }[] = [
  *    admin) ; remise des bonnets et saisie des temps des tests chronométrés
  *    (entraîneur, admin) ;
  *  - Adhérents (entraîneur, encadrant) : annuaire (nom, prénom, téléphone)
- *    avec appel en un geste.
+ *    avec appel ou message WhatsApp en un geste.
  * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.
  */
 export default function GestionScreen() {

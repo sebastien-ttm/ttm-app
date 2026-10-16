@@ -21,7 +21,7 @@ import type { StaffDirectorySeason, StaffMember } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { formatPhoneFr, telHref } from '@/utils/phone';
+import { formatPhoneFr, telHref, whatsappHref } from '@/utils/phone';
 
 /** Pour la recherche : sans accents ni casse (« élodie » trouve « Elodie »). */
 function normalize(text: string): string {
@@ -30,7 +30,8 @@ function normalize(text: string): string {
 
 /**
  * Onglet « Adhérents » de l'espace Staff : tous les adhérents actifs avec
- * nom, prénom et téléphone, et un bouton d'appel (urgences). Regroupés par
+ * nom, prénom et téléphone, avec un bouton d'appel (urgences) et un bouton
+ * WhatsApp pour leur écrire facilement. Regroupés par
  * initiale du nom, avec une recherche. Chaque adhérent porte une pastille
  * indiquant s'il est dans la liste des adhérents de la saison en cours (import
  * FFTri), avec un filtre. Réservé au staff (le serveur revérifie le profil).
@@ -113,6 +114,16 @@ export function MembersTab() {
     }
   }
 
+  async function whatsapp(member: StaffMember, url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      const msg = `Impossible d'ouvrir WhatsApp pour ${member.prenom} ${member.nom}.`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('WhatsApp indisponible', msg);
+    }
+  }
+
   if (loading) return <FullScreenLoading />;
   if (error && members.length === 0) return <ErrorState message={error} onRetry={load} />;
 
@@ -185,7 +196,9 @@ export function MembersTab() {
             <Text style={styles.sectionLetter}>{section.title}</Text>
           </View>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const waUrl = item.telephone ? whatsappHref(item.telephone) : null;
+          return (
           <View style={styles.row}>
             <MemberAvatar prenom={item.prenom} nom={item.nom} avatarUrl={item.avatarUrl} onPress={() => setZoomed(item)} />
             <View style={{ flex: 1 }}>
@@ -218,17 +231,30 @@ export function MembersTab() {
               )}
             </View>
             {item.telephone && (
-              <Pressable
-                onPress={() => call(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`Appeler ${item.prenom} ${item.nom}${item.telephoneOf ? ` (via ${item.telephoneOf})` : ''}`}
-                style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.75 }]}
-              >
-                <Ionicons name="call" size={20} color="#fff" />
-              </Pressable>
+              <View style={styles.actions}>
+                {waUrl && (
+                  <Pressable
+                    onPress={() => whatsapp(item, waUrl)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Écrire à ${item.prenom} ${item.nom} sur WhatsApp${item.telephoneOf ? ` (via ${item.telephoneOf})` : ''}`}
+                    style={({ pressed }) => [styles.waBtn, pressed && { opacity: 0.75 }]}
+                  >
+                    <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => call(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Appeler ${item.prenom} ${item.nom}${item.telephoneOf ? ` (via ${item.telephoneOf})` : ''}`}
+                  style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.75 }]}
+                >
+                  <Ionicons name="call" size={20} color="#fff" />
+                </Pressable>
+              </View>
             )}
           </View>
-        )}
+          );
+        }}
       />
 
       {/* Photo en grand : un appui n'importe où referme. */}
@@ -308,6 +334,17 @@ const styles = StyleSheet.create({
   phone: { fontSize: 14, color: COLORS.secondaryDark, marginTop: 2, fontVariant: ['tabular-nums'] },
   phoneOf: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
   noPhone: { fontSize: 13, color: COLORS.textSubtle, fontStyle: 'italic', marginTop: 2 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  waBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: '#25D366',
+  },
   callBtn: {
     width: 44,
     height: 44,
