@@ -64,9 +64,8 @@ class MarketplaceController extends AbstractController
     }
 
     /**
-     * Détail d'une annonce. Une annonce en pause n'est visible que par
-     * son auteur (pour prévisualiser/gérer) — 404 sinon, pas de 403
-     * qui laisserait deviner l'existence.
+     * Détail d'une annonce. Une annonce en pause ou expirée (plus de 10 jours sans réactivation) n'est visible que
+     * par son auteur (pour prévisualiser/gérer/réactiver) — 404 sinon, pas de 403 qui laisserait deviner l'existence.
      */
     #[Route('/api/marketplace/listings/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function detail(int $id): JsonResponse
@@ -77,7 +76,7 @@ class MarketplaceController extends AbstractController
         if ($listing === null) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
-        if ($listing->isPaused() && $listing->getAuthor()->getId() !== $user->getId()) {
+        if (!$listing->isActive() && $listing->getAuthor()->getId() !== $user->getId()) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
 
@@ -91,7 +90,7 @@ class MarketplaceController extends AbstractController
     }
 
     /**
-     * Création. Multipart : title, description, photos[] (0 à 5 fichiers).
+     * Création. Multipart : title, description, price (facultatif, en euros), photos[] (0 à 5 fichiers).
      */
     #[Route('/api/marketplace/listings', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -114,6 +113,11 @@ class MarketplaceController extends AbstractController
             return new JsonResponse(['error' => 'Description trop longue (3000 caractères max).'], Response::HTTP_BAD_REQUEST);
         }
 
+        $price = self::parsePrice($request->request->get('price'), $invalidPrice);
+        if ($invalidPrice) {
+            return new JsonResponse(['error' => 'Prix invalide (un montant en euros, ex : 45 ou 45,50).'], Response::HTTP_BAD_REQUEST);
+        }
+
         $files = $request->files->all('photos');
         if (count($files) > MarketplaceListingPhotoService::MAX_PHOTOS) {
             return new JsonResponse(
@@ -125,6 +129,7 @@ class MarketplaceController extends AbstractController
         $listing = new MarketplaceListing($user);
         $listing->setTitle($title);
         $listing->setDescription($description);
+        $listing->setPrice($price);
         $this->em->persist($listing);
         // Flush requis avant les photos : le dossier de stockage est
         // nommé d'après l'id de l'annonce (voir MarketplaceListingPhotoService).
@@ -182,6 +187,13 @@ class MarketplaceController extends AbstractController
                 return new JsonResponse(['error' => 'Description trop longue (3000 caractères max).'], Response::HTTP_BAD_REQUEST);
             }
             $listing->setDescription($description);
+        }
+        if (array_key_exists('price', $payload)) {
+            $price = self::parsePrice($payload['price'], $invalidPrice);
+            if ($invalidPrice) {
+                return new JsonResponse(['error' => 'Prix invalide (un montant en euros, ex : 45 ou 45,50).'], Response::HTTP_BAD_REQUEST);
+            }
+            $listing->setPrice($price);
         }
         $listing->touchUpdatedAt();
         $this->em->flush();
@@ -260,13 +272,17 @@ class MarketplaceController extends AbstractController
         return new JsonResponse($this->serializeDetail($listing));
     }
 
+    /**
+     * Publie (ou réactive) l'annonce : sort de la pause ET relance les 10 jours de visibilité — c'est la seule façon
+     * de remettre dans la liste une annonce expirée.
+     */
     #[Route('/api/marketplace/listings/{id}/publish', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function publish(int $id): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
         $listing = $this->findOwnedOr404($id, $user);
-        $listing->setPausedAt(null);
+        $listing->republish();
         $this->em->flush();
         return new JsonResponse($this->serializeDetail($listing));
     }
@@ -309,9 +325,38 @@ class MarketplaceController extends AbstractController
             'authorFirstName' => $l->getAuthor()->getPrenom(),
             'authorFullName' => $l->getAuthor()->getFullName(),
             'createdAt' => $l->getCreatedAt()->format(\DATE_ATOM),
+            // Mise en ligne ou dernière réactivation (ordre de la liste).
+            'publishedAt' => $l->getPublishedAt()->format(\DATE_ATOM),
+            // Prix en euros ; null = non renseigné.
+            'price' => $l->getPrice(),
             'photoUrl' => $first instanceof MarketplaceListingPhoto ? $this->photoService->urlFor($first) : null,
             'photoCount' => $l->getPhotos()->count(),
         ];
+    }
+
+    /**
+     * Prix saisi : « 45 », « 45,50 », « 45.5 € » (espaces et symbole € tolérés) ; vide ou null = pas de prix.
+     * `$invalid` passe à true si la saisie n'est pas un montant valide (positif, 2 décimales au plus).
+     */
+    private static function parsePrice(mixed $raw, ?bool &$invalid = null): ?float
+    {
+        $invalid = false;
+        if ($raw === null || is_array($raw)) {
+            $invalid = is_array($raw);
+
+            return null;
+        }
+        $text = str_replace(',', '.', (string) preg_replace('/[\s\x{00A0}\x{20AC}]/u', '', (string) $raw));
+        if ($text === '') {
+            return null;
+        }
+        if (!preg_match('/^\d{1,6}(\.\d{1,2})?$/', $text)) {
+            $invalid = true;
+
+            return null;
+        }
+
+        return (float) $text;
     }
 
     /**
@@ -329,7 +374,13 @@ class MarketplaceController extends AbstractController
             'authorFullName' => $author->getFullName(),
             'createdAt' => $l->getCreatedAt()->format(\DATE_ATOM),
             'updatedAt' => $l->getUpdatedAt()?->format(\DATE_ATOM),
+            'publishedAt' => $l->getPublishedAt()->format(\DATE_ATOM),
+            // Prix en euros ; null = non renseigné.
+            'price' => $l->getPrice(),
             'paused' => $l->isPaused(),
+            // Expirée : plus de 10 jours depuis la mise en ligne / réactivation — seul l'auteur peut la réactiver.
+            'expired' => $l->isExpired(),
+            'expiresAt' => $l->getExpiresAt()->format(\DATE_ATOM),
             'photos' => array_map(fn (MarketplaceListingPhoto $p) => [
                 'id' => $p->getId(),
                 'url' => $this->photoService->urlFor($p),

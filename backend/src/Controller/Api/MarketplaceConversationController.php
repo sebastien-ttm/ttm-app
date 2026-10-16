@@ -87,8 +87,8 @@ class MarketplaceConversationController extends AbstractController
         $user = $this->getUser();
 
         $listing = $this->listings->find($id);
-        // Annonce en pause : invisible pour les autres, donc injoignable.
-        if ($listing === null || ($listing->isPaused() && $listing->getAuthor()->getId() !== $user->getId())) {
+        // Annonce en pause ou expirée : invisible pour les autres, donc injoignable.
+        if ($listing === null || (!$listing->isActive() && $listing->getAuthor()->getId() !== $user->getId())) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
         if ($listing->getAuthor()->getId() === $user->getId()) {

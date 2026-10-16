@@ -92,10 +92,10 @@ class MarketplaceConversation
         return $this->listing !== null ? $this->listing->getTitle() : (string) $this->bibOffer;
     }
 
-    /** Sujet masqué (mis en pause par son auteur). */
+    /** Sujet masqué : mis en pause par son auteur, ou (annonce de la bourse aux équipements) expiré. */
     public function isSubjectPaused(): bool
     {
-        return $this->listing !== null ? $this->listing->isPaused() : $this->bibOffer->isPaused();
+        return $this->listing !== null ? !$this->listing->isActive() : $this->bibOffer->isPaused();
     }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getLastMessageAt(): \DateTimeImmutable { return $this->lastMessageAt; }

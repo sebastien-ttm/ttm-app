@@ -13,6 +13,15 @@ import { useAuth } from '@/auth/AuthContext';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen } from '@/lib/seenListings';
 import { formatRelativeFr } from '@/utils/html';
+import { formatPrice } from '@/utils/price';
+
+/** « expire dans 6 j », « expire aujourd'hui » : temps restant avant la désactivation automatique de l'annonce. */
+function expiresIn(expiresAt: string | undefined): string | null {
+  if (!expiresAt) return null;
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return days === 1 ? 'expire demain' : `expire dans ${days} j`;
+}
 
 type Tab = 'browse' | 'mine' | 'messages';
 
@@ -62,7 +71,8 @@ export default function MarketplaceScreen() {
   async function togglePause(item: MarketplaceListing) {
     setBusyId(item.id);
     try {
-      if (item.paused) await marketplaceApi.publish(item.id);
+      // En pause ou expirée : « Publier » / « Réactiver » remet l'annonce dans la liste pour 10 jours.
+      if (item.paused || item.expired) await marketplaceApi.publish(item.id);
       else await marketplaceApi.pause(item.id);
       await load();
     } catch (e) {
@@ -150,8 +160,9 @@ export default function MarketplaceScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                {formatPrice(item.price) && <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>}
                 <Text style={styles.cardMeta}>
-                  par {item.authorFullName} · {formatRelativeFr(item.createdAt)}
+                  par {item.authorFullName} · {formatRelativeFr(item.publishedAt ?? item.createdAt)}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
@@ -233,11 +244,17 @@ export default function MarketplaceScreen() {
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                  <View style={[styles.statusBadge, item.paused && styles.statusBadgePaused]}>
-                    <Text style={[styles.statusBadgeLabel, item.paused && styles.statusBadgeLabelPaused]}>
-                      {item.paused ? 'En pause' : 'Publiée'}
+                  {formatPrice(item.price) && <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>}
+                  <View style={[styles.statusBadge, item.paused && styles.statusBadgePaused, item.expired && styles.statusBadgeExpired]}>
+                    <Text style={[styles.statusBadgeLabel, item.paused && styles.statusBadgeLabelPaused, item.expired && styles.statusBadgeLabelExpired]}>
+                      {item.expired ? 'Expirée' : item.paused ? 'En pause' : 'Publiée'}
                     </Text>
                   </View>
+                  {item.expired ? (
+                    <Text style={styles.cardMeta}>Plus visible du club — réactivez-la pour la remettre dans la liste.</Text>
+                  ) : !item.paused && expiresIn(item.expiresAt) ? (
+                    <Text style={styles.cardMeta}>{expiresIn(item.expiresAt)}</Text>
+                  ) : null}
                 </View>
               </Pressable>
               <View style={styles.cardActions}>
@@ -248,8 +265,8 @@ export default function MarketplaceScreen() {
                   disabled={busyId === item.id}
                 />
                 <ActionBtn
-                  icon={item.paused ? 'play-outline' : 'pause-outline'}
-                  label={item.paused ? 'Publier' : 'Mettre en pause'}
+                  icon={item.paused || item.expired ? 'play-outline' : 'pause-outline'}
+                  label={item.expired ? 'Réactiver' : item.paused ? 'Publier' : 'Mettre en pause'}
                   onPress={() => void togglePause(item)}
                   disabled={busyId === item.id}
                 />
@@ -351,6 +368,7 @@ const styles = StyleSheet.create({
   cardPhotoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   cardMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  cardPrice: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginTop: 2 },
   convPreview: { fontSize: 13, color: COLORS.text, marginTop: 4 },
   convTime: { fontSize: 11, color: COLORS.textMuted, alignSelf: 'flex-start' },
   statusBadge: {
@@ -358,8 +376,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecfdf5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,
   },
   statusBadgePaused: { backgroundColor: '#fef3c7' },
+  statusBadgeExpired: { backgroundColor: '#fee2e2' },
   statusBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#047857' },
   statusBadgeLabelPaused: { color: '#92400e' },
+  statusBadgeLabelExpired: { color: '#991b1b' },
   cardActions: {
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border,
   },

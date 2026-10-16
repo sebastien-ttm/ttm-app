@@ -18,18 +18,22 @@ class MarketplaceListingRepository extends ServiceEntityRepository
     }
 
     /**
-     * Annonces publiées (pausedAt IS NULL), plus récentes d'abord —
-     * liste « Annonces » visible par tout le club.
+     * Annonces publiées (ni en pause, ni expirées : mises en ligne ou réactivées depuis moins de
+     * MarketplaceListing::LIFETIME_DAYS jours), plus récentes d'abord — liste « Annonces » visible par tout le club.
      *
      * @return list<MarketplaceListing>
      */
     public function findPublished(): array
     {
+        $cutoff = (new \DateTimeImmutable())->modify('-'.MarketplaceListing::LIFETIME_DAYS.' days');
+
         return $this->createQueryBuilder('l')
             ->leftJoin('l.author', 'a')->addSelect('a')
             ->leftJoin('l.photos', 'p')->addSelect('p')
             ->where('l.pausedAt IS NULL')
-            ->orderBy('l.createdAt', 'DESC')
+            ->andWhere('l.publishedAt > :cutoff')
+            ->setParameter('cutoff', $cutoff)
+            ->orderBy('l.publishedAt', 'DESC')
             ->getQuery()
             ->getResult();
     }

@@ -20,15 +20,17 @@ import { marketplace as marketplaceApi } from '@/api/resources';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { pickReducedPhotos, type PickedPhoto } from '@/lib/marketplacePhotos';
+import { parsePriceInput } from '@/utils/price';
 
 const MAX_PHOTOS = 5;
 
-/** Création d'une annonce : titre, texte, jusqu'à 5 photos. */
+/** Création d'une annonce : titre, texte, prix (facultatif), jusqu'à 5 photos. */
 export default function MarketplaceNewScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   /** Réduction des photos en cours (quelques secondes pour 5 photos). */
@@ -62,9 +64,14 @@ export default function MarketplaceNewScreen() {
       setError('La description ne peut pas être vide.');
       return;
     }
+    const parsedPrice = parsePriceInput(price);
+    if (!parsedPrice.valid) {
+      setError('Prix invalide : indiquez un montant en euros (ex : 45 ou 45,50) ou laissez vide.');
+      return;
+    }
     setBusy(true);
     try {
-      const created = await marketplaceApi.create(trimmedTitle, trimmedDescription, photos);
+      const created = await marketplaceApi.create(trimmedTitle, trimmedDescription, photos, parsedPrice.value);
       router.replace(('/marketplace/' + created.id) as never);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
@@ -102,6 +109,22 @@ export default function MarketplaceNewScreen() {
             editable={!busy}
           />
           <Text style={styles.counter}>{description.length} / 3000</Text>
+
+          <Text style={styles.label}>Prix en € (facultatif)</Text>
+          <TextInput
+            value={price}
+            onChangeText={setPrice}
+            placeholder="Ex : 45 ou 45,50"
+            placeholderTextColor={COLORS.textSubtle}
+            keyboardType="decimal-pad"
+            maxLength={9}
+            style={[styles.input, styles.priceInput]}
+            editable={!busy}
+          />
+          <Text style={styles.hint}>
+            Affiché dans la liste des annonces s'il est renseigné. Votre annonce reste visible 10 jours : vous pourrez la
+            réactiver ensuite depuis « Mes annonces ».
+          </Text>
 
           <Text style={styles.label}>Photos ({photos.length} / {MAX_PHOTOS})</Text>
           <View style={styles.photoRow}>
@@ -155,6 +178,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   textarea: { minHeight: 140, textAlignVertical: 'top' },
+  priceInput: { maxWidth: 180 },
+  hint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17, marginTop: 6 },
   counter: { textAlign: 'right', fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   photoThumbWrap: { position: 'relative' },

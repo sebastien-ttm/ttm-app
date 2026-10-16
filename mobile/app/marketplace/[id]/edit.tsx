@@ -23,6 +23,7 @@ import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { pickReducedPhotos, type PickedPhoto } from '@/lib/marketplacePhotos';
+import { parsePriceInput } from '@/utils/price';
 
 const MAX_PHOTOS = 5;
 
@@ -40,6 +41,7 @@ export default function MarketplaceEditScreen() {
   const [listing, setListing] = useState<MarketplaceListing | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
   const [newPhotos, setNewPhotos] = useState<PickedPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -60,6 +62,8 @@ export default function MarketplaceEditScreen() {
       setListing(resp);
       setTitle(resp.title);
       setDescription(resp.description);
+      // « 45,5 » → « 45,50 » : à l'écran, la virgule française.
+      setPrice(resp.price != null ? String(resp.price).replace('.', ',') : '');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
@@ -114,9 +118,14 @@ export default function MarketplaceEditScreen() {
       setError('La description ne peut pas être vide.');
       return;
     }
+    const parsedPrice = parsePriceInput(price);
+    if (!parsedPrice.valid) {
+      setError('Prix invalide : indiquez un montant en euros (ex : 45 ou 45,50) ou laissez vide.');
+      return;
+    }
     setBusy(true);
     try {
-      await marketplaceApi.update(listing.id, { title: trimmedTitle, description: trimmedDescription });
+      await marketplaceApi.update(listing.id, { title: trimmedTitle, description: trimmedDescription, price: parsedPrice.value });
       if (newPhotos.length > 0) {
         await marketplaceApi.addPhotos(listing.id, newPhotos);
       }
@@ -171,6 +180,18 @@ export default function MarketplaceEditScreen() {
             editable={!busy}
           />
           <Text style={styles.counter}>{description.length} / 3000</Text>
+
+          <Text style={styles.label}>Prix en € (facultatif)</Text>
+          <TextInput
+            value={price}
+            onChangeText={setPrice}
+            placeholder="Ex : 45 ou 45,50"
+            placeholderTextColor={COLORS.textSubtle}
+            keyboardType="decimal-pad"
+            maxLength={9}
+            style={[styles.input, styles.priceInput]}
+            editable={!busy}
+          />
 
           <Text style={styles.label}>Photos ({totalPhotos} / {MAX_PHOTOS})</Text>
           <View style={styles.photoRow}>
@@ -250,6 +271,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   textarea: { minHeight: 140, textAlignVertical: 'top' },
+  priceInput: { maxWidth: 180 },
   counter: { textAlign: 'right', fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   photoThumbWrap: { position: 'relative' },

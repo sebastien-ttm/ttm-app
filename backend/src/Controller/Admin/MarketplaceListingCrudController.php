@@ -13,6 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
@@ -51,10 +52,22 @@ class MarketplaceListingCrudController extends AbstractCrudController
             ->hideOnIndex();
         yield IntegerField::new('photoCount', 'Photos')
             ->setSortable(false);
+        yield NumberField::new('price', 'Prix (€)')
+            ->setNumDecimals(2);
         yield BooleanField::new('paused', 'En pause')
             ->renderAsSwitch(false);
-        yield DateTimeField::new('createdAt', 'Publiée le')
+        yield BooleanField::new('expired', 'Expirée')
+            ->renderAsSwitch(false)
+            ->setHelp('Plus de 10 jours depuis la mise en ligne ou la dernière réactivation : masquée du club, seul son auteur peut la réactiver.')
+            ->setSortable(false);
+        yield DateTimeField::new('createdAt', 'Créée le')
             ->setFormat('d MMM yyyy HH:mm');
+        yield DateTimeField::new('publishedAt', 'En ligne depuis')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->hideOnIndex();
+        yield DateTimeField::new('expiresAt', 'Expire le')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->setSortable(false);
         yield DateTimeField::new('updatedAt', 'Modifiée le')
             ->setFormat('d MMM yyyy HH:mm')
             ->hideOnIndex();

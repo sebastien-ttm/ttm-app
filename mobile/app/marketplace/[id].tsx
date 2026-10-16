@@ -26,6 +26,7 @@ import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatRelativeFr } from '@/utils/html';
+import { formatPrice } from '@/utils/price';
 
 /**
  * Détail d'une annonce : galerie photo, description, contact WhatsApp
@@ -73,7 +74,8 @@ export default function MarketplaceDetailScreen() {
     if (!listing) return;
     setBusy(true);
     try {
-      const updated = listing.paused
+      // En pause ou expirée : republier remet l'annonce dans la liste pour 10 jours.
+      const updated = listing.paused || listing.expired
         ? await marketplaceApi.publish(listing.id)
         : await marketplaceApi.pause(listing.id);
       setListing(updated);
@@ -145,18 +147,26 @@ export default function MarketplaceDetailScreen() {
         )}
 
         <View style={styles.body}>
-          {listing.paused && (
+          {listing.expired ? (
+            <View style={styles.pausedBanner}>
+              <Ionicons name="time" size={16} color="#92400e" />
+              <Text style={styles.pausedBannerLabel}>
+                Annonce expirée (plus de 10 jours) — invisible pour le reste du club. Réactivez-la pour la remettre dans la liste.
+              </Text>
+            </View>
+          ) : listing.paused ? (
             <View style={styles.pausedBanner}>
               <Ionicons name="pause-circle" size={16} color="#92400e" />
               <Text style={styles.pausedBannerLabel}>
                 Annonce en pause — invisible pour le reste du club.
               </Text>
             </View>
-          )}
+          ) : null}
 
           <Text style={styles.title}>{listing.title}</Text>
+          {formatPrice(listing.price) && <Text style={styles.price}>{formatPrice(listing.price)}</Text>}
           <Text style={styles.author}>
-            Par {listing.authorFullName} · {formatRelativeFr(listing.createdAt)}
+            Par {listing.authorFullName} · {formatRelativeFr(listing.publishedAt ?? listing.createdAt)}
           </Text>
           <Text style={styles.description}>{listing.description}</Text>
 
@@ -218,8 +228,8 @@ export default function MarketplaceDetailScreen() {
                   disabled={busy}
                 />
                 <OwnerBtn
-                  icon={listing.paused ? 'play-outline' : 'pause-outline'}
-                  label={listing.paused ? 'Publier' : 'Pause'}
+                  icon={listing.paused || listing.expired ? 'play-outline' : 'pause-outline'}
+                  label={listing.expired ? 'Réactiver' : listing.paused ? 'Publier' : 'Pause'}
                   onPress={() => void togglePause()}
                   disabled={busy}
                 />
@@ -382,6 +392,7 @@ const styles = StyleSheet.create({
   },
   pausedBannerLabel: { color: '#92400e', fontSize: 13, flex: 1 },
   title: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  price: { fontSize: 22, fontWeight: '800', color: COLORS.primary, marginTop: 2 },
   author: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: SPACING.md },
   description: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
   contactBox: {

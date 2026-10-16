@@ -422,16 +422,17 @@ export const marketplace = {
   get: (id: number) => api.get<MarketplaceListing>(`/api/marketplace/listings/${id}`),
 
   /** Création (multipart) — jusqu'à 5 photos. */
-  create: async (title: string, description: string, photos: MarketplacePhotoInput[]) => {
+  create: async (title: string, description: string, photos: MarketplacePhotoInput[], price: number | null = null) => {
     const form = new FormData();
     form.append('title', title);
     form.append('description', description);
+    if (price !== null) form.append('price', String(price));
     for (const p of photos) await appendMarketplacePhoto(form, p);
     return api.post<MarketplaceListing>('/api/marketplace/listings', form);
   },
 
   /** Édition titre/texte seul — les photos passent par les endpoints dédiés. */
-  update: (id: number, patch: { title?: string; description?: string }) =>
+  update: (id: number, patch: { title?: string; description?: string; price?: number | null }) =>
     api.patch<MarketplaceListing>(`/api/marketplace/listings/${id}`, patch),
 
   addPhotos: async (id: number, photos: MarketplacePhotoInput[]) => {

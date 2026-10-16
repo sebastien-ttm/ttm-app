@@ -20,6 +20,11 @@ use Symfony\Component\Validator\Constraints as Assert;
  * tous, non-null = mise en pause par l'auteur (reste visible pour lui
  * dans « Mes annonces », invisible pour le reste du club). La
  * suppression, elle, est définitive (pas de soft-delete).
+ *
+ * Expiration : une annonce se désactive d'elle-même LIFETIME_DAYS jours après `publishedAt` (mise en ligne, ou
+ * dernière réactivation) — elle n'apparaît plus dans la liste du club et n'est plus joignable, mais reste dans
+ * « Mes annonces » de son auteur, seul à pouvoir la réactiver (ce qui relance les 10 jours). L'état « expirée »
+ * est calculé à la lecture (pas de tâche planifiée).
  */
 #[ORM\Entity(repositoryClass: MarketplaceListingRepository::class)]
 #[ORM\Table(name: 'marketplace_listing')]
@@ -54,6 +59,14 @@ class MarketplaceListing
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $pausedAt = null;
 
+    /** Prix demandé en euros (facultatif) ; null = non renseigné. DECIMAL : Doctrine le manipule en chaîne. */
+    #[ORM\Column(type: 'decimal', precision: 8, scale: 2, nullable: true)]
+    private ?string $price = null;
+
+    /** Mise en ligne ou dernière réactivation par l'auteur : point de départ des LIFETIME_DAYS jours. */
+    #[ORM\Column]
+    private \DateTimeImmutable $publishedAt;
+
     /**
      * @var Collection<int, MarketplaceListingPhoto>
      */
@@ -65,6 +78,7 @@ class MarketplaceListing
     {
         $this->author = $author;
         $this->createdAt = new \DateTimeImmutable();
+        $this->publishedAt = $this->createdAt;
         $this->photos = new ArrayCollection();
     }
 
@@ -84,6 +98,47 @@ class MarketplaceListing
     public function getPausedAt(): ?\DateTimeImmutable { return $this->pausedAt; }
     public function setPausedAt(?\DateTimeImmutable $d): self { $this->pausedAt = $d; return $this; }
     public function isPaused(): bool { return $this->pausedAt !== null; }
+
+    /** Durée de vie d'une annonce, en jours, à partir de sa mise en ligne ou de sa dernière réactivation. */
+    public const LIFETIME_DAYS = 10;
+
+    /** Prix en euros, ou null s'il n'est pas renseigné. */
+    public function getPrice(): ?float { return $this->price !== null ? (float) $this->price : null; }
+
+    /** Fixe le prix (euros, ≥ 0, 2 décimales) ; null = pas de prix. */
+    public function setPrice(?float $price): self
+    {
+        $this->price = $price !== null ? number_format(max(0.0, $price), 2, '.', '') : null;
+        return $this;
+    }
+
+    public function getPublishedAt(): \DateTimeImmutable { return $this->publishedAt; }
+
+    /** Réactivation par l'auteur : sort de la pause et relance les LIFETIME_DAYS jours. */
+    public function republish(?\DateTimeImmutable $now = null): self
+    {
+        $this->pausedAt = null;
+        $this->publishedAt = $now ?? new \DateTimeImmutable();
+        return $this;
+    }
+
+    /** Dernier instant où l'annonce est encore visible. */
+    public function getExpiresAt(): \DateTimeImmutable
+    {
+        return $this->publishedAt->modify('+'.self::LIFETIME_DAYS.' days');
+    }
+
+    /** Désactivée d'office : plus de LIFETIME_DAYS jours depuis sa mise en ligne / réactivation. */
+    public function isExpired(?\DateTimeImmutable $now = null): bool
+    {
+        return $this->getExpiresAt() <= ($now ?? new \DateTimeImmutable());
+    }
+
+    /** Visible de tout le club : ni en pause, ni expirée. */
+    public function isActive(?\DateTimeImmutable $now = null): bool
+    {
+        return !$this->isPaused() && !$this->isExpired($now);
+    }
 
     /** @return Collection<int, MarketplaceListingPhoto> */
     public function getPhotos(): Collection { return $this->photos; }

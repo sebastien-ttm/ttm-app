@@ -938,6 +938,10 @@ export type MarketplaceListingSummary = {
   authorFirstName: string;
   authorFullName: string;
   createdAt: string;
+  /** Mise en ligne ou dernière réactivation (ordre de la liste). Absent des anciennes réponses. */
+  publishedAt?: string;
+  /** Prix en euros ; null = non renseigné. Absent des anciennes réponses. */
+  price?: number | null;
   /** null si l'annonce n'a aucune photo. */
   photoUrl: string | null;
   photoCount: number;
@@ -958,7 +962,15 @@ export type MarketplaceListing = {
   authorFullName: string;
   createdAt: string;
   updatedAt: string | null;
+  /** Mise en ligne ou dernière réactivation. Absent des anciennes réponses. */
+  publishedAt?: string;
+  /** Prix en euros ; null = non renseigné. Absent des anciennes réponses. */
+  price?: number | null;
   paused: boolean;
+  /** Expirée : plus de 10 jours depuis la mise en ligne / réactivation — masquée du club, seul l'auteur peut la réactiver. */
+  expired?: boolean;
+  /** Fin de visibilité (mise en ligne + 10 jours). */
+  expiresAt?: string;
   photos: MarketplaceListingPhoto[];
   /**
    * Discussion déjà ouverte par le viewer avec le vendeur — renseigné
