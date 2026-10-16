@@ -113,13 +113,13 @@ function TrainingScreenInner() {
   }, [load, weekStart]);
 
   // Groupement par jour de la semaine.
-  //  - Annulés : affichés (barrés dans SlotRow) — l'adhérent doit voir
+  //  - Annulés : affichés en fin de vue Liste (l'adhérent doit voir
   //    qu'un créneau habituel a été supprimé pour cette semaine, sinon
-  //    il peut se déplacer sans savoir.
+  //    il peut se déplacer sans savoir) mais absents de la vue Semaine.
   //  - Passés (fin dépassée) : masqués en vue Liste (le prochain
   //    créneau non-fini remonte naturellement en tête chronologique)
   //    mais gardés en vue Semaine — la grille sert de vue synoptique
-  //    complète de la semaine, y compris ce qui vient d'avoir lieu.
+  //    de la semaine, y compris ce qui vient d'avoir lieu.
   const slotsByDayFull = useMemo(() => {
     const map = new Map<number, TrainingSlot[]>();
     (data?.slots ?? []).forEach((s) => {
@@ -129,6 +129,16 @@ function TrainingScreenInner() {
     });
     return map;
   }, [data]);
+  // Vue Semaine (grille) : sans les créneaux annulés — en semaine de vacances ils noyaient le planning ; ils restent
+  // consultables dans la vue Liste.
+  const slotsByDayGrid = useMemo(() => {
+    const map = new Map<number, TrainingSlot[]>();
+    for (const [day, slots] of slotsByDayFull) {
+      const kept = slots.filter((s) => !s.isCancelled);
+      if (kept.length > 0) map.set(day, kept);
+    }
+    return map;
+  }, [slotsByDayFull]);
   // Vue Liste : les créneaux maintenus (et les occasionnels) d'abord, par jour ; les créneaux annulés sont tous
   // regroupés à la fin, en lignes compactes — en semaine de vacances, des dizaines de créneaux barrés au milieu du
   // planning le rendaient illisible.
@@ -332,11 +342,15 @@ function TrainingScreenInner() {
                           )}
                         </>
                       )
+                    ) : slotsByDayGrid.size === 0 ? (
+                      <Text style={styles.planEmpty}>
+                        Tous les créneaux de cette semaine sont annulés (voir la vue Liste).
+                      </Text>
                     ) : (
-                      /* Vue Semaine : passe la map COMPLÈTE, y compris les
-                         créneaux déjà passés dans la semaine, pour offrir
-                         une vue synoptique du planning hebdo. */
-                      <WeekGrid slotsByDay={slotsByDayFull} weekStart={weekStart} />
+                      /* Vue Semaine : les créneaux déjà passés dans la semaine
+                         sont gardés pour offrir une vue synoptique du planning
+                         hebdo, mais pas les créneaux annulés. */
+                      <WeekGrid slotsByDay={slotsByDayGrid} weekStart={weekStart} />
                     )}
                   </View>
                 );
@@ -529,14 +543,13 @@ function WeekGrid({ slotsByDay, weekStart }: {
                       style={({ pressed }) => [
                         gridStyles.slotBlock,
                         { top, height, left, width: subWidth, backgroundColor: bg, borderLeftColor: s.sportColor },
-                        s.isCancelled && gridStyles.slotBlockCancelled,
                         pressed && { opacity: 0.7 },
                       ]}
                     >
-                      <Text style={[gridStyles.slotTime, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={1}>
+                      <Text style={gridStyles.slotTime} numberOfLines={1}>
                         {s.sportIcon} {s.startTime}{s.registration ? (s.registration.mine ? ' ✅' : ' ✍️') : ''}
                       </Text>
-                      <Text style={[gridStyles.slotTitle, s.isCancelled && gridStyles.slotCancelledText]} numberOfLines={2}>
+                      <Text style={gridStyles.slotTitle} numberOfLines={2}>
                         {s.title}
                       </Text>
                     </Pressable>
@@ -946,12 +959,6 @@ const gridStyles = StyleSheet.create({
     borderLeftWidth: 3,
     overflow: 'hidden',
   },
-  slotBlockCancelled: {
-    opacity: 0.55,
-    backgroundColor: '#f3f4f6',
-    borderLeftColor: COLORS.textMuted,
-  },
   slotTime: { fontSize: 10, fontWeight: '700', color: COLORS.text },
   slotTitle: { fontSize: 11, color: COLORS.text, lineHeight: 13, marginTop: 1 },
-  slotCancelledText: { textDecorationLine: 'line-through', color: COLORS.textMuted },
 });
