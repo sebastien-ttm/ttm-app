@@ -33,7 +33,8 @@ class NotifyNewUserMessageMessageHandler
     public function __invoke(NotifyNewUserMessageMessage $message): void
     {
         $msg = $this->messages->find($message->messageId);
-        if ($msg === null) {
+        // Supprimé par son expéditeur avant l'envoi : plus rien à notifier.
+        if ($msg === null || $msg->isDeleted()) {
             return;
         }
         // Idempotence : la dispatch a déjà eu lieu.

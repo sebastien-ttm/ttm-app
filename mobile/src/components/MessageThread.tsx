@@ -11,7 +11,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
  * d'un UserMessage. Affiche chaque tour en bulle chat (les miens à
  * droite, ceux de l'autre partie à gauche) puis, si `canReply`, un
  * composer permanent — sans limite de tours, ouvert aux deux parties.
- * Chacun peut corriger SES messages (`onEdit`) : la bulle affiche alors « modifié ».
+ * Chacun peut corriger (`onEdit`) ou supprimer (`onDelete`) SES messages : la bulle affiche alors « modifié ».
  */
 type Props = {
   thread: ThreadEntry[];
@@ -20,9 +20,11 @@ type Props = {
   onSubmit: (content: string) => Promise<ThreadEntry>;
   /** Enregistre la correction d'un de mes messages (la promesse rejetée garde l'éditeur ouvert). */
   onEdit?: (entry: ThreadEntry, content: string) => Promise<void>;
+  /** Supprime un de mes messages (la promesse rejetée affiche l'erreur sous le message). */
+  onDelete?: (entry: ThreadEntry) => Promise<void>;
 };
 
-export function MessageThread({ thread, currentUserId, canReply, onSubmit, onEdit }: Props) {
+export function MessageThread({ thread, currentUserId, canReply, onSubmit, onEdit, onDelete }: Props) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -65,6 +67,8 @@ export function MessageThread({ thread, currentUserId, canReply, onSubmit, onEdi
                   maxLength={5000}
                   textStyle={styles.bubbleBody}
                   onSave={(content) => (onEdit ? onEdit(entry, content) : Promise.resolve())}
+                  onDelete={onDelete ? () => onDelete(entry) : undefined}
+                  deleteConfirm="Ce message sera supprimé de la conversation, pour tout le monde."
                 />
               </View>
             );

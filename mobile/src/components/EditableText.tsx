@@ -4,10 +4,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type S
 
 import { ApiError } from '@/api/client';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { confirmAction } from '@/utils/confirm';
 
 /**
  * Texte d'un message que son auteur peut corriger : affichage normal avec la mention « modifié » si le texte a été
- * changé, un bouton « Modifier » (si `canEdit`), et un éditeur en ligne (Enregistrer / Annuler) à l'appui. `onSave`
+ * changé, un bouton « Modifier » (si `canEdit`) et, si `onDelete` est fourni, un bouton « Supprimer » (avec
+ * confirmation), et un éditeur en ligne (Enregistrer / Annuler) à l'appui. `onSave`
  * renvoie une promesse : en cas d'échec l'éditeur reste ouvert avec l'erreur.
  *
  * `tone="onDark"` : pour un texte sur fond coloré (bulle « moi » de la bourse) — mention et lien en blanc.
@@ -21,6 +23,8 @@ export function EditableText({
   textStyle,
   tone = 'default',
   startEditing: openEditor = false,
+  onDelete,
+  deleteConfirm = 'Ce message sera supprimé.',
 }: {
   text: string;
   /** Date de la dernière modification (ISO) ; null / absent = jamais modifié. */
@@ -32,6 +36,10 @@ export function EditableText({
   tone?: 'default' | 'onDark';
   /** Ouvre directement l'éditeur (ex. bouton « Modifier » de la liste des messages). */
   startEditing?: boolean;
+  /** Si fourni (et `canEdit`), un bouton « Supprimer » propose d'effacer ce message après confirmation. */
+  onDelete?: () => Promise<void>;
+  /** Précise ce qui disparaît avec le message (réponse, conversation…), affiché dans la confirmation. */
+  deleteConfirm?: string;
 }) {
   const [editing, setEditing] = useState(canEdit && openEditor);
   const [draft, setDraft] = useState(text);
@@ -45,6 +53,20 @@ export function EditableText({
     setDraft(text);
     setError(null);
     setEditing(true);
+  }
+
+  async function remove() {
+    if (!onDelete || busy) return;
+    if (!(await confirmAction('Supprimer ce message ?', deleteConfirm, 'Supprimer'))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onDelete();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Suppression impossible. Réessayez.');
+      setBusy(false);
+    }
+    // Succès : le parent retire ce message de l'écran (le composant est démonté).
   }
 
   async function save() {
@@ -124,8 +146,28 @@ export function EditableText({
               <Text style={[styles.editLinkLabel, { color: linkColor }]}>Modifier</Text>
             </Pressable>
           )}
+          {canEdit && onDelete && (
+            <Pressable
+              onPress={() => void remove()}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Supprimer ce message"
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.editLink,
+                { borderColor: onDark ? 'rgba(255,255,255,0.6)' : COLORS.border },
+                (pressed || busy) && { opacity: 0.6 },
+              ]}
+            >
+              {busy
+                ? <ActivityIndicator size="small" color={onDark ? '#fff' : COLORS.error} />
+                : <Ionicons name="trash-outline" size={15} color={onDark ? '#fff' : COLORS.error} />}
+              <Text style={[styles.editLinkLabel, { color: onDark ? '#fff' : COLORS.error }]}>Supprimer</Text>
+            </Pressable>
+          )}
         </View>
       )}
+      {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }

@@ -41,7 +41,8 @@ class NotifyMessageThreadReplyMessageHandler
     public function __invoke(NotifyMessageThreadReplyMessage $dispatched): void
     {
         $reply = $this->replies->find($dispatched->replyId);
-        if ($reply === null) {
+        // Tour ou conversation supprimés par leur auteur avant l'envoi : rien à notifier.
+        if ($reply === null || $reply->isDeleted() || $reply->getMessage()->isDeleted()) {
             return;
         }
         // Idempotence.

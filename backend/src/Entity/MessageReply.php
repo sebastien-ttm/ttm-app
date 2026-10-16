@@ -56,6 +56,13 @@ class MessageReply
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $editedAt = null;
 
+    /**
+     * Suppression par son auteur (effacement logique : disparaît de l'application, reste lisible dans le backend
+     * admin) ; null = message visible.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $deletedAt = null;
+
     public function __construct(UserMessage $message, User $author, string $content)
     {
         $this->message = $message;
@@ -76,6 +83,14 @@ class MessageReply
             $this->content = $content;
             $this->editedAt = new \DateTimeImmutable();
         }
+        return $this;
+    }
+
+    public function getDeletedAt(): ?\DateTimeImmutable { return $this->deletedAt; }
+    public function isDeleted(): bool { return $this->deletedAt !== null; }
+    public function markDeleted(): self
+    {
+        $this->deletedAt ??= new \DateTimeImmutable();
         return $this;
     }
 

@@ -28,7 +28,8 @@ class NotifyUserMessageReplyMessageHandler
     public function __invoke(NotifyUserMessageReplyMessage $message): void
     {
         $msg = $this->messages->find($message->messageId);
-        if ($msg === null) {
+        // Supprimé par son expéditeur entre-temps : rien à notifier.
+        if ($msg === null || $msg->isDeleted()) {
             return;
         }
         if (!$msg->hasReply()) {

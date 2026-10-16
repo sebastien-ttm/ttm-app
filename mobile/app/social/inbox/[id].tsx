@@ -110,6 +110,11 @@ export default function InboxDetailScreen() {
     setMsg((prev) => (prev ? { ...prev, thread: prev.thread.map((t) => (t.id === entry.id ? resp.entry : t)) } : prev));
   }
 
+  async function deleteThreadEntry(entry: ThreadEntry) {
+    await auth.deleteThreadEntry(id, entry.id);
+    setMsg((prev) => (prev ? { ...prev, thread: prev.thread.filter((t) => t.id !== entry.id) } : prev));
+  }
+
   async function toggleArchive() {
     if (!msg) return;
     setBusy(true);
@@ -214,6 +219,7 @@ export default function InboxDetailScreen() {
             canReply={msg.canThreadReply}
             onSubmit={submitThreadReply}
             onEdit={saveThreadEntry}
+            onDelete={deleteThreadEntry}
           />
 
           {msg.canReply && (

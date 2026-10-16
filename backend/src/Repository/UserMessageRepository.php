@@ -60,6 +60,7 @@ class UserMessageRepository extends ServiceEntityRepository
             ->leftJoin('m.recipient', 'r')->addSelect('r')
             ->leftJoin('m.repliedBy', 'rep')->addSelect('rep')
             ->where('m.sender = :u')
+            ->andWhere('m.deletedAt IS NULL')
             ->setParameter('u', $sender)
             ->orderBy('m.sentAt', 'DESC');
 
@@ -97,6 +98,7 @@ class UserMessageRepository extends ServiceEntityRepository
             ->leftJoin('m.sender', 's')->addSelect('s')
             ->leftJoin('m.recipient', 'r')->addSelect('r')
             ->leftJoin('m.repliedBy', 'rep')->addSelect('rep')
+            ->andWhere('m.deletedAt IS NULL')
             ->orderBy('m.sentAt', 'DESC');
 
         $orExpr = $qb->expr()->orX();
@@ -147,6 +149,7 @@ class UserMessageRepository extends ServiceEntityRepository
         $replies = (int) $this->createQueryBuilder('m')
             ->select('COUNT(m.id)')
             ->andWhere('m.sender = :viewer')
+            ->andWhere('m.deletedAt IS NULL')
             ->andWhere('m.reply IS NOT NULL')
             ->andWhere('m.senderArchivedAt IS NULL')
             ->andWhere('(m.senderReadAt IS NULL OR m.senderReadAt < m.repliedAt)')
@@ -169,6 +172,7 @@ class UserMessageRepository extends ServiceEntityRepository
                     'WITH',
                     'st.message = m AND st.user = :viewer',
                 )
+                ->andWhere('m.deletedAt IS NULL')
                 ->andWhere('m.reply IS NULL')
                 ->andWhere('st.archivedAt IS NULL')
                 ->andWhere('st.readAt IS NULL')
@@ -196,7 +200,8 @@ class UserMessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Query builder pour le CRUD admin, scopé selon le rôle du viewer :
+     * Query builder pour le CRUD admin, scopé selon le rôle du viewer (les messages supprimés par leur expéditeur y
+     * restent visibles, avec leur date de suppression : le backend conserve l'historique) :
      *  - admin : voit TOUS les messages
      *  - entraineur : voit les scope=trainer où il est destinataire + tous
      *    les scope=all_trainers. Les scope=club (admins) restent invisibles.

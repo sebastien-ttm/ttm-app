@@ -179,6 +179,14 @@ class UserMessageCrudController extends AbstractCrudController
                 ->setHelp('Échanges postés depuis l\'application mobile après cette première réponse, en lecture seule.');
         }
 
+        // L'expéditeur peut supprimer son message depuis l'appli : il disparaît alors de l'application pour tout le monde
+        // mais reste ici (historique conservé).
+        yield DateTimeField::new('deletedAt', 'Supprimé par l\'expéditeur le')
+            ->setFormat('d MMM yyyy HH:mm')
+            ->hideOnForm()
+            ->setRequired(false)
+            ->setHelp('Renseigné si l\'expéditeur a supprimé son message depuis l\'application : il n\'y est plus visible pour personne, mais reste conservé ici.');
+
         yield DateTimeField::new('recipientsNotifiedAt', 'Email destinataires envoyé le')
             ->setFormat('d MMM yyyy HH:mm')
             ->hideOnForm()

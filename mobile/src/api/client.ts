@@ -376,6 +376,12 @@ export const auth = {
     category?: MessageCategory;
   }) => api.post<UserMessage>('/api/me/messages', payload),
 
+  /** Supprime MON message envoyé (avec sa réponse et la suite de la conversation) : il disparaît pour tout le monde. */
+  deleteSentMessage: (id: number) => api.delete<{ ok: boolean }>(`/api/me/messages/${id}`),
+  /** Supprime UN DE MES tours dans la suite de la conversation. */
+  deleteThreadEntry: (id: number, entryId: number) =>
+    api.delete<{ ok: boolean }>(`/api/me/messages/${id}/thread/${entryId}`),
+
   /** Je viens d'ouvrir ce message (envoyé / reçu) : il ne compte plus comme non lu, sans avoir à l'archiver. */
   markSentRead: (id: number) => api.post<{ ok: boolean }>(`/api/me/messages/${id}/read`, {}),
   markInboxRead: (id: number) => api.post<{ ok: boolean }>(`/api/me/inbox/${id}/read`, {}),

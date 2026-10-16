@@ -114,6 +114,14 @@ class UserMessage
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $senderReadAt = null;
 
+    /**
+     * Suppression par l'expéditeur (effacement logique) : le message, sa réponse et la suite de la conversation
+     * disparaissent de l'application pour tout le monde, mais restent lisibles par les admins dans le backend
+     * (historique conservé). null = message visible.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $deletedAt = null;
+
     /** Dernière modification du message (objet / texte) par son expéditeur ; null = jamais modifié. */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $editedAt = null;
@@ -243,8 +251,26 @@ class UserMessage
             && ($this->senderReadAt === null || $this->senderReadAt < $this->repliedAt);
     }
 
+    public function getDeletedAt(): ?\DateTimeImmutable { return $this->deletedAt; }
+    public function isDeleted(): bool { return $this->deletedAt !== null; }
+    public function markDeleted(): self
+    {
+        $this->deletedAt ??= new \DateTimeImmutable();
+        return $this;
+    }
+
     /** @return Collection<int, MessageReply> */
     public function getThreadReplies(): Collection { return $this->threadReplies; }
+
+    /**
+     * Suite de la conversation telle que l'application la montre : sans les tours supprimés par leur auteur.
+     *
+     * @return list<MessageReply>
+     */
+    public function getVisibleThreadReplies(): array
+    {
+        return array_values($this->threadReplies->filter(fn (MessageReply $r) => !$r->isDeleted())->toArray());
+    }
 
     /**
      * Résumé texte de la suite de conversation (tours ≥ 3), pour
@@ -259,9 +285,10 @@ class UserMessage
         $lines = [];
         foreach ($this->threadReplies as $r) {
             $lines[] = sprintf(
-                '[%s] %s : %s',
+                '[%s] %s%s : %s',
                 $r->getCreatedAt()->format('d/m/Y H:i'),
                 $r->getAuthor()->getFullName(),
+                $r->isDeleted() ? ' (supprimé par son auteur le '.$r->getDeletedAt()->format('d/m/Y H:i').')' : '',
                 $r->getContent(),
             );
         }

@@ -195,7 +195,7 @@ class MessageController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -211,7 +211,7 @@ class MessageController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -274,7 +274,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null || !$this->canView($msg, $viewer)) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -320,7 +320,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -374,7 +374,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null || $msg->getSender()->getId() !== $viewer->getId()) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -411,7 +411,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null || !$msg->hasReply() || $msg->getRepliedBy()?->getId() !== $viewer->getId()) {
             return new JsonResponse(['error' => 'Réponse introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -439,8 +439,8 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
-        $entry = $msg === null ? null : $msg->getThreadReplies()->filter(fn (MessageReply $r) => $r->getId() === $entryId)->first();
+        $msg = $this->findLive($id);
+        $entry = $msg === null ? null : $msg->getThreadReplies()->filter(fn (MessageReply $r) => $r->getId() === $entryId && !$r->isDeleted())->first();
         if ($msg === null || !$entry instanceof MessageReply || $entry->getAuthor()->getId() !== $viewer->getId()) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -458,6 +458,47 @@ class MessageController extends AbstractController
         $this->em->flush();
 
         return new JsonResponse(['ok' => true, 'entry' => $this->serializeThreadEntry($entry)]);
+    }
+
+    /**
+     * Supprime UN DE MES messages envoyés. Effacement logique : le message disparaît de l'application pour tout le
+     * monde (destinataires compris), avec sa réponse et la suite de la conversation, mais reste lisible par les admins
+     * dans le backend, qui conserve l'historique. Aucune notification.
+     */
+    #[Route('/api/me/messages/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function deleteSent(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->findLive($id);
+        if ($msg === null || $msg->getSender()->getId() !== $viewer->getId()) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $msg->markDeleted();
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true]);
+    }
+
+    /**
+     * Supprime UN DE MES messages de la suite de conversation (effacement logique, comme deleteSent).
+     */
+    #[Route('/api/me/messages/{id}/thread/{entryId}', methods: ['DELETE'], requirements: ['id' => '\d+', 'entryId' => '\d+'])]
+    public function deleteThreadEntry(int $id, int $entryId): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $msg = $this->findLive($id);
+        $entry = $msg === null ? null : $msg->getThreadReplies()->filter(fn (MessageReply $r) => $r->getId() === $entryId && !$r->isDeleted())->first();
+        if ($msg === null || !$entry instanceof MessageReply || $entry->getAuthor()->getId() !== $viewer->getId()) {
+            return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $entry->markDeleted();
+        $this->em->flush();
+
+        return new JsonResponse(['ok' => true]);
     }
 
     #[Route('/api/me/inbox/{id}/archive', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -481,7 +522,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null || !$this->canView($msg, $viewer)) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -498,7 +539,7 @@ class MessageController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $msg = $this->messages->find($id);
+        $msg = $this->findLive($id);
         if ($msg === null || !$this->canView($msg, $viewer)) {
             return new JsonResponse(['error' => 'Message introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -517,6 +558,13 @@ class MessageController extends AbstractController
     // ============================================================
     //  Helpers
     // ============================================================
+
+    /** Le message, sauf s'il a été supprimé par son expéditeur (il n'existe alors plus pour l'application). */
+    private function findLive(int $id): ?UserMessage
+    {
+        $msg = $this->messages->find($id);
+        return $msg !== null && !$msg->isDeleted() ? $msg : null;
+    }
 
     private function resolveScope(mixed $rawScope, int $recipientId): ?MessageScope
     {
@@ -570,7 +618,7 @@ class MessageController extends AbstractController
             'unread' => $m->hasUnreadReplyForSender(),
             'thread' => array_map(
                 fn (MessageReply $r) => $this->serializeThreadEntry($r),
-                $m->getThreadReplies()->toArray(),
+                $m->getVisibleThreadReplies(),
             ),
             'canThreadReply' => $m->hasReply(),
         ];
@@ -617,7 +665,7 @@ class MessageController extends AbstractController
             'unread' => $unread,
             'thread' => array_map(
                 fn (MessageReply $r) => $this->serializeThreadEntry($r),
-                $m->getThreadReplies()->toArray(),
+                $m->getVisibleThreadReplies(),
             ),
             'canThreadReply' => $m->hasReply(),
         ];

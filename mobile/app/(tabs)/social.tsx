@@ -20,6 +20,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { confirmAction } from '@/utils/confirm';
 import { useSocialNews } from '@/lib/useSocialNews';
 import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
@@ -141,6 +142,25 @@ export default function ContactScreen() {
   async function archiveSent(m: UserMessage) {
     try {
       await auth.archiveSentMessage(m.id);
+      await load();
+      void refreshUnread();
+    } catch (e) {
+      showError(e);
+    }
+  }
+  // Suppression de MON message : il disparaît pour tout le monde (réponse et conversation comprises) ; les admins le
+  // gardent dans le backend.
+  async function deleteSent(m: UserMessage) {
+    const ok = await confirmAction(
+      'Supprimer ce message ?',
+      m.hasReply
+        ? 'Ce message, la réponse reçue et toute la conversation seront supprimés pour tout le monde : les destinataires ne les verront plus.'
+        : 'Ce message sera supprimé pour tout le monde : les destinataires ne le verront plus.',
+      'Supprimer',
+    );
+    if (!ok) return;
+    try {
+      await auth.deleteSentMessage(m.id);
       await load();
       void refreshUnread();
     } catch (e) {
@@ -412,6 +432,7 @@ export default function ContactScreen() {
             archived={section === 'archived'}
             onOpen={() => router.push(('/social/sent/' + item.msg.id) as never)}
             onEdit={() => router.push(('/social/sent/' + item.msg.id + '?edit=1') as never)}
+            onDelete={() => void deleteSent(item.msg)}
             onArchive={() => void archiveSent(item.msg)}
             onUnarchive={() => void unarchiveSent(item.msg)}
           />
@@ -483,8 +504,9 @@ function SectionTabs({
   );
 }
 
-function SentCard({ m, archived, onOpen, onEdit, onArchive, onUnarchive }: {
-  m: UserMessage; archived: boolean; onOpen: () => void; onEdit: () => void; onArchive: () => void; onUnarchive: () => void;
+function SentCard({ m, archived, onOpen, onEdit, onDelete, onArchive, onUnarchive }: {
+  m: UserMessage; archived: boolean; onOpen: () => void; onEdit: () => void; onDelete: () => void;
+  onArchive: () => void; onUnarchive: () => void;
 }) {
   const sent = new Date(m.sentAt);
   return (
@@ -527,6 +549,7 @@ function SentCard({ m, archived, onOpen, onEdit, onArchive, onUnarchive }: {
 
       <View style={styles.cardActions}>
         <ActionBtn icon="create-outline" label="Modifier" onPress={onEdit} />
+        <ActionBtn icon="trash-outline" label="Supprimer" onPress={onDelete} danger />
         {archived ? (
           <ActionBtn icon="arrow-undo-outline" label="Désarchiver" onPress={onUnarchive} />
         ) : (
@@ -599,17 +622,18 @@ function UnreadPill() {
   );
 }
 
-function ActionBtn({ icon, label, onPress }: {
-  icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void;
+function ActionBtn({ icon, label, onPress, danger }: {
+  icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void; danger?: boolean;
 }) {
+  const color = danger ? COLORS.error : COLORS.textMuted;
   return (
     <Pressable
       onPress={onPress}
       hitSlop={6}
       style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
     >
-      <Ionicons name={icon} size={14} color={COLORS.textMuted} />
-      <Text style={styles.actionBtnLabel}>{label}</Text>
+      <Ionicons name={icon} size={14} color={color} />
+      <Text style={[styles.actionBtnLabel, danger && { color }]}>{label}</Text>
     </Pressable>
   );
 }

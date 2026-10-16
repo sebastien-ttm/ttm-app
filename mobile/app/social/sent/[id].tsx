@@ -77,6 +77,18 @@ export default function SentDetailScreen() {
     setMsg((prev) => (prev ? { ...prev, thread: prev.thread.map((t) => (t.id === entry.id ? resp.entry : t)) } : prev));
   }
 
+  /** Supprime mon message (et avec lui la réponse et la conversation) puis revient à la liste. */
+  async function deleteMessage() {
+    await auth.deleteSentMessage(id);
+    void refreshUnread();
+    goBack();
+  }
+
+  async function deleteThreadEntry(entry: ThreadEntry) {
+    await auth.deleteThreadEntry(id, entry.id);
+    setMsg((prev) => (prev ? { ...prev, thread: prev.thread.filter((t) => t.id !== entry.id) } : prev));
+  }
+
   async function toggleArchive() {
     if (!msg) return;
     setBusy(true);
@@ -148,6 +160,12 @@ export default function SentDetailScreen() {
           maxLength={5000}
           textStyle={styles.body}
           onSave={saveBody}
+          onDelete={deleteMessage}
+          deleteConfirm={
+            msg.hasReply
+              ? 'Ce message, la réponse reçue et toute la conversation seront supprimés pour tout le monde : les destinataires ne les verront plus.'
+              : 'Ce message sera supprimé pour tout le monde : les destinataires ne le verront plus.'
+          }
         />
 
         {msg.hasReply && msg.reply ? (
@@ -171,6 +189,7 @@ export default function SentDetailScreen() {
           canReply={msg.canThreadReply}
           onSubmit={submitThreadReply}
           onEdit={saveThreadEntry}
+          onDelete={deleteThreadEntry}
         />
 
         <View style={styles.footer}>
