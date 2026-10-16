@@ -411,6 +411,7 @@ export default function ContactScreen() {
             m={item.msg}
             archived={section === 'archived'}
             onOpen={() => router.push(('/social/sent/' + item.msg.id) as never)}
+            onEdit={() => router.push(('/social/sent/' + item.msg.id + '?edit=1') as never)}
             onArchive={() => void archiveSent(item.msg)}
             onUnarchive={() => void unarchiveSent(item.msg)}
           />
@@ -482,8 +483,8 @@ function SectionTabs({
   );
 }
 
-function SentCard({ m, archived, onOpen, onArchive, onUnarchive }: {
-  m: UserMessage; archived: boolean; onOpen: () => void; onArchive: () => void; onUnarchive: () => void;
+function SentCard({ m, archived, onOpen, onEdit, onArchive, onUnarchive }: {
+  m: UserMessage; archived: boolean; onOpen: () => void; onEdit: () => void; onArchive: () => void; onUnarchive: () => void;
 }) {
   const sent = new Date(m.sentAt);
   return (
@@ -525,6 +526,7 @@ function SentCard({ m, archived, onOpen, onArchive, onUnarchive }: {
       )}
 
       <View style={styles.cardActions}>
+        <ActionBtn icon="create-outline" label="Modifier" onPress={onEdit} />
         {archived ? (
           <ActionBtn icon="arrow-undo-outline" label="Désarchiver" onPress={onUnarchive} />
         ) : (

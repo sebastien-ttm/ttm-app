@@ -22,7 +22,8 @@ import { useUnreadMessages } from '@/lib/useUnreadMessages';
 export default function SentDetailScreen() {
   const goBack = useGoBackOrHome();
   const { user } = useAuth();
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  // ?edit=1 : arrivée depuis le bouton « Modifier » de la liste, l'éditeur s'ouvre directement.
+  const { id: rawId, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const id = Number(rawId);
 
   const [msg, setMsg] = useState<UserMessage | null>(null);
@@ -143,6 +144,7 @@ export default function SentDetailScreen() {
           text={msg.body}
           editedAt={msg.editedAt}
           canEdit
+          startEditing={edit === '1'}
           maxLength={5000}
           textStyle={styles.body}
           onSave={saveBody}

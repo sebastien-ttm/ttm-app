@@ -7,7 +7,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
  * Texte d'un message que son auteur peut corriger : affichage normal avec la mention « modifié » si le texte a été
- * changé, un lien « Modifier » (si `canEdit`), et un éditeur en ligne (Enregistrer / Annuler) à l'appui. `onSave`
+ * changé, un bouton « Modifier » (si `canEdit`), et un éditeur en ligne (Enregistrer / Annuler) à l'appui. `onSave`
  * renvoie une promesse : en cas d'échec l'éditeur reste ouvert avec l'erreur.
  *
  * `tone="onDark"` : pour un texte sur fond coloré (bulle « moi » de la bourse) — mention et lien en blanc.
@@ -20,6 +20,7 @@ export function EditableText({
   maxLength,
   textStyle,
   tone = 'default',
+  startEditing: openEditor = false,
 }: {
   text: string;
   /** Date de la dernière modification (ISO) ; null / absent = jamais modifié. */
@@ -29,13 +30,16 @@ export function EditableText({
   maxLength: number;
   textStyle?: StyleProp<TextStyle>;
   tone?: 'default' | 'onDark';
+  /** Ouvre directement l'éditeur (ex. bouton « Modifier » de la liste des messages). */
+  startEditing?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(canEdit && openEditor);
   const [draft, setDraft] = useState(text);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onDark = tone === 'onDark';
   const metaColor = onDark ? 'rgba(255,255,255,0.8)' : COLORS.textMuted;
+  const linkColor = onDark ? '#fff' : COLORS.secondaryDark;
 
   function startEditing() {
     setDraft(text);
@@ -107,12 +111,17 @@ export function EditableText({
           {canEdit && (
             <Pressable
               onPress={startEditing}
+              accessibilityRole="button"
               accessibilityLabel="Modifier ce message"
               hitSlop={8}
-              style={styles.editLink}
+              style={({ pressed }) => [
+                styles.editLink,
+                { borderColor: onDark ? 'rgba(255,255,255,0.6)' : COLORS.border },
+                pressed && { opacity: 0.6 },
+              ]}
             >
-              <Ionicons name="create-outline" size={13} color={metaColor} />
-              <Text style={[styles.metaText, { color: metaColor }]}>Modifier</Text>
+              <Ionicons name="create-outline" size={15} color={linkColor} />
+              <Text style={[styles.editLinkLabel, { color: linkColor }]}>Modifier</Text>
             </Pressable>
           )}
         </View>
@@ -122,9 +131,15 @@ export function EditableText({
 }
 
 const styles = StyleSheet.create({
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 3 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   metaText: { fontSize: 11, fontStyle: 'italic' },
-  editLink: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  // Bouton bien visible (un simple lien gris de 11 px passait inaperçu).
+  editLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full, borderWidth: 1,
+  },
+  editLinkLabel: { fontSize: 13, fontWeight: '700' },
   // minWidth : dans une bulle de discussion (largeur au contenu), l'éditeur doit rester utilisable.
   editor: { gap: 6, minWidth: 240 },
   input: {
