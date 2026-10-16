@@ -36,7 +36,8 @@ class TrainingSlotCheckInRepository extends ServiceEntityRepository
      */
     public function findByOccurrenceIndexedByUser(?int $templateId, ?int $slotId, \DateTimeImmutable $monday): array
     {
-        $qb = $this->createQueryBuilder('c')->addSelect('u', 'by')->join('c.user', 'u')->leftJoin('c.checkedBy', 'by');
+        // Pas d'alias « by » : BY est un mot réservé de DQL (erreur de syntaxe, HTTP 500).
+        $qb = $this->createQueryBuilder('c')->addSelect('u', 'cb')->join('c.user', 'u')->leftJoin('c.checkedBy', 'cb');
         $this->filterOccurrence($qb, $templateId, $slotId, $monday);
 
         $out = [];
