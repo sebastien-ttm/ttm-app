@@ -106,9 +106,10 @@ class InvoiceService
             ));
         }
         $resolved = $this->resolveFee($user, $season, $membership);
-        if ($resolved['fee'] === null) {
+        $amountCents = $this->amountCents($membership, $resolved['fee']);
+        if ($amountCents === null) {
             throw new \RuntimeException(sprintf(
-                'Aucun tarif défini pour (%s, %s, saison %s). Renseignez la grille tarifaire.',
+                'Aucun montant pour (%s, %s, saison %s) : pas de total importé du CSV FFTri ni de tarif dans la grille tarifaire.',
                 $resolved['profile'], $resolved['typeLicence'], (string) $season,
             ));
         }
@@ -150,7 +151,8 @@ class InvoiceService
             'membership' => $membership,
             'season' => $season,
             'seasonLabel' => $seasonLabel,
-            'fee' => $resolved['fee'],
+            'amountCents' => $amountCents,
+            'breakdown' => $this->breakdownFor($membership, $amountCents),
             'profile' => $resolved['profile'],
             'typeLicence' => $resolved['typeLicence'],
             'paymentTypeLabel' => $paymentType->label(),
@@ -230,12 +232,15 @@ class InvoiceService
             $amount = max(0, (int) $l['amountCents']);
             $totalCents += $amount;
             // Résout le typeLicence pour info (affiché sous la personne).
-            $resolved = $this->resolveFee($u, $season);
+            $membership = $this->memberships->findOneByUserAndSeason($u, $season);
+            $resolved = $this->resolveFee($u, $season, $membership);
             $serializedLines[] = [
                 'user' => $u,
                 'amountCents' => $amount,
                 'label' => $l['label'] ?? null,
                 'typeLicence' => $resolved['typeLicence'],
+                // Détail Part FFTri / Assurance / Part ligue / Part club, tant que le montant n'a pas été modifié.
+                'breakdown' => $this->breakdownFor($membership, $amount),
             ];
         }
 
@@ -276,14 +281,58 @@ class InvoiceService
     }
 
     /**
-     * Tarif suggéré pour un user donné (montant en centimes ou null si
-     * aucun tarif défini). Utilisé par le formulaire admin de facture
-     * famille pour pré-remplir les montants avant édition.
+     * Montant suggéré pour un user donné (centimes, ou null si ni total importé ni tarif défini). Utilisé par le
+     * formulaire admin de facture famille pour pré-remplir les montants avant édition.
      */
     public function suggestedAmountCents(User $user, TrainingSeason $season): ?int
     {
-        $resolved = $this->resolveFee($user, $season);
-        return $resolved['fee']?->getAmountCents();
+        $membership = $this->memberships->findOneByUserAndSeason($user, $season);
+        $resolved = $this->resolveFee($user, $season, $membership);
+        return $this->amountCents($membership, $resolved['fee']);
+    }
+
+    /**
+     * Montant à facturer, par ordre de priorité :
+     *  1. le montant imposé par l'admin (paiement fait à la main, montant différent…) ;
+     *  2. le total payé lu à l'import CSV FFTri ;
+     *  3. le tarif de la grille tarifaire.
+     */
+    public function amountCents(?UserSeasonMembership $membership, ?MembershipFee $fee): ?int
+    {
+        return $membership?->getInvoiceAmountCents() ?? $membership?->getTotalCents() ?? $fee?->getAmountCents();
+    }
+
+    /**
+     * Détail du paiement lu à l'import (Part FFTri, Assurance, Part ligue, Part club ; une part à 0 n'est pas
+     * affichée), à montrer sur la facture. Vide dès que le montant facturé n'est plus le total importé (montant
+     * imposé ou modifié : le détail ne s'additionnerait plus) ou que le détail est incohérent. Si le total dépasse
+     * la somme des parts, la différence figure sur une ligne « Autres ».
+     *
+     * @return list<array{label: string, cents: int}>
+     */
+    public function breakdownFor(?UserSeasonMembership $membership, int $amountCents): array
+    {
+        $parts = $membership?->getImportedParts() ?? [];
+        if ($parts === []) {
+            return [];
+        }
+        $sum = array_sum($parts);
+        $importedTotal = $membership->getTotalCents() ?? $sum;
+        if ($amountCents !== $importedTotal || $importedTotal < $sum) {
+            return [];
+        }
+
+        $lines = [];
+        foreach ($parts as $label => $cents) {
+            if ($cents !== 0) {
+                $lines[] = ['label' => $label, 'cents' => $cents];
+            }
+        }
+        if ($importedTotal > $sum) {
+            $lines[] = ['label' => 'Autres', 'cents' => $importedTotal - $sum];
+        }
+
+        return $lines;
     }
 
     /**

@@ -51,6 +51,25 @@ class CsvImportService
     private const COL_CATEGORIE_AGE = 'Catégorie d\'âge';
 
     /**
+     * Ventilation du paiement de la licence (export « Liste des licenciés » de l'Espace Tri) : montants du type
+     * « 74,70 € ». Stockés en centimes sur l'adhésion de la saison, ils alimentent la facture.
+     */
+    private const COL_PART_FFTRI = 'Part FFTRI';
+    private const COL_ASSURANCE = 'Assurance';
+    private const COL_PART_LIGUE = 'Part ligue';
+    private const COL_PART_CLUB = 'Part club';
+    private const COL_TOTAL = 'Total';
+
+    /** Colonne de montant → setter de UserSeasonMembership. */
+    private const AMOUNT_COLUMNS = [
+        self::COL_PART_FFTRI => 'setPartFftriCents',
+        self::COL_ASSURANCE => 'setAssuranceCents',
+        self::COL_PART_LIGUE => 'setPartLigueCents',
+        self::COL_PART_CLUB => 'setPartClubCents',
+        self::COL_TOTAL => 'setTotalCents',
+    ];
+
+    /**
      * Alias historiques pour chaque colonne canonique — permet d'accepter
      * les anciens exports FFTri (« N° Licence », « Sexe »…) en plus des
      * nouveaux (« Numéro de licence », « Civilité/genre »…). L'ordre
@@ -62,6 +81,9 @@ class CsvImportService
         self::COL_SEXE => ['Civilité/genre', 'Civilite/genre', 'Sexe'],
         self::COL_TELEPHONE => ['Téléphone', 'Telephone'],
         self::COL_MOBILE => ['Mobile'],
+        self::COL_CODE_POSTAL => ['Code Postal', 'CP'],
+        self::COL_VILLE => ['Ville', 'Commune'],
+        self::COL_TOTAL => ['Total', 'Total TTC'],
     ];
 
     /**
@@ -506,6 +528,14 @@ class CsvImportService
         $membership->setTypeLicence(self::normalizeTypeLicence($this->resolveCol($record, self::COL_TYPE_LICENCE)));
         $membership->setCategorieAge(trim($this->resolveCol($record, self::COL_CATEGORIE_AGE)) ?: null);
 
+        // Ventilation du paiement (facture). Colonne absente du fichier (ancien export) : valeur existante conservée ;
+        // colonne présente mais vide : effacée. Le montant imposé par l'admin (invoiceAmountCents) n'est jamais touché.
+        foreach (self::AMOUNT_COLUMNS as $column => $setter) {
+            if ($this->hasCol($record, $column)) {
+                $membership->$setter(self::parseAmountCents($this->resolveCol($record, $column)));
+            }
+        }
+
         if ($existing === null) {
             $this->em->persist($membership);
             return true;
@@ -557,6 +587,43 @@ class CsvImportService
             }
         }
         return '';
+    }
+
+    /** La colonne (ou l'un de ses alias) figure-t-elle dans l'en-tête du fichier ? Même tolérance que resolveCol(). */
+    private function hasCol(array $record, string $canonical): bool
+    {
+        $normalizedCandidates = [];
+        foreach (self::COL_ALIASES[$canonical] ?? [$canonical] as $c) {
+            $normalizedCandidates[self::normalizeHeader($c)] = true;
+        }
+        foreach (array_keys($record) as $key) {
+            if (isset($normalizedCandidates[self::normalizeHeader((string) $key)])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Montant d'une cellule en centimes : « 74,70 € » (espace insécable avant le €), « 1 234,50 », « 12.5 »…
+     * null si la cellule est vide ou illisible.
+     */
+    public static function parseAmountCents(string $raw): ?int
+    {
+        // Ne garde que chiffres, séparateurs et signe : retire espaces (insécables compris) et « € ».
+        $s = (string) preg_replace('/[^\d,.\-]/', '', $raw);
+        if ($s === '' || $s === '-') {
+            return null;
+        }
+        // « , » et « . » ensemble : le dernier est le séparateur décimal, l'autre celui des milliers.
+        $comma = strrpos($s, ',');
+        $dot = strrpos($s, '.');
+        if ($comma !== false && $dot !== false) {
+            $s = $comma > $dot ? str_replace(['.', ','], ['', '.'], $s) : str_replace(',', '', $s);
+        } else {
+            $s = str_replace(',', '.', $s);
+        }
+        return is_numeric($s) ? (int) round(((float) $s) * 100) : null;
     }
 
     /**
@@ -661,49 +728,76 @@ class CsvImportService
     }
 
     /**
-     * Compose l'adresse pour stockage :
-     *  1. Nouveau format FFTri : colonne unique « Adresse » (ex :
-     *     « 15 IMPASSE LOUISA PAULIN, 31200 TOULOUSE, France »).
-     *     On split sur « , » pour retrouver un affichage multi-lignes.
-     *  2. Ancien format : concatène les 6 colonnes (Adresse principale,
-     *     Adresse Détails, Lieu-dit, CP, Ville, Pays).
+     * Compose l'adresse pour stockage (affichée telle quelle sur la facture), une ligne par élément :
+     *  - « Adresse » (ou « Adresse principale », ancien export) : la rue — ou, dans un export plus ancien, l'adresse
+     *    complète sur une seule colonne (ex : « 15 IMPASSE LOUISA PAULIN, 31200 TOULOUSE, France »), répartie sur
+     *    plusieurs lignes en coupant sur les virgules ;
+     *  - « Adresse Détails » et « Lieu-dit ou Boîte Postale » s'ils sont renseignés ;
+     *  - code postal + ville, lus dans leurs colonnes « Code Postal » et « Ville » : l'export « Liste des licenciés »
+     *    ne les met PAS dans « Adresse ». Ils ne sont ajoutés que si l'adresse ne les contient pas déjà ;
+     *  - le pays, sauf « France ».
      */
     private function buildAdresse(array $record): ?string
     {
-        // Nouveau format : colonne unique.
-        $single = trim($this->resolveCol($record, self::COL_ADRESSE));
-        if ($single !== '') {
-            // Split sur virgule-espace, filtre les segments vides,
-            // supprime le pays trailing s'il vaut « France » (bruit).
+        $main = trim($this->resolveCol($record, self::COL_ADRESSE));
+        if ($main === '') {
+            $main = trim($this->resolveCol($record, self::COL_ADRESSE_PRINCIPALE));
+        }
+
+        $cp = trim($this->resolveCol($record, self::COL_CODE_POSTAL));
+        // Excel perd le zéro de tête d'un code postal numérique (« 9000 » pour 09000).
+        if (preg_match('/^\d{4}$/', $cp)) {
+            $cp = '0'.$cp;
+        }
+        $ville = trim($this->resolveCol($record, self::COL_VILLE));
+
+        $lines = [];
+        if ($main !== '') {
+            // Segments vides écartés ; un « France » en fin d'adresse complète est du bruit.
             $parts = array_values(array_filter(
-                array_map('trim', explode(',', $single)),
+                array_map('trim', explode(',', $main)),
                 fn ($s) => $s !== '',
             ));
             if (count($parts) > 0 && strcasecmp((string) end($parts), 'France') === 0) {
                 array_pop($parts);
             }
-            return count($parts) > 0 ? implode("\n", $parts) : null;
+            $lines = $parts;
+        }
+        // Le code postal et la ville sont ajoutés sauf si la colonne « Adresse » les contient déjà (ancien export,
+        // adresse complète sur une ligne). Test fait AVANT les lignes complémentaires : dans l'export actuel, la
+        // colonne « Lieu-dit ou Boîte Postale » reprend parfois le code postal tel quel, ce qui ne doit pas masquer
+        // la ville.
+        $alreadyThere = self::addressMentions($lines, $cp, $ville);
+
+        foreach ([self::COL_ADRESSE_DETAILS, self::COL_LIEU_DIT] as $column) {
+            $extra = trim($this->resolveCol($record, $column));
+            // Un complément réduit au code postal est un doublon de la ligne « code postal ville » ajoutée ci-dessous.
+            if ($extra !== '' && ($cp === '' || $extra !== $cp)) {
+                $lines[] = $extra;
+            }
         }
 
-        // Ancien format : 6 colonnes séparées.
-        $line1 = trim((string) ($record[self::COL_ADRESSE_PRINCIPALE] ?? ''));
-        $line2 = trim((string) ($record[self::COL_ADRESSE_DETAILS] ?? ''));
-        $line3 = trim((string) ($record[self::COL_LIEU_DIT] ?? ''));
-        $cp = trim((string) ($record[self::COL_CODE_POSTAL] ?? ''));
-        $ville = trim((string) ($record[self::COL_VILLE] ?? ''));
-        $pays = trim((string) ($record[self::COL_PAYS] ?? ''));
-
-        $parts = array_filter([$line1, $line2, $line3], fn ($s) => $s !== '');
         $cpVille = trim($cp.' '.$ville);
+        if ($cpVille !== '' && !$alreadyThere) {
+            $lines[] = $cpVille;
+        }
 
-        $address = implode("\n", $parts);
-        if ($cpVille !== '') {
-            $address = trim($address."\n".$cpVille);
-        }
+        $pays = trim($this->resolveCol($record, self::COL_PAYS));
         if ($pays !== '' && strcasecmp($pays, 'France') !== 0) {
-            $address .= "\n".$pays;
+            $lines[] = $pays;
         }
-        return $address !== '' ? $address : null;
+
+        return $lines !== [] ? implode("\n", $lines) : null;
+    }
+
+    /** L'adresse déjà composée contient-elle le code postal (à défaut, la ville) ? */
+    private static function addressMentions(array $lines, string $cp, string $ville): bool
+    {
+        $haystack = mb_strtolower(implode(' ', $lines), 'UTF-8');
+        if ($cp !== '') {
+            return str_contains($haystack, $cp);
+        }
+        return $ville !== '' && str_contains($haystack, mb_strtolower($ville, 'UTF-8'));
     }
 
     /**

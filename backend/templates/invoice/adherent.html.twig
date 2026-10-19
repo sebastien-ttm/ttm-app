@@ -25,6 +25,7 @@
         table.items th { background: #0d2148; color: #fff; padding: 8pt 10pt; text-align: left; font-weight: 700; }
         table.items td { padding: 10pt; border-bottom: 1pt solid #dfe3ec; }
         table.items td.amount { text-align: right; white-space: nowrap; }
+        table.items td.part { padding-left: 26pt; color: #374151; }
 
         .total { text-align: right; font-size: 14pt; font-weight: 700; color: #0d2148; margin-top: 8pt; }
 
@@ -111,15 +112,28 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>Adhésion {{ typeLicence }} — Saison {{ seasonLabel }}</td>
-            <td class="amount">{{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
-        </tr>
+        {% if breakdown|length > 0 %}
+            {# Détail de la cotisation lu à l'import FFTri (Part FFTri, Assurance, Part ligue, Part club). #}
+            <tr>
+                <td colspan="2"><strong>Adhésion {{ typeLicence }} — Saison {{ seasonLabel }}</strong></td>
+            </tr>
+            {% for part in breakdown %}
+                <tr>
+                    <td class="part">{{ part.label }}</td>
+                    <td class="amount">{{ (part.cents / 100)|number_format(2, ',', ' ') }} €</td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td>Adhésion {{ typeLicence }} — Saison {{ seasonLabel }}</td>
+                <td class="amount">{{ (amountCents / 100)|number_format(2, ',', ' ') }} €</td>
+            </tr>
+        {% endif %}
     </tbody>
 </table>
 
 <div class="total">
-    Total : {{ (fee.amountCents / 100)|number_format(2, ',', ' ') }} €
+    Total : {{ (amountCents / 100)|number_format(2, ',', ' ') }} €
 </div>
 
 <div class="stamp">{{ isAttestation ? 'Paiement confirmé' : 'Facture acquittée' }}</div>

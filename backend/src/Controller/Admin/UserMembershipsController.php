@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\PaymentType;
 use App\Repository\UserRepository;
 use App\Repository\UserSeasonMembershipRepository;
+use App\Service\Csv\CsvImportService;
 use App\Service\Invoice\InvoiceService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +21,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Page dédiée aux adhésions par saison d'un utilisateur :
  *  - liste des UserSeasonMembership
  *  - édition du mode de paiement
+ *  - montant facturé : total importé du CSV par défaut, modifiable
  *  - actions Facture (voir PDF / envoyer par email)
  */
 #[IsGranted('ROLE_ADMIN')]
@@ -57,12 +59,18 @@ class UserMembershipsController extends AbstractController
         $withFee = [];
         foreach ($rows as $m) {
             $r = $this->invoiceService->resolveFee($user, $m->getSeason(), $m);
+            // Montant par défaut : total payé lu à l'import CSV, sinon grille tarifaire ; l'admin peut l'imposer.
+            $defaultCents = $m->getTotalCents() ?? $r['fee']?->getAmountCents();
             $withFee[] = [
                 'membership' => $m,
                 'profile' => $r['profile'],
                 'typeLicence' => $r['typeLicence'],
                 'fee' => $r['fee'],
                 'paymentLabel' => (PaymentType::tryFrom($m->getPaymentType()) ?? PaymentType::CB)->label(),
+                'amountCents' => $this->invoiceService->amountCents($m, $r['fee']),
+                'defaultCents' => $defaultCents,
+                'defaultSource' => $m->getTotalCents() !== null ? 'total importé du CSV FFTri' : 'grille tarifaire',
+                'parts' => $m->getImportedParts(),
             ];
         }
 
@@ -97,6 +105,41 @@ class UserMembershipsController extends AbstractController
         }
         $this->em->flush();
         $this->addFlash('success', 'Profil tarifaire mis à jour.');
+        return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
+    }
+
+    /**
+     * Montant facturé imposé (paiement fait à la main, montant différent du total importé…). Champ vide = retour au
+     * montant par défaut (total importé du CSV, sinon grille tarifaire).
+     */
+    #[Route('/admin/adherents/{id}/memberships/{mid}/amount', name: 'admin_user_membership_amount', methods: ['POST'], requirements: ['id' => '\d+', 'mid' => '\d+'])]
+    public function setAmount(int $id, int $mid, Request $request): RedirectResponse
+    {
+        $token = (string) $request->request->get('_token', '');
+        if (!$this->isCsrfTokenValid('membership_amount', $token)) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
+        $membership = $this->memberships->find($mid);
+        if ($membership === null || $membership->getUser()->getId() !== $id) {
+            throw $this->createNotFoundException();
+        }
+
+        $raw = trim((string) $request->request->get('amount_eur', ''));
+        if ($raw === '') {
+            $membership->setInvoiceAmountCents(null);
+            $this->em->flush();
+            $this->addFlash('success', 'Montant facturé réinitialisé : montant par défaut.');
+            return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
+        }
+
+        $cents = CsvImportService::parseAmountCents($raw);
+        if ($cents === null || $cents < 0) {
+            $this->addFlash('error', 'Montant invalide : saisissez un nombre en euros (ex : 106,15).');
+            return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
+        }
+        $membership->setInvoiceAmountCents($cents);
+        $this->em->flush();
+        $this->addFlash('success', sprintf('Montant facturé fixé à %s €.', number_format($cents / 100, 2, ',', ' ')));
         return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
     }
 

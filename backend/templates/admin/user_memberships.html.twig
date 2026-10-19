@@ -62,15 +62,51 @@
                 </div>
 
                 <div>
-                    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Montant applicable</div>
-                    {% if row.fee %}
+                    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Montant facturé</div>
+                    {% if row.amountCents is not null %}
                         <div style="font-size:20px; font-weight:700; color:#0d2148;">
-                            {{ (row.fee.amountCents / 100)|number_format(2, ',', ' ') }} €
+                            {{ (row.amountCents / 100)|number_format(2, ',', ' ') }} €
+                        </div>
+                        <div style="font-size:11px; color:#64748b; margin-bottom:6px;">
+                            {% if m.invoiceAmountCents is not null %}
+                                Montant <strong>imposé</strong>{% if row.defaultCents is not null %} (par défaut : {{ (row.defaultCents / 100)|number_format(2, ',', ' ') }} €, {{ row.defaultSource }}){% endif %}.
+                            {% else %}
+                                Par défaut : {{ row.defaultSource }}.
+                            {% endif %}
                         </div>
                     {% else %}
-                        <div style="color:#dc2626; font-weight:600;">Tarif non défini</div>
-                        <div style="font-size:12px; color:#64748b;">
-                            Complétez la grille tarifaire pour <em>{{ row.profile }} · {{ row.typeLicence }}</em>.
+                        <div style="color:#dc2626; font-weight:600;">Montant inconnu</div>
+                        <div style="font-size:12px; color:#64748b; margin-bottom:6px;">
+                            Pas de total dans l'import CSV et pas de tarif pour <em>{{ row.profile }} · {{ row.typeLicence }}</em> :
+                            saisissez le montant ci-dessous ou complétez la grille tarifaire.
+                        </div>
+                    {% endif %}
+                    <form method="post" action="{{ path('admin_user_membership_amount', {id: user.id, mid: m.id}) }}"
+                          style="display:flex; gap:8px; align-items:center;">
+                        <input type="hidden" name="_token" value="{{ csrf_token('membership_amount') }}">
+                        <input type="text" name="amount_eur" inputmode="decimal" autocomplete="off"
+                               value="{{ m.invoiceAmountCents is not null ? (m.invoiceAmountCents / 100)|number_format(2, ',', '') : '' }}"
+                               placeholder="{{ row.defaultCents is not null ? (row.defaultCents / 100)|number_format(2, ',', '') : 'ex : 106,15' }}"
+                               style="width:110px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px;">
+                        <span style="color:#64748b;">€</span>
+                        <button type="submit" class="btn btn-sm btn-secondary">OK</button>
+                    </form>
+                    <div style="font-size:11px; color:#64748b; margin-top:4px;">
+                        Si le paiement a été fait à la main, saisissez le montant réellement réglé. Vide = montant par défaut.
+                    </div>
+                    {% if row.parts|length > 0 %}
+                        <div style="font-size:12px; color:#475569; margin-top:8px;">
+                            <div style="text-transform:uppercase; letter-spacing:0.5px; font-size:11px; color:#64748b; margin-bottom:2px;">Détail importé (CSV FFTri)</div>
+                            {% for label, cents in row.parts %}
+                                <div style="display:flex; justify-content:space-between; gap:12px; max-width:220px;">
+                                    <span>{{ label }}</span><span>{{ (cents / 100)|number_format(2, ',', ' ') }} €</span>
+                                </div>
+                            {% endfor %}
+                            {% if m.totalCents is not null %}
+                                <div style="display:flex; justify-content:space-between; gap:12px; max-width:220px; border-top:1px solid #e2e8f0; margin-top:2px; padding-top:2px; font-weight:600;">
+                                    <span>Total</span><span>{{ (m.totalCents / 100)|number_format(2, ',', ' ') }} €</span>
+                                </div>
+                            {% endif %}
                         </div>
                     {% endif %}
                 </div>

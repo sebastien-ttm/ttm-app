@@ -79,6 +79,33 @@ class UserSeasonMembership
     #[ORM\Column(nullable: true)]
     private ?int $invoiceSequence = null;
 
+    /**
+     * Ventilation du paiement de la licence, lue à l'import CSV FFTri (colonnes « Part FFTri », « Assurance »,
+     * « Part ligue », « Part club », « Total »), en centimes ; null = colonne absente / vide. Alimente la facture.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?int $partFftriCents = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $assuranceCents = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $partLigueCents = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $partClubCents = null;
+
+    /** Total payé d'après l'import : montant proposé par défaut sur la facture. */
+    #[ORM\Column(nullable: true)]
+    private ?int $totalCents = null;
+
+    /**
+     * Montant facturé imposé par l'admin (paiement fait à la main, montant différent…), en centimes. Prime sur le
+     * total importé, jamais écrasé par un ré-import ; null = montant par défaut (total importé, sinon grille).
+     */
+    #[ORM\Column(nullable: true)]
+    private ?int $invoiceAmountCents = null;
+
     public function __construct(User $user, TrainingSeason $season)
     {
         $this->user = $user;
@@ -105,6 +132,34 @@ class UserSeasonMembership
     public function markInvoiced(): self { $this->invoicedAt = new \DateTimeImmutable(); return $this; }
     public function getInvoiceSequence(): ?int { return $this->invoiceSequence; }
     public function setInvoiceSequence(?int $seq): self { $this->invoiceSequence = $seq; return $this; }
+    public function getPartFftriCents(): ?int { return $this->partFftriCents; }
+    public function setPartFftriCents(?int $c): self { $this->partFftriCents = $c; return $this; }
+    public function getAssuranceCents(): ?int { return $this->assuranceCents; }
+    public function setAssuranceCents(?int $c): self { $this->assuranceCents = $c; return $this; }
+    public function getPartLigueCents(): ?int { return $this->partLigueCents; }
+    public function setPartLigueCents(?int $c): self { $this->partLigueCents = $c; return $this; }
+    public function getPartClubCents(): ?int { return $this->partClubCents; }
+    public function setPartClubCents(?int $c): self { $this->partClubCents = $c; return $this; }
+    public function getTotalCents(): ?int { return $this->totalCents; }
+    public function setTotalCents(?int $c): self { $this->totalCents = $c; return $this; }
+    public function getInvoiceAmountCents(): ?int { return $this->invoiceAmountCents; }
+    public function setInvoiceAmountCents(?int $c): self { $this->invoiceAmountCents = $c; return $this; }
+
+    /**
+     * Parts importées non vides, dans l'ordre d'affichage de la facture.
+     *
+     * @return array<string, int> libellé => centimes
+     */
+    public function getImportedParts(): array
+    {
+        return array_filter([
+            'Part FFTri' => $this->partFftriCents,
+            'Assurance' => $this->assuranceCents,
+            'Part ligue' => $this->partLigueCents,
+            'Part club' => $this->partClubCents,
+        ], static fn (?int $c): bool => $c !== null);
+    }
+
     public function getTariffProfile(): ?string { return $this->tariffProfile; }
     public function setTariffProfile(?string $p): self { $this->tariffProfile = ($p === '' ? null : $p); return $this; }
 }

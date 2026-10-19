@@ -25,6 +25,8 @@
         table.items th { background: #0d2148; color: #fff; padding: 8pt 10pt; text-align: left; font-weight: 700; }
         table.items td { padding: 10pt; border-bottom: 1pt solid #dfe3ec; vertical-align: top; }
         table.items td.amount { text-align: right; white-space: nowrap; }
+        table.items tr.sub td { padding: 3pt 10pt 3pt 26pt; border-bottom: none; font-size: 9.5pt; color: #6b7280; }
+        table.items tr.sub td.amount { padding-left: 10pt; }
         table.items tr.total-row td { border-top: 2pt solid #0d2148; border-bottom: none; padding-top: 12pt; font-weight: 700; font-size: 12pt; color: #0d2148; }
 
         .payment { margin-top: 14pt; padding: 6pt 12pt; background: #ecfdf5; border-left: 3pt solid #16a34a; font-size: 10pt; }
@@ -115,6 +117,13 @@
                 </td>
                 <td class="amount">{{ (line.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
             </tr>
+            {# Détail lu à l'import FFTri, tant que le montant n'a pas été modifié. #}
+            {% for part in line.breakdown %}
+                <tr class="sub">
+                    <td>dont {{ part.label }}</td>
+                    <td class="amount">{{ (part.cents / 100)|number_format(2, ',', ' ') }} €</td>
+                </tr>
+            {% endfor %}
         {% endfor %}
         <tr class="total-row">
             <td>Total</td>
