@@ -161,6 +161,8 @@ class UserMembershipsController extends AbstractController
             return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);
         }
         $membership->setPaymentType($pt->value);
+        // Choix de l'admin : l'import CSV ne le déduit plus de la part club.
+        $membership->setPaymentTypeManual(true);
         $this->em->flush();
         $this->addFlash('success', 'Mode de paiement mis à jour : '.$pt->label());
         return $this->redirectToRoute('admin_user_memberships', ['id' => $id]);

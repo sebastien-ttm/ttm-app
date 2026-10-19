@@ -5,6 +5,7 @@ namespace App\Service\Csv;
 use App\Entity\TrainingSeason;
 use App\Entity\User;
 use App\Entity\UserSeasonMembership;
+use App\Enum\PaymentType;
 use App\Enum\Profile;
 use App\Enum\UserType;
 use App\Message\SendMagicLinkEmailMessage;
@@ -534,6 +535,17 @@ class CsvImportService
             if ($this->hasCol($record, $column)) {
                 $membership->$setter(self::parseAmountCents($this->resolveCol($record, $column)));
             }
+        }
+
+        // Mode de paiement par défaut, d'après la part club : 0 € = l'adhérent a réglé directement au club (carte
+        // bancaire, vraie facture) ; sinon la cotisation a été encaissée par la FFTri (attestation de paiement).
+        // Un mode choisi à la main par l'admin, ou autre que ces deux-là (espèces, chèque…), n'est pas écrasé.
+        $partClub = $membership->getPartClubCents();
+        if ($partClub !== null
+            && !$membership->isPaymentTypeManual()
+            && in_array($membership->getPaymentType(), [PaymentType::CB->value, PaymentType::Fftri->value], true)
+        ) {
+            $membership->setPaymentType(($partClub === 0 ? PaymentType::CB : PaymentType::Fftri)->value);
         }
 
         if ($existing === null) {

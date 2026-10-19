@@ -125,6 +125,20 @@
                         </select>
                         <noscript><button type="submit" class="btn btn-sm btn-secondary">Enregistrer</button></noscript>
                     </form>
+                    {% if m.partClubCents is not null %}
+                        <div style="font-size:11px; color:#64748b; margin-top:4px;">
+                            {% if m.partClubCents == 0 %}
+                                Part club à 0 € : réglé directement au club (carte bancaire, <strong>facture</strong>).
+                            {% else %}
+                                Part club {{ (m.partClubCents / 100)|number_format(2, ',', ' ') }} € : encaissé par la FFTri (<strong>attestation de paiement</strong>).
+                            {% endif %}
+                            {% if m.paymentTypeManual %}
+                                Mode choisi manuellement : l'import CSV ne le modifie plus.
+                            {% else %}
+                                Mode déduit de l'import CSV.
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
 
                 <div>

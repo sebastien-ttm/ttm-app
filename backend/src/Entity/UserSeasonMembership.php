@@ -58,6 +58,12 @@ class UserSeasonMembership
     #[ORM\Column(length: 24, options: ['default' => 'cb'])]
     private string $paymentType = 'cb';
 
+    /**
+     * true = l'admin a choisi lui-même le mode de paiement : l'import CSV ne le déduit plus de la part club.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $paymentTypeManual = false;
+
     /** Horodatage de dernière génération/envoi de facture. NULL = jamais. */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $invoicedAt = null;
@@ -128,6 +134,8 @@ class UserSeasonMembership
     public function setCategorieAge(?string $s): self { $this->categorieAge = $s; return $this; }
     public function getPaymentType(): string { return $this->paymentType; }
     public function setPaymentType(string $t): self { $this->paymentType = $t; return $this; }
+    public function isPaymentTypeManual(): bool { return $this->paymentTypeManual; }
+    public function setPaymentTypeManual(bool $manual): self { $this->paymentTypeManual = $manual; return $this; }
     public function getInvoicedAt(): ?\DateTimeImmutable { return $this->invoicedAt; }
     public function markInvoiced(): self { $this->invoicedAt = new \DateTimeImmutable(); return $this; }
     public function getInvoiceSequence(): ?int { return $this->invoiceSequence; }

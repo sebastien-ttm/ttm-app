@@ -292,6 +292,25 @@ class InvoiceService
     }
 
     /**
+     * Mode de paiement à présélectionner pour une facture regroupant ces personnes : celui de l'adhésion de la
+     * première qui en a une pour la saison (l'adhérent principal en tête de liste). À l'import CSV il est déduit de la
+     * part club — 0 € : carte bancaire (facture) ; sinon CB encaissé par la FFTri (attestation) —, sauf choix de l'admin.
+     *
+     * @param list<User> $users
+     */
+    public function defaultPaymentTypeFor(array $users, TrainingSeason $season): PaymentType
+    {
+        foreach ($users as $u) {
+            $membership = $this->memberships->findOneByUserAndSeason($u, $season);
+            if ($membership !== null) {
+                return PaymentType::tryFrom($membership->getPaymentType()) ?? PaymentType::CB;
+            }
+        }
+
+        return PaymentType::CB;
+    }
+
+    /**
      * Montant à facturer, par ordre de priorité :
      *  1. le montant imposé par l'admin (paiement fait à la main, montant différent…) ;
      *  2. le total payé lu à l'import CSV FFTri ;

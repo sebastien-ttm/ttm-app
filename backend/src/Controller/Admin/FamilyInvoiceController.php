@@ -99,11 +99,16 @@ class FamilyInvoiceController extends AbstractController
             $candidates[] = $u;
         }
 
+        // Mode de paiement présélectionné : celui de l'adhésion de l'adhérent principal (déduit de la part club à
+        // l'import CSV : 0 € = carte bancaire, facture ; sinon encaissé par la FFTri, attestation).
+        $selectedPayment = $this->invoiceService->defaultPaymentTypeFor($candidates, $season)->value;
+
         if ($request->isMethod('POST')) {
             $selectedIds = $request->request->all('include');   // array<int, string>
             $amountsEur = $request->request->all('amount_eur'); // array<userId, string>
             $action = (string) $request->request->get('action', 'pdf'); // 'pdf' | 'email'
             $paymentType = PaymentType::tryFrom((string) $request->request->get('payment_type', 'cb')) ?? PaymentType::CB;
+            $selectedPayment = $paymentType->value; // le formulaire ré-affiché garde le choix posté
             $lines = [];
             foreach ($candidates as $u) {
                 $uid = (string) $u->getId();
@@ -170,6 +175,7 @@ class FamilyInvoiceController extends AbstractController
             'season' => $season,
             'candidates' => $candidates,
             'suggestions' => $suggestions,
+            'selectedPayment' => $selectedPayment,
             // Options pour le dropdown mode de paiement (label => value).
             'paymentTypes' => array_combine(
                 array_map(fn (PaymentType $p) => $p->label(), PaymentType::cases()),
