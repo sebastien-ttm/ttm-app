@@ -117,8 +117,9 @@
                 </td>
                 <td class="amount">{{ (line.amountCents / 100)|number_format(2, ',', ' ') }} €</td>
             </tr>
-            {# Détail lu à l'import FFTri, tant que le montant n'a pas été modifié. #}
-            {% for part in line.breakdown %}
+            {# Détail lu à l'import FFTri, tant que le montant n'a pas été modifié — sur une facture seulement : une
+               attestation de paiement n'indique que le montant total encaissé. #}
+            {% for part in (isAttestation ? [] : line.breakdown) %}
                 <tr class="sub">
                     <td>dont {{ part.label }}</td>
                     <td class="amount">{{ (part.cents / 100)|number_format(2, ',', ' ') }} €</td>
@@ -126,7 +127,7 @@
             {% endfor %}
         {% endfor %}
         <tr class="total-row">
-            <td>Total</td>
+            <td>{{ isAttestation ? 'Total encaissé' : 'Total' }}</td>
             <td class="amount">{{ (totalCents / 100)|number_format(2, ',', ' ') }} €</td>
         </tr>
     </tbody>

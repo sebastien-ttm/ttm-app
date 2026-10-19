@@ -112,8 +112,9 @@
         </tr>
     </thead>
     <tbody>
-        {% if breakdown|length > 0 %}
-            {# Détail de la cotisation lu à l'import FFTri (Part FFTri, Assurance, Part ligue, Part club). #}
+        {% if breakdown|length > 0 and not isAttestation %}
+            {# Détail de la cotisation lu à l'import FFTri (Part FFTri, Assurance, Part ligue, Part club) : sur une
+               facture seulement — une attestation de paiement n'indique que le montant total encaissé. #}
             <tr>
                 <td colspan="2"><strong>Adhésion {{ typeLicence }} — Saison {{ seasonLabel }}</strong></td>
             </tr>
@@ -133,7 +134,7 @@
 </table>
 
 <div class="total">
-    Total : {{ (amountCents / 100)|number_format(2, ',', ' ') }} €
+    {{ isAttestation ? 'Total encaissé' : 'Total' }} : {{ (amountCents / 100)|number_format(2, ',', ' ') }} €
 </div>
 
 <div class="stamp">{{ isAttestation ? 'Paiement confirmé' : 'Facture acquittée' }}</div>
