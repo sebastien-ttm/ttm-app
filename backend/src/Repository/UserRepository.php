@@ -528,6 +528,23 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Adhérents jeunes actifs (profil Jeune), triés par nom puis prénom : liste des documents officiels du staff.
+     *
+     * @return list<User>
+     */
+    public function findActiveYouth(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere('JSON_CONTAINS(u.profiles, :tag) = 1')
+            ->setParameter('tag', json_encode(Profile::Jeune->value))
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Users actifs avec le profil Entraîneur. On matche via LIKE sur le
      * JSON stocké — même approche que le reste du repo pour les profils.
      *

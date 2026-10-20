@@ -11,6 +11,7 @@ parameters:
     app.uploads.training_slots_dir: '%kernel.project_dir%/var/uploads/training-slots'
     app.uploads.article_attachments_dir: '%kernel.project_dir%/var/uploads/article-attachments'
     app.uploads.training_groups_dir: '%kernel.project_dir%/var/uploads/training-groups'
+    app.uploads.youth_documents_dir: '%kernel.project_dir%/var/uploads/youth-documents'
     app.uploads.page_attachments_dir: '%kernel.project_dir%/var/uploads/page-attachments'
     app.uploads.inline_dir: '%kernel.project_dir%/public/uploads/inline'
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
@@ -92,6 +93,10 @@ services:
     App\Service\TrainingGroup\TrainingGroupFileService:
         arguments:
             $trainingGroupsDir: '%app.uploads.training_groups_dir%'
+
+    App\Service\YouthDocument\YouthDocumentService:
+        arguments:
+            $youthDocumentsDir: '%app.uploads.youth_documents_dir%'
 
     App\Service\StaticPage\StaticPageAttachmentService:
         arguments:
