@@ -590,6 +590,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $child->parents->add($this);
             }
         }
+        $this->ensureParentProfile();
+        return $this;
+    }
+
+    /**
+     * Un compte qui a des enfants déclarés est Parent : c'est ce profil qui lui ouvre la gestion des enfants dans
+     * l'appli. Garanti par addChild() (appli) et par l'admin (voir UserCrudController), pour ne plus dépendre du chemin
+     * par lequel le lien a été créé. Sans effet si le profil est déjà là.
+     */
+    public function ensureParentProfile(): self
+    {
+        if (!$this->hasProfile(Profile::Parent)) {
+            $this->profiles[] = Profile::Parent->value;
+        }
         return $this;
     }
 

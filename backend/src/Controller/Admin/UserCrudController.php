@@ -244,7 +244,7 @@ class UserCrudController extends AbstractCrudController
         // relation famille même quand les e-mails diffèrent)
         yield AssociationField::new('children', 'Enfants')
             ->setRequired(false)
-            ->setHelp('Pour un compte parent : les enfants adhérents (recherche par nom / licence).')
+            ->setHelp('Pour un compte parent : les enfants adhérents (recherche par nom / licence). Le profil Parent est ajouté automatiquement à l\'enregistrement.')
             ->onlyOnForms()
             ->autocomplete();
 
@@ -387,6 +387,7 @@ class UserCrudController extends AbstractCrudController
                 $entityInstance->setPassword($this->hasher->hashPassword($entityInstance, $plain));
             }
             $this->reconcileLinkedToUser($entityInstance);
+            $this->ensureParentProfileWhenChildren($entityInstance);
         }
         parent::persistEntity($entityManager, $entityInstance);
     }
@@ -400,8 +401,20 @@ class UserCrudController extends AbstractCrudController
                 $entityInstance->setPassword($this->hasher->hashPassword($entityInstance, $plain));
             }
             $this->reconcileLinkedToUser($entityInstance);
+            $this->ensureParentProfileWhenChildren($entityInstance);
         }
         parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    /**
+     * Un compte à qui l'on rattache des enfants (champ « Enfants ») devient Parent : le profil ouvre la gestion des
+     * enfants dans l'appli, et le formulaire ne le coche pas tout seul.
+     */
+    private function ensureParentProfileWhenChildren(User $user): void
+    {
+        if (!$user->getChildren()->isEmpty()) {
+            $user->ensureParentProfile();
+        }
     }
 
     /**
