@@ -97,6 +97,10 @@ class UserCrudController extends AbstractCrudController
         yield TextField::new('nom');
         yield EmailField::new('email');
         yield TextField::new('telephone', 'Téléphone')->hideOnIndex();
+        yield TextField::new('telephoneUrgence', 'Téléphone d\'urgence')
+            ->hideOnIndex()
+            ->setRequired(false)
+            ->setHelp('Contact d\'urgence : lu à l\'import du CSV FFTri, visible des seuls encadrants du groupe d\'entraînement de l\'adhérent.');
 
         yield ChoiceField::new('type', 'Type de compte')
             ->setChoices(UserType::enumChoices())

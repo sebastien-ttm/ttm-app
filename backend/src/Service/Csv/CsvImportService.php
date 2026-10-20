@@ -47,6 +47,8 @@ class CsvImportService
     private const COL_EMAIL = 'Email';
     private const COL_MOBILE = 'Mobile';
     private const COL_TELEPHONE = 'Téléphone';
+    /** Contact d'urgence (export « Liste des licenciés » de l'Espace Tri) : numéro seul, sans nom. */
+    private const COL_TEL_URGENCE = 'Téléphone du contact d\'urgence';
     private const COL_STATUT = 'Statut';
     private const COL_TYPE_LICENCE = 'Type de licence';
     private const COL_CATEGORIE_AGE = 'Catégorie d\'âge';
@@ -82,6 +84,7 @@ class CsvImportService
         self::COL_SEXE => ['Civilité/genre', 'Civilite/genre', 'Sexe'],
         self::COL_TELEPHONE => ['Téléphone', 'Telephone'],
         self::COL_MOBILE => ['Mobile'],
+        self::COL_TEL_URGENCE => ['Téléphone du contact d\'urgence', 'Telephone du contact d\'urgence', 'Contact d\'urgence'],
         self::COL_CODE_POSTAL => ['Code Postal', 'CP'],
         self::COL_VILLE => ['Ville', 'Commune'],
         self::COL_TOTAL => ['Total', 'Total TTC'],
@@ -320,6 +323,10 @@ class CsvImportService
                         $user->setEmail($email);
                     }
                     $user->setTelephone($tel !== '' ? $tel : null);
+                    // Contact d'urgence : colonne absente d'un ancien export = valeur conservée.
+                    if ($this->hasCol($record, self::COL_TEL_URGENCE)) {
+                        $user->setTelephoneUrgence($this->cleanPhone($this->resolveCol($record, self::COL_TEL_URGENCE)));
+                    }
                     $user->setStatutLicence($statut);
                     $user->setIsActive($isActive);
                     $user->setLastCsvSyncAt($importedAt);

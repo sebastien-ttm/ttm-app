@@ -46,6 +46,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $telephone = null;
 
     /**
+     * Téléphone du contact d'urgence (colonne « Téléphone du contact d'urgence » de l'export FFTri). Visible des
+     * seuls encadrants / entraîneurs du groupe d'entraînement de l'adhérent.
+     */
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $telephoneUrgence = null;
+
+    /**
      * Provenance du compte (CSV FFTri vs inscription externe).
      */
     #[ORM\Column(length: 16, enumType: UserType::class)]
@@ -342,6 +349,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setTelephone(?string $telephone): self
     {
         $this->telephone = $telephone;
+        return $this;
+    }
+
+    public function getTelephoneUrgence(): ?string
+    {
+        return $this->telephoneUrgence;
+    }
+
+    public function setTelephoneUrgence(?string $telephone): self
+    {
+        $telephone = $telephone !== null ? trim($telephone) : '';
+        $this->telephoneUrgence = $telephone === '' ? null : mb_substr($telephone, 0, 32);
         return $this;
     }
 
