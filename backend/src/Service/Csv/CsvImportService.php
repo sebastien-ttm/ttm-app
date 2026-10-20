@@ -890,6 +890,8 @@ class CsvImportService
                         $u->setLinkedToUser($primary);
                     }
                 }
+                // Le principal d'un e-mail partagé est Parent (aussi pour un groupe déjà en place avant cette règle).
+                $primary->ensureParentProfile();
                 continue;
             }
 

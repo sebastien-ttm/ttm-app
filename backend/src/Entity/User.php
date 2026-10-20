@@ -619,7 +619,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getParents(): Collection { return $this->parents; }
 
     public function getLinkedToUser(): ?User { return $this->linkedToUser; }
-    public function setLinkedToUser(?User $u): self { $this->linkedToUser = $u; return $this; }
+    public function setLinkedToUser(?User $u): self
+    {
+        $this->linkedToUser = $u;
+        // Le compte principal d'un e-mail partagé est le parent des comptes qui lui sont rattachés : il reçoit le profil
+        // Parent (voir aussi ensureParentProfile() pour les enfants déclarés).
+        $u?->ensureParentProfile();
+        return $this;
+    }
 
     /** Retourne le user "racine" pour les e-mails partagés (lui-même si primaire). */
     public function getPrimaryUser(): User
