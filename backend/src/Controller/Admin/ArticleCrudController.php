@@ -24,6 +24,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ArticleCrudController extends AbstractCrudController
 {
@@ -77,15 +78,24 @@ class ArticleCrudController extends AbstractCrudController
         // tout input marqué data-emoji-picker="1" et remplit l'input
         // au clic sur un emoji. L'éditeur peut aussi coller/saisir
         // directement (max 16 caractères, cf. Article.icon).
+        // Obligatoire à la création d'un article ; à la modification il reste facultatif, pour que les articles
+        // anciens (créés sans emoji) restent modifiables. Contrôle côté serveur (contrainte), pas seulement
+        // l'attribut HTML « required ».
+        $isNew = $pageName === Crud::PAGE_NEW;
         yield TextField::new('icon', 'Icône (emoji)')
-            ->setRequired(false)
+            ->setRequired($isNew)
+            ->setFormTypeOption('constraints', $isNew
+                ? [new NotBlank(message: 'Choisissez un emoji : il est obligatoire pour créer un article.')]
+                : [])
             ->setFormTypeOption('attr', [
                 'data-emoji-picker' => '1',
                 'maxlength' => '32',
                 'placeholder' => 'ex : 📰',
                 'autocomplete' => 'off',
             ])
-            ->setHelp('Emoji affiché devant le titre dans la liste des actualités. Cliquez sur 😀 pour ouvrir le picker avec recherche, ou saisissez/collez directement. Laisser vide pour ne pas en afficher.')
+            ->setHelp($isNew
+                ? 'Obligatoire. Emoji affiché devant le titre dans la liste des actualités. Cliquez sur 😀 pour ouvrir le picker avec recherche, ou saisissez/collez directement.'
+                : 'Emoji affiché devant le titre dans la liste des actualités. Cliquez sur 😀 pour ouvrir le picker avec recherche, ou saisissez/collez directement. Facultatif pour un article existant.')
             ->hideOnIndex();
         yield TextEditorField::new('content', 'Contenu')
             ->setNumOfRows(15)
