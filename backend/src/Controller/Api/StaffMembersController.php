@@ -19,7 +19,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * en cours.
  *
  * Données personnelles : réservé aux profils Entraîneur et Encadrant, et
- * limité à l'identité, à la photo et au téléphone (rien d'autre n'est exposé).
+ * limité à l'identité, à la photo, au téléphone et au contact d'urgence (rien d'autre n'est exposé).
  */
 #[IsGranted('ROLE_USER')]
 class StaffMembersController extends AbstractController
@@ -70,6 +70,8 @@ class StaffMembersController extends AbstractController
                 'telephone' => $phone,
                 // Non null quand le numéro est celui d'un parent (« Appeler Marie Dupont »).
                 'telephoneOf' => $phoneOf,
+                // Contact d'urgence (import du CSV FFTri) : à appeler en cas d'accident ; null si non renseigné.
+                'telephoneUrgence' => self::cleanPhone($u->getTelephoneUrgence()),
                 // Adhérent externe : licencié dans un autre club (compte créé depuis l'appli).
                 'isExternal' => $u->isLicencieAutreClub(),
                 // Présent dans la liste des adhérents de la saison en cours ?
