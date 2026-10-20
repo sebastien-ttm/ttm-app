@@ -1,6 +1,7 @@
 import type { FamilyRelation, FamilyResponse, InboxMessage, LinkedChild, LinkedChildrenResponse, MessageCategory, MessageScope, ThreadEntry, Trainer, UserMessage } from '@/api/types';
 import { API_BASE_URL } from '@/config';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
+import { markOnline, markServedFromCache, readCachedResponse, writeCachedResponse } from '@/api/offlineCache';
 
 export class ApiError extends Error {
   constructor(
@@ -67,6 +68,29 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+/** Délai maximum d'une lecture avant de la considérer perdue (réseau sans internet). */
+const GET_TIMEOUT_MS = 8_000;
+/**
+ * Après un échec réseau, le réseau est présumé coupé pendant DOWN_WINDOW_MS : les lectures suivantes n'attendent plus
+ * que GET_TIMEOUT_DOWN_MS avant de basculer sur le cache. Sans cela, chaque requête attendrait son propre délai et
+ * un démarrage hors connexion (profil, charte, écran…) durerait des dizaines de secondes.
+ */
+const GET_TIMEOUT_DOWN_MS = 1_500;
+const DOWN_WINDOW_MS = 20_000;
+let networkDownUntil = 0;
+
+/** fetch avec délai maximum (`timeoutMs` null = sans limite : envois de fichiers, écritures). */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number | null): Promise<Response> {
+  if (timeoutMs === null || init.signal) return fetch(url, init);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function request<T>(method: string, path: string, opts: FetchOptions = {}): Promise<T> {
   const url = path.startsWith('http') ? path : API_BASE_URL + path;
 
@@ -98,16 +122,30 @@ async function request<T>(method: string, path: string, opts: FetchOptions = {})
           : JSON.stringify(opts.body),
   };
 
+  // Lectures : un serveur qui ne répond pas ne doit pas figer l'écran (réseau « connecté mais sans internet », au
+  // bord d'une piscine…) — au bout de GET_TIMEOUT_MS on bascule sur le cache hors connexion, à défaut sur l'erreur.
+  const isCacheableRead = method === 'GET' && !opts.public;
   let response: Response;
   try {
-    response = await fetch(url, init);
+    const readTimeout = Date.now() < networkDownUntil ? GET_TIMEOUT_DOWN_MS : GET_TIMEOUT_MS;
+    response = await fetchWithTimeout(url, init, method === 'GET' ? readTimeout : null);
   } catch (err) {
+    networkDownUntil = Date.now() + DOWN_WINDOW_MS;
+    if (isCacheableRead) {
+      const cached = await readCachedResponse<T>(path);
+      if (cached !== undefined) {
+        markServedFromCache();
+        return cached;
+      }
+    }
     throw new ApiError(
-      `Connexion impossible à ${url}. Vérifiez votre réseau.`,
+      'Connexion impossible. Vérifiez votre réseau, puis réessayez.',
       0,
       err instanceof Error ? err.message : err,
     );
   }
+  networkDownUntil = 0;
+  markOnline();
 
   // 204 No Content
   if (response.status === 204) {
@@ -116,6 +154,9 @@ async function request<T>(method: string, path: string, opts: FetchOptions = {})
 
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+  if (isCacheableRead && response.ok && contentType.includes('application/json')) {
+    writeCachedResponse(path, payload);
+  }
 
   if (!response.ok) {
     if (response.status === 401 && !opts.public) {

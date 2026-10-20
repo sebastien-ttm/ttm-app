@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { ApiError, AuthenticatedUser, LinkedProfile, LoginResponse, RegisterMemberPayload, RegisterParentPayload, auth, setOnUnauthorized } from '@/api/client';
+import { clearOfflineCache, setOfflineCacheOwner } from '@/api/offlineCache';
 import { charter as charterApi } from '@/api/resources';
 import type { Charter, CharterAnswers } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
@@ -191,8 +192,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined' && window.localStorage) {
       try { window.localStorage.removeItem('ttm.impersonating'); } catch {}
     }
+    // Les données conservées pour le mode hors connexion sont celles de ce compte : elles ne restent pas sur l'appareil.
+    setOfflineCacheOwner(null);
+    await clearOfflineCache();
     setState({ ...initialState, status: 'unauthenticated' });
   }, []);
+
+  // Cache hors connexion : suit l'utilisateur connecté (connexion, changement de profil lié).
+  useEffect(() => {
+    if (state.user) setOfflineCacheOwner(state.user.id);
+  }, [state.user]);
 
   useEffect(() => {
     setOnUnauthorized(() => {
@@ -214,6 +223,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setState({ ...initialState, status: 'unauthenticated' });
         return;
       }
+      // Cache hors connexion : propre à cet utilisateur, actif dès les premières requêtes (auth.me ci-dessous peut
+      // être servi depuis le cache quand le réseau ne répond pas).
+      try { setOfflineCacheOwner((JSON.parse(userRaw) as AuthenticatedUser).id); } catch { /* user illisible */ }
       try {
         const [fresh, linked] = await Promise.all([
           auth.me(),

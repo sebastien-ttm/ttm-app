@@ -14,7 +14,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST_DIR = join(process.cwd(), 'dist');
@@ -34,6 +34,18 @@ function computeVersion() {
     sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
   } catch { /* pas dans un repo git → fallback 'dev' */ }
   return { sha, builtAt: new Date().toISOString() };
+}
+
+/** Chemins (URL) de tous les fichiers sous `dir`, préfixés par `urlPrefix`. Vide si le dossier n'existe pas. */
+function listFiles(dir, urlPrefix) {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const url = `${urlPrefix}/${entry.name}`;
+    if (entry.isDirectory()) out.push(...listFiles(join(dir, entry.name), url));
+    else out.push(encodeURI(url));
+  }
+  return out;
 }
 
 const SENTINEL = 'data-pwa-injected="ttm"';
@@ -99,9 +111,20 @@ info(`dist/version.json généré (${version.sha}).`);
 // caches (voir public/sw.js). Fait AVANT le garde-fou d'idempotence plus bas.
 const SW_FILE = join(DIST_DIR, 'sw.js');
 if (existsSync(SW_FILE)) {
+  // Fichiers de l'appli à précacher à l'installation du service worker (démarrage hors ligne) : bundle JS/CSS,
+  // polices et images du build. Valeur insérée dans une chaîne JS entre apostrophes (voir public/sw.js).
+  const precache = [
+    ...listFiles(join(DIST_DIR, '_expo', 'static'), '/_expo/static'),
+    ...listFiles(join(DIST_DIR, 'assets'), '/assets'),
+  ];
+  const precacheLiteral = JSON.stringify(precache).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
   const sw = readFileSync(SW_FILE, 'utf8');
-  writeFileSync(SW_FILE, sw.replaceAll('__SW_VERSION__', version.sha), 'utf8');
-  info(`dist/sw.js versionné (${version.sha}).`);
+  writeFileSync(
+    SW_FILE,
+    sw.replaceAll('__SW_VERSION__', version.sha).replaceAll('__PRECACHE_FILES__', () => precacheLiteral),
+    'utf8',
+  );
+  info(`dist/sw.js versionné (${version.sha}), ${precache.length} fichiers à précacher.`);
 } else {
   info('dist/sw.js absent : service worker non publié (vérifier mobile/public/sw.js).');
 }

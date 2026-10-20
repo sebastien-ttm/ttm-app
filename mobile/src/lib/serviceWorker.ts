@@ -1,8 +1,9 @@
 import { Platform } from 'react-native';
 
 /**
- * Enregistre le service worker de l'appli web (`/sw.js`) : notifications push,
- * page « hors ligne » et cache des fichiers de l'appli. Web uniquement, en
+ * Enregistre le service worker de l'appli web (`/sw.js`) : notifications push et
+ * démarrage hors ligne (l'appli est conservée en cache, voir public/sw.js ; les données
+ * le sont par api/offlineCache). Web uniquement, en
  * HTTPS (ou localhost) ; sans effet en développement, où le cache gênerait.
  */
 export function registerServiceWorker(): void {

@@ -8,6 +8,7 @@ import { AuthProvider, consumeIntendedPath, rememberIntendedPath, useAuth } from
 import { CharterGate } from '@/components/CharterGate';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { NoticeGate } from '@/components/NoticeGate';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { WebUpdateGate } from '@/components/WebUpdateGate';
 import { COLORS } from '@/config';
 import { listenForInstallPrompt } from '@/lib/installPrompt';
@@ -106,6 +107,8 @@ export default function RootLayout() {
         <AuthGate>
           <StatusBar style="auto" />
           <ImpersonationBanner />
+          {/* Données du cache faute de réseau : bandeau « hors connexion » (voir api/offlineCache). */}
+          <OfflineBanner />
           {/* Refetch charterRequired au retour de background après > 10 min
               d'inactivité — indispensable avec le refresh-token 30j pour
               proposer le nouveau tunnel après un renouvellement CSV
