@@ -5,27 +5,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthContext';
 import { EmargementTab } from '@/components/gestion/EmargementTab';
+import { GroupTab } from '@/components/gestion/GroupTab';
 import { MembersTab } from '@/components/gestion/MembersTab';
 import { PresenceTab } from '@/components/gestion/PresenceTab';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { canCheckIn, canUseStaffSpace, isStaffMember } from '@/utils/profile';
 
-type GestionTab = 'presences' | 'emargements' | 'adherents';
+type GestionTab = 'presences' | 'emargements' | 'groupe' | 'adherents';
 
 const TABS: { key: GestionTab; label: string }[] = [
   { key: 'presences', label: 'Présences' },
   { key: 'emargements', label: 'Émargements' },
+  { key: 'groupe', label: 'Groupe' },
   { key: 'adherents', label: 'Adhérents' },
 ];
 
 /**
  * Espace « Staff », ouvert depuis le bouton de l'en-tête. Route /gestion :
- * /staff est déjà le trombinoscope du Club. Trois onglets, selon le profil :
+ * /staff est déjà le trombinoscope du Club. Quatre onglets, selon le profil :
  *  - Présences (entraîneur, encadrant) : indiquer / confirmer ses présences,
  *    semaine type ;
  *  - Émargements : présence aux événements (entraîneur, encadrant, CoDir,
  *    admin) ; remise des bonnets et saisie des temps des tests chronométrés
  *    (entraîneur, admin) ;
+ *  - Groupe (entraîneur, encadrant) : mon groupe d'entraînement à la volée, créé avant une séance
+ *    (adhérents, encadrants, informations, trace GPX, commentaires, position en direct) ;
  *  - Adhérents (entraîneur, encadrant) : annuaire (nom, prénom, téléphone)
  *    avec appel ou message WhatsApp en un geste.
  * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.
@@ -73,7 +77,7 @@ export default function GestionScreen() {
       )}
 
       <View style={{ flex: 1 }}>
-        {tab === 'presences' ? <PresenceTab /> : tab === 'emargements' ? <EmargementTab /> : <MembersTab />}
+        {tab === 'presences' ? <PresenceTab /> : tab === 'emargements' ? <EmargementTab /> : tab === 'groupe' ? <GroupTab /> : <MembersTab />}
       </View>
     </SafeAreaView>
   );

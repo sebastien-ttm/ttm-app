@@ -3,6 +3,12 @@ import type { LiveState } from '@/hooks/useLiveSync';
 import { api } from './client';
 import type {
   AdminNotice,
+  ArticleAttachment,
+  TrainingGroup,
+  TrainingGroupComment,
+  TrainingGroupInput,
+  TrainingGroupStaffCandidate,
+  TrainingGroupsMine,
   Article,
   Banner,
   BibOffer,
@@ -157,6 +163,41 @@ export const staffPerfTests = {
 /** Annuaire des adhérents (nom, prénom, téléphone) — réservé aux profils entraîneur / encadrant. */
 export const staffDirectory = {
   list: () => api.get<{ data: StaffMember[]; total: number; season: StaffDirectorySeason | null }>('/api/staff/members'),
+};
+
+/**
+ * Groupes d'entraînement à la volée : un encadrant / entraîneur crée son groupe avant une séance ; les adhérents ajoutés
+ * le voient dans l'onglet Entraînement. `get` est un état en direct (voir useLiveSync).
+ */
+export const trainingGroups = {
+  mine: () => api.get<TrainingGroupsMine>('/api/training-groups/mine'),
+  staffCandidates: () => api.get<{ data: TrainingGroupStaffCandidate[] }>('/api/training-groups/staff-candidates'),
+  get: (id: number, version: string | null) =>
+    api.get<LiveState<TrainingGroup>>(`/api/training-groups/${id}${version ? `?v=${encodeURIComponent(version)}` : ''}`),
+  create: (input: TrainingGroupInput) => api.post<TrainingGroup>('/api/training-groups', input),
+  update: (id: number, input: { name?: string; info?: string }) =>
+    api.patch<TrainingGroup>(`/api/training-groups/${id}`, input),
+  setMembers: (id: number, memberIds: number[]) =>
+    api.put<TrainingGroup>(`/api/training-groups/${id}/members`, { memberIds }),
+  setCoaches: (id: number, coachIds: number[]) =>
+    api.put<TrainingGroup>(`/api/training-groups/${id}/coaches`, { coachIds }),
+  leave: (id: number) => api.post<{ ok: boolean }>(`/api/training-groups/${id}/leave`, {}),
+  close: (id: number) => api.post<{ ok: boolean }>(`/api/training-groups/${id}/close`, {}),
+  addComment: (id: number, input: { content?: string; latitude?: number; longitude?: number }) =>
+    api.post<TrainingGroupComment>(`/api/training-groups/${id}/comments`, input),
+  deleteComment: (id: number, commentId: number) =>
+    api.delete<{ ok: boolean }>(`/api/training-groups/${id}/comments/${commentId}`),
+  /** Ajoute une trace GPX (multipart). */
+  addAttachment: (id: number, file: Blob, name: string) => {
+    const form = new FormData();
+    form.append('file', file, name);
+    return api.post<ArticleAttachment>(`/api/training-groups/${id}/attachments`, form);
+  },
+  deleteAttachment: (id: number, attachmentId: number) =>
+    api.delete<{ ok: boolean }>(`/api/training-groups/${id}/attachments/${attachmentId}`),
+  setPosition: (id: number, position: { latitude: number; longitude: number; accuracy?: number }) =>
+    api.put<{ ok: boolean }>(`/api/training-groups/${id}/position`, position),
+  stopPosition: (id: number) => api.delete<{ ok: boolean }>(`/api/training-groups/${id}/position`),
 };
 
 /** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */

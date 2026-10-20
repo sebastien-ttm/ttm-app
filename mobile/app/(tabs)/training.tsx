@@ -15,6 +15,7 @@ import { trainingSchedule as scheduleApi } from '@/api/resources';
 import type { TrainingPlan, TrainingRegistration, TrainingSlot, WeeklySchedule } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MyGroupsCard } from '@/components/groups/MyGroupsCard';
 import { SportBadge } from '@/components/SportBadge';
 import { TrainingRegistrationBar } from '@/components/TrainingRegistrationBar';
 import { WeekNavigator } from '@/components/WeekNavigator';
@@ -180,6 +181,9 @@ function TrainingScreenInner() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
         >
+          {/* Mes groupes d'entraînement à la volée (ajouté par un encadrant, ou que j'encadre) : rien sans groupe. */}
+          <MyGroupsCard />
+
           {/* Goûter du mercredi : positionnement à l'apport du goûter par
               les parents/jeunes. Placé en tête pour être immédiatement
               accessible aux parents non-licenciés qui n'ont QUE ça à

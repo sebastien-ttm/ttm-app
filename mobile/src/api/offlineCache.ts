@@ -22,9 +22,12 @@ export function setOfflineCacheOwner(userId: number | null): void {
   owner = userId;
 }
 
-/** Chemins jamais conservés : état en direct (périmé en quelques secondes), jetons, abonnements push. */
+/**
+ * Chemins jamais conservés : état en direct (périmé en quelques secondes, dont les relectures « ?v=… » des écrans qui
+ * se synchronisent), jetons, abonnements push.
+ */
 function isCacheable(path: string): boolean {
-  return !/\/state(\?|$)/.test(path) && !path.startsWith('/api/auth/') && !path.includes('/push');
+  return !/\/state(\?|$)/.test(path) && !/[?&]v=/.test(path) && !path.startsWith('/api/auth/') && !path.includes('/push');
 }
 
 function keyFor(path: string): string | null {

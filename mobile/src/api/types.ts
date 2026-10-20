@@ -1155,3 +1155,118 @@ export type PhotoAlbumPage = {
   perPage: number;
   total: number;
 };
+
+// ---- Groupes d'entraînement à la volée (créés par un encadrant / entraîneur) ----
+
+/** Séance de référence d'un groupe (planning au moment de sa création). */
+export type TrainingGroupSession = { title: string; startsAt: string | null };
+
+/** Encadrant du groupe, avec de quoi le joindre. */
+export type TrainingGroupCoach = {
+  id: number;
+  nom: string;
+  prenom: string;
+  fullName: string;
+  avatarUrl: string | null;
+  telephone: string | null;
+  isMe: boolean;
+};
+
+/**
+ * Adhérent du groupe. `telephone`, `telephoneOf` et `telephoneUrgence` ne sont fournis qu'aux encadrants du groupe ;
+ * les autres adhérents ne voient que le nom et la photo.
+ */
+export type TrainingGroupMember = {
+  id: number;
+  nom: string;
+  prenom: string;
+  avatarUrl: string | null;
+  telephone?: string | null;
+  /** Nom du parent quand le numéro est le sien (enfant sans téléphone). */
+  telephoneOf?: string | null;
+  telephoneUrgence?: string | null;
+};
+
+/** Commentaire d'un encadrant : un texte et / ou un point GPS. */
+export type TrainingGroupComment = {
+  id: number;
+  authorId: number;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  content: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: string;
+  canDelete: boolean;
+};
+
+/** Position partagée en direct par un encadrant. */
+export type TrainingGroupPosition = {
+  userId: number;
+  fullName: string;
+  latitude: number;
+  longitude: number;
+  /** Précision du GPS en mètres, null si inconnue. */
+  accuracy: number | null;
+  updatedAt: string;
+};
+
+export type TrainingGroup = {
+  id: number;
+  /** Nom affiché (« Groupe de Marc » par défaut). */
+  name: string;
+  /** Nom choisi par l'encadrant, null s'il n'en a pas donné. */
+  rawName: string | null;
+  info: string | null;
+  createdAt: string;
+  /** Fin de validité : début du prochain créneau après la séance de référence. */
+  expiresAt: string;
+  /** Je suis encadrant de ce groupe (gestion complète) ; sinon simple adhérent (lecture seule). */
+  isCoach: boolean;
+  session: TrainingGroupSession | null;
+  coaches: TrainingGroupCoach[];
+  members: TrainingGroupMember[];
+  attachments: ArticleAttachment[];
+  comments: TrainingGroupComment[];
+  positions: TrainingGroupPosition[];
+};
+
+export type TrainingGroupSummary = {
+  id: number;
+  name: string;
+  expiresAt: string;
+  isCoach: boolean;
+  sessionTitle: string | null;
+  memberCount: number;
+  coaches: { id: number; fullName: string; avatarUrl: string | null }[];
+};
+
+/** Aperçu d'un nouveau groupe : séance de référence et fin de validité. */
+export type TrainingGroupPlan = {
+  session: { title: string; startsAt: string; endsAt: string } | null;
+  expiresAt: string;
+};
+
+export type TrainingGroupsMine = {
+  data: TrainingGroupSummary[];
+  /** Encadrant / entraîneur sans groupe actif : peut en créer un. */
+  canCreate: boolean;
+  preview: TrainingGroupPlan | null;
+};
+
+/** Encadrant / entraîneur proposé comme co-encadrant. */
+export type TrainingGroupStaffCandidate = {
+  id: number;
+  nom: string;
+  prenom: string;
+  avatarUrl: string | null;
+  /** Groupe actif que cet encadrant gère déjà (il ne peut en avoir qu'un). */
+  activeGroupId: number | null;
+};
+
+export type TrainingGroupInput = {
+  name: string;
+  info: string;
+  memberIds: number[];
+  coachIds: number[];
+};
