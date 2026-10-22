@@ -76,6 +76,8 @@ import type {
   TrainingRegistration,
   TrainingRegistrationDetail,
   TrainingSlot,
+  TripDetail,
+  TripSummary,
   WeeklySchedule,
 } from './types';
 
@@ -584,4 +586,11 @@ export const races = {
 
 export const staff = {
   get: () => api.get<StaffResponse>('/api/staff'),
+};
+
+/** Déplacements du club : seuls leurs participants les voient (404 pour les autres). */
+export const trips = {
+  /** Mes déplacements publiés : à venir, en cours ou terminés depuis moins de 30 jours. */
+  mine: () => api.get<{ data: TripSummary[] }>('/api/trips/mine'),
+  get: (id: number) => api.get<TripDetail>(`/api/trips/${id}`),
 };

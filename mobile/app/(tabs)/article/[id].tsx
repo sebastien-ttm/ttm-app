@@ -141,9 +141,22 @@ export default function ArticleScreen() {
             <Text style={styles.meta}>
               {article.author.fullName} · {formatDate(article.publishedAt)}
             </Text>
-            <View style={{ flexDirection: 'row', marginTop: 8, marginBottom: 4 }}>
-              <ShareButton path={`/article/${article.id}`} title={article.title} />
-            </View>
+            {article.trip ? (
+              // Article dédié : réservé aux participants du déplacement (rien à partager hors de ce cercle).
+              <Pressable
+                onPress={() => router.push(`/trip/${article.trip?.id}` as never)}
+                style={styles.tripBadge}
+                accessibilityRole="link"
+              >
+                <Text style={styles.tripBadgeLabel} numberOfLines={1}>
+                  {article.trip.icon ?? '✈️'} Réservé aux participants · {article.trip.title}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={{ flexDirection: 'row', marginTop: 8, marginBottom: 4 }}>
+                <ShareButton path={`/article/${article.id}`} title={article.title} />
+              </View>
+            )}
 
             <RichContent html={article.content} style={styles.body} />
 
@@ -274,6 +287,12 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
   meta: { fontSize: 13, color: COLORS.textMuted, marginBottom: 16 },
+  tripBadge: {
+    alignSelf: 'flex-start', maxWidth: '100%', marginTop: 8, marginBottom: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+  },
+  tripBadgeLabel: { fontSize: 12, fontWeight: '700', color: COLORS.secondaryDark },
   body: { fontSize: 15, color: COLORS.text, lineHeight: 23 },
   section: {
     marginTop: 24,

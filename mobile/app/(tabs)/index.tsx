@@ -10,6 +10,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MyTripsCard } from '@/components/trips/MyTripsCard';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
 import { COLORS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
@@ -108,6 +109,8 @@ export default function FeedScreen() {
                 Le composant reste importé pour ré-affichage rapide
                 (retirer le commentaire ci-dessous). */}
             {/* <BannerImage /> */}
+            {/* Mes déplacements (si je participe à un déplacement publié) : accès à sa vue dédiée. */}
+            <MyTripsCard />
             <UpcomingEvents />
             <View style={styles.sectionHeader}>
               <Ionicons name="newspaper" size={18} color={COLORS.primary} />

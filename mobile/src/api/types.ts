@@ -51,6 +51,8 @@ export type Article = {
    * inscription éventuelle). Présent uniquement sur GET /api/articles/{id}.
    */
   trainingSlots?: TrainingSlot[];
+  /** Déplacement auquel l'article est dédié (réservé à ses participants) ; null pour un article du fil général. */
+  trip?: { id: number; title: string; icon: string | null } | null;
 };
 
 export type Paginated<T> = {
@@ -1321,3 +1323,36 @@ export type YouthDocumentsDetail = {
 
 /** Ligne de la vue d'ensemble du staff. */
 export type StaffYouth = YouthOwner & { documents: YouthDocumentsByKind };
+
+/** Déplacement du club (créé depuis le backend) : résumé affiché sur l'accueil des participants. */
+export type TripSummary = {
+  id: number;
+  title: string;
+  /** Emoji devant le titre, null si non choisi. */
+  icon: string | null;
+  location: string | null;
+  /** Jour de départ, AAAA-MM-JJ. */
+  startsOn: string | null;
+  /** Dernier jour, AAAA-MM-JJ ; null = déplacement d'une seule journée. */
+  endsOn: string | null;
+  participantCount: number;
+};
+
+/** Participant d'un déplacement : identité et photo seulement (pas de coordonnées). */
+export type TripParticipant = {
+  id: number;
+  fullName: string;
+  prenom: string;
+  nom: string;
+  avatarUrl: string | null;
+};
+
+/** Vue de contexte d'un déplacement : infos pratiques, événements du calendrier, articles dédiés, participants. */
+export type TripDetail = TripSummary & {
+  /** HTML de l'éditeur riche (programme, hébergement, rendez-vous…), null si vide. */
+  description: string | null;
+  events: EventItem[];
+  /** Articles réservés aux participants (absents du fil d'actualités), les plus récents d'abord. */
+  articles: Article[];
+  participants: TripParticipant[];
+};
