@@ -149,7 +149,7 @@ class YouthDocumentController extends AbstractController
 
     /** Téléchargement authentifié (jeton en query `bearer`) : s'ouvre dans le navigateur (PDF, image). */
     #[Route('/api/youth-documents/file/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function file(int $id): BinaryFileResponse
+    public function download(int $id): BinaryFileResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
