@@ -1,7 +1,6 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -9,13 +8,12 @@ import { trips } from '@/api/resources';
 import type { Article, TripDetail } from '@/api/types';
 import { ArticleCard } from '@/components/ArticleCard';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
-import { MemberAvatar } from '@/components/MemberAvatar';
 import { RichContent } from '@/components/RichContent';
+import { ContextHero, ContextSection, ParticipantsGrid } from '@/components/trips/ContextParts';
 import { EventRow } from '@/components/UpcomingEvents';
-import { COLORS, RADIUS, SPACING } from '@/config';
+import { COLORS, SPACING } from '@/config';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
-import { tripDatesLabel, tripPhase, tripStatusLabel } from '@/utils/trip';
 
 /**
  * Vue de contexte d'un déplacement, réservée à ses participants : informations pratiques, événements du calendrier
@@ -78,112 +76,46 @@ export default function TripScreen() {
           contentContainerStyle={styles.container}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={COLORS.primary} />}
         >
-          <TripHero trip={trip} />
+          <ContextHero item={trip} fallbackIcon="airplane" />
 
           {trip.description || trip.events.length > 0 || trip.articles.length > 0 ? null : (
             <Text style={styles.empty}>Les informations de ce déplacement arriveront bientôt.</Text>
           )}
 
           {trip.description ? (
-            <Section title="Informations pratiques" icon="information-circle">
+            <ContextSection title="Informations pratiques" icon="information-circle">
               <RichContent html={trip.description} style={styles.body} />
-            </Section>
+            </ContextSection>
           ) : null}
 
           {trip.events.length > 0 ? (
-            <Section title={trip.events.length > 1 ? 'Au programme' : 'Au programme : événement'} icon="calendar">
+            <ContextSection title={trip.events.length > 1 ? 'Au programme' : 'Au programme : événement'} icon="calendar">
               {trip.events.map((e) => (
                 <EventRow key={e.id} event={e} inset={false} />
               ))}
-            </Section>
+            </ContextSection>
           ) : null}
 
           {trip.articles.length > 0 ? (
-            <Section title={`Articles du déplacement (${trip.articles.length})`} icon="newspaper">
+            <ContextSection title={`Articles du déplacement (${trip.articles.length})`} icon="newspaper">
               {trip.articles.map((a) => (
                 <ArticleCard key={a.id} article={a} onOpen={markRead} />
               ))}
-            </Section>
+            </ContextSection>
           ) : null}
 
-          <Section title={`Participants (${trip.participants.length})`} icon="people">
-            <View style={styles.people}>
-              {trip.participants.map((p) => (
-                <View key={p.id} style={styles.person}>
-                  <MemberAvatar prenom={p.prenom} nom={p.nom} avatarUrl={p.avatarUrl} size={44} />
-                  <Text style={styles.personName} numberOfLines={2}>{p.prenom} {p.nom}</Text>
-                </View>
-              ))}
-            </View>
-          </Section>
+          <ContextSection title={`Participants (${trip.participants.length})`} icon="people">
+            <ParticipantsGrid participants={trip.participants} />
+          </ContextSection>
         </ScrollView>
       )}
     </SafeAreaView>
   );
 }
 
-function TripHero({ trip }: { trip: TripDetail }) {
-  const phase = tripPhase(trip);
-  return (
-    <View style={styles.hero}>
-      <View style={styles.heroIcon}>
-        {trip.icon ? <Text style={styles.heroEmoji}>{trip.icon}</Text> : <Ionicons name="airplane" size={30} color="#fff" />}
-      </View>
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={styles.heroTitle}>{trip.title}</Text>
-        <View style={styles.heroLine}>
-          <Ionicons name="calendar-outline" size={14} color={COLORS.textMuted} />
-          <Text style={styles.heroMeta}>{tripDatesLabel(trip)}</Text>
-        </View>
-        {trip.location ? (
-          <View style={styles.heroLine}>
-            <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
-            <Text style={styles.heroMeta}>{trip.location}</Text>
-          </View>
-        ) : null}
-        <View style={[styles.status, phase === 'past' && styles.statusPast]}>
-          <Text style={[styles.statusLabel, phase === 'past' && styles.statusLabelPast]}>{tripStatusLabel(trip)}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function Section({ title, icon, children }: { title: string; icon: ComponentProps<typeof Ionicons>['name']; children: ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Ionicons name={icon} size={18} color={COLORS.primary} />
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   container: { padding: SPACING.md, paddingBottom: 40, gap: SPACING.lg },
-  hero: {
-    flexDirection: 'row', gap: 14, alignItems: 'center', padding: SPACING.md,
-    backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
-    borderLeftWidth: 4, borderLeftColor: COLORS.secondary,
-  },
-  heroIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
-  heroEmoji: { fontSize: 30 },
-  heroTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-  heroLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  heroMeta: { fontSize: 13, color: COLORS.textMuted, flexShrink: 1 },
-  status: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: COLORS.secondary },
-  statusPast: { backgroundColor: COLORS.border },
-  statusLabel: { fontSize: 12, fontWeight: '800', color: '#fff' },
-  statusLabelPast: { color: COLORS.textMuted },
   empty: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, paddingVertical: SPACING.md },
-  section: { gap: SPACING.sm },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   body: { fontSize: 15, color: COLORS.text, lineHeight: 23 },
-  people: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  person: { width: 76, alignItems: 'center', gap: 4 },
-  personName: { fontSize: 11, color: COLORS.text, textAlign: 'center' },
 });

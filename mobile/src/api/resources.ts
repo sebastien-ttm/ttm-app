@@ -75,6 +75,8 @@ import type {
   TrainingPlan,
   TrainingRegistration,
   TrainingRegistrationDetail,
+  StageDetail,
+  StageSummary,
   TrainingSlot,
   TripDetail,
   TripSummary,
@@ -593,4 +595,11 @@ export const trips = {
   /** Mes déplacements publiés : à venir, en cours ou terminés depuis moins de 30 jours. */
   mine: () => api.get<{ data: TripSummary[] }>('/api/trips/mine'),
   get: (id: number) => api.get<TripDetail>(`/api/trips/${id}`),
+};
+
+/** Stages du club : seuls leurs participants les voient (404 pour les autres), avec tous leurs éléments dédiés. */
+export const stages = {
+  /** Mes stages publiés : à venir, en cours ou terminés depuis moins de 30 jours. */
+  mine: () => api.get<{ data: StageSummary[] }>('/api/stages/mine'),
+  get: (id: number) => api.get<StageDetail>(`/api/stages/${id}`),
 };

@@ -10,6 +10,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ArticleCard } from '@/components/ArticleCard';
 import { BannerImage } from '@/components/BannerImage';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { MyStagesCard } from '@/components/trips/MyStagesCard';
 import { MyTripsCard } from '@/components/trips/MyTripsCard';
 import { UpcomingEvents } from '@/components/UpcomingEvents';
 import { COLORS, SPACING } from '@/config';
@@ -111,6 +112,8 @@ export default function FeedScreen() {
             {/* <BannerImage /> */}
             {/* Mes déplacements (si je participe à un déplacement publié) : accès à sa vue dédiée. */}
             <MyTripsCard />
+            {/* Mes stages : idem, vue dédiée avec entraînements, événements, sondages, prises de temps et articles du stage. */}
+            <MyStagesCard />
             <UpcomingEvents />
             <View style={styles.sectionHeader}>
               <Ionicons name="newspaper" size={18} color={COLORS.primary} />

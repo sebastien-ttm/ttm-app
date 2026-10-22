@@ -53,6 +53,8 @@ export type Article = {
   trainingSlots?: TrainingSlot[];
   /** Déplacement auquel l'article est dédié (réservé à ses participants) ; null pour un article du fil général. */
   trip?: { id: number; title: string; icon: string | null } | null;
+  /** Stage auquel l'article est dédié (réservé à ses participants) ; null pour un article du fil général. */
+  stage?: { id: number; title: string; icon: string | null } | null;
 };
 
 export type Paginated<T> = {
@@ -1353,6 +1355,54 @@ export type TripDetail = TripSummary & {
   description: string | null;
   events: EventItem[];
   /** Articles réservés aux participants (absents du fil d'actualités), les plus récents d'abord. */
+  articles: Article[];
+  participants: TripParticipant[];
+};
+
+/** Stage du club (créé depuis le backend) : même résumé qu'un déplacement. */
+export type StageSummary = TripSummary;
+
+/** Sondage dédié au stage : format de la liste des sondages ouverts, clos compris. */
+export type StageSurvey = SurveySummary & { isClosed: boolean };
+
+export type StagePerfTestRow = {
+  /** Rang (ex æquo = même rang), du plus rapide au plus lent. */
+  rank: number;
+  fullName: string;
+  timeSeconds: number;
+  /** Temps formaté (ex : « 5:42 »). */
+  time: string;
+  /** True pour mon temps. */
+  mine: boolean;
+};
+
+/** Prise de temps dédiée au stage, avec son classement. */
+export type StagePerfTest = {
+  id: number;
+  test: string;
+  /** Épreuve (+ bassin en natation). */
+  label: string;
+  icon: string;
+  poolLength: number | null;
+  /** Début de la période, AAAA-MM-JJ. */
+  date: string;
+  /** Fin de la période ; null = une seule journée. */
+  endDate: string | null;
+  notes: string | null;
+  participants: number;
+  results: StagePerfTestRow[];
+};
+
+/**
+ * Vue de contexte d'un stage : infos pratiques et éléments propres au stage — entraînements, événements, sondages,
+ * prises de temps, articles — qui ne figurent nulle part ailleurs dans l'appli ; et participants.
+ */
+export type StageDetail = StageSummary & {
+  description: string | null;
+  trainingSlots: TrainingSlot[];
+  events: EventItem[];
+  surveys: StageSurvey[];
+  perfTests: StagePerfTest[];
   articles: Article[];
   participants: TripParticipant[];
 };

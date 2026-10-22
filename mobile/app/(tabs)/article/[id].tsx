@@ -141,15 +141,17 @@ export default function ArticleScreen() {
             <Text style={styles.meta}>
               {article.author.fullName} · {formatDate(article.publishedAt)}
             </Text>
-            {article.trip ? (
-              // Article dédié : réservé aux participants du déplacement (rien à partager hors de ce cercle).
+            {article.trip || article.stage ? (
+              // Article dédié : réservé aux participants du déplacement / du stage (rien à partager hors de ce cercle).
               <Pressable
-                onPress={() => router.push(`/trip/${article.trip?.id}` as never)}
+                onPress={() => router.push((article.trip ? `/trip/${article.trip.id}` : `/stage/${article.stage?.id}`) as never)}
                 style={styles.tripBadge}
                 accessibilityRole="link"
               >
                 <Text style={styles.tripBadgeLabel} numberOfLines={1}>
-                  {article.trip.icon ?? '✈️'} Réservé aux participants · {article.trip.title}
+                  {article.trip
+                    ? `${article.trip.icon ?? '✈️'} Réservé aux participants · ${article.trip.title}`
+                    : `${article.stage?.icon ?? '🏕️'} Réservé aux participants · ${article.stage?.title ?? ''}`}
                 </Text>
               </Pressable>
             ) : (
