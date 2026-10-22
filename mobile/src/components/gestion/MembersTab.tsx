@@ -18,6 +18,7 @@ import type { StaffDirectorySeason, StaffMember } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
+import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatPhoneFr } from '@/utils/phone';
 
@@ -209,14 +210,18 @@ export function MembersTab() {
                 <Text style={styles.phoneUrgence}>Urgence : {formatPhoneFr(item.telephoneUrgence)}</Text>
               )}
             </View>
-            {(item.telephone || item.telephoneUrgence) && (
-              <ContactButtons
-                name={`${item.prenom} ${item.nom}`}
-                telephone={item.telephone}
-                telephoneOf={item.telephoneOf}
-                telephoneUrgence={item.telephoneUrgence}
-              />
-            )}
+            <View style={styles.actions}>
+              {/* Jeune : fiche sanitaire et autorisation de sortie du territoire. */}
+              {item.isJeune && <YouthDocsButton youthId={item.id} name={`${item.prenom} ${item.nom}`} />}
+              {(item.telephone || item.telephoneUrgence) && (
+                <ContactButtons
+                  name={`${item.prenom} ${item.nom}`}
+                  telephone={item.telephone}
+                  telephoneOf={item.telephoneOf}
+                  telephoneUrgence={item.telephoneUrgence}
+                />
+              )}
+            </View>
           </View>
         )}
       />
@@ -299,4 +304,5 @@ const styles = StyleSheet.create({
   phoneOf: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
   noPhone: { fontSize: 13, color: COLORS.textSubtle, fontStyle: 'italic', marginTop: 2 },
   phoneUrgence: { fontSize: 13, color: COLORS.error, fontWeight: '600', marginTop: 2, fontVariant: ['tabular-nums'] },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

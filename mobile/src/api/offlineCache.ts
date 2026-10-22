@@ -27,7 +27,9 @@ export function setOfflineCacheOwner(userId: number | null): void {
  * se synchronisent), jetons, abonnements push.
  */
 function isCacheable(path: string): boolean {
-  return !/\/state(\?|$)/.test(path) && !/[?&]v=/.test(path) && !path.startsWith('/api/auth/') && !path.includes('/push');
+  return !/\/state(\?|$)/.test(path) && !/[?&]v=/.test(path) && !path.startsWith('/api/auth/') && !path.includes('/push')
+    // Documents de santé et d'identité des jeunes : jamais conservés sur l'appareil.
+    && !path.startsWith('/api/youth-documents') && !path.startsWith('/api/staff/youth');
 }
 
 function keyFor(path: string): string | null {

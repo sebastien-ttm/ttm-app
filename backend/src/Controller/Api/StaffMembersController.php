@@ -72,6 +72,8 @@ class StaffMembersController extends AbstractController
                 'telephoneOf' => $phoneOf,
                 // Contact d'urgence (import du CSV FFTri) : à appeler en cas d'accident ; null si non renseigné.
                 'telephoneUrgence' => self::cleanPhone($u->getTelephoneUrgence()),
+                // Profil Jeune : accès rapide à sa fiche sanitaire et à son autorisation de sortie du territoire.
+                'isJeune' => $u->isJeune(),
                 // Adhérent externe : licencié dans un autre club (compte créé depuis l'appli).
                 'isExternal' => $u->isLicencieAutreClub(),
                 // Présent dans la liste des adhérents de la saison en cours ?

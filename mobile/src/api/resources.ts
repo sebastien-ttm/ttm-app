@@ -3,6 +3,10 @@ import type { LiveState } from '@/hooks/useLiveSync';
 import { api } from './client';
 import type {
   AdminNotice,
+  StaffYouth,
+  YouthDocument,
+  YouthDocumentKind,
+  YouthDocumentsDetail,
   ArticleAttachment,
   TrainingGroup,
   TrainingGroupComment,
@@ -198,6 +202,25 @@ export const trainingGroups = {
   setPosition: (id: number, position: { latitude: number; longitude: number; accuracy?: number }) =>
     api.put<{ ok: boolean }>(`/api/training-groups/${id}/position`, position),
   stopPosition: (id: number) => api.delete<{ ok: boolean }>(`/api/training-groups/${id}/position`),
+};
+
+/**
+ * Documents officiels des jeunes (fiche sanitaire, autorisation de sortie du territoire) : déposés par le jeune, ses parents
+ * ou le staff ; consultables par eux, le staff et les administrateurs. `overview` : vue d'ensemble du staff.
+ */
+export const youthDocuments = {
+  overview: () => api.get<{ data: StaffYouth[]; total: number }>('/api/staff/youth'),
+  get: (youthId: number) => api.get<YouthDocumentsDetail>(`/api/youth-documents/${youthId}`),
+  /** Dépose (ou remplace) le document d'un type. `validUntil` : AAAA-MM-JJ, facultatif. */
+  upload: (youthId: number, kind: YouthDocumentKind, file: Blob, name: string, validUntil?: string | null) => {
+    const form = new FormData();
+    form.append('type', kind);
+    form.append('file', file, name);
+    if (validUntil) form.append('validUntil', validUntil);
+    return api.post<YouthDocument>(`/api/youth-documents/${youthId}`, form);
+  },
+  remove: (youthId: number, kind: YouthDocumentKind) =>
+    api.delete<{ ok: boolean }>(`/api/youth-documents/${youthId}/${kind}`),
 };
 
 /** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */

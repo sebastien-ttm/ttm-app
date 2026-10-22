@@ -152,6 +152,18 @@ export default function ProfileChildrenScreen() {
                       {c.categorieFFTri ? ` · ${c.categorieFFTri}` : ''}
                     </Text>
                   </View>
+                  {/* Profil Jeune : fiche sanitaire et autorisation de sortie du territoire. */}
+                  {c.profiles.includes('jeune') && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => router.push(('/youth-documents/' + c.id) as never)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Documents de ${c.fullName} : fiche sanitaire et autorisation de sortie du territoire`}
+                      style={({ pressed }) => [styles.docsBtn, pressed && { opacity: 0.6 }]}
+                    >
+                      <Text style={styles.docsLabel}>🩺 Documents</Text>
+                    </Pressable>
+                  )}
                   {canManage && (
                     <Pressable
                       hitSlop={8}
@@ -255,6 +267,11 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   rowSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   removeBtn: { padding: 4 },
+  docsBtn: {
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.secondaryDark, backgroundColor: COLORS.surface,
+  },
+  docsLabel: { color: COLORS.secondaryDark, fontSize: 12, fontWeight: '700' },
   label: { color: COLORS.text, fontWeight: '600', fontSize: 13, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.surface,

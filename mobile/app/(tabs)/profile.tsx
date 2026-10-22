@@ -254,6 +254,25 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
+      {/* Profil Jeune : fiche sanitaire et autorisation de sortie du territoire du jeune (déposées par lui ou ses parents). */}
+      {profiles.includes('jeune') && (
+        <View style={styles.card}>
+          <Pressable
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+            onPress={() => router.push(('/youth-documents/' + user.id) as never)}
+          >
+            <View style={styles.qrIcon}>
+              <Ionicons name="document-text-outline" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Mes documents</Text>
+              <Text style={styles.actionHint}>Fiche sanitaire · Autorisation de sortie du territoire</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+        </View>
+      )}
+
       {showChildrenManager && (
         <View style={styles.card}>
           <Pressable

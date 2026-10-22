@@ -25,6 +25,7 @@ import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { PositionCard } from '@/components/groups/PositionCard';
+import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useLiveSync } from '@/hooks/useLiveSync';
 import { type GeoPoint, formatPoint, getCurrentPoint, mapUrl } from '@/lib/geo';
@@ -583,6 +584,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
                   </>
                 )}
               </View>
+              {isCoach && m.isJeune && <YouthDocsButton youthId={m.id} name={label} />}
               {isCoach && (
                 <ContactButtons
                   name={label}

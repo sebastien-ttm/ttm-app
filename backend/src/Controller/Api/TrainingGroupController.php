@@ -736,6 +736,8 @@ class TrainingGroupController extends AbstractController
             'telephone' => $phone,
             'telephoneOf' => $phoneOf,
             'telephoneUrgence' => self::cleanPhone($user->getTelephoneUrgence()),
+            // Profil Jeune : accès rapide à ses documents officiels (fiche sanitaire, autorisation de sortie).
+            'isJeune' => $user->isJeune(),
         ];
     }
 

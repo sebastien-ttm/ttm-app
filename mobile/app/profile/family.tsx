@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -191,6 +191,7 @@ function RelationRow({
   busy: boolean;
   onRemove: () => void;
 }) {
+  const router = useRouter();
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
@@ -200,6 +201,17 @@ function RelationRow({
         <Text style={styles.name}>{person.fullName}</Text>
         {person.licenceLabel ? <Text style={styles.meta}>{person.licenceLabel}</Text> : null}
       </View>
+      {/* Profil Jeune : fiche sanitaire et autorisation de sortie du territoire. */}
+      {person.profiles.includes('jeune') && (
+        <Pressable
+          onPress={() => router.push(('/youth-documents/' + person.id) as never)}
+          accessibilityRole="button"
+          accessibilityLabel={`Documents de ${person.fullName} : fiche sanitaire et autorisation de sortie du territoire`}
+          style={({ pressed }) => [styles.smallBtn, styles.btnDocs, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.btnDocsLabel}>🩺 Documents</Text>
+        </Pressable>
+      )}
       <Pressable
         onPress={onRemove}
         disabled={busy}
@@ -299,6 +311,8 @@ const styles = StyleSheet.create({
   smallBtnLabel: { color: '#fff', fontSize: 12, fontWeight: '700' },
   btnPrimary: { backgroundColor: COLORS.primary },
   btnDanger: { backgroundColor: COLORS.error },
+  btnDocs: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.secondaryDark },
+  btnDocsLabel: { color: COLORS.secondaryDark, fontSize: 12, fontWeight: '700' },
   readOnlyHint: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 4 },
   licenceRow: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' },
   licenceInput: {

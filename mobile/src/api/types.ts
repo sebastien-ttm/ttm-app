@@ -431,6 +431,8 @@ export type StaffMember = {
   telephoneOf: string | null;
   /** Téléphone du contact d'urgence (colonne du CSV FFTri) ; null s'il n'est pas renseigné. */
   telephoneUrgence: string | null;
+  /** Profil Jeune : fiche sanitaire et autorisation de sortie du territoire à consulter. */
+  isJeune: boolean;
   /** Adhérent externe : licencié dans un autre club (compte créé depuis l'appli). */
   isExternal: boolean;
   /** Présent dans la liste des adhérents de la saison en cours (import FFTri, ou activé par l'admin pour un adhérent externe) ? */
@@ -1187,6 +1189,8 @@ export type TrainingGroupMember = {
   /** Nom du parent quand le numéro est le sien (enfant sans téléphone). */
   telephoneOf?: string | null;
   telephoneUrgence?: string | null;
+  /** Profil Jeune (fourni aux encadrants du groupe) : accès rapide à ses documents officiels. */
+  isJeune?: boolean;
 };
 
 /** Commentaire d'un encadrant : un texte et / ou un point GPS. */
@@ -1272,3 +1276,48 @@ export type TrainingGroupInput = {
   memberIds: number[];
   coachIds: number[];
 };
+
+// ---- Documents officiels des jeunes : fiche sanitaire et autorisation de sortie du territoire ----
+
+/** Type d'un document officiel de jeune (un seul document par jeune et par type). */
+export type YouthDocumentKind = 'health_form' | 'exit_authorization';
+
+export type YouthDocument = {
+  id: number;
+  type: YouthDocumentKind;
+  typeLabel: string;
+  name: string;
+  size: number;
+  humanSize: string;
+  mimeType: string;
+  uploadedAt: string;
+  /** Qui a déposé le fichier (jeune, parent, staff) ; null si ce compte n'existe plus. */
+  uploadedBy: string | null;
+  /** Fin de validité AAAA-MM-JJ, null = sans échéance. */
+  validUntil: string | null;
+  /** La fin de validité est dépassée : à renouveler. */
+  expired: boolean;
+  /** URL authentifiée (jeton en `?bearer=`) du fichier : PDF et images s'ouvrent dans le navigateur. */
+  url: string;
+};
+
+/** Un document par type ; null = rien de déposé. */
+export type YouthDocumentsByKind = Record<YouthDocumentKind, YouthDocument | null>;
+
+export type YouthOwner = {
+  id: number;
+  nom: string;
+  prenom: string;
+  avatarUrl: string | null;
+  age: number | null;
+};
+
+export type YouthDocumentsDetail = {
+  owner: YouthOwner;
+  documents: YouthDocumentsByKind;
+  /** Numéros pour joindre le jeune et son contact d'urgence : fournis au staff seulement. */
+  contact: { telephone: string | null; telephoneOf: string | null; telephoneUrgence: string | null } | null;
+};
+
+/** Ligne de la vue d'ensemble du staff. */
+export type StaffYouth = YouthOwner & { documents: YouthDocumentsByKind };
