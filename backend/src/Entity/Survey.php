@@ -67,6 +67,17 @@ class Survey implements OwnedContentInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    /**
+     * Stage auquel le sondage est dédié : il n'apparaît alors pas dans les sondages généraux et n'est accessible
+     * qu'aux participants du stage. RESTRICT : un stage qui a des éléments dédiés ne peut pas être supprimé.
+     */
+    #[ORM\ManyToOne(targetEntity: Stage::class, inversedBy: 'surveys')]
+    #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Stage $stage = null;
+
+    public function getStage(): ?Stage { return $this->stage; }
+    public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();

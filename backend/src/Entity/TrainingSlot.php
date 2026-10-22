@@ -93,6 +93,18 @@ class TrainingSlot
     #[ORM\OneToMany(targetEntity: TrainingSlotAttachment::class, mappedBy: 'slot', cascade: ['remove'], orphanRemoval: true)]
     private Collection $attachments;
 
+    /**
+     * Stage auquel l'entraînement est dédié (créneau occasionnel uniquement) : il n'apparaît alors pas dans la
+     * semaine d'entraînement générale et n'est accessible (vue, inscription) qu'aux participants du stage.
+     * RESTRICT : un stage qui a des éléments dédiés ne peut pas être supprimé.
+     */
+    #[ORM\ManyToOne(targetEntity: Stage::class, inversedBy: 'trainingSlots')]
+    #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Stage $stage = null;
+
+    public function getStage(): ?Stage { return $this->stage; }
+    public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
+
     public function __construct()
     {
         $this->weekStartsAt = new \DateTimeImmutable('monday this week');

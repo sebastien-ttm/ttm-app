@@ -38,7 +38,7 @@ class CarpoolController extends AbstractController
     #[Route('/api/events/{id}/carpool', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function listForEvent(int $id): JsonResponse
     {
-        $event = $this->events->find($id);
+        $event = $this->findEvent($id);
         if ($event === null) {
             return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -72,7 +72,7 @@ class CarpoolController extends AbstractController
     #[Route('/api/events/{id}/carpool', methods: ['POST', 'PATCH'], requirements: ['id' => '\d+'])]
     public function upsertForEvent(int $id, Request $request): JsonResponse
     {
-        $event = $this->events->find($id);
+        $event = $this->findEvent($id);
         if ($event === null) {
             return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -98,7 +98,7 @@ class CarpoolController extends AbstractController
     #[Route('/api/events/{id}/carpool', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteForEvent(int $id): JsonResponse
     {
-        $event = $this->events->find($id);
+        $event = $this->findEvent($id);
         if ($event === null) {
             return new JsonResponse(['error' => 'Événement introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -113,6 +113,23 @@ class CarpoolController extends AbstractController
             return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
         }
         return $this->removeFor($race);
+    }
+
+    /**
+     * L'événement demandé, ou null s'il n'existe pas OU s'il est dédié à un stage dont l'adhérent n'est pas
+     * participant (404, on ne révèle pas son existence).
+     */
+    private function findEvent(int $id): ?Event
+    {
+        $event = $this->events->find($id);
+        if ($event === null) {
+            return null;
+        }
+        /** @var User|null $viewer */
+        $viewer = $this->getUser();
+        $stage = $event->getStage();
+
+        return $stage === null || $stage->isOpenTo($viewer) ? $event : null;
     }
 
     /** @return array<string, mixed> */

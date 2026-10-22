@@ -15,7 +15,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Inscriptions aux entraînements « sur inscription » (places limitées ; une seule inscription par semaine et par
- * adhérent, tous créneaux sur inscription confondus — deux quand un entraîneur a débloqué la semaine).
+ * adhérent, tous créneaux sur inscription confondus — deux quand un entraîneur a débloqué la semaine). Les entraînements
+ * dédiés à un stage échappent à cette limite : un participant peut s'inscrire à tous ceux de son stage.
  *
  * Une inscription se rattache à l'OCCURRENCE d'un créneau (créneau de la semaine type + semaine, ou créneau
  * occasionnel) : voir TrainingSlotRegistration. Les « lignes » de créneau manipulées ici sont celles de
@@ -94,6 +95,8 @@ class TrainingRegistrationService
     {
         $counts = [];
         $myKeys = [];
+        // Mes inscriptions HORS entraînements de stage : seules elles comptent dans la limite hebdomadaire.
+        $myLimitedKeys = [];
         $limit = 1;
         if (array_filter($rows, static fn (array $r) => $r['registrationRequired']) !== []) {
             $limit = $this->limitFor($monday);
@@ -102,6 +105,9 @@ class TrainingRegistrationService
                 $counts[$key] = ($counts[$key] ?? 0) + 1;
                 if ($k['userId'] === $viewer->getId()) {
                     $myKeys[] = $key;
+                    if ($k['stageId'] === null) {
+                        $myLimitedKeys[] = $key;
+                    }
                 }
             }
         }
@@ -114,7 +120,7 @@ class TrainingRegistrationService
         $now = new \DateTimeImmutable();
         $out = [];
         foreach ($rows as $row) {
-            $row['registration'] = $this->state($row, $counts, $myKeys, $limit, $byKey, $monday, $now);
+            $row['registration'] = $this->state($row, $counts, $myKeys, $myLimitedKeys, $limit, $byKey, $monday, $now);
             unset($row['registrationRequired'], $row['capacity']);
             $out[] = $row;
         }
@@ -298,8 +304,13 @@ class TrainingRegistrationService
                 if (isset($mineByKey[$key])) {
                     return null; // déjà inscrit à ce créneau : rien à faire
                 }
-                if (count($mineList) >= $limit) {
-                    return self::refusal('already_registered_this_week', $this->limitMessage($mineByKey, $byKey, $limit, $asCoach), 409);
+                // Mes inscriptions qui comptent dans la limite hebdomadaire : toutes sauf celles aux entraînements d'un
+                // stage, qui en sont dispensés (on peut s'inscrire à tous les entraînements d'un stage).
+                $limitedList = array_values(array_filter($mineList, static fn (TrainingSlotRegistration $m) => $m->getSlot()?->getStage() === null));
+                $limitedByKey = array_filter($mineByKey, static fn (TrainingSlotRegistration $m) => $m->getSlot()?->getStage() === null);
+                $isStageSlot = $slot?->getStage() !== null;
+                if (!$isStageSlot && count($limitedList) >= $limit) {
+                    return self::refusal('already_registered_this_week', $this->limitMessage($limitedByKey, $byKey, $limit, $asCoach), 409);
                 }
 
                 $capacity = $row['capacity'];
@@ -309,8 +320,14 @@ class TrainingRegistrationService
                 }
 
                 // Rang libre de la semaine pour cet adhérent (l'unicité en base départage deux demandes simultanées).
-                $used = array_map(static fn (TrainingSlotRegistration $m) => $m->getPosition(), $mineList);
-                $position = in_array(1, $used, true) ? 2 : 1;
+                // Un entraînement de stage prend un rang propre à son créneau (3 et plus, jamais 1 ou 2) : il ne
+                // consomme aucune des inscriptions hebdomadaires ordinaires, et l'unicité reste garantie par créneau.
+                if ($isStageSlot) {
+                    $position = 3 + ((int) $slot->getId() % 32000);
+                } else {
+                    $used = array_map(static fn (TrainingSlotRegistration $m) => $m->getPosition(), $limitedList);
+                    $position = in_array(1, $used, true) ? 2 : 1;
+                }
 
                 $this->em->persist(new TrainingSlotRegistration($user, $template, $slot, $monday, $position));
 
@@ -368,12 +385,13 @@ class TrainingRegistrationService
     /**
      * @param array<string, mixed>                $row
      * @param array<string, int>                  $counts
-     * @param list<string>                        $myKeys
+     * @param list<string>                        $myKeys        toutes mes inscriptions de la semaine
+     * @param list<string>                        $myLimitedKeys celles qui comptent dans la limite (hors stages)
      * @param array<string, array<string, mixed>> $byKey
      *
      * @return array<string, mixed>|null
      */
-    private function state(array $row, array $counts, array $myKeys, int $limit, array $byKey, \DateTimeImmutable $monday, \DateTimeImmutable $now): ?array
+    private function state(array $row, array $counts, array $myKeys, array $myLimitedKeys, int $limit, array $byKey, \DateTimeImmutable $monday, \DateTimeImmutable $now): ?array
     {
         if (!$row['registrationRequired']) {
             return null;
@@ -384,8 +402,11 @@ class TrainingRegistrationService
         $count = $counts[$key] ?? 0;
         $mine = in_array($key, $myKeys, true);
 
+        // Un entraînement de stage échappe à la limite hebdomadaire : on peut s'inscrire à tous ceux du stage, sans
+        // rapport avec mes autres inscriptions de la semaine (pas d'« autres inscriptions » à signaler non plus).
+        $isStage = ($row['stageId'] ?? null) !== null;
         $others = [];
-        foreach ($myKeys as $k) {
+        foreach ($isStage ? [] : $myLimitedKeys as $k) {
             if ($k === $key) {
                 continue;
             }
@@ -395,7 +416,7 @@ class TrainingRegistrationService
                 : ['title' => 'un autre créneau', 'date' => $monday->format('Y-m-d'), 'startTime' => null];
         }
         // La limite d'inscriptions de la semaine interdit de s'inscrire ici (déjà `limit` inscriptions ailleurs).
-        $blocked = !$mine && count($myKeys) >= $limit;
+        $blocked = !$isStage && !$mine && count($myLimitedKeys) >= $limit;
 
         return [
             'capacity' => $capacity,

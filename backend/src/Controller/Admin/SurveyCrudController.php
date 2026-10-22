@@ -13,13 +13,16 @@ use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
 /**
  * CRUD des sondages. Le schéma des questions (`sections`) est édité en
@@ -67,6 +70,8 @@ class SurveyCrudController extends AbstractCrudController
 ]
 JSON;
 
+    use PreselectsStageTrait;
+
     public function __construct(
         private readonly SurveySchemaValidator $validator,
         private readonly SurveyResponseRepository $responses,
@@ -77,6 +82,17 @@ JSON;
     public static function getEntityFqcn(): string
     {
         return Survey::class;
+    }
+
+    public function createEntity(string $entityFqcn): Survey
+    {
+        // Lien « ➕ Sondage dédié » depuis un stage : le sondage est rattaché d'office à ce stage.
+        return (new Survey())->setStage($this->requestedStage());
+    }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters->add(EntityFilter::new('stage', 'Stage'));
     }
 
     public function configureCrud(Crud $crud): Crud
@@ -143,6 +159,11 @@ JSON;
         yield DateTimeField::new('closesAt', 'Fermer le')
             ->setRequired(false)
             ->setHelp('Optionnel. Après cette date, plus de nouvelles réponses acceptées, mais consultation possible.');
+
+        yield AssociationField::new('stage', '🏕️ Stage (sondage dédié)')
+            ->setRequired(false)
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
+            ->setHelp('Optionnel. Si renseigné, le sondage est RÉSERVÉ aux participants de ce stage : il n\'apparaît pas dans les sondages généraux, et le ciblage par profil ci-dessous est ignoré. Laisser vide pour un sondage normal.');
 
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())

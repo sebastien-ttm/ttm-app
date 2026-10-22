@@ -48,7 +48,10 @@ class TrainingSlotRegistration
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $weekStartsAt;
 
-    /** Rang de l'inscription dans la semaine pour cet adhérent : 1, ou 2 (semaine débloquée). */
+    /**
+     * Rang de l'inscription dans la semaine pour cet adhérent : 1, ou 2 (semaine débloquée). Une inscription à un
+     * entraînement de stage, dispensée de la limite hebdomadaire, prend un rang propre à son créneau (3 et plus).
+     */
     #[ORM\Column(type: 'smallint', options: ['default' => 1])]
     private int $position;
 

@@ -105,6 +105,9 @@
                                     {% if r.isOccasional %}
                                         <span style="background:#DBEAFE; color:#1E40AF; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Occasionnel</span>
                                     {% endif %}
+                                    {% if r.stageTitle is defined and r.stageTitle %}
+                                        <span style="background:#D1FAE5; color:#065F46; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">🏕️ Stage : {{ r.stageTitle }}</span>
+                                    {% endif %}
                                     {% if r.isCancelled %}
                                         <span style="background:#FEE2E2; color:#991B1B; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:6px;">Annulé</span>
                                     {% endif %}

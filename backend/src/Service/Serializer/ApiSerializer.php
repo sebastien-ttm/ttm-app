@@ -100,6 +100,12 @@ class ApiSerializer
                 'title' => $a->getTrip()->getTitle(),
                 'icon' => $a->getTrip()->getIcon(),
             ],
+            // Idem pour un article dédié à un stage.
+            'stage' => $a->getStage() === null ? null : [
+                'id' => $a->getStage()->getId(),
+                'title' => $a->getStage()->getTitle(),
+                'icon' => $a->getStage()->getIcon(),
+            ],
         ];
     }
 

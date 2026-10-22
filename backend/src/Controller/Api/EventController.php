@@ -49,7 +49,13 @@ class EventController extends AbstractController
     private function findVisibleOr404(int $id, ?User $viewer): Event
     {
         $event = $this->events->find($id);
-        if ($event === null || !$this->audienceFilter->isVisible($event->getAudience(), $viewer)) {
+        if ($event === null) {
+            throw $this->createNotFoundException();
+        }
+        // Événement dédié à un stage : accessible uniquement aux participants d'un stage publié (la liste des
+        // participants tient lieu d'audience). Couvre aussi vote, « qui vient ? » et commentaires.
+        $stage = $event->getStage();
+        if ($stage !== null ? !$stage->isOpenTo($viewer) : !$this->audienceFilter->isVisible($event->getAudience(), $viewer)) {
             throw $this->createNotFoundException();
         }
         return $event;

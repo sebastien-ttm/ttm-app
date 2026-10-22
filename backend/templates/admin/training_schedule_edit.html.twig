@@ -17,6 +17,12 @@
                 Cette modification ne s'applique qu'à cette semaine. La semaine type reste inchangée.
             </div>
         {% endif %}
+        {% if slot.stage %}
+            <div style="margin-top:8px; padding:8px 12px; background:#ECFDF5; color:#065F46; border-radius:6px; font-size:13px;">
+                🏕️ Entraînement <strong>dédié au stage « {{ slot.stage.title }} »</strong> : il n'apparaît pas dans la semaine
+                d'entraînement générale, seuls les participants du stage le voient et peuvent s'y inscrire.
+            </div>
+        {% endif %}
     </div>
 
     <form method="post" action="{{ path('admin_training_schedule_edit') }}" enctype="multipart/form-data"
@@ -28,15 +34,27 @@
         {% elseif slot.template %}
             <input type="hidden" name="templateId" value="{{ slot.template.id }}" />
         {% endif %}
+        {% if slot.stage %}
+            <input type="hidden" name="stageId" value="{{ slot.stage.id }}" />
+        {% endif %}
 
-        <div>
-            <label style="display:block; font-weight:600; margin-bottom:4px;">Jour</label>
-            <select name="dayOfWeek" class="form-control" style="max-width:200px;">
-                {% for num, lbl in days_labels %}
-                    <option value="{{ num }}" {{ slot.dayOfWeek == num ? 'selected' : '' }}>{{ lbl }}</option>
-                {% endfor %}
-            </select>
-        </div>
+        {% if slot.stage %}
+            {# Stage : on choisit une date (semaine + jour) plutôt qu'un jour de la semaine affichée. #}
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Date</label>
+                <input type="date" name="date" class="form-control" style="max-width:200px;" required
+                       value="{{ slot.weekStartsAt|date_modify('+' ~ (slot.dayOfWeek - 1) ~ ' days')|date('Y-m-d') }}" />
+            </div>
+        {% else %}
+            <div>
+                <label style="display:block; font-weight:600; margin-bottom:4px;">Jour</label>
+                <select name="dayOfWeek" class="form-control" style="max-width:200px;">
+                    {% for num, lbl in days_labels %}
+                        <option value="{{ num }}" {{ slot.dayOfWeek == num ? 'selected' : '' }}>{{ lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
 
         <div style="display:flex; gap:14px; flex-wrap:wrap;">
             <div>
@@ -137,7 +155,7 @@
 
         <div style="display:flex; gap:10px; margin-top:8px;">
             <button type="submit" class="btn btn-primary">Enregistrer</button>
-            <a href="{{ path('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
+            <a href="{{ stageUrl ?? path('admin_training_schedule', {week: week|date('Y-m-d')}) }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 

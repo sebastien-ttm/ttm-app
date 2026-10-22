@@ -105,6 +105,17 @@ class Event implements OwnedContentInterface
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?TrainingSlot $trainingSlot = null;
 
+    /**
+     * Stage auquel l'événement est dédié : il n'apparaît alors pas dans le calendrier général et n'est accessible
+     * qu'aux participants du stage. RESTRICT : un stage qui a des éléments dédiés ne peut pas être supprimé.
+     */
+    #[ORM\ManyToOne(targetEntity: Stage::class, inversedBy: 'events')]
+    #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Stage $stage = null;
+
+    public function getStage(): ?Stage { return $this->stage; }
+    public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
+
     public function __construct()
     {
         $this->tags = new ArrayCollection();

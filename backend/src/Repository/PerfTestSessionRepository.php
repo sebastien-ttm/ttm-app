@@ -44,6 +44,8 @@ class PerfTestSessionRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('s')
             ->where('s.test = :test')->setParameter('test', $test)
+            // Les prises de temps dédiées à un stage ne servent pas aux temps déclarés (vue du stage uniquement).
+            ->andWhere('s.stage IS NULL')
             ->orderBy('s.date', 'DESC')
             ->addOrderBy('s.id', 'DESC')
             ->setMaxResults($limit);
@@ -90,6 +92,7 @@ class PerfTestSessionRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('s')
             ->select('DISTINCT s.date AS d')
             ->innerJoin('s.results', 'r')
+            ->where('s.stage IS NULL') // les prises de temps de stage n'entrent pas dans les saisons générales
             ->orderBy('s.date', 'DESC')
             ->getQuery()
             ->getScalarResult();
@@ -115,7 +118,8 @@ class PerfTestSessionRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->innerJoin('s.results', 'r')->addSelect('r')
             ->leftJoin('r.user', 'u')->addSelect('u') // left : les anciens adhérents n'ont pas de compte
-            ->where('s.date >= :from')->setParameter('from', sprintf('%04d-09-01', $startYear))
+            ->where('s.stage IS NULL') // les prises de temps de stage sont présentées dans la vue du stage
+            ->andWhere('s.date >= :from')->setParameter('from', sprintf('%04d-09-01', $startYear))
             ->andWhere('s.date <= :to')->setParameter('to', sprintf('%04d-08-31', $startYear + 1))
             ->orderBy('s.date', 'DESC')
             ->addOrderBy('s.id', 'DESC')

@@ -31,6 +31,8 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ArticleCrudController extends AbstractCrudController
 {
+    use PreselectsStageTrait;
+
     /** 10 Mo max par PJ — même limite que la page dédiée. */
     private const ATTACHMENT_MAX_BYTES = 10_000_000;
 
@@ -58,7 +60,9 @@ class ArticleCrudController extends AbstractCrudController
 
     public function configureFilters(Filters $filters): Filters
     {
-        return $filters->add(EntityFilter::new('trip', 'Déplacement'));
+        return $filters
+            ->add(EntityFilter::new('trip', 'Déplacement'))
+            ->add(EntityFilter::new('stage', 'Stage'));
     }
 
     public function configureActions(Actions $actions): Actions
@@ -145,6 +149,10 @@ class ArticleCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
             ->setHelp('Optionnel. Si renseigné, l\'article est RÉSERVÉ aux participants de ce déplacement : il n\'apparaît pas dans le fil d\'actualités général, et seuls eux sont prévenus à la publication. Le ciblage par profil ci-dessous est alors ignoré. Laisser vide pour un article normal.');
+        yield AssociationField::new('stage', '🏕️ Stage (article dédié)')
+            ->setRequired(false)
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
+            ->setHelp('Optionnel. Si renseigné, l\'article est RÉSERVÉ aux participants de ce stage (mêmes règles que pour un déplacement). Un article ne peut pas être dédié à la fois à un déplacement et à un stage.');
         // Événements du calendrier intégrés en fin d'article (même rendu
         // que « Prochainement » côté mobile). Sélection parmi les
         // événements existants, les plus récents en tête ; le widget
@@ -217,6 +225,8 @@ class ArticleCrudController extends AbstractCrudController
         if ($tripId !== null && ctype_digit((string) $tripId)) {
             $article->setTrip($this->trips->find((int) $tripId));
         }
+        // Idem depuis un stage (lien « ➕ Article dédié » d'un stage).
+        $article->setStage($this->requestedStage());
         return $article;
     }
 

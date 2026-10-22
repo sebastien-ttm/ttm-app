@@ -38,6 +38,8 @@ class EventRepository extends ServiceEntityRepository
             // on retombe sur startsAt (événement ponctuel).
             ->where('e.startsAt <= :to')
             ->andWhere('COALESCE(e.endsAt, e.startsAt) >= :from')
+            // Un événement dédié à un stage n'apparaît que dans la vue du stage, jamais dans le calendrier général.
+            ->andWhere('e.stage IS NULL')
             ->setParameter('from', $from)
             ->setParameter('to', $to)
             ->orderBy('e.startsAt', 'ASC');

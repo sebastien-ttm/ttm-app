@@ -52,6 +52,9 @@ class SendArticleEmailsMessageHandler
         if ($article->getTrip() !== null && !$article->getTrip()->isPublished()) {
             return;
         }
+        if ($article->getStage() !== null && !$article->getStage()->isPublished()) {
+            return;
+        }
 
         $recipients = $this->users->findArticleEmailRecipients($article);
 

@@ -34,6 +34,8 @@ class PerfTestResultRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->join('r.session', 's')->addSelect('s')
             ->where('r.user = :u')->setParameter('u', $user)
+            // « Mon évolution » : les prises de temps dédiées à un stage restent dans la vue du stage.
+            ->andWhere('s.stage IS NULL')
             ->orderBy('s.date', 'ASC')
             ->addOrderBy('s.id', 'ASC')
             ->getQuery()

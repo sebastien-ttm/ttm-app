@@ -52,10 +52,13 @@ class SurveyController extends AbstractController
     private function findVisibleOr404(int $id, ?User $viewer): Survey
     {
         $survey = $this->surveys->find($id);
-        if ($survey === null
-            || !$survey->isPublished()
-            || !$this->audienceFilter->isVisible($survey->getAudience(), $viewer)
-        ) {
+        if ($survey === null || !$survey->isPublished()) {
+            throw $this->createNotFoundException();
+        }
+        // Sondage dédié à un stage : accessible uniquement aux participants d'un stage publié (la liste des
+        // participants tient lieu d'audience).
+        $stage = $survey->getStage();
+        if ($stage !== null ? !$stage->isOpenTo($viewer) : !$this->audienceFilter->isVisible($survey->getAudience(), $viewer)) {
             throw $this->createNotFoundException();
         }
         return $survey;

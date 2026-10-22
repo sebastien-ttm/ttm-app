@@ -14,6 +14,7 @@ use App\Security\ContentDeleteVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
@@ -21,9 +22,12 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
 class EventCrudController extends AbstractCrudController
 {
+    use PreselectsStageTrait;
+
     public function __construct(
         private readonly EventTagRepository $tagsRepo,
     ) {
@@ -65,7 +69,14 @@ class EventCrudController extends AbstractCrudController
         if ($user instanceof User) {
             $event->setCreatedBy($user);
         }
+        // Lien « ➕ Événement dédié » depuis un stage : l'événement est rattaché d'office à ce stage.
+        $event->setStage($this->requestedStage());
         return $event;
+    }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters->add(EntityFilter::new('stage', 'Stage'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -136,6 +147,10 @@ class EventCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setNumOfRows(10)
             ->setHelp('Utilisez le bouton link (🔗) pour insérer un lien hypertexte, ou le menu « Bouton » pour un lien mis en avant.');
+        yield AssociationField::new('stage', '🏕️ Stage (événement dédié)')
+            ->setRequired(false)
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
+            ->setHelp('Optionnel. Si renseigné, l\'événement est RÉSERVÉ aux participants de ce stage : il n\'apparaît pas dans le calendrier général, et le ciblage par profil ci-dessous est ignoré. Laisser vide pour un événement normal.');
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()

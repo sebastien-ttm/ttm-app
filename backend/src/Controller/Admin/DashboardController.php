@@ -21,6 +21,7 @@ use App\Entity\RaceProposal;
 use App\Entity\MembershipSettings;
 use App\Entity\PoolBadge;
 use App\Entity\StaticPage;
+use App\Entity\Stage;
 use App\Entity\Survey;
 use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
@@ -183,6 +184,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Déplacements', 'fa fa-plane', Trip::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Stages', 'fa fa-campground', Stage::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Mailings', 'fa fa-paper-plane', Mailing::class)],

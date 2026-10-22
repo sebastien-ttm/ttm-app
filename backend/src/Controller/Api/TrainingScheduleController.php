@@ -76,7 +76,8 @@ class TrainingScheduleController extends AbstractController
         /** @var \App\Entity\User $viewer */
         $viewer = $this->getUser();
         // Chaque créneau porte `registration` (null s'il n'est pas sur inscription) : places, mon inscription…
-        $slots = $this->registrations->decorate($this->schedule->buildWeek($monday, $viewer), $viewer, $monday);
+        // Les entraînements dédiés à un stage restent dans la vue du stage : jamais dans la semaine générale.
+        $slots = $this->registrations->decorate($this->schedule->buildWeek($monday, $viewer, withStageSlots: false), $viewer, $monday);
         $plans = array_map(
             fn (TrainingPlan $p) => $this->serializer->trainingPlan($p),
             $this->plans->findForWeek($monday, $viewer),

@@ -68,6 +68,16 @@ class ArticleController extends AbstractController
             return;
         }
 
+        // Article dédié à un stage : même règle (participants d'un stage publié).
+        $stage = $article->getStage();
+        if ($stage !== null) {
+            if (!$stage->isOpenTo($viewer)) {
+                throw $this->createNotFoundException();
+            }
+
+            return;
+        }
+
         if (!$this->audienceFilter->isVisible($article->getAudience(), $viewer)) {
             throw $this->createNotFoundException();
         }

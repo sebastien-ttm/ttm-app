@@ -42,9 +42,14 @@ class WeeklyScheduleService
     /**
      * Vue normalisée d'une semaine, prête à être sérialisée en JSON.
      *
+     * Sans `$viewer` (vues admin / staff), tout est listé, entraînements de stage compris. Avec un `$viewer`, un
+     * entraînement dédié à un stage n'est listé que si l'adhérent participe à ce stage (publié) ET que l'appelant
+     * accepte les entraînements de stage (`$withStageSlots`) : la semaine générale les écarte (ils sont présentés
+     * dans la vue du stage), l'inscription et le détail d'un créneau de stage les gardent pour ses participants.
+     *
      * @return list<array<string, mixed>>  Liste ordonnée (jour, heure)
      */
-    public function buildWeek(\DateTimeImmutable $weekStartsAt, ?User $viewer = null): array
+    public function buildWeek(\DateTimeImmutable $weekStartsAt, ?User $viewer = null, bool $withStageSlots = true): array
     {
         $monday = self::snapToMonday($weekStartsAt);
 
@@ -96,7 +101,12 @@ class WeeklyScheduleService
 
         // 2) Créneaux occasionnels (sans template) — même règle (staff = bypass)
         foreach ($occasionals as $s) {
-            if ($viewer !== null && !$this->audienceFilter->isSlotVisible($s->getAudience(), $viewer)) {
+            $stage = $s->getStage();
+            if ($stage !== null && $viewer !== null && (!$withStageSlots || !$stage->isOpenTo($viewer))) {
+                continue;
+            }
+            // Entraînement de stage : la liste des participants tient lieu d'audience (pas de filtre par profil).
+            if ($stage === null && $viewer !== null && !$this->audienceFilter->isSlotVisible($s->getAudience(), $viewer)) {
                 continue;
             }
             $rows[] = $this->serializeOverride($s, $monday);
@@ -189,6 +199,10 @@ class WeeklyScheduleService
             // présence staff ou une pièce jointe ne passe pas en true.
             'isOverride' => $tpl !== null && $s->differsMateriallyFromTemplate(),
             'isOccasional' => $tpl === null,
+            // Titre du stage auquel l'entraînement est dédié (vues admin / staff), null sinon.
+            'stageTitle' => $s->getStage()?->getTitle(),
+            // Un entraînement de stage ne compte pas dans la limite d'inscriptions de la semaine (voir TrainingRegistrationService).
+            'stageId' => $s->getStage()?->getId(),
             // Un créneau de la semaine type suit les réglages de son modèle ; seul l'occasionnel porte les siens.
             'registrationRequired' => $tpl !== null ? $tpl->isRegistrationRequired() : $s->isRegistrationRequired(),
             'capacity' => $tpl !== null ? $tpl->getCapacity() : $s->getCapacity(),

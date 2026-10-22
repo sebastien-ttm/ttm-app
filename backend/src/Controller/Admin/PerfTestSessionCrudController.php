@@ -9,12 +9,15 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -24,6 +27,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
  */
 class PerfTestSessionCrudController extends AbstractCrudController
 {
+    use PreselectsStageTrait;
+
     public static function getEntityFqcn(): string
     {
         return PerfTestSession::class;
@@ -83,7 +88,14 @@ class PerfTestSessionCrudController extends AbstractCrudController
         if ($user instanceof User) {
             $session->setCreatedBy($user);
         }
+        // Lien « ➕ Prise de temps dédiée » depuis un stage : rattachée d'office à ce stage.
+        $session->setStage($this->requestedStage());
         return $session;
+    }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters->add(EntityFilter::new('stage', 'Stage'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -120,6 +132,10 @@ class PerfTestSessionCrudController extends AbstractCrudController
         yield TextField::new('notes', 'Notes')
             ->setRequired(false)
             ->setHelp('Optionnel : lieu, groupe testé, conditions (vent, chaleur…).');
+        yield AssociationField::new('stage', '🏕️ Stage (prise de temps dédiée)')
+            ->setRequired(false)
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
+            ->setHelp('Optionnel. Si renseigné, la prise de temps est présentée dans la vue du stage, à ses participants : elle n\'apparaît ni dans les résultats des tests chronométrés, ni dans « Mon évolution », ni pour les temps déclarés. Laisser vide pour une prise de temps normale.');
         yield IntegerField::new('resultsCount', 'Temps saisis')->onlyOnIndex();
     }
 

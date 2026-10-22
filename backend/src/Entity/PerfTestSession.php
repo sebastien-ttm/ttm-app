@@ -60,6 +60,18 @@ class PerfTestSession
     #[ORM\OneToMany(targetEntity: PerfTestResult::class, mappedBy: 'session')]
     private Collection $results;
 
+    /**
+     * Stage auquel la prise de temps est dédiée : elle n'apparaît alors pas dans les tests chronométrés généraux
+     * (résultats, évolution, déclarations) mais dans la vue du stage. RESTRICT : un stage qui a des éléments dédiés
+     * ne peut pas être supprimé.
+     */
+    #[ORM\ManyToOne(targetEntity: Stage::class, inversedBy: 'perfTestSessions')]
+    #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Stage $stage = null;
+
+    public function getStage(): ?Stage { return $this->stage; }
+    public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
+
     public function __construct()
     {
         $this->date = new \DateTimeImmutable('today');

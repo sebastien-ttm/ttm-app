@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\Stage;
 use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
@@ -257,6 +258,13 @@ class WeeklyScheduleController extends AbstractController
         $week = $this->parseWeek($request->query->get('week') ?? $request->request->get('week'));
         $slotId = $this->intOrNull($request->query->get('slotId') ?? $request->request->get('slotId'));
         $templateId = $this->intOrNull($request->query->get('templateId') ?? $request->request->get('templateId'));
+        // Création depuis le bouton « ➕ Entraînement dédié » d'un stage : `stageId` rattache le créneau au stage,
+        // `date` (AAAA-MM-JJ) fixe la semaine et le jour proposés.
+        $stageId = $this->intOrNull($request->query->get('stageId') ?? $request->request->get('stageId'));
+        $presetDate = $this->parseDate($request->query->get('date'));
+        if ($presetDate !== null && $slotId === null && $templateId === null) {
+            $week = WeeklyScheduleService::snapToMonday($presetDate);
+        }
 
         if ($slotId !== null) {
             $slot = $this->slots->find($slotId);
@@ -274,6 +282,16 @@ class WeeklyScheduleController extends AbstractController
             // Création d'un créneau occasionnel (vacances, etc.)
             $slot = (new TrainingSlot())
                 ->setWeekStartsAt($week);
+            if ($stageId !== null) {
+                $stage = $this->em->find(Stage::class, $stageId);
+                if ($stage === null) {
+                    throw $this->createNotFoundException();
+                }
+                $slot->setStage($stage);
+                if ($presetDate !== null) {
+                    $slot->setDayOfWeek((int) $presetDate->format('N'));
+                }
+            }
             $this->em->persist($slot);
         }
 
@@ -307,13 +325,18 @@ class WeeklyScheduleController extends AbstractController
             $this->addFlash('success', sprintf(
                 'Créneau « %s » mis à jour pour la semaine du %s.',
                 $slot->getTitle(),
-                $week->format('d/m/Y'),
+                $slot->getWeekStartsAt()->format('d/m/Y'),
             ));
+            // Entraînement dédié à un stage : retour sur le stage.
+            if ($slot->getStage() !== null) {
+                return $this->redirect($this->stageUrl($slot->getStage()));
+            }
             return $this->redirectToAdminRoute('admin_training_schedule', ['week' => $week->format('Y-m-d')]);
         }
 
         return $this->render('admin/training_schedule_edit.html.twig', [
             'slot' => $slot,
+            'stageUrl' => $slot->getStage() !== null ? $this->stageUrl($slot->getStage()) : null,
             'week' => $week,
             'weekHuman' => $this->humanWeekLabel($week),
             'isOccasional' => $slot->getTemplate() === null,
@@ -538,6 +561,29 @@ class WeeklyScheduleController extends AbstractController
         return $i > 0 ? $i : null;
     }
 
+    /** Page de détail du stage dans l'admin (retour après l'enregistrement d'un entraînement dédié). */
+    private function stageUrl(Stage $stage): string
+    {
+        return $this->generateUrl('admin_dashboard', [
+            'crudAction' => 'detail',
+            'crudControllerFqcn' => StageCrudController::class,
+            'entityId' => $stage->getId(),
+        ]);
+    }
+
+    /** « AAAA-MM-JJ » → date, ou null si absent / invalide. */
+    private function parseDate(mixed $raw): ?\DateTimeImmutable
+    {
+        if (!is_string($raw) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) !== 1) {
+            return null;
+        }
+        try {
+            return new \DateTimeImmutable($raw);
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
     private function parseWeek(?string $raw): \DateTimeImmutable
     {
         try {
@@ -566,6 +612,13 @@ class WeeklyScheduleController extends AbstractController
             ->setLocation(trim((string) $get('location', '')))
             ->setDescription(trim((string) $get('description', '')) ?: null)
             ->setIsCancelled((bool) $get('isCancelled', false));
+
+        // Entraînement de stage : la date choisie fixe la semaine ET le jour (le stage peut s'étaler sur plusieurs
+        // semaines, le formulaire n'a pas de navigation par semaine).
+        $date = $slot->getStage() !== null ? $this->parseDate($get('date')) : null;
+        if ($date !== null) {
+            $slot->setWeekStartsAt(WeeklyScheduleService::snapToMonday($date))->setDayOfWeek((int) $date->format('N'));
+        }
 
         // Sur inscription : réglé ici uniquement pour un créneau occasionnel (celui de la semaine type suit son modèle).
         if ($slot->getTemplate() === null) {

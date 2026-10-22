@@ -393,6 +393,10 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             // Article dédié à un déplacement : seuls ses participants sont prévenus (pas de ciblage par profil).
             $qb->andWhere('u.id IN (SELECT tpu.id FROM App\Entity\Trip tt JOIN tt.participants tpu WHERE tt.id = :tripId)')
                 ->setParameter('tripId', $trip->getId());
+        } elseif ($article->getStage() !== null) {
+            // Article dédié à un stage : seuls ses participants sont prévenus.
+            $qb->andWhere('u.id IN (SELECT spu.id FROM App\Entity\Stage st JOIN st.participants spu WHERE st.id = :stageId)')
+                ->setParameter('stageId', $article->getStage()->getId());
         } elseif ($audience !== []) {
             $orParts = [];
             foreach ($audience as $i => $p) {

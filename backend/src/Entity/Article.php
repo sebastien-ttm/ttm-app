@@ -134,6 +134,14 @@ class Article implements OwnedContentInterface
     private ?Trip $trip = null;
 
     /**
+     * Stage auquel l'article est dédié : même règle que pour un déplacement (réservé aux participants, absent du
+     * fil général). Un article est dédié à un déplacement OU à un stage, pas aux deux.
+     */
+    #[ORM\ManyToOne(targetEntity: Stage::class, inversedBy: 'articles')]
+    #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Stage $stage = null;
+
+    /**
      * Uploads transitoires depuis le formulaire admin. Non persisté.
      * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
      */
@@ -153,6 +161,18 @@ class Article implements OwnedContentInterface
 
     public function getTrip(): ?Trip { return $this->trip; }
     public function setTrip(?Trip $trip): self { $this->trip = $trip; return $this; }
+
+    public function getStage(): ?Stage { return $this->stage; }
+    public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
+
+    #[Assert\Callback]
+    public function validateDedicatedTarget(ExecutionContextInterface $context): void
+    {
+        if ($this->trip !== null && $this->stage !== null) {
+            $context->buildViolation('Un article est dédié à un déplacement OU à un stage, pas aux deux.')
+                ->atPath('stage')->addViolation();
+        }
+    }
 
     /** @return Collection<int, ArticleAttachment> */
     public function getAttachments(): Collection { return $this->attachments; }

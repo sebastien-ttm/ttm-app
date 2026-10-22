@@ -35,13 +35,17 @@ class TrainingSlotRegistrationRepository extends ServiceEntityRepository
      * Toutes les inscriptions (actives) de la semaine, sous forme légère : sert à compter les places prises et à
      * retrouver l'inscription du viewer pour chaque créneau de la semaine, en une seule requête.
      *
-     * @return list<array{userId: int, templateId: ?int, slotId: ?int}>
+     * `stageId` : stage auquel est dédié le créneau occasionnel inscrit (null pour un créneau ordinaire) — les
+     * inscriptions aux entraînements d'un stage ne comptent pas dans la limite hebdomadaire.
+     *
+     * @return list<array{userId: int, templateId: ?int, slotId: ?int, stageId: ?int}>
      */
     public function findKeysForWeek(\DateTimeImmutable $monday): array
     {
         $rows = $this->createQueryBuilder('r')
-            ->select('IDENTITY(r.user) AS userId', 'IDENTITY(r.template) AS templateId', 'IDENTITY(r.slot) AS slotId')
+            ->select('IDENTITY(r.user) AS userId', 'IDENTITY(r.template) AS templateId', 'IDENTITY(r.slot) AS slotId', 'IDENTITY(sl.stage) AS stageId')
             ->join('r.user', 'u')
+            ->leftJoin('r.slot', 'sl')
             ->where('r.weekStartsAt = :w')
             ->andWhere('u.isActive = true')
             ->setParameter('w', $this->monday($monday)->format('Y-m-d'))
@@ -52,6 +56,7 @@ class TrainingSlotRegistrationRepository extends ServiceEntityRepository
             'userId' => (int) $r['userId'],
             'templateId' => $r['templateId'] !== null ? (int) $r['templateId'] : null,
             'slotId' => $r['slotId'] !== null ? (int) $r['slotId'] : null,
+            'stageId' => $r['stageId'] !== null ? (int) $r['stageId'] : null,
         ], $rows);
     }
 

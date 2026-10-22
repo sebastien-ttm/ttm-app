@@ -33,6 +33,8 @@ class SurveyRepository extends ServiceEntityRepository
             ->andWhere('s.publishedAt IS NOT NULL')
             ->andWhere('s.publishedAt <= :now')
             ->andWhere('s.closesAt IS NULL OR s.closesAt >= :now')
+            // Un sondage dédié à un stage n'apparaît que dans la vue du stage (ni liste, ni compteur « non répondus »).
+            ->andWhere('s.stage IS NULL')
             ->setParameter('now', $now->format('Y-m-d H:i:s'))
             ->orderBy('s.publishedAt', 'DESC');
 
