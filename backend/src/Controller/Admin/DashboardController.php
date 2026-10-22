@@ -25,6 +25,7 @@ use App\Entity\Survey;
 use App\Entity\TrainingPlan;
 use App\Entity\TrainingSeason;
 use App\Entity\TrainingSlotTemplate;
+use App\Entity\Trip;
 use App\Entity\InvoiceSettings;
 use App\Entity\MembershipFee;
 use App\Entity\User;
@@ -181,6 +182,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Déplacements', 'fa fa-plane', Trip::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Messages reçus', 'fa fa-envelope', UserMessage::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Mailings', 'fa fa-paper-plane', Mailing::class)],

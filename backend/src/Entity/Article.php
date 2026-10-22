@@ -125,6 +125,15 @@ class Article implements OwnedContentInterface
     private Collection $trainingSlots;
 
     /**
+     * Déplacement auquel l'article est dédié. Un article dédié est réservé aux participants de ce déplacement : il
+     * n'apparaît pas dans le fil d'actualités général et n'est lisible que par eux. RESTRICT : un déplacement qui
+     * a des articles dédiés ne peut pas être supprimé (ils deviendraient publics ou orphelins).
+     */
+    #[ORM\ManyToOne(targetEntity: Trip::class, inversedBy: 'articles')]
+    #[ORM\JoinColumn(name: 'trip_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Trip $trip = null;
+
+    /**
      * Uploads transitoires depuis le formulaire admin. Non persisté.
      * @var array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null
      */
@@ -141,6 +150,9 @@ class Article implements OwnedContentInterface
         $this->events = new ArrayCollection();
         $this->trainingSlots = new ArrayCollection();
     }
+
+    public function getTrip(): ?Trip { return $this->trip; }
+    public function setTrip(?Trip $trip): self { $this->trip = $trip; return $this; }
 
     /** @return Collection<int, ArticleAttachment> */
     public function getAttachments(): Collection { return $this->attachments; }

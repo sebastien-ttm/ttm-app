@@ -52,7 +52,23 @@ class ArticleController extends AbstractController
 
     private function ensureVisible(Article $article, ?User $viewer): void
     {
-        if (!$article->isPublished() || !$this->audienceFilter->isVisible($article->getAudience(), $viewer)) {
+        if (!$article->isPublished()) {
+            throw $this->createNotFoundException();
+        }
+
+        // Article dédié à un déplacement : visible uniquement des participants d'un déplacement publié (la liste des
+        // participants tient lieu d'audience, le ciblage par profil ne s'applique pas). Les autres reçoivent un 404,
+        // comme pour un article inexistant. Couvre aussi commentaires, réactions et pièces jointes.
+        $trip = $article->getTrip();
+        if ($trip !== null) {
+            if ($viewer === null || !$trip->isPublished() || !$trip->hasParticipant($viewer)) {
+                throw $this->createNotFoundException();
+            }
+
+            return;
+        }
+
+        if (!$this->audienceFilter->isVisible($article->getAudience(), $viewer)) {
             throw $this->createNotFoundException();
         }
     }

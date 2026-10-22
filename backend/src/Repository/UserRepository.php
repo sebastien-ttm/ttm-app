@@ -388,7 +388,12 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->andWhere('u.notifyArticleEmail = true');
 
         $audience = $article->getAudience();
-        if ($audience !== []) {
+        $trip = $article->getTrip();
+        if ($trip !== null) {
+            // Article dédié à un déplacement : seuls ses participants sont prévenus (pas de ciblage par profil).
+            $qb->andWhere('u.id IN (SELECT tpu.id FROM App\Entity\Trip tt JOIN tt.participants tpu WHERE tt.id = :tripId)')
+                ->setParameter('tripId', $trip->getId());
+        } elseif ($audience !== []) {
             $orParts = [];
             foreach ($audience as $i => $p) {
                 $key = "aud_{$i}";

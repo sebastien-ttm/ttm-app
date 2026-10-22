@@ -33,6 +33,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->leftJoin('a.author', 'author')->addSelect('author')
             ->leftJoin('a.photos', 'photos')->addSelect('photos')
             ->where('a.publishedAt IS NOT NULL AND a.publishedAt <= :now')
+            // Les articles dédiés à un déplacement sont réservés à ses participants : jamais dans le fil général.
+            ->andWhere('a.trip IS NULL')
             ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('a.publishedAt', 'DESC')
             ->setFirstResult(($page - 1) * $limit)

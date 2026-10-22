@@ -47,6 +47,12 @@ class SendArticleEmailsMessageHandler
             return;
         }
 
+        // Article dédié à un déplacement encore à l'état de brouillon : ses participants ne sont pas prévenus d'un
+        // contenu qu'ils ne peuvent pas ouvrir.
+        if ($article->getTrip() !== null && !$article->getTrip()->isPublished()) {
+            return;
+        }
+
         $recipients = $this->users->findArticleEmailRecipients($article);
 
         // Claim du verrou AVANT envoi (même stratégie que

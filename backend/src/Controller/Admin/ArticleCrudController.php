@@ -8,12 +8,14 @@ use App\Entity\TrainingSlot;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Repository\TripRepository;
 use App\Security\ContentDeleteVoter;
 use App\Service\Article\ArticleAttachmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
@@ -22,6 +24,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -33,6 +36,7 @@ class ArticleCrudController extends AbstractCrudController
 
     public function __construct(
         private readonly ArticleAttachmentService $attachments,
+        private readonly TripRepository $trips,
     ) {
     }
 
@@ -50,6 +54,11 @@ class ArticleCrudController extends AbstractCrudController
             ->setDefaultSort(['publishedAt' => 'DESC', 'createdAt' => 'DESC'])
             ->setPaginatorPageSize(25)
             ->setSearchFields(['title', 'content']);
+    }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters->add(EntityFilter::new('trip', 'Déplacement'));
     }
 
     public function configureActions(Actions $actions): Actions
@@ -131,6 +140,11 @@ class ArticleCrudController extends AbstractCrudController
                 .'Tag « École de Triathlon » : reste visible par tous, mais devient '
                 .'l\'unique catégorie visible pour les comptes Dirigeant.'
             );
+        // Article dédié : réservé aux participants d'un déplacement, absent du fil d'actualités général.
+        yield AssociationField::new('trip', '✈️ Déplacement (article dédié)')
+            ->setRequired(false)
+            ->setQueryBuilder(fn ($qb) => $qb->orderBy('entity.startsOn', 'DESC'))
+            ->setHelp('Optionnel. Si renseigné, l\'article est RÉSERVÉ aux participants de ce déplacement : il n\'apparaît pas dans le fil d\'actualités général, et seuls eux sont prévenus à la publication. Le ciblage par profil ci-dessous est alors ignoré. Laisser vide pour un article normal.');
         // Événements du calendrier intégrés en fin d'article (même rendu
         // que « Prochainement » côté mobile). Sélection parmi les
         // événements existants, les plus récents en tête ; le widget
@@ -197,6 +211,11 @@ class ArticleCrudController extends AbstractCrudController
         $user = $this->getUser();
         if ($user instanceof User) {
             $article->setAuthor($user);
+        }
+        // Lien « ➕ Article dédié » depuis un déplacement : l'article est rattaché d'office à ce déplacement.
+        $tripId = $this->getContext()?->getRequest()->query->get('tripId');
+        if ($tripId !== null && ctype_digit((string) $tripId)) {
+            $article->setTrip($this->trips->find((int) $tripId));
         }
         return $article;
     }

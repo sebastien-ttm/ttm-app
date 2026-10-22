@@ -93,6 +93,13 @@ class ApiSerializer
             'commentCount' => $a->getComments()->count(),
             'audience' => $a->getAudience(),
             'contentAudience' => $a->getContentAudience(),
+            // Article dédié à un déplacement (réservé à ses participants) : permet à l'appli de proposer le retour
+            // vers la vue du déplacement. null pour un article du fil général.
+            'trip' => $a->getTrip() === null ? null : [
+                'id' => $a->getTrip()->getId(),
+                'title' => $a->getTrip()->getTitle(),
+                'icon' => $a->getTrip()->getIcon(),
+            ],
         ];
     }
 
