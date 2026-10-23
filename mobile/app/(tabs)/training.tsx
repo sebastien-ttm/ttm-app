@@ -16,6 +16,7 @@ import type { TrainingPlan, TrainingRegistration, TrainingSlot, WeeklySchedule }
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MyGroupsCard } from '@/components/groups/MyGroupsCard';
+import { MyAllureCard } from '@/components/perf/MyAllureCard';
 import { SportBadge } from '@/components/SportBadge';
 import { TrainingRegistrationBar } from '@/components/TrainingRegistrationBar';
 import { WeekNavigator } from '@/components/WeekNavigator';
@@ -273,6 +274,8 @@ function TrainingScreenInner() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
                 </Pressable>
+                {/* Mon allure du club (1 à 5) par épreuve, d'après mes temps. */}
+                <MyAllureCard />
               </View>
 
               {(() => {

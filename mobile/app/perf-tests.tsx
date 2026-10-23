@@ -16,6 +16,7 @@ import type {
 import { useAuth } from '@/auth/AuthContext';
 import { DateField, todayIso } from '@/components/DateField';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { SeasonRecap } from '@/components/perf/SeasonRecap';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { canSeeTraining } from '@/utils/profile';
 import { fromIsoDate } from '@/utils/week';
@@ -34,6 +35,8 @@ export default function PerfTestsScreen() {
   const [season, setSeason] = useState<number | undefined>(undefined);
   // Sous-onglet (épreuve) choisi : clé de groupe ; retombe sur le premier disponible.
   const [tab, setTab] = useState<string | null>(null);
+  // Vue : récap de la saison par épreuve (allures du club) ou détail séance par séance.
+  const [mode, setMode] = useState<'season' | 'session'>('season');
   const [data, setData] = useState<PerfTestsResponse | null>(null);
   // « Mon évolution » : mes temps sur toutes les saisons (indépendant de la saison affichée).
   const [mine, setMine] = useState<PerfTestMineGroup[]>([]);
@@ -116,6 +119,8 @@ export default function PerfTestsScreen() {
   const activeTab = tabs.find((t) => t.key === tab) ?? tabs[0];
   const activeGroup = data && activeTab ? data.groups.find((g) => g.key === activeTab.key) : undefined;
   const activeMine = activeTab ? mine.find((g) => g.key === activeTab.key) : undefined;
+  const recaps = data?.recaps ?? [];
+  const showRecap = mode === 'season' && recaps.some((r) => r.rows.length > 0);
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
@@ -151,7 +156,28 @@ export default function PerfTestsScreen() {
                 </ScrollView>
               )}
 
-              {tabs.length === 0 || !activeTab ? (
+              {recaps.some((r) => r.rows.length > 0) && (
+                <View style={styles.modeSwitch} accessibilityRole="tablist">
+                  {([['season', '🏅 Récap de la saison'], ['session', '📋 Par séance']] as const).map(([key, label]) => {
+                    const active = mode === key;
+                    return (
+                      <Pressable
+                        key={key}
+                        onPress={() => setMode(key)}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        style={[styles.modeBtn, active && styles.modeBtnActive]}
+                      >
+                        <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              {showRecap ? (
+                <SeasonRecap recaps={recaps} seasonLabel={seasonLabel(data)} />
+              ) : tabs.length === 0 || !activeTab ? (
                 <EmptyState
                   icon="⏱️"
                   title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
@@ -782,6 +808,11 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   sentLabel: { fontSize: 14, fontWeight: '600', color: '#065f46' },
+  modeSwitch: { flexDirection: 'row', gap: 6, backgroundColor: COLORS.border, borderRadius: RADIUS.md, padding: 3 },
+  modeBtn: { flex: 1, paddingVertical: 9, borderRadius: RADIUS.md - 2, alignItems: 'center' },
+  modeBtnActive: { backgroundColor: COLORS.surface },
+  modeLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
+  modeLabelActive: { color: COLORS.text },
   seasonTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   seasons: { gap: SPACING.sm, paddingVertical: 2 },
   seasonChip: {

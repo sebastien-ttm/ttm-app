@@ -627,12 +627,69 @@ export type PerfTestsMineResponse = {
   groups: PerfTestMineGroup[];
 };
 
+/** Un intervalle d'allure d'une épreuve : « Moins de 6:00 », « De 6:00 à 6:29 »… « 8:00 et plus ». */
+export type PerfTestInterval = { level: number; label: string };
+
+/** Séance (prise de temps) où un temps a été réalisé : période AAAA-MM-JJ (fin null = une seule journée) et notes. */
+export type PerfTestRecapSession = { id: number; date: string; endDate: string | null; notes: string | null };
+
+/** Un adhérent dans le récap d'une saison : son meilleur temps, son allure (1 à 5) et la séance. */
+export type PerfTestRecapRow = {
+  /** null pour un ancien adhérent sans compte. */
+  userId: number | null;
+  fullName: string;
+  /** Allure du club : 1 à 5. */
+  level: number;
+  /** Temps réel (« 5:42 »). */
+  time: string;
+  /** Temps retenu pour l'allure : égal au temps réel, sauf natation en bassin de 50 m (moins 10 s). */
+  effectiveTime: string;
+  /** Natation en bassin de 50 m : le temps retenu diffère du temps réel (à mentionner). */
+  adjusted: boolean;
+  poolLength: number | null;
+  session: PerfTestRecapSession;
+  mine: boolean;
+};
+
+/** Récap d'une épreuve sur la saison affichée : un temps par adhérent, du plus rapide au plus lent. */
+export type PerfTestRecap = {
+  test: string;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  intervals: PerfTestInterval[];
+  /** Mention de la correction du bassin de 50 m (natation), null pour les autres épreuves. */
+  adjustmentNote: string | null;
+  rows: PerfTestRecapRow[];
+  /** Mon allure sur cette épreuve cette saison, null si je n'ai pas de temps. */
+  mine: { level: number; time: string; effectiveTime: string; adjusted: boolean } | null;
+};
+
+/** Mon allure sur une épreuve (saison la plus récente où j'ai un temps). */
+export type PerfTestAllure = {
+  test: string;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  level: number;
+  seasonLabel: string;
+  time: string;
+  effectiveTime: string;
+  adjusted: boolean;
+  poolLength: number | null;
+  session: PerfTestRecapSession;
+  intervals: PerfTestInterval[];
+  adjustmentNote: string | null;
+};
+
 export type PerfTestsResponse = {
   /** Saison affichée, par son année de début (2025 = saison 2025-2026, sept. → août). */
   season: number;
   /** Saisons disponibles, la plus récente d'abord. */
   seasons: { year: number; label: string }[];
   groups: PerfTestGroup[];
+  /** Récap de la saison par épreuve (course, natation, vélo), avec l'allure de chacun. Absent des anciennes réponses. */
+  recaps?: PerfTestRecap[];
 };
 
 export type StaffPresenceStatus = 'scheduled' | 'attended' | 'unavailable';
