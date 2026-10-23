@@ -15,6 +15,7 @@ use App\Entity\MarketplaceListing;
 use App\Entity\MarketplaceSettings;
 use App\Entity\BibOffer;
 use App\Entity\MemberGroup;
+use App\Entity\PerfTestPace;
 use App\Entity\PerfTestSession;
 use App\Entity\PhotoUpload;
 use App\Entity\RaceProposal;
@@ -204,6 +205,8 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Tests chronométrés', 'fa fa-stopwatch', PerfTestSession::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Temps déclarés', 'fa fa-user-clock', 'admin_perf_test_declarations')
                     ->setBadge($this->pendingPerfDeclarations() ?: null, 'danger')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Récap des allures', 'fa fa-ranking-star', 'admin_perf_test_allures')],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Intervalles d\'allure', 'fa fa-sliders', PerfTestPace::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Plans (PDF)', 'fa fa-file-pdf', TrainingPlan::class)],
             ],
             'Présences staff' => [

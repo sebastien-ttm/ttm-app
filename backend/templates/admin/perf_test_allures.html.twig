@@ -1,0 +1,79 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Récap des allures{% endblock %}
+{% block content_title %}🏅 Récap des allures — saison {{ seasonLabel }}{% endblock %}
+
+{% block main %}
+    <style>
+        .al-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:16px 20px; margin-bottom:16px; }
+        .al-help { font-size:13px; color:#475569; line-height:1.55; }
+        .al-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+        .al-tab { padding:7px 14px; border:1px solid #cbd5e1; border-radius:999px; background:#fff; color:#0d2148; font-size:13px; font-weight:600; text-decoration:none; }
+        .al-tab.active { background:#0d2148; border-color:#0d2148; color:#fff; }
+        .al-title { font-size:18px; font-weight:700; color:#0d2148; margin:0 0 4px; }
+        .al-note { font-size:12px; color:#b45309; margin:4px 0 10px; }
+        .al-table { width:100%; border-collapse:collapse; font-size:14px; }
+        .al-table th { text-align:left; background:#f8fafc; color:#475569; padding:8px 10px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        .al-table td { padding:8px 10px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+        .al-level td { background:#eff6ff; color:#1e40af; font-weight:700; }
+        .al-time { font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .al-adj { font-size:12px; color:#b45309; white-space:nowrap; }
+        .al-muted { color:#64748b; font-size:12px; }
+        .al-empty { color:#64748b; font-size:13px; padding:8px 0; }
+    </style>
+
+    <div class="al-card al-help">
+        Chaque adhérent a <strong>un temps par épreuve</strong> : son <strong>meilleur temps de la saison</strong>, avec la <strong>séance</strong> où il a été réalisé.
+        Il est classé dans une <strong>allure de 1 à 5</strong> d'après les intervalles de l'épreuve (menu « Intervalles d'allure », modifiables).
+        Natation : un temps réalisé en <strong>bassin de 50 m</strong> est diminué de 10 secondes pour le classement — le temps réel et la mention restent affichés.
+    </div>
+
+    {% if seasons|length > 1 %}
+        <div class="al-tabs">
+            {% for s in seasons %}
+                <a class="al-tab {{ s.year == season ? 'active' : '' }}" href="{{ path('admin_perf_test_allures', {season: s.year}) }}">{{ s.label }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% for recap in recaps %}
+        <div class="al-card">
+            <h2 class="al-title">{{ recap.icon }} {{ recap.label }}</h2>
+            <div class="al-help">
+                {% for iv in recap.intervals %}<strong>{{ iv.level }}</strong> : {{ iv.label }}{{ not loop.last ? ' · ' : '' }}{% endfor %}
+            </div>
+            {% if recap.adjustmentNote %}<div class="al-note">⚠️ {{ recap.adjustmentNote }}</div>{% endif %}
+
+            {% if recap.rows|length == 0 %}
+                <div class="al-empty">Aucun temps sur cette épreuve pour la saison {{ seasonLabel }}.</div>
+            {% else %}
+                <table class="al-table">
+                    <thead>
+                        <tr><th>Adhérent</th><th>Temps</th><th>Séance</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for iv in recap.intervals %}
+                            {% set rows = recap.rows|filter(r => r.level == iv.level) %}
+                            <tr class="al-level"><td colspan="3">Allure {{ iv.level }} — {{ iv.label }} ({{ rows|length }})</td></tr>
+                            {% for r in rows %}
+                                <tr>
+                                    <td>{{ r.fullName }}</td>
+                                    <td>
+                                        <span class="al-time">{{ r.time }}</span>
+                                        {% if r.adjusted %}
+                                            <div class="al-adj">bassin {{ r.poolLength }} m : −10 s → {{ r.effectiveTime }} retenu</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ r.session.date|date('d/m/Y') }}{% if r.session.endDate %} → {{ r.session.endDate|date('d/m/Y') }}{% endif %}
+                                        {% if r.session.notes %}<span class="al-muted"> · {{ r.session.notes }}</span>{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endblock %}

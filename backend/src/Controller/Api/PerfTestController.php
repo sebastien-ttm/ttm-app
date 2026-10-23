@@ -8,6 +8,8 @@ use App\Entity\User;
 use App\Enum\PerfTest;
 use App\Repository\PerfTestResultRepository;
 use App\Repository\PerfTestSessionRepository;
+use App\Service\PerfTest\PerfTestAllureService;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,7 +30,23 @@ class PerfTestController extends AbstractController
     public function __construct(
         private readonly PerfTestSessionRepository $sessions,
         private readonly PerfTestResultRepository $results,
+        private readonly PerfTestAllureService $allures,
+        private readonly LoggerInterface $logger,
     ) {
+    }
+
+    /**
+     * GET /api/perf-tests/allures — mes allures du club (1 à 5) : pour chaque épreuve où j'ai un temps, mon meilleur
+     * temps (retenu) de la saison la plus récente où je l'ai passée, mon allure et la séance. Vide sans aucun temps.
+     */
+    #[Route('/api/perf-tests/allures', methods: ['GET'])]
+    public function myAllures(): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $this->denyUnlessLicensed($viewer);
+
+        return new JsonResponse(['data' => $this->allures->myAllures($viewer)]);
     }
 
     /**
@@ -178,6 +196,18 @@ class PerfTestController extends AbstractController
             rsort($seasons);
         }
 
+        // Récap de la saison par épreuve (un temps par adhérent, son allure, la séance). Information annexe : un échec
+        // (ex : migration des allures pas encore appliquée) ne doit pas empêcher d'afficher les séances.
+        $recaps = [];
+        try {
+            foreach (PerfTestAllureService::TESTS as $test) {
+                $recaps[] = $this->allures->seasonRecap($test, $season, $viewer);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Récap des allures indisponible', ['error' => $e->getMessage()]);
+            $recaps = [];
+        }
+
         return new JsonResponse([
             'season' => $season,
             'seasons' => array_map(
@@ -185,6 +215,7 @@ class PerfTestController extends AbstractController
                 $seasons,
             ),
             'groups' => $out,
+            'recaps' => $recaps,
         ]);
     }
 

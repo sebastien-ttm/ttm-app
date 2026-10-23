@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\PerfTestResult;
 use App\Entity\PerfTestSession;
 use App\Entity\User;
+use App\Enum\PerfTest;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,6 +17,26 @@ class PerfTestResultRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, PerfTestResult::class);
+    }
+
+    /**
+     * Tous les temps d'une épreuve sur une saison d'entraînement (1er sept. → 31 août, identifiée par son année de
+     * début), avec leur séance et leur adhérent (absent pour un ancien adhérent sans compte). Les prises de temps
+     * dédiées à un stage n'en font pas partie.
+     *
+     * @return list<PerfTestResult>
+     */
+    public function findForSeasonAndTest(PerfTest $test, int $startYear): array
+    {
+        return $this->createQueryBuilder('r')
+            ->join('r.session', 's')->addSelect('s')
+            ->leftJoin('r.user', 'u')->addSelect('u')
+            ->where('s.test = :test')->setParameter('test', $test)
+            ->andWhere('s.stage IS NULL')
+            ->andWhere('s.date >= :from')->setParameter('from', sprintf('%04d-09-01', $startYear))
+            ->andWhere('s.date <= :to')->setParameter('to', sprintf('%04d-08-31', $startYear + 1))
+            ->getQuery()
+            ->getResult();
     }
 
     public function findOneBySessionAndUser(PerfTestSession $session, User $user): ?PerfTestResult
