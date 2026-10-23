@@ -35,7 +35,7 @@ export function MyAllureCard() {
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
     >
       <View style={styles.head}>
-        <Text style={styles.title}>🏅 Mon allure</Text>
+        <Text style={styles.title}>🏅 Mes allures</Text>
         <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
       </View>
       {allures.map((a) => (
