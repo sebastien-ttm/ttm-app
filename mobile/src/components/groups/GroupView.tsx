@@ -33,7 +33,6 @@ import { canPickFile, pickFile } from '@/lib/pickFile';
 import { startSharing, stopSharing, useSharing } from '@/lib/positionSharing';
 import { confirmAction } from '@/utils/confirm';
 import { formatRelativeFr } from '@/utils/html';
-import { formatPhoneFr } from '@/utils/phone';
 
 function notify(message: string): void {
   if (Platform.OS === 'web') window.alert(message);
@@ -565,38 +564,36 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
         {group.members.map((m) => {
           const label = `${m.prenom} ${m.nom}`;
           return (
-            <View key={m.id} style={styles.personRow}>
+            // Deux niveaux pour l'encadrant : le nom a toute la largeur (sur 2 lignes si besoin), les boutons d'action
+            // passent dessous. Pas de numéro affiché : les boutons appel / WhatsApp / urgence suffisent.
+            <View key={m.id} style={styles.memberRow}>
               <MemberAvatar prenom={m.prenom} nom={m.nom} avatarUrl={m.avatarUrl} size={40} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.personName} numberOfLines={1}>
-                  <Text style={styles.nom}>{m.nom.toUpperCase()}</Text> {m.prenom}
-                </Text>
+              <View style={styles.memberBody}>
+                <View style={styles.memberNameBox}>
+                  <Text style={styles.memberName} numberOfLines={2}>
+                    <Text style={styles.nom}>{m.nom.toUpperCase()}</Text> {m.prenom}
+                  </Text>
+                </View>
+                {isCoach && m.telephoneOf ? <Text style={styles.hint}>Joignable via {m.telephoneOf} (parent)</Text> : null}
+                {isCoach && !m.telephone ? <Text style={styles.hint}>Numéro non renseigné</Text> : null}
                 {isCoach && (
-                  <>
-                    {m.telephone ? (
-                      <Text style={styles.phone}>
-                        {formatPhoneFr(m.telephone)}{m.telephoneOf ? ` · parent : ${m.telephoneOf}` : ''}
-                      </Text>
-                    ) : (
-                      <Text style={styles.hint}>Numéro non renseigné</Text>
-                    )}
-                    {m.telephoneUrgence && <Text style={styles.phoneUrgence}>Urgence : {formatPhoneFr(m.telephoneUrgence)}</Text>}
-                  </>
+                  <View style={styles.memberActions}>
+                    {m.isJeune && <YouthDocsButton youthId={m.id} name={label} />}
+                    <ContactButtons
+                      name={label}
+                      telephone={m.telephone}
+                      telephoneOf={m.telephoneOf}
+                      telephoneUrgence={m.telephoneUrgence}
+                    />
+                  </View>
                 )}
               </View>
-              {isCoach && m.isJeune && <YouthDocsButton youthId={m.id} name={label} />}
               {isCoach && (
-                <ContactButtons
-                  name={label}
-                  telephone={m.telephone}
-                  telephoneOf={m.telephoneOf}
-                  telephoneUrgence={m.telephoneUrgence}
-                />
-              )}
-              {isCoach && (
-                <Pressable onPress={() => void removeMember(m.id, label)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Retirer ${label}`}>
-                  <Ionicons name="close-circle" size={22} color={COLORS.textSubtle} />
-                </Pressable>
+                <View style={styles.memberRemoveBox}>
+                  <Pressable onPress={() => void removeMember(m.id, label)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Retirer ${label}`}>
+                    <Ionicons name="close-circle" size={22} color={COLORS.textSubtle} />
+                  </Pressable>
+                </View>
               )}
             </View>
           );
@@ -694,8 +691,17 @@ const styles = StyleSheet.create({
   personRowOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
   personName: { flex: 1, fontSize: 14, color: COLORS.text },
   nom: { fontWeight: '700' },
-  phone: { fontSize: 12, color: COLORS.secondaryDark, fontVariant: ['tabular-nums'] },
-  phoneUrgence: { fontSize: 12, color: COLORS.error, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  // Adhérent du groupe : avatar à gauche, nom + boutons au centre (en colonne), retrait à droite.
+  memberRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 8,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceAlt,
+  },
+  memberBody: { flex: 1, minWidth: 0, gap: 6 },
+  // Hauteur de l'avatar : le nom reste centré dessus, les boutons s'alignent dessous.
+  memberNameBox: { minHeight: 40, justifyContent: 'center' },
+  memberName: { fontSize: 15, color: COLORS.text },
+  memberActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  memberRemoveBox: { minHeight: 40, justifyContent: 'center' },
   comment: { gap: 4, padding: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   commentAuthor: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text },
