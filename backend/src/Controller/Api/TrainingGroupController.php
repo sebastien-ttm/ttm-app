@@ -7,12 +7,15 @@ use App\Entity\TrainingGroupAttachment;
 use App\Entity\TrainingGroupComment;
 use App\Entity\TrainingGroupPosition;
 use App\Entity\User;
+use App\Enum\Sport;
 use App\Repository\TrainingGroupAttachmentRepository;
 use App\Repository\TrainingGroupCommentRepository;
 use App\Repository\TrainingGroupPositionRepository;
 use App\Repository\TrainingGroupRepository;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\Training\TrainingRegistrationService;
+use App\Service\Training\WeeklyScheduleService;
 use App\Service\TrainingGroup\TrainingGroupFileService;
 use App\Service\TrainingGroup\TrainingGroupService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,13 +29,15 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Groupes d'entraînement « à la volée » (voir TrainingGroup).
+ * Groupes d'entraînement (voir TrainingGroup).
  *
- *  - Encadrants / entraîneurs (espace Staff) : créent leur groupe juste avant une séance (un seul groupe actif à la fois,
- *    valable jusqu'au prochain créneau), le partagent avec d'autres encadrants, y ajoutent des adhérents, une trace GPX,
- *    des informations, des commentaires (éventuellement avec un point GPS) et partagent leur position en direct.
- *  - Adhérents ajoutés : voient le groupe (onglet Entraînement), ses informations, ses encadrants, les autres membres,
- *    téléchargent la trace GPX et suivent la position des encadrants.
+ *  - Encadrants / entraîneurs (espace Staff) : créent un groupe adossé à une séance de vélo ou de course à pied à venir
+ *    (un groupe par encadrant et par séance, valable jusqu'au créneau suivant), avec un nombre maximal d'adhérents, une
+ *    allure du club (1 à 5) et une vitesse ; ils le partagent avec d'autres encadrants, y ajoutent des adhérents, une
+ *    trace GPX, des informations, des commentaires (éventuellement avec un point GPS) et partagent leur position.
+ *  - Adhérents : choisissent un groupe depuis le détail du créneau, jusqu'au début de la séance et dans la limite des
+ *    places (un seul groupe par séance) ; ils voient ensuite le groupe (onglet Entraînement), ses informations, ses
+ *    encadrants, les autres membres, téléchargent la trace GPX et suivent la position des encadrants.
  *
  * Données personnelles : le téléphone, le numéro de leurs parents et le contact d'urgence des adhérents ne sont lus que
  * par les encadrants du groupe ; les adhérents voient seulement le nom et la photo des autres membres.
@@ -59,6 +64,8 @@ class TrainingGroupController extends AbstractController
         private readonly UserRepository $users,
         private readonly AvatarService $avatars,
         private readonly EntityManagerInterface $em,
+        private readonly WeeklyScheduleService $schedule,
+        private readonly TrainingRegistrationService $registrations,
         private readonly string $publicUrl,
     ) {
     }
@@ -68,8 +75,9 @@ class TrainingGroupController extends AbstractController
     // ============================================================
 
     /**
-     * Mes groupes actifs (comme encadrant ou comme adhérent). Pour un encadrant / entraîneur sans groupe : `canCreate`
-     * et l'aperçu de la séance de référence et de la fin de validité d'un nouveau groupe.
+     * Mes groupes actifs (comme encadrant ou comme adhérent). Pour un encadrant / entraîneur : `canCreate` et les
+     * séances (vélo, course à pied, à venir) auxquelles il peut adosser un nouveau groupe — celles où il n'a pas déjà le
+     * sien.
      */
     #[Route('/api/training-groups/mine', methods: ['GET'])]
     public function mine(): JsonResponse
@@ -78,30 +86,39 @@ class TrainingGroupController extends AbstractController
         $viewer = $this->getUser();
         $now = new \DateTimeImmutable();
         $mine = $this->groups->findActiveFor($viewer, $now);
-
-        $coaching = false;
-        foreach ($mine as $g) {
-            if ($g->hasCoach($viewer)) {
-                $coaching = true;
-            }
-        }
-        $canCreate = $this->isStaff($viewer) && !$coaching;
+        $canCreate = $this->isStaff($viewer);
 
         return new JsonResponse([
             'data' => array_map(fn (TrainingGroup $g) => $this->summary($g, $viewer), $mine),
             'canCreate' => $canCreate,
-            'preview' => $canCreate ? $this->planItem($this->service->plan($now)) : null,
+            'sessions' => $canCreate ? $this->creatableSessions($viewer, $now) : [],
         ]);
     }
 
-    /** Encadrants / entraîneurs pouvant être ajoutés comme co-encadrants (avec leur éventuel groupe actif). */
+    /**
+     * Encadrants / entraîneurs pouvant être ajoutés comme co-encadrants. `?occ=` (clé de la séance du groupe) : pour
+     * chacun, `activeGroupId` est le groupe qu'il gère déjà SUR CETTE SÉANCE (un encadrant n'en a qu'un par séance).
+     */
     #[Route('/api/training-groups/staff-candidates', methods: ['GET'])]
-    public function staffCandidates(): JsonResponse
+    public function staffCandidates(Request $request): JsonResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
         $this->denyUnlessStaff($viewer);
         $now = new \DateTimeImmutable();
+
+        // Groupe de chaque encadrant sur la séance demandée.
+        $onSession = [];
+        $occ = (string) $request->query->get('occ', '');
+        if ($occ !== '') {
+            foreach ($this->groups->findActiveAttached($now) as $g) {
+                if ($g->occurrenceKey() === $occ) {
+                    foreach ($g->getCoaches() as $coach) {
+                        $onSession[$coach->getId()] = $g->getId();
+                    }
+                }
+            }
+        }
 
         $out = [];
         $seen = [];
@@ -115,8 +132,8 @@ class TrainingGroupController extends AbstractController
                 'nom' => $u->getNom(),
                 'prenom' => $u->getPrenom(),
                 'avatarUrl' => $this->avatars->urlFor($u),
-                // Groupe actif que cet encadrant gère déjà (il ne peut en avoir qu'un).
-                'activeGroupId' => $this->groups->findActiveCoachedBy($u, $now)?->getId(),
+                // Groupe que cet encadrant gère déjà sur la séance demandée (null sans `occ`).
+                'activeGroupId' => $onSession[$u->getId()] ?? null,
             ];
         }
         usort($out, static fn (array $a, array $b) => [mb_strtolower($a['nom']), mb_strtolower($a['prenom'])] <=> [mb_strtolower($b['nom']), mb_strtolower($b['prenom'])]);
@@ -161,10 +178,90 @@ class TrainingGroupController extends AbstractController
     }
 
     // ============================================================
+    //  Choix d'un groupe depuis le créneau (adhérents)
+    // ============================================================
+
+    /**
+     * Les groupes adossés à un créneau, pour que les adhérents en choisissent un depuis le détail du créneau.
+     *
+     * GET /api/training-groups/for-slot?week=YYYY-MM-DD&templateId=12  (ou &slotId=5)
+     *
+     * Réponse : { groups: [...], closed, canChoose, myGroupId }. `closed` : la séance a commencé, plus de choix ni de
+     * retrait. Un créneau que le viewer ne voit pas (audience, stage) répond 404, comme le planning.
+     */
+    #[Route('/api/training-groups/for-slot', methods: ['GET'])]
+    public function forSlot(Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $target = $this->parseSlotTarget($request->query->all());
+        if ($target instanceof JsonResponse) {
+            return $target;
+        }
+        [$monday, $templateId, $slotId] = $target;
+
+        $payload = $this->slotGroupsPayload($viewer, $monday, $templateId, $slotId);
+
+        return $payload === null ? $this->notFound('Créneau introuvable.') : new JsonResponse($payload);
+    }
+
+    /**
+     * L'adhérent choisit ce groupe pour la séance : il quitte celui qu'il avait choisi pour la même séance. Refus
+     * (complet, séance commencée) : 409 portant `code` (full | closed) et le message à afficher.
+     */
+    #[Route('/api/training-groups/{id}/membership', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function join(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $group = $this->groups->find($id);
+        if ($group === null || !$group->isActive() || !$group->isAttached() || !$this->canSeeSlot($group, $viewer)) {
+            return $this->notFound();
+        }
+
+        $refusal = $this->service->join($group, $viewer);
+        if ($refusal !== null) {
+            return new JsonResponse(
+                ['error' => $refusal['message'], 'code' => $refusal['code']] + $this->slotGroupsFor($group, $viewer),
+                $refusal['status'],
+            );
+        }
+
+        return new JsonResponse($this->slotGroupsFor($group, $viewer));
+    }
+
+    /** L'adhérent quitte son groupe, tant que la séance n'a pas commencé. */
+    #[Route('/api/training-groups/{id}/membership', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function leaveMembership(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $group = $this->groups->find($id);
+        if ($group === null || !$group->isActive() || !$group->isAttached()) {
+            return $this->notFound();
+        }
+
+        $refusal = $this->service->leaveAsMember($group, $viewer);
+        if ($refusal !== null) {
+            return new JsonResponse(
+                ['error' => $refusal['message'], 'code' => $refusal['code']] + $this->slotGroupsFor($group, $viewer),
+                $refusal['status'],
+            );
+        }
+
+        return new JsonResponse($this->slotGroupsFor($group, $viewer));
+    }
+
+    // ============================================================
     //  Gestion (encadrants)
     // ============================================================
 
-    /** Crée le groupe de l'encadrant. Body : { name?, info?, memberIds: int[], coachIds?: int[] }. */
+    /**
+     * Crée le groupe de l'encadrant, adossé à une séance de vélo ou de course à pied à venir.
+     *
+     * Body : { slot: { week, templateId? | slotId? }, capacity, paceLevel?, speed?, name?, info?, memberIds: int[],
+     * coachIds?: int[] }. Un encadrant n'a qu'un groupe par séance ; un adhérent n'est que dans un groupe par séance.
+     */
     #[Route('/api/training-groups', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
@@ -172,9 +269,6 @@ class TrainingGroupController extends AbstractController
         $viewer = $this->getUser();
         $this->denyUnlessStaff($viewer);
         $now = new \DateTimeImmutable();
-        if ($this->groups->findActiveCoachedBy($viewer, $now) !== null) {
-            return new JsonResponse(['error' => 'Vous avez déjà un groupe actif : terminez-le avant d\'en créer un autre.'], Response::HTTP_CONFLICT);
-        }
 
         $p = $this->payload($request);
         $name = is_string($p['name'] ?? null) ? trim($p['name']) : '';
@@ -186,21 +280,57 @@ class TrainingGroupController extends AbstractController
             return $this->invalid(sprintf('Informations trop longues (%d caractères max).', TrainingGroup::INFO_MAX));
         }
 
-        [$coaches, $error] = $this->eligibleCoaches($this->intList($p['coachIds'] ?? []), $viewer, null);
+        // Séance : vélo ou course à pied, en cours ou à venir.
+        $slotInput = is_array($p['slot'] ?? null) ? $p['slot'] : [];
+        $target = $this->parseSlotTarget($slotInput);
+        if ($target instanceof JsonResponse) {
+            return $target;
+        }
+        [$monday, $templateId, $slotId] = $target;
+        $session = $this->service->findEligibleSession($monday, $templateId, $slotId, $now);
+        if ($session === null) {
+            return $this->invalid('Choisissez une séance de vélo ou de course à pied à venir (non annulée).');
+        }
+
+        $capacity = $this->capacityFrom($p['capacity'] ?? null);
+        if ($capacity === null) {
+            return $this->invalid(sprintf('Indiquez le nombre maximal d\'adhérents (1 à %d).', TrainingGroup::MAX_MEMBERS));
+        }
+        $paceLevel = $this->paceLevelFrom($p['paceLevel'] ?? null);
+        if ($paceLevel === false) {
+            return $this->invalid('L\'allure doit être comprise entre 1 et 5.');
+        }
+        $speed = is_string($p['speed'] ?? null) ? trim($p['speed']) : '';
+        if (mb_strlen($speed) > TrainingGroup::SPEED_MAX) {
+            return $this->invalid(sprintf('Vitesse trop longue (%d caractères max).', TrainingGroup::SPEED_MAX));
+        }
+
+        // Un encadrant n'a qu'un groupe par séance (il peut en avoir sur d'autres séances).
+        foreach ($this->groups->findActiveOnOccurrence($templateId, $slotId, $monday, $now) as $existing) {
+            if ($existing->hasCoach($viewer)) {
+                return new JsonResponse(['error' => 'Vous avez déjà un groupe pour cette séance.'], Response::HTTP_CONFLICT);
+            }
+        }
+
+        [$coaches, $error] = $this->eligibleCoaches($this->intList($p['coachIds'] ?? []), $viewer, null, $session['occ']);
         if ($error !== null) {
             return new JsonResponse(['error' => $error], Response::HTTP_CONFLICT);
         }
         $members = $this->eligibleMembers($this->intList($p['memberIds'] ?? []), $viewer, $coaches);
-        if (count($members) > TrainingGroup::MAX_MEMBERS) {
-            return $this->invalid(sprintf('Un groupe compte %d adhérents au plus.', TrainingGroup::MAX_MEMBERS));
+        if (count($members) > $capacity) {
+            return $this->invalid(sprintf('Le groupe est limité à %d adhérent%s : retirez-en ou augmentez le nombre de places.', $capacity, $capacity > 1 ? 's' : ''));
+        }
+        $conflict = $this->conflictMessage($this->service->memberConflicts($members, $templateId, $slotId, $monday, null));
+        if ($conflict !== null) {
+            return new JsonResponse(['error' => $conflict], Response::HTTP_CONFLICT);
         }
 
-        $group = $this->service->create($viewer, $name, $info, $coaches, $members);
+        $group = $this->service->create($viewer, $name, $info, $coaches, $members, $session, $capacity, $paceLevel, $speed);
 
         return new JsonResponse($this->detailState($group, $viewer), Response::HTTP_CREATED);
     }
 
-    /** Modifie le nom et / ou les informations. Body : { name?, info? }. */
+    /** Modifie le nom, les informations, le nombre de places, l'allure et / ou la vitesse. Body : { name?, info?, capacity?, paceLevel?, speed? }. */
     #[Route('/api/training-groups/{id}', methods: ['PATCH'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
     {
@@ -226,6 +356,31 @@ class TrainingGroupController extends AbstractController
             }
             $group->setInfo($info);
         }
+        if (array_key_exists('capacity', $p)) {
+            $capacity = $this->capacityFrom($p['capacity']);
+            if ($capacity === null) {
+                return $this->invalid(sprintf('Indiquez le nombre maximal d\'adhérents (1 à %d).', TrainingGroup::MAX_MEMBERS));
+            }
+            $count = $group->getMembers()->count();
+            if ($capacity < $count) {
+                return $this->invalid(sprintf('Le groupe compte déjà %d adhérent%s : retirez-en avant de réduire le nombre de places.', $count, $count > 1 ? 's' : ''));
+            }
+            $group->setCapacity($capacity);
+        }
+        if (array_key_exists('paceLevel', $p)) {
+            $level = $this->paceLevelFrom($p['paceLevel']);
+            if ($level === false) {
+                return $this->invalid('L\'allure doit être comprise entre 1 et 5.');
+            }
+            $group->setPaceLevel($level);
+        }
+        if (array_key_exists('speed', $p)) {
+            $speed = is_string($p['speed']) ? trim($p['speed']) : '';
+            if (mb_strlen($speed) > TrainingGroup::SPEED_MAX) {
+                return $this->invalid(sprintf('Vitesse trop longue (%d caractères max).', TrainingGroup::SPEED_MAX));
+            }
+            $group->setSpeed($speed);
+        }
         $this->em->flush();
 
         return new JsonResponse($this->detailState($group, $viewer));
@@ -247,8 +402,23 @@ class TrainingGroupController extends AbstractController
         }
 
         $members = $this->eligibleMembers($this->intList($p['memberIds']), $viewer, $group->getCoaches()->toArray());
-        if (count($members) > TrainingGroup::MAX_MEMBERS) {
-            return $this->invalid(sprintf('Un groupe compte %d adhérents au plus.', TrainingGroup::MAX_MEMBERS));
+        $limit = $group->getCapacity() ?? TrainingGroup::MAX_MEMBERS;
+        if (count($members) > $limit) {
+            return $this->invalid(sprintf('Le groupe est limité à %d adhérent%s : augmentez le nombre de places pour en ajouter.', $limit, $limit > 1 ? 's' : ''));
+        }
+        // Un adhérent n'est que dans un groupe par séance : on ne le « vole » pas à un autre groupe, on prévient.
+        if ($group->isAttached()) {
+            $added = array_values(array_filter($members, static fn (User $u) => !$group->hasMember($u)));
+            $conflict = $this->conflictMessage($this->service->memberConflicts(
+                $added,
+                $group->getSlotTemplate()?->getId(),
+                $group->getSlot()?->getId(),
+                $group->getWeekStartsAt() ?? new \DateTimeImmutable('today'),
+                $group,
+            ));
+            if ($conflict !== null) {
+                return new JsonResponse(['error' => $conflict], Response::HTTP_CONFLICT);
+            }
         }
         $this->service->setMembers($group, $members, $viewer);
 
@@ -270,7 +440,7 @@ class TrainingGroupController extends AbstractController
             return $this->invalid('Liste d\'encadrants manquante.');
         }
 
-        [$coaches, $error] = $this->eligibleCoaches($this->intList($p['coachIds']), $viewer, $group);
+        [$coaches, $error] = $this->eligibleCoaches($this->intList($p['coachIds']), $viewer, $group, $group->occurrenceKey());
         if ($error !== null) {
             return new JsonResponse(['error' => $error], Response::HTTP_CONFLICT);
         }
@@ -580,31 +750,262 @@ class TrainingGroupController extends AbstractController
 
     /**
      * Encadrants / entraîneurs actifs choisis comme co-encadrants (hors l'encadrant qui agit). Chacun ne peut gérer qu'un
-     * seul groupe actif : s'il en a déjà un autre, message d'erreur.
+     * seul groupe par séance (`$occ` : clé de la séance) : s'il en a déjà un autre sur la même séance, message d'erreur.
      *
      * @param list<int> $ids
      *
      * @return array{0: list<User>, 1: ?string}
      */
-    private function eligibleCoaches(array $ids, User $actor, ?TrainingGroup $current): array
+    private function eligibleCoaches(array $ids, User $actor, ?TrainingGroup $current, ?string $occ): array
     {
         if ($ids === []) {
             return [[], null];
         }
-        $now = new \DateTimeImmutable();
+
+        // Encadrants qui gèrent déjà un (autre) groupe sur cette séance.
+        $busy = [];
+        if ($occ !== null) {
+            foreach ($this->groups->findActiveAttached(new \DateTimeImmutable()) as $other) {
+                if ($other->occurrenceKey() === $occ && ($current === null || $other->getId() !== $current->getId())) {
+                    foreach ($other->getCoaches() as $coach) {
+                        $busy[$coach->getId()] = true;
+                    }
+                }
+            }
+        }
+
         $coaches = [];
         foreach ($this->users->findBy(['id' => $ids]) as $user) {
             if (!$user->isActive() || !$this->isStaff($user) || $user->getId() === $actor->getId()) {
                 continue;
             }
-            $other = $this->groups->findActiveCoachedBy($user, $now);
-            if ($other !== null && ($current === null || $other->getId() !== $current->getId())) {
-                return [[], sprintf('%s gère déjà un groupe actif : il doit d\'abord le terminer ou le quitter.', $user->getFullName())];
+            if (isset($busy[$user->getId()])) {
+                return [[], sprintf('%s gère déjà un groupe pour cette séance : un encadrant n\'en a qu\'un par séance.', $user->getFullName())];
             }
             $coaches[] = $user;
         }
 
         return [$coaches, null];
+    }
+
+    /**
+     * Séance d'une ligne du planning, pour l'appli : de quoi l'identifier (clé, semaine, créneau), l'afficher et ouvrir
+     * le détail du créneau.
+     *
+     * @param array{row: array<string, mixed>, title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, monday: \DateTimeImmutable, occ: string} $session
+     *
+     * @return array<string, mixed>
+     */
+    private function sessionItem(array $session, int $groupCount): array
+    {
+        $row = $session['row'];
+        $sport = Sport::tryFrom((string) $row['sport']);
+
+        return [
+            'occ' => $session['occ'],
+            'week' => $session['monday']->format('Y-m-d'),
+            'date' => $row['date'],
+            'templateId' => $row['templateId'],
+            'slotId' => $row['templateId'] === null ? $row['id'] : null,
+            'startTime' => $row['startTime'],
+            'startsAt' => $session['startsAt']->format(\DATE_ATOM),
+            'endsAt' => $session['endsAt']->format(\DATE_ATOM),
+            'title' => $session['title'],
+            'location' => $row['location'],
+            'sport' => $row['sport'],
+            'sportLabel' => $sport?->label() ?? (string) $row['sport'],
+            'sportIcon' => $sport?->icon() ?? '',
+            // Groupes déjà créés pour cette séance (par d'autres encadrants).
+            'groupCount' => $groupCount,
+        ];
+    }
+
+    /**
+     * Séances auxquelles l'encadrant peut adosser un nouveau groupe : vélo et course à pied à venir, hors celles où il a
+     * déjà son groupe.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function creatableSessions(User $viewer, \DateTimeImmutable $now): array
+    {
+        $byOccurrence = [];
+        $mineOn = [];
+        foreach ($this->groups->findActiveAttached($now) as $g) {
+            $key = (string) $g->occurrenceKey();
+            $byOccurrence[$key] = ($byOccurrence[$key] ?? 0) + 1;
+            if ($g->hasCoach($viewer)) {
+                $mineOn[$key] = true;
+            }
+        }
+
+        $out = [];
+        foreach ($this->service->eligibleSessions($now) as $session) {
+            if (!isset($mineOn[$session['occ']])) {
+                $out[] = $this->sessionItem($session, $byOccurrence[$session['occ']] ?? 0);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Désigne un créneau : `week` (une date de la semaine) + `templateId` (semaine type) ou `slotId` (occasionnel).
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array{0: \DateTimeImmutable, 1: ?int, 2: ?int}|JsonResponse
+     */
+    private function parseSlotTarget(array $input): array|JsonResponse
+    {
+        $rawWeek = $input['week'] ?? null;
+        if (!is_string($rawWeek) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawWeek) !== 1) {
+            return $this->invalid('Paramètre "week" invalide (format attendu : AAAA-MM-JJ).');
+        }
+        try {
+            $monday = WeeklyScheduleService::snapToMonday(new \DateTimeImmutable($rawWeek));
+        } catch (\Exception) {
+            return $this->invalid('Paramètre "week" invalide (format attendu : AAAA-MM-JJ).');
+        }
+        $templateId = isset($input['templateId']) && $input['templateId'] !== '' ? (int) $input['templateId'] : null;
+        $slotId = isset($input['slotId']) && $input['slotId'] !== '' ? (int) $input['slotId'] : null;
+        if ($templateId === null && $slotId === null) {
+            return $this->invalid('Indiquez templateId ou slotId.');
+        }
+
+        return [$monday, $templateId, $slotId];
+    }
+
+    /** Nombre de places : un entier de 1 au maximum d'un groupe ; null si absent ou invalide. */
+    private function capacityFrom(mixed $raw): ?int
+    {
+        if (is_string($raw) && ctype_digit($raw)) {
+            $raw = (int) $raw;
+        }
+        if (!is_int($raw) || $raw < 1 || $raw > TrainingGroup::MAX_MEMBERS) {
+            return null;
+        }
+
+        return $raw;
+    }
+
+    /** Allure du club (1 à 5) : null si non précisée (absente, vide ou null), false si invalide. */
+    private function paceLevelFrom(mixed $raw): int|false|null
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        if (is_string($raw) && ctype_digit($raw)) {
+            $raw = (int) $raw;
+        }
+
+        return is_int($raw) && in_array($raw, TrainingGroup::PACE_LEVELS, true) ? $raw : false;
+    }
+
+    /**
+     * Message de refus quand des adhérents sont déjà dans un autre groupe de la même séance ; null s'il n'y a pas de conflit.
+     *
+     * @param list<array{user: User, group: TrainingGroup}> $conflicts
+     */
+    private function conflictMessage(array $conflicts): ?string
+    {
+        if ($conflicts === []) {
+            return null;
+        }
+        $parts = array_map(
+            static fn (array $c) => sprintf('%s est déjà dans « %s »', $c['user']->getFullName(), $c['group']->displayName()),
+            $conflicts,
+        );
+
+        return implode(' ; ', $parts).' pour cette séance : un adhérent n\'est que dans un groupe par séance.';
+    }
+
+    /**
+     * Groupes d'une séance vus par `$viewer` ; null si le créneau n'existe pas ou n'est pas visible pour lui.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function slotGroupsPayload(User $viewer, \DateTimeImmutable $monday, ?int $templateId, ?int $slotId): ?array
+    {
+        $row = $this->registrations->findRow($this->schedule->buildWeek($monday, $viewer), $templateId, $slotId);
+        if ($row === null) {
+            return null;
+        }
+
+        $now = new \DateTimeImmutable();
+        $groups = [];
+        if (in_array($row['sport'], TrainingGroup::SPORTS, true) && !$row['isCancelled']) {
+            $groups = $this->groups->findActiveOnOccurrence($templateId, $slotId, $monday, $now);
+        }
+        $myGroupId = null;
+        foreach ($groups as $g) {
+            if ($g->hasMember($viewer)) {
+                $myGroupId = $g->getId();
+            }
+        }
+        $start = new \DateTimeImmutable($row['date'].' '.$row['startTime']);
+
+        return [
+            'groups' => array_map(fn (TrainingGroup $g) => $this->slotGroupItem($g, $viewer), $groups),
+            // La séance a commencé : plus de choix ni de retrait (l'encadrant gère encore son groupe).
+            'closed' => $start <= $now,
+            'canChoose' => $viewer->isAdherent() && $viewer->isActive(),
+            'myGroupId' => $myGroupId,
+        ];
+    }
+
+    /**
+     * Groupes de la séance du groupe donné : même contenu que forSlot(), pour rafraîchir l'écran du créneau après un
+     * choix ou un refus.
+     *
+     * @return array<string, mixed>
+     */
+    private function slotGroupsFor(TrainingGroup $group, User $viewer): array
+    {
+        return $this->slotGroupsPayload($viewer, $this->groupMonday($group), $group->getSlotTemplate()?->getId(), $group->getSlot()?->getId())
+            ?? ['groups' => [], 'closed' => true, 'canChoose' => false, 'myGroupId' => null];
+    }
+
+    /** Lundi de la semaine de la séance d'un groupe adossé à un créneau. */
+    private function groupMonday(TrainingGroup $group): \DateTimeImmutable
+    {
+        $week = $group->getWeekStartsAt() ?? $group->getSlot()?->getWeekStartsAt() ?? new \DateTimeImmutable('today');
+
+        return WeeklyScheduleService::snapToMonday($week);
+    }
+
+    /** Le viewer voit-il le créneau du groupe (audience, stage…) ? Sinon il ne peut ni voir ni choisir ce groupe. */
+    private function canSeeSlot(TrainingGroup $group, User $viewer): bool
+    {
+        $rows = $this->schedule->buildWeek($this->groupMonday($group), $viewer);
+
+        return $this->registrations->findRow($rows, $group->getSlotTemplate()?->getId(), $group->getSlot()?->getId()) !== null;
+    }
+
+    /**
+     * Un groupe vu depuis le créneau : de quoi le choisir (allure, vitesse, places, encadrants, informations). Les
+     * adhérents du groupe n'y figurent pas : on les voit une fois dans le groupe.
+     *
+     * @return array<string, mixed>
+     */
+    private function slotGroupItem(TrainingGroup $group, User $viewer): array
+    {
+        return [
+            'id' => $group->getId(),
+            'name' => $group->displayName(),
+            'paceLevel' => $group->getPaceLevel(),
+            'speed' => $group->getSpeed(),
+            'info' => $group->getInfo() === null ? null : mb_strimwidth($group->getInfo(), 0, 200, '…'),
+            'capacity' => $group->getCapacity(),
+            'memberCount' => $group->getMembers()->count(),
+            'placesLeft' => $group->placesLeft(),
+            'full' => $group->isFull(),
+            'isMember' => $group->hasMember($viewer),
+            'isCoach' => $group->hasCoach($viewer),
+            'coaches' => array_map(
+                fn (User $u) => ['id' => $u->getId(), 'fullName' => $u->getFullName(), 'avatarUrl' => $this->avatars->urlFor($u)],
+                array_values($group->getCoaches()->toArray()),
+            ),
+        ];
     }
 
     private static function cleanPhone(?string $raw): ?string
@@ -615,31 +1016,48 @@ class TrainingGroupController extends AbstractController
     }
 
     /**
-     * @param array{session: ?array{title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable}, expiresAt: \DateTimeImmutable} $plan
+     * Sport, séance et places d'un groupe : ce que l'appli affiche en tête de groupe et sur les cartes.
      *
      * @return array<string, mixed>
      */
-    private function planItem(array $plan): array
+    private function sessionFacts(TrainingGroup $group): array
     {
+        $sport = $group->getSport() !== null ? Sport::tryFrom($group->getSport()) : null;
+        $startsAt = $group->getSessionStartsAt();
+
         return [
-            'session' => $plan['session'] === null ? null : [
-                'title' => $plan['session']['title'],
-                'startsAt' => $plan['session']['startsAt']->format(\DATE_ATOM),
-                'endsAt' => $plan['session']['endsAt']->format(\DATE_ATOM),
+            // Séance à laquelle le groupe est adossé (null pour un ancien groupe) : de quoi ouvrir le détail du créneau.
+            'occ' => $group->occurrenceKey(),
+            'slot' => !$group->isAttached() || $startsAt === null ? null : [
+                'week' => ($group->getWeekStartsAt() ?? $startsAt)->format('Y-m-d'),
+                'date' => $startsAt->format('Y-m-d'),
+                'time' => $startsAt->format('H:i'),
+                'templateId' => $group->getSlotTemplate()?->getId(),
+                'slotId' => $group->getSlot()?->getId(),
             ],
-            'expiresAt' => $plan['expiresAt']->format(\DATE_ATOM),
+            'sport' => $group->getSport(),
+            'sportLabel' => $sport?->label(),
+            'sportIcon' => $sport?->icon(),
+            'capacity' => $group->getCapacity(),
+            'placesLeft' => $group->placesLeft(),
+            'paceLevel' => $group->getPaceLevel(),
+            'speed' => $group->getSpeed(),
+            // La séance a commencé : les adhérents ne choisissent ni ne quittent plus le groupe.
+            'started' => $group->hasStarted(),
         ];
     }
 
     /** @return array<string, mixed> */
     private function summary(TrainingGroup $group, User $viewer): array
     {
-        return [
+        return $this->sessionFacts($group) + [
             'id' => $group->getId(),
             'name' => $group->displayName(),
             'expiresAt' => $group->getExpiresAt()->format(\DATE_ATOM),
             'isCoach' => $group->hasCoach($viewer),
+            'isMember' => $group->hasMember($viewer),
             'sessionTitle' => $group->getSessionTitle(),
+            'sessionStartsAt' => $group->getSessionStartsAt()?->format(\DATE_ATOM),
             'memberCount' => $group->getMembers()->count(),
             'coaches' => array_map(
                 fn (User $u) => ['id' => $u->getId(), 'fullName' => $u->getFullName(), 'avatarUrl' => $this->avatars->urlFor($u)],
@@ -666,10 +1084,11 @@ class TrainingGroupController extends AbstractController
 
         $since = (new \DateTimeImmutable())->modify('-'.self::POSITION_FRESH_MINUTES.' minutes');
 
-        return [
+        return $this->sessionFacts($group) + [
             'id' => $group->getId(),
             'name' => $group->displayName(),
             'rawName' => $group->getName(),
+            'isMember' => $group->hasMember($viewer),
             'info' => $group->getInfo(),
             'createdAt' => $group->getCreatedAt()->format(\DATE_ATOM),
             'expiresAt' => $group->getExpiresAt()->format(\DATE_ATOM),
