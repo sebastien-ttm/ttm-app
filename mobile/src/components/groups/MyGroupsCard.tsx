@@ -5,16 +5,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { trainingGroups } from '@/api/resources';
 import type { TrainingGroupSummary } from '@/api/types';
+import { PaceBadge } from '@/components/groups/GroupFields';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 
-function untilLabel(iso: string): string {
+function whenLabel(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
 /**
- * Onglet Entraînement : mes groupes d'entraînement actifs (ceux où un encadrant m'a ajouté, ou que j'encadre). Rien
- * n'est affiché sans groupe. Un appui ouvre le groupe : informations, trace GPX, commentaires, position des encadrants.
+ * Onglet Entraînement : mes groupes d'entraînement actifs (ceux que j'ai choisis depuis un créneau, où un encadrant m'a
+ * ajouté, ou que j'encadre). Rien n'est affiché sans groupe. Un appui ouvre le groupe : informations, trace GPX,
+ * commentaires, position des encadrants.
  */
 export function MyGroupsCard() {
   const router = useRouter();
@@ -42,15 +44,18 @@ export function MyGroupsCard() {
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
         >
           <View style={styles.iconWrap}>
-            <Ionicons name="people" size={22} color="#fff" />
+            {g.sportIcon ? <Text style={styles.emoji}>{g.sportIcon}</Text> : <Ionicons name="people" size={22} color="#fff" />}
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: 3 }}>
             <Text style={styles.title} numberOfLines={1}>{g.name}</Text>
+            <PaceBadge level={g.paceLevel} speed={g.speed} />
             <Text style={styles.sub} numberOfLines={2}>
               {g.isCoach ? 'Vous encadrez ce groupe' : `Encadré par ${g.coaches.map((c) => c.fullName).join(', ')}`}
-              {` · ${g.memberCount} adhérent${g.memberCount > 1 ? 's' : ''}`}
+              {` · ${g.memberCount}${g.capacity !== null ? `/${g.capacity}` : ''} adhérent${g.memberCount > 1 ? 's' : ''}`}
             </Text>
-            <Text style={styles.until}>Actif jusqu'au {untilLabel(g.expiresAt)}</Text>
+            <Text style={styles.until}>
+              {g.sessionStartsAt ? `Séance : ${whenLabel(g.sessionStartsAt)}` : `Actif jusqu'au ${whenLabel(g.expiresAt)}`}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
         </Pressable>
@@ -68,6 +73,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
   },
   iconWrap: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 22 },
   title: { fontSize: 16, fontWeight: '800', color: COLORS.text },
   sub: { fontSize: 12, color: COLORS.textMuted },
   until: { fontSize: 12, color: COLORS.secondaryDark, fontWeight: '600' },

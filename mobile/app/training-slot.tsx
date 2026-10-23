@@ -8,6 +8,7 @@ import { trainingRegistrations as registrationsApi, trainingSchedule as schedule
 import type { TrainingParticipant, TrainingRegistration, TrainingSlot, TrainingSlotAttachment } from '@/api/types';
 import { STORAGE_KEYS, storage } from '@/auth/storage';
 import { FullScreenLoading } from '@/components/Loading';
+import { SlotGroupsCard } from '@/components/groups/SlotGroupsCard';
 import { ShareButton } from '@/components/ShareButton';
 import { SportBadge } from '@/components/SportBadge';
 import { TrainingParticipants } from '@/components/TrainingParticipants';
@@ -179,6 +180,9 @@ export default function TrainingSlotDetailScreen() {
           </View>
         )}
         {registration && !participantsFailed && <TrainingParticipants participants={participants} count={registration.count} capacity={registration.capacity} />}
+
+        {/* Vélo / course à pied : les groupes de la séance, à choisir avant son début (allure, places, encadrants). */}
+        {!isPast && <SlotGroupsCard slot={slot} />}
 
         {slot.description ? (
           <View style={styles.card}>

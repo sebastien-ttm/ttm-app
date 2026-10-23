@@ -4,8 +4,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 
 import { ApiError } from '@/api/client';
 import { trainingGroups } from '@/api/resources';
-import type { StaffMember, TrainingGroup, TrainingGroupPlan, TrainingGroupStaffCandidate } from '@/api/types';
+import type { StaffMember, TrainingGroup, TrainingGroupSessionOption, TrainingGroupStaffCandidate } from '@/api/types';
 import { MemberAvatar } from '@/components/MemberAvatar';
+import { CapacityStepper, PaceLevelPicker } from '@/components/groups/GroupFields';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -14,13 +15,20 @@ function whenLabel(iso: string): string {
 }
 
 /**
- * Création du groupe d'un encadrant / entraîneur, juste avant une séance : nom, informations, adhérents, autres
- * encadrants. Le groupe reste actif jusqu'au prochain créneau (`preview`) ; un encadrant n'en a qu'un à la fois.
+ * Création d'un groupe d'entraînement, adossé à une séance de vélo ou de course à pied à venir : séance, nombre de
+ * places, allure du club (1 à 5) et vitesse, nom, informations, adhérents, autres encadrants. Les adhérents choisissent
+ * ensuite un groupe depuis le créneau, jusqu'au début de la séance. Un encadrant a un groupe par séance.
  */
-export function GroupCreateForm({ preview, onCreated }: {
-  preview: TrainingGroupPlan | null;
+export function GroupCreateForm({ sessions, onCreated, onCancel }: {
+  sessions: TrainingGroupSessionOption[];
   onCreated: (group: TrainingGroup) => void;
+  /** Présent quand le formulaire s'ouvre à côté de groupes existants : permet de le refermer. */
+  onCancel?: () => void;
 }) {
+  const [occ, setOcc] = useState<string | null>(sessions[0]?.occ ?? null);
+  const [capacity, setCapacity] = useState(10);
+  const [paceLevel, setPaceLevel] = useState<number | null>(null);
+  const [speed, setSpeed] = useState('');
   const [name, setName] = useState('');
   const [info, setInfo] = useState('');
   const [members, setMembers] = useState<StaffMember[]>([]);
@@ -30,13 +38,20 @@ export function GroupCreateForm({ preview, onCreated }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const session = sessions.find((x) => x.occ === occ) ?? null;
+
+  // Les encadrants qui ont déjà un groupe sur la séance choisie ne peuvent pas être ajoutés (un groupe par séance).
   useEffect(() => {
     let cancelled = false;
-    trainingGroups.staffCandidates()
-      .then((r) => { if (!cancelled) setCandidates(r.data); })
+    trainingGroups.staffCandidates(occ)
+      .then((r) => {
+        if (cancelled) return;
+        setCandidates(r.data);
+        setCoachIds((current) => new Set([...current].filter((id) => r.data.some((c) => c.id === id && c.activeGroupId === null))));
+      })
       .catch(() => { /* sans la liste, le groupe se crée seul */ });
     return () => { cancelled = true; };
-  }, []);
+  }, [occ]);
 
   function toggleCoach(id: number) {
     setCoachIds((current) => {
@@ -49,6 +64,14 @@ export function GroupCreateForm({ preview, onCreated }: {
 
   async function submit() {
     if (busy) return;
+    if (!session) {
+      setError('Choisissez la séance du groupe.');
+      return;
+    }
+    if (members.length > capacity) {
+      setError(`Le groupe est limité à ${capacity} adhérent${capacity > 1 ? 's' : ''} : retirez-en ou ajoutez des places.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -57,6 +80,13 @@ export function GroupCreateForm({ preview, onCreated }: {
         info: info.trim(),
         memberIds: members.map((m) => m.id),
         coachIds: [...coachIds],
+        slot: {
+          week: session.week,
+          ...(session.templateId !== null ? { templateId: session.templateId } : { slotId: session.slotId ?? undefined }),
+        },
+        capacity,
+        paceLevel,
+        speed: speed.trim(),
       });
       onCreated(group);
     } catch (e) {
@@ -69,20 +99,64 @@ export function GroupCreateForm({ preview, onCreated }: {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.intro}>
-        <Text style={styles.introTitle}>👥 Créer mon groupe</Text>
+        <Text style={styles.introTitle}>👥 Créer un groupe</Text>
         <Text style={styles.introText}>
-          Constituez votre groupe juste avant la séance. Les adhérents que vous ajoutez le voient dans leur onglet
-          Entraînement : informations, trace GPX, commentaires et votre position en direct.
+          Un groupe est adossé à une séance de vélo ou de course à pied. Les adhérents le choisissent depuis le créneau,
+          jusqu'au début de la séance, dans la limite des places ; vous pouvez aussi y ajouter des adhérents. Il reste
+          ensuite actif jusqu'au créneau suivant : informations, trace GPX, commentaires et votre position en direct.
         </Text>
-        {preview && (
-          <Text style={styles.plan}>
-            {preview.session
-              ? `Séance : ${preview.session.title || 'entraînement'} · ${whenLabel(preview.session.startsAt)}. `
-              : ''}
-            Le groupe restera actif jusqu'au {whenLabel(preview.expiresAt)} (prochain créneau).
-          </Text>
+        {onCancel && (
+          <Pressable onPress={onCancel} accessibilityRole="button" style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.6 }]}>
+            <Text style={styles.cancelLabel}>← Retour à mes groupes</Text>
+          </Pressable>
         )}
       </View>
+
+      {sessions.length === 0 ? (
+        <Text style={styles.noSession}>
+          Aucune séance de vélo ou de course à pied à venir (dans les 14 prochains jours) pour laquelle vous n'avez pas déjà
+          un groupe.
+        </Text>
+      ) : (
+        <>
+      <Text style={styles.label}>Séance</Text>
+      {sessions.map((x) => {
+        const on = x.occ === occ;
+        return (
+          <Pressable
+            key={x.occ}
+            onPress={() => setOcc(x.occ)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: on }}
+            style={({ pressed }) => [styles.sessionRow, on && styles.sessionRowOn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.sessionIcon}>{x.sportIcon}</Text>
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text style={styles.sessionTitle} numberOfLines={2}>{x.title || x.sportLabel}</Text>
+              <Text style={styles.hint}>{whenLabel(x.startsAt)}{x.location ? ` · ${x.location}` : ''}</Text>
+              {x.groupCount > 0 && <Text style={styles.hint}>{x.groupCount} groupe{x.groupCount > 1 ? 's' : ''} déjà pour cette séance</Text>}
+            </View>
+            <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? COLORS.primary : COLORS.textMuted} />
+          </Pressable>
+        );
+      })}
+
+      <Text style={styles.label}>Nombre maximal d'adhérents</Text>
+      <CapacityStepper value={capacity} onChange={setCapacity} disabled={busy} />
+
+      <Text style={styles.label}>Allure du groupe (facultatif)</Text>
+      <PaceLevelPicker value={paceLevel} onChange={setPaceLevel} disabled={busy} />
+
+      <Text style={styles.label}>Vitesse (facultatif)</Text>
+      <TextInput
+        value={speed}
+        onChangeText={setSpeed}
+        placeholder={session?.sport === 'course' ? "Ex : 5'30 /km" : 'Ex : 28 km/h'}
+        placeholderTextColor={COLORS.textSubtle}
+        maxLength={60}
+        style={styles.input}
+        editable={!busy}
+      />
 
       <Text style={styles.label}>Nom du groupe (facultatif)</Text>
       <TextInput
@@ -107,7 +181,7 @@ export function GroupCreateForm({ preview, onCreated }: {
         editable={!busy}
       />
 
-      <Text style={styles.label}>Adhérents du groupe ({members.length})</Text>
+      <Text style={styles.label}>Adhérents du groupe ({members.length}/{capacity})</Text>
       {members.map((m) => (
         <View key={m.id} style={styles.personRow}>
           <MemberAvatar prenom={m.prenom} nom={m.nom} avatarUrl={m.avatarUrl} size={36} />
@@ -167,6 +241,8 @@ export function GroupCreateForm({ preview, onCreated }: {
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLabel}>Créer le groupe</Text>}
       </Pressable>
+        </>
+      )}
 
       <MemberPicker
         visible={picker}
@@ -183,7 +259,16 @@ const styles = StyleSheet.create({
   intro: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, padding: SPACING.md, gap: 6 },
   introTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text },
   introText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
-  plan: { fontSize: 13, color: COLORS.secondaryDark, fontWeight: '600', lineHeight: 18 },
+  cancel: { alignSelf: 'flex-start', paddingVertical: 4 },
+  cancelLabel: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
+  noSession: { marginTop: SPACING.lg, fontSize: 14, color: COLORS.textMuted, lineHeight: 20, textAlign: 'center' },
+  sessionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginBottom: 6,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+  },
+  sessionRowOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
+  sessionIcon: { fontSize: 24 },
+  sessionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   label: { color: COLORS.text, fontWeight: '700', fontSize: 13, marginTop: SPACING.lg, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.surface, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,

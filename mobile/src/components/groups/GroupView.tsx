@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,6 +24,7 @@ import { LiveStatus } from '@/components/LiveStatus';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
+import { CapacityStepper, PaceBadge, PaceLevelPicker } from '@/components/groups/GroupFields';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { PositionCard } from '@/components/groups/PositionCard';
 import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
@@ -129,7 +131,56 @@ function InlineEdit({ value, placeholder, empty, multiline, maxLength, canEdit, 
   );
 }
 
-/** Encadrants du groupe : partage avec d'autres encadrants (un seul groupe actif par encadrant). */
+/**
+ * Allure du club (1 à 5), vitesse et nombre de places : modifiables par un encadrant du groupe, enregistrés tout de
+ * suite (le nombre de places ne peut pas descendre sous le nombre d'adhérents déjà dans le groupe).
+ */
+function PaceAndPlaces({ group, onChange }: { group: TrainingGroup; onChange: (g: TrainingGroup) => void }) {
+  const [busy, setBusy] = useState(false);
+
+  async function save(input: { capacity?: number; paceLevel?: number | null; speed?: string }) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      onChange(await trainingGroups.update(group.id, input));
+    } catch (e) {
+      notify(errorText(e, 'Enregistrement impossible.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: 14 }}>
+      <View style={{ gap: 6 }}>
+        <Text style={styles.fieldLabel}>Allure du groupe</Text>
+        <PaceLevelPicker value={group.paceLevel} onChange={(level) => void save({ paceLevel: level })} disabled={busy} />
+      </View>
+      <View style={{ gap: 6 }}>
+        <Text style={styles.fieldLabel}>Vitesse</Text>
+        <InlineEdit
+          value={group.speed}
+          placeholder={group.sport === 'course' ? "Ex : 5'30 /km" : 'Ex : 28 km/h'}
+          empty="Non précisée."
+          maxLength={60}
+          canEdit
+          onSave={async (next) => { onChange(await trainingGroups.update(group.id, { speed: next })); }}
+        />
+      </View>
+      <View style={{ gap: 6 }}>
+        <Text style={styles.fieldLabel}>Nombre maximal d'adhérents</Text>
+        <CapacityStepper
+          value={group.capacity ?? Math.max(group.members.length, 1)}
+          min={Math.max(group.members.length, 1)}
+          onChange={(capacity) => void save({ capacity })}
+          disabled={busy}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** Encadrants du groupe : partage avec d'autres encadrants (un seul groupe par encadrant et par séance). */
 function CoachManager({ group, onChange }: { group: TrainingGroup; onChange: (g: TrainingGroup) => void }) {
   const [open, setOpen] = useState(false);
   const [candidates, setCandidates] = useState<TrainingGroupStaffCandidate[] | null>(null);
@@ -141,7 +192,7 @@ function CoachManager({ group, onChange }: { group: TrainingGroup; onChange: (g:
     setOpen(true);
     if (candidates === null) {
       try {
-        setCandidates((await trainingGroups.staffCandidates()).data);
+        setCandidates((await trainingGroups.staffCandidates(group.occ)).data);
       } catch (e) {
         setOpen(false);
         notify(errorText(e, 'Liste des encadrants indisponible.'));
@@ -333,7 +384,9 @@ function CommentItem({ comment, groupId, onDeleted }: { comment: TrainingGroupCo
  */
 export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () => void }) {
   const [group, setGroup] = useState<TrainingGroup | null>(null);
+  const router = useRouter();
   const [gone, setGone] = useState(false);
+  const [left, setLeft] = useState(false);
   const [picker, setPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { sharing, error: shareError } = useSharing(groupId);
@@ -368,6 +421,19 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     if (gone) void stopSharing(false);
   }, [gone]);
 
+  if (left) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.endedTitle}>Vous avez quitté ce groupe</Text>
+        <Text style={styles.muted}>Vous pouvez en choisir un autre depuis le créneau d'entraînement, tant que la séance n'a pas commencé.</Text>
+        {onGone && (
+          <Pressable onPress={onGone} style={[styles.smallBtn, styles.primary, { marginTop: SPACING.md }]}>
+            <Text style={styles.primaryLabel}>Retour</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
   if (gone) {
     return (
       <View style={styles.center}>
@@ -428,6 +494,25 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     }
   }
 
+  async function leaveAsMember() {
+    if (!(await confirmAction('Quitter ce groupe ?', 'Votre place sera libérée ; vous pourrez en choisir un autre depuis le créneau tant que la séance n\'a pas commencé.', 'Quitter'))) return;
+    try {
+      await trainingGroups.leaveAsMember(groupId);
+      setLeft(true);
+    } catch (e) {
+      notify(errorText(e, 'Impossible de quitter le groupe.'));
+    }
+  }
+
+  function openSlot() {
+    const slot = (group as TrainingGroup).slot;
+    if (!slot) return;
+    router.push({
+      pathname: '/training-slot',
+      params: { date: slot.date, time: slot.time, ...(slot.templateId !== null ? { templateId: String(slot.templateId) } : { slotId: String(slot.slotId) }) },
+    } as never);
+  }
+
   async function endGroup() {
     if (!(await confirmAction('Terminer le groupe ?', 'Il disparaîtra pour tous ses membres.', 'Terminer'))) return;
     try {
@@ -471,10 +556,21 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
           )}
           {group.session && (
             <Text style={styles.sub}>
-              Séance : {group.session.title || 'entraînement'}{group.session.startsAt ? ` · ${whenLabel(group.session.startsAt)}` : ''}
+              {group.sportIcon ? `${group.sportIcon} ` : ''}Séance : {group.session.title || 'entraînement'}{group.session.startsAt ? ` · ${whenLabel(group.session.startsAt)}` : ''}
             </Text>
           )}
+          <PaceBadge level={group.paceLevel} speed={group.speed} />
+          <Text style={styles.sub}>
+            {group.members.length}{group.capacity !== null ? `/${group.capacity}` : ''} adhérent{group.members.length > 1 ? 's' : ''}
+            {group.placesLeft !== null ? ` · ${group.placesLeft === 0 ? 'complet' : `${group.placesLeft} place${group.placesLeft > 1 ? 's' : ''} libre${group.placesLeft > 1 ? 's' : ''}`}` : ''}
+          </Text>
           <Text style={styles.sub}>Actif jusqu'au {whenLabel(group.expiresAt)}</Text>
+          {group.slot && (
+            <Pressable onPress={openSlot} accessibilityRole="link" style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="calendar-outline" size={15} color={COLORS.secondaryDark} />
+              <Text style={styles.linkLabel}>Voir le créneau</Text>
+            </Pressable>
+          )}
         </View>
         <LiveStatus online={online} />
       </View>
@@ -501,6 +597,12 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
               {shareError && <Text style={styles.errorInline}>{shareError}</Text>}
             </>
           )}
+        </Section>
+      )}
+
+      {isCoach && (
+        <Section title="🏁 Allure et places">
+          <PaceAndPlaces group={group} onChange={setGroup} />
         </Section>
       )}
 
@@ -598,6 +700,11 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
             </View>
           );
         })}
+        {!isCoach && group.isMember && !group.started && (
+          <Pressable onPress={() => void leaveAsMember()} accessibilityRole="button" style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.7 }]}>
+            <Text style={styles.dangerLabel}>Quitter ce groupe</Text>
+          </Pressable>
+        )}
         {isCoach && (
           <Pressable onPress={() => setPicker(true)} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}>
             <Ionicons name="person-add" size={18} color={COLORS.primary} />
@@ -691,6 +798,7 @@ const styles = StyleSheet.create({
   personRowOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
   personName: { flex: 1, fontSize: 14, color: COLORS.text },
   nom: { fontWeight: '700' },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   // Adhérent du groupe : avatar à gauche, nom + boutons au centre (en colonne), retrait à droite.
   memberRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 8,

@@ -11,6 +11,7 @@ import type {
   TrainingGroup,
   TrainingGroupComment,
   TrainingGroupInput,
+  SlotGroups,
   TrainingGroupStaffCandidate,
   TrainingGroupsMine,
   Article,
@@ -179,17 +180,29 @@ export const staffDirectory = {
  */
 export const trainingGroups = {
   mine: () => api.get<TrainingGroupsMine>('/api/training-groups/mine'),
-  staffCandidates: () => api.get<{ data: TrainingGroupStaffCandidate[] }>('/api/training-groups/staff-candidates'),
+  /** `occ` : séance du groupe, pour repérer les encadrants qui ont déjà un groupe sur cette séance. */
+  staffCandidates: (occ?: string | null) =>
+    api.get<{ data: TrainingGroupStaffCandidate[] }>(`/api/training-groups/staff-candidates${occ ? `?occ=${encodeURIComponent(occ)}` : ''}`),
   get: (id: number, version: string | null) =>
     api.get<LiveState<TrainingGroup>>(`/api/training-groups/${id}${version ? `?v=${encodeURIComponent(version)}` : ''}`),
   create: (input: TrainingGroupInput) => api.post<TrainingGroup>('/api/training-groups', input),
-  update: (id: number, input: { name?: string; info?: string }) =>
+  update: (id: number, input: { name?: string; info?: string; capacity?: number; paceLevel?: number | null; speed?: string }) =>
     api.patch<TrainingGroup>(`/api/training-groups/${id}`, input),
   setMembers: (id: number, memberIds: number[]) =>
     api.put<TrainingGroup>(`/api/training-groups/${id}/members`, { memberIds }),
   setCoaches: (id: number, coachIds: number[]) =>
     api.put<TrainingGroup>(`/api/training-groups/${id}/coaches`, { coachIds }),
   leave: (id: number) => api.post<{ ok: boolean }>(`/api/training-groups/${id}/leave`, {}),
+  /** Les groupes d'un créneau, pour en choisir un depuis le détail du créneau. */
+  forSlot: (slot: SlotRef) => {
+    const p = slotRefParams(slot);
+    const qs = `week=${encodeURIComponent(p.week)}${p.templateId !== undefined ? `&templateId=${p.templateId}` : `&slotId=${p.slotId}`}`;
+    return api.get<SlotGroups>(`/api/training-groups/for-slot?${qs}`);
+  },
+  /** Je choisis ce groupe pour la séance (je quitte celui que j'avais choisi). Refus (complet, séance commencée) : ApiError 409. */
+  join: (id: number) => api.put<SlotGroups>(`/api/training-groups/${id}/membership`, {}),
+  /** Je quitte ce groupe, tant que la séance n'a pas commencé. */
+  leaveAsMember: (id: number) => api.delete<SlotGroups>(`/api/training-groups/${id}/membership`),
   close: (id: number) => api.post<{ ok: boolean }>(`/api/training-groups/${id}/close`, {}),
   addComment: (id: number, input: { content?: string; latitude?: number; longitude?: number }) =>
     api.post<TrainingGroupComment>(`/api/training-groups/${id}/comments`, input),

@@ -1221,7 +1221,41 @@ export type TrainingGroupPosition = {
   updatedAt: string;
 };
 
-export type TrainingGroup = {
+/** Séance (créneau d'entraînement) à laquelle un groupe est adossé : de quoi ouvrir le détail du créneau. */
+export type TrainingGroupSlotRef = {
+  /** Date AAAA-MM-JJ de la semaine (lundi). */
+  week: string;
+  /** Date AAAA-MM-JJ de la séance. */
+  date: string;
+  /** Heure de début, « HH:MM ». */
+  time: string;
+  templateId: number | null;
+  slotId: number | null;
+};
+
+/**
+ * Ce qui rattache un groupe à sa séance : sport (vélo / course à pied), places, allure du club (1 à 5) et vitesse.
+ * Tout est null pour un ancien groupe, créé avant l'adossement à un créneau.
+ */
+export type TrainingGroupFacts = {
+  /** Clé de la séance (« t12:2026-10-26 » ou « s45 »), null pour un ancien groupe. */
+  occ: string | null;
+  slot: TrainingGroupSlotRef | null;
+  sport: string | null;
+  sportLabel: string | null;
+  sportIcon: string | null;
+  /** Nombre maximal d'adhérents ; null = sans limite choisie. */
+  capacity: number | null;
+  placesLeft: number | null;
+  /** Allure du club : 1 à 5 ; null si non précisée. */
+  paceLevel: number | null;
+  /** Vitesse en texte libre (« 28 km/h », « 5'30 /km »), en complément de l'allure. */
+  speed: string | null;
+  /** La séance a commencé : les adhérents ne choisissent ni ne quittent plus le groupe. */
+  started: boolean;
+};
+
+export type TrainingGroup = TrainingGroupFacts & {
   id: number;
   /** Nom affiché (« Groupe de Marc » par défaut). */
   name: string;
@@ -1233,6 +1267,8 @@ export type TrainingGroup = {
   expiresAt: string;
   /** Je suis encadrant de ce groupe (gestion complète) ; sinon simple adhérent (lecture seule). */
   isCoach: boolean;
+  /** J'ai choisi ce groupe (ou un encadrant m'y a ajouté). */
+  isMember: boolean;
   session: TrainingGroupSession | null;
   coaches: TrainingGroupCoach[];
   members: TrainingGroupMember[];
@@ -1241,27 +1277,71 @@ export type TrainingGroup = {
   positions: TrainingGroupPosition[];
 };
 
-export type TrainingGroupSummary = {
+export type TrainingGroupSummary = TrainingGroupFacts & {
   id: number;
   name: string;
   expiresAt: string;
   isCoach: boolean;
+  isMember: boolean;
   sessionTitle: string | null;
+  sessionStartsAt: string | null;
   memberCount: number;
   coaches: { id: number; fullName: string; avatarUrl: string | null }[];
 };
 
-/** Aperçu d'un nouveau groupe : séance de référence et fin de validité. */
-export type TrainingGroupPlan = {
-  session: { title: string; startsAt: string; endsAt: string } | null;
-  expiresAt: string;
+/** Séance (vélo ou course à pied, à venir) à laquelle un encadrant peut adosser un nouveau groupe. */
+export type TrainingGroupSessionOption = {
+  occ: string;
+  /** Date AAAA-MM-JJ du lundi de la semaine. */
+  week: string;
+  /** Date AAAA-MM-JJ de la séance. */
+  date: string;
+  templateId: number | null;
+  slotId: number | null;
+  startTime: string;
+  startsAt: string;
+  endsAt: string;
+  title: string;
+  location: string;
+  sport: string;
+  sportLabel: string;
+  sportIcon: string;
+  /** Groupes déjà créés pour cette séance (par d'autres encadrants). */
+  groupCount: number;
 };
 
 export type TrainingGroupsMine = {
   data: TrainingGroupSummary[];
-  /** Encadrant / entraîneur sans groupe actif : peut en créer un. */
+  /** Encadrant / entraîneur : peut créer un groupe (un par séance). */
   canCreate: boolean;
-  preview: TrainingGroupPlan | null;
+  /** Séances proposées pour un nouveau groupe (hors celles où j'ai déjà le mien). */
+  sessions: TrainingGroupSessionOption[];
+};
+
+/** Un groupe vu depuis le créneau : de quoi le choisir. */
+export type SlotGroup = {
+  id: number;
+  name: string;
+  paceLevel: number | null;
+  speed: string | null;
+  info: string | null;
+  capacity: number | null;
+  memberCount: number;
+  placesLeft: number | null;
+  full: boolean;
+  isMember: boolean;
+  isCoach: boolean;
+  coaches: { id: number; fullName: string; avatarUrl: string | null }[];
+};
+
+/** Les groupes d'un créneau d'entraînement. */
+export type SlotGroups = {
+  groups: SlotGroup[];
+  /** La séance a commencé : plus de choix ni de retrait. */
+  closed: boolean;
+  canChoose: boolean;
+  /** Le groupe que j'ai choisi pour cette séance. */
+  myGroupId: number | null;
 };
 
 /** Encadrant / entraîneur proposé comme co-encadrant. */
@@ -1270,7 +1350,7 @@ export type TrainingGroupStaffCandidate = {
   nom: string;
   prenom: string;
   avatarUrl: string | null;
-  /** Groupe actif que cet encadrant gère déjà (il ne peut en avoir qu'un). */
+  /** Groupe que cet encadrant gère déjà sur la séance demandée (un seul par séance) ; null sinon. */
   activeGroupId: number | null;
 };
 
@@ -1279,6 +1359,13 @@ export type TrainingGroupInput = {
   info: string;
   memberIds: number[];
   coachIds: number[];
+  /** Séance du groupe : semaine + créneau de la semaine type ou occasionnel. */
+  slot: { week: string; templateId?: number; slotId?: number };
+  /** Nombre maximal d'adhérents. */
+  capacity: number;
+  /** Allure du club (1 à 5), null si non précisée. */
+  paceLevel: number | null;
+  speed: string;
 };
 
 // ---- Documents officiels des jeunes : fiche sanitaire et autorisation de sortie du territoire ----
