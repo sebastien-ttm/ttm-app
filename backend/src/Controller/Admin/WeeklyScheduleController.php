@@ -337,6 +337,7 @@ class WeeklyScheduleController extends AbstractController
         return $this->render('admin/training_schedule_edit.html.twig', [
             'slot' => $slot,
             'stageUrl' => $slot->getStage() !== null ? $this->stageUrl($slot->getStage()) : null,
+            'stageDays' => $this->stageDays($slot->getStage()),
             'week' => $week,
             'weekHuman' => $this->humanWeekLabel($week),
             'isOccasional' => $slot->getTemplate() === null,
@@ -569,6 +570,29 @@ class WeeklyScheduleController extends AbstractController
             'crudControllerFqcn' => StageCrudController::class,
             'entityId' => $stage->getId(),
         ]);
+    }
+
+    /**
+     * Jours du stage (31 au plus), proposés en raccourci dans le formulaire d'un entraînement dédié : un clic fixe la
+     * date, donc la semaine et le jour, sans chercher dans le calendrier.
+     *
+     * @return list<array{iso: string, label: string}>
+     */
+    private function stageDays(?Stage $stage): array
+    {
+        if ($stage === null || $stage->getStartsOn() === null) {
+            return [];
+        }
+        $format = new \IntlDateFormatter('fr_FR', \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, null, null, 'EEE d MMM');
+        $last = $stage->getLastDay() ?? $stage->getStartsOn();
+        $days = [];
+        $day = $stage->getStartsOn();
+        for ($i = 0; $i < 31 && $day <= $last; ++$i) {
+            $days[] = ['iso' => $day->format('Y-m-d'), 'label' => (string) $format->format($day)];
+            $day = $day->modify('+1 day');
+        }
+
+        return $days;
     }
 
     /** « AAAA-MM-JJ » → date, ou null si absent / invalide. */

@@ -44,6 +44,15 @@
                 <label style="display:block; font-weight:600; margin-bottom:4px;">Date</label>
                 <input type="date" name="date" class="form-control" style="max-width:200px;" required
                        value="{{ slot.weekStartsAt|date_modify('+' ~ (slot.dayOfWeek - 1) ~ ' days')|date('Y-m-d') }}" />
+                {% if stageDays|length > 1 %}
+                    <div style="margin-top:8px;">
+                        <span style="font-size:12px; color:#666;">Jours du stage :</span>
+                        {% for d in stageDays %}
+                            <button type="button" class="btn btn-sm btn-secondary" style="margin:2px;"
+                                    onclick="this.form.elements['date'].value='{{ d.iso }}';">{{ d.label }}</button>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
         {% else %}
             <div>

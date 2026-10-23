@@ -80,17 +80,20 @@ class StageCrudController extends AbstractCrudController
             ->displayIf(fn (Stage $s) => $s->getId() !== null && $this->isGranted('ROLE_ENTRAINEUR'));
         $listPerf = $list('listStagePerfTests', '⏱ Prises de temps', PerfTestSessionCrudController::class)
             ->displayIf(fn (Stage $s) => $s->getId() !== null && $this->isGranted('ROLE_ENTRAINEUR'));
-        // Entraînement : le créneau occasionnel se crée depuis l'écran « Créneaux de la semaine » (date proposée = début du stage).
+        // Entraînement : le créneau occasionnel se crée depuis l'écran « Créneaux de la semaine » (date proposée = début
+        // du stage). URL directe (et non linkToRoute) : EasyAdmin rangerait stageId / date dans `routeParams`, que cet
+        // écran ne lit pas — il ouvrirait alors la semaine en cours, sans lien avec le stage.
         $newTraining = Action::new('newStageTraining', '➕ Entraînement dédié', null)
-            ->linkToRoute('admin_training_schedule_edit', fn (Stage $s) => [
+            ->linkToUrl(fn (Stage $s) => $this->generateUrl('admin_training_schedule_edit', [
                 'stageId' => $s->getId(),
                 'date' => $s->getStartsOn()?->format('Y-m-d'),
-            ])
+            ]))
             ->displayIf(fn (Stage $s) => $s->getId() !== null && $this->isGranted('ROLE_ENTRAINEUR'));
+        // Créneaux de la semaine de début du stage ; la navigation par semaine de l'écran mène aux suivantes.
         $listTraining = Action::new('listStageTrainings', '🏊 Entraînements', null)
-            ->linkToRoute('admin_training_schedule', fn (Stage $s) => [
+            ->linkToUrl(fn (Stage $s) => $this->generateUrl('admin_training_schedule', [
                 'week' => $s->getStartsOn()?->format('Y-m-d'),
-            ])
+            ]))
             ->displayIf(fn (Stage $s) => $s->getId() !== null && $this->isGranted('ROLE_ENTRAINEUR'));
 
         // Un stage qui a des éléments dédiés ne se supprime pas (ils redeviendraient publics) : il faut d'abord
