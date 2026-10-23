@@ -156,7 +156,53 @@ class StageCrudController extends AbstractCrudController
         yield AssociationField::new('articles', '📰 Articles dédiés')->onlyOnDetail();
         yield AssociationField::new('surveys', '📊 Sondages dédiés')->onlyOnDetail();
         yield AssociationField::new('perfTestSessions', '⏱ Prises de temps dédiées')->onlyOnDetail();
-        yield AssociationField::new('trainingSlots', '🏊 Entraînements dédiés')->onlyOnDetail();
+        // Entraînements : tous ceux du stage, regroupés par semaine (un stage peut chevaucher plusieurs semaines),
+        // chacun modifiable d'un clic.
+        yield TextField::new('trainingSlotsList', '🏊 Entraînements dédiés')
+            ->onlyOnDetail()
+            ->renderAsHtml()
+            ->formatValue(fn ($value, Stage $stage) => $this->trainingSlotsHtml($stage));
+    }
+
+    /**
+     * Entraînements du stage en HTML, regroupés par semaine : un lien « voir la semaine » (écran des créneaux) par
+     * semaine et un lien de modification par entraînement. Tout texte venant de la base est échappé.
+     */
+    private function trainingSlotsHtml(Stage $stage): string
+    {
+        if ($stage->getTrainingSlots()->isEmpty()) {
+            return 'Aucun entraînement dédié pour l\'instant : utilisez « ➕ Entraînement dédié ».';
+        }
+
+        $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $dayFormat = new \IntlDateFormatter('fr_FR', \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, null, null, 'EEE d MMM');
+        $weekFormat = new \IntlDateFormatter('fr_FR', \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, null, null, 'd MMM');
+
+        $html = '';
+        $currentWeek = null;
+        foreach ($stage->getTrainingSlots() as $slot) {
+            $monday = $slot->getWeekStartsAt()->modify('monday this week');
+            $weekKey = $monday->format('Y-m-d');
+            if ($weekKey !== $currentWeek) {
+                $currentWeek = $weekKey;
+                $html .= sprintf(
+                    '<div style="margin-top:8px;"><strong>Semaine du %s</strong> — <a href="%s">voir la semaine</a></div>',
+                    $esc((string) $weekFormat->format($monday)),
+                    $esc($this->generateUrl('admin_training_schedule', ['week' => $weekKey])),
+                );
+            }
+            $day = $monday->modify(sprintf('+%d days', $slot->getDayOfWeek() - 1));
+            $html .= sprintf(
+                '<div style="margin-left:12px;">%s · %s — %s%s · <a href="%s">modifier</a></div>',
+                $esc((string) $dayFormat->format($day)),
+                $esc($slot->getStartTime()->format('H:i')),
+                $esc($slot->getTitle() !== '' ? $slot->getTitle() : $slot->getSport()->label()),
+                $slot->isCancelled() ? ' <em>(annulé)</em>' : '',
+                $esc($this->generateUrl('admin_training_schedule_edit', ['slotId' => $slot->getId(), 'week' => $weekKey])),
+            );
+        }
+
+        return $html;
     }
 
     public function persistEntity(EntityManagerInterface $em, $entityInstance): void

@@ -246,6 +246,13 @@ class Stage
     /** @return Collection<int, TrainingSlot> */
     public function getTrainingSlots(): Collection { return $this->trainingSlots; }
 
+    /**
+     * Getter « virtuel » : sert uniquement à ce qu'EasyAdmin trouve une propriété avant d'appeler formatValue() pour
+     * la liste des entraînements sur la page de détail (même principe que Survey::getResponseCount()). La vraie valeur
+     * est construite côté CRUD, qui sait générer les liens.
+     */
+    public function getTrainingSlotsList(): string { return ''; }
+
     /** Le stage a-t-il encore des éléments dédiés ? (il ne peut alors pas être supprimé) */
     public function hasDedicatedContent(): bool
     {
