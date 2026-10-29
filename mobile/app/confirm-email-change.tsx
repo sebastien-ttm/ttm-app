@@ -10,8 +10,8 @@ import { COLORS, RADIUS, SPACING } from '@/config';
 type Phase =
   | { kind: 'loading' }
   | { kind: 'invalid'; message: string }
-  | { kind: 'ready'; currentEmail: string; newEmail: string }
-  | { kind: 'done'; newEmail: string };
+  | { kind: 'ready'; currentEmail: string; newEmail: string; detachedFrom: string | null; alsoChanges: string[] }
+  | { kind: 'done'; newEmail: string; detachedFrom: string | null };
 
 /**
  * Cible du lien reçu par e-mail (adresse ACTUELLE) pour confirmer un
@@ -40,7 +40,15 @@ export default function ConfirmEmailChangeScreen() {
     (async () => {
       try {
         const resp = await auth.previewEmailChange(token);
-        if (!cancelled) setPhase({ kind: 'ready', currentEmail: resp.currentEmail, newEmail: resp.newEmail });
+        if (!cancelled) {
+          setPhase({
+            kind: 'ready',
+            currentEmail: resp.currentEmail,
+            newEmail: resp.newEmail,
+            detachedFrom: resp.detachedFrom ?? null,
+            alsoChanges: resp.alsoChanges ?? [],
+          });
+        }
       } catch (e) {
         if (!cancelled) {
           setPhase({
@@ -59,7 +67,7 @@ export default function ConfirmEmailChangeScreen() {
     setError(null);
     try {
       const resp = await auth.confirmEmailChange(token);
-      setPhase({ kind: 'done', newEmail: resp.newEmail });
+      setPhase({ kind: 'done', newEmail: resp.newEmail, detachedFrom: resp.detachedFrom ?? null });
       // Session ouverte sur cet appareil : rafraîchit l'adresse affichée.
       if (status === 'authenticated') {
         void refreshMe().catch(() => {});
@@ -103,6 +111,18 @@ export default function ConfirmEmailChangeScreen() {
                 Une fois confirmé, vous vous connecterez avec la nouvelle adresse et tous les e-mails
                 du club y seront envoyés.
               </Text>
+              {phase.detachedFrom && (
+                <Text style={styles.text}>
+                  Ce profil partage actuellement l'adresse de <Text style={styles.bold}>{phase.detachedFrom}</Text> :
+                  il n'y sera plus rattaché par l'adresse partagée et aura sa propre connexion.
+                </Text>
+              )}
+              {phase.alsoChanges.length > 0 && (
+                <Text style={styles.text}>
+                  Les profils suivants, rattachés à cette adresse, changent d'adresse avec ce compte :{' '}
+                  <Text style={styles.bold}>{phase.alsoChanges.join(', ')}</Text>.
+                </Text>
+              )}
               {error && <Text style={styles.error}>{error}</Text>}
               <Pressable
                 style={[styles.button, busy && styles.buttonDisabled]}
@@ -126,6 +146,12 @@ export default function ConfirmEmailChangeScreen() {
                   ? ''
                   : ' Connectez-vous avec cette nouvelle adresse.'}
               </Text>
+              {phase.detachedFrom && (
+                <Text style={styles.text}>
+                  Ce profil n'est plus rattaché à l'adresse partagée de {phase.detachedFrom}. Pour vous connecter avec la
+                  nouvelle adresse, utilisez « Mot de passe oublié ? » ou le lien e-mail si aucun mot de passe n'est défini.
+                </Text>
+              )}
               <Pressable style={styles.button} onPress={leave}>
                 <Text style={styles.buttonLabel}>
                   {status === 'authenticated' ? 'Retour à mon profil' : 'Me connecter'}

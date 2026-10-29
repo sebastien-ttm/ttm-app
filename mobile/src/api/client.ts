@@ -246,6 +246,12 @@ export type AuthenticatedUser = {
   /** Recevoir les mailings groupés du club (activé par défaut). Absent des anciennes réponses : on le tient pour activé. */
   notifyMailing?: boolean;
   /**
+   * Adresse e-mail partagée : `dependent` = profil lié à un compte principal (avec son nom) ; `primary` = compte
+   * principal dont des profils rattachés ont la même adresse (avec leurs noms) ; null = adresse personnelle. Absent des
+   * anciennes réponses.
+   */
+  emailLink?: { role: 'dependent'; primaryName: string } | { role: 'primary'; dependentNames: string[] } | null;
+  /**
    * Statut d'adhésion calculé côté serveur (label prêt-à-afficher + drapeau
    * de renouvellement). Null pour les comptes externes (parent, ami) qui
    * n'ont pas de saison d'adhésion — l'UI retombe alors sur subTypeLabel.
@@ -337,12 +343,12 @@ export const auth = {
     api.post<{ ok: boolean; sentTo: string }>('/api/me/email-change', { newEmail }),
   /** Publics : le lien est ouvert depuis la boîte mail, session ou non. */
   previewEmailChange: (token: string) =>
-    api.get<{ currentEmail: string; newEmail: string }>(
+    api.get<{ currentEmail: string; newEmail: string; detachedFrom?: string | null; alsoChanges?: string[] }>(
       `/api/auth/email-change/preview?token=${encodeURIComponent(token)}`,
       { public: true },
     ),
   confirmEmailChange: (token: string) =>
-    api.post<{ ok: boolean; newEmail: string }>('/api/auth/email-change/confirm', { token }, { public: true }),
+    api.post<{ ok: boolean; newEmail: string; detachedFrom?: string | null }>('/api/auth/email-change/confirm', { token }, { public: true }),
 
   /** Mise à jour partielle des préférences de notification. */
   updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean; notifyMailing?: boolean }) =>

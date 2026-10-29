@@ -90,6 +90,31 @@ export default function ProfileEmailScreen() {
             clic sur ce lien.
           </Text>
 
+          {/* Adresse partagée avec d'autres profils : ce que le changement va faire, avant de le demander. */}
+          {user?.emailLink?.role === 'dependent' && (
+            <View style={styles.notice}>
+              <Text style={styles.noticeTitle}>Adresse partagée avec {user.emailLink.primaryName}</Text>
+              <Text style={styles.noticeText}>
+                Ce profil utilise pour l'instant l'adresse e-mail de {user.emailLink.primaryName}. Si vous la
+                changez, il aura sa propre adresse de connexion : il ne sera plus rattaché à ce compte par l'adresse
+                partagée, et {user.emailLink.primaryName} ne pourra plus passer sur ce profil de cette façon. Un lien
+                parent / enfant déclaré avec le club, s'il existe, est conservé. Le lien de confirmation part vers
+                l'adresse actuelle (partagée), qu'il faudra donc ouvrir pour valider.
+              </Text>
+            </View>
+          )}
+          {user?.emailLink?.role === 'primary' && (
+            <View style={styles.notice}>
+              <Text style={styles.noticeTitle}>Adresse partagée avec d'autres profils</Text>
+              <Text style={styles.noticeText}>
+                Cette adresse est aussi celle de : {user.emailLink.dependentNames.join(', ')}. Si vous la changez,
+                ces profils changent d'adresse avec vous (ils restent rattachés à votre compte). Pour donner une
+                adresse différente à l'un d'eux, ouvrez son profil depuis le sélecteur de profil et modifiez l'adresse
+                depuis là.
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.label}>Nouvelle adresse e-mail</Text>
           <TextInput
             value={newEmail}
@@ -144,6 +169,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.lg, maxWidth: 480, width: '100%', alignSelf: 'center' },
   intro: { fontSize: 14, color: COLORS.textMuted, marginBottom: SPACING.xl, lineHeight: 20 },
+  notice: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.secondary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    gap: 4,
+    marginBottom: SPACING.xl,
+  },
+  noticeTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  noticeText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 19 },
   label: { color: COLORS.text, fontWeight: '600', fontSize: 13, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.surface,
