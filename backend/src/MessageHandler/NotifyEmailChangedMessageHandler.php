@@ -49,6 +49,7 @@ class NotifyEmailChangedMessageHandler
                     // `??` : un message mis en file avant cette version n'a pas ces champs (propriétés non initialisées).
                     'detachedFrom' => $message->detachedFrom ?? null,
                     'alsoChanged' => $message->alsoChanged ?? [],
+                    'familyLink' => $message->familyLink ?? null,
                 ]);
             try {
                 $this->mailer->send($email);

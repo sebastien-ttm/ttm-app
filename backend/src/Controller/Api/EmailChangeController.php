@@ -96,6 +96,7 @@ class EmailChangeController extends AbstractController
             $result['newEmail'],
             $result['detachedFrom']?->getFullName(),
             array_map(static fn (User $u) => $u->getFullName(), $result['alsoChanged']),
+            $result['familyLink'],
         ));
 
         return new JsonResponse([
@@ -103,6 +104,8 @@ class EmailChangeController extends AbstractController
             'newEmail' => $result['newEmail'],
             // Nom du compte principal auquel ce profil n'est plus rattaché (null s'il n'était pas lié).
             'detachedFrom' => $result['detachedFrom']?->getFullName(),
+            // Relation parent / enfant déclarée avec ce compte principal : la bascule de profil reste possible (null si non lié).
+            'familyLink' => $result['familyLink'],
         ]);
     }
 

@@ -6,6 +6,7 @@ Bonjour {{ user.prenom }},
   Nouvelle adresse : {{ newEmail }}
 {% if detachedFrom %}
 Ce profil n'utilise plus l'adresse partagée avec {{ detachedFrom }} : il n'y est plus rattaché par l'e-mail et se connecte désormais avec sa nouvelle adresse.
+{% if familyLink %}Le lien parent / enfant déclaré avec le club est conservé : vous pouvez toujours passer sur ce profil depuis votre compte.{% else %}Aucun lien parent / enfant n'est déclaré avec ce profil : vous ne pourrez plus passer dessus depuis votre compte tant que ce lien n'aura pas été créé (profil, « Mes enfants », ou en contactant le club).{% endif %}
 {% elseif alsoChanged|length > 0 %}
 Les profils rattachés à cette adresse sont passés à la nouvelle adresse avec ce compte : {{ alsoChanged|join(', ') }}.
 {% endif %}

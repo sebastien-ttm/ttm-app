@@ -12,13 +12,19 @@ namespace App\Message;
  */
 final readonly class NotifyEmailChangedMessage
 {
-    /** @param list<string> $alsoChanged */
+    /**
+     * `familyLink` (avec `detachedFrom`) : une relation parent / enfant est déclarée avec le compte principal, donc la
+     * bascule de profil reste possible ; false = elle disparaît tant que ce lien n'est pas créé.
+     *
+     * @param list<string> $alsoChanged
+     */
     public function __construct(
         public int $userId,
         public string $oldEmail,
         public string $newEmail,
         public ?string $detachedFrom = null,
         public array $alsoChanged = [],
+        public ?bool $familyLink = null,
     ) {
     }
 }

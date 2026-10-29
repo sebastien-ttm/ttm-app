@@ -100,7 +100,10 @@ class EmailChangeService
      *    il n'est plus rattaché au compte principal par l'e-mail partagé (`linkedToUser` retiré : la connexion par
      *    e-mail ne charge que des comptes principaux). Une éventuelle relation parent / enfant déclarée est conservée.
      *
-     * @return array{user: User, oldEmail: string, newEmail: string, detachedFrom: ?User, alsoChanged: list<User>}
+     * `familyLink` (profil lié uniquement) : une relation parent / enfant est déclarée avec le compte principal, donc la
+     * bascule de profil entre les deux reste possible ; sinon elle disparaît tant que ce lien n'est pas créé.
+     *
+     * @return array{user: User, oldEmail: string, newEmail: string, detachedFrom: ?User, alsoChanged: list<User>, familyLink: ?bool}
      *
      * @throws \DomainException
      */
@@ -122,7 +125,9 @@ class EmailChangeService
         $user->setEmail($newEmail);
         $detachedFrom = $user->getLinkedToUser();
         $alsoChanged = [];
+        $familyLink = null;
         if ($detachedFrom !== null) {
+            $familyLink = $user->isFamilyLinkedTo($detachedFrom);
             $user->setLinkedToUser(null);
         } else {
             foreach ($user->getDependents() as $dependent) {
@@ -146,23 +151,31 @@ class EmailChangeService
             'to' => $newEmail,
             'detachedFrom' => $detachedFrom?->getId(),
             'alsoChanged' => array_map(static fn (User $u) => $u->getId(), $alsoChanged),
+            'familyLink' => $familyLink,
         ]);
 
-        return ['user' => $user, 'oldEmail' => $oldEmail, 'newEmail' => $newEmail, 'detachedFrom' => $detachedFrom, 'alsoChanged' => $alsoChanged];
+        return [
+            'user' => $user,
+            'oldEmail' => $oldEmail,
+            'newEmail' => $newEmail,
+            'detachedFrom' => $detachedFrom,
+            'alsoChanged' => $alsoChanged,
+            'familyLink' => $familyLink,
+        ];
     }
 
     /**
      * Ce que le changement fera pour la demande : compte lié qui se détache de son principal, ou comptes dépendants qui
      * changent d'adresse avec lui. Sert à l'écran de confirmation, avant de valider.
      *
-     * @return array{detachedFrom: ?string, alsoChanges: list<string>}
+     * @return array{detachedFrom: ?string, familyLink: ?bool, alsoChanges: list<string>}
      */
     public function impactOf(EmailChangeRequest $request): array
     {
         $user = $request->getUser();
         $primary = $user->getLinkedToUser();
         if ($primary !== null) {
-            return ['detachedFrom' => $primary->getFullName(), 'alsoChanges' => []];
+            return ['detachedFrom' => $primary->getFullName(), 'familyLink' => $user->isFamilyLinkedTo($primary), 'alsoChanges' => []];
         }
         $old = mb_strtolower($user->getEmail(), 'UTF-8');
         $names = [];
@@ -172,7 +185,7 @@ class EmailChangeService
             }
         }
 
-        return ['detachedFrom' => null, 'alsoChanges' => $names];
+        return ['detachedFrom' => null, 'familyLink' => null, 'alsoChanges' => $names];
     }
 
     private function isTaken(string $email, User $user): bool

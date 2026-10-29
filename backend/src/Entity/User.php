@@ -618,6 +618,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** @return Collection<int, User> */
     public function getParents(): Collection { return $this->parents; }
 
+    /**
+     * Existe-t-il une relation parent / enfant déclarée (table user_parent_child) entre ce compte et l'autre, dans un sens
+     * ou dans l'autre ? C'est elle — et non l'adresse e-mail partagée — qui permet de basculer d'un profil à l'autre quand
+     * les deux comptes n'ont pas la même adresse (voir UserRepository::findLinkedProfiles).
+     */
+    public function isFamilyLinkedTo(User $other): bool
+    {
+        foreach ([$this->children, $this->parents] as $related) {
+            foreach ($related as $u) {
+                if ($u->getId() === $other->getId()) {
+                    return true;
+                }
+            }
+        }
+        foreach ([$other->getChildren(), $other->getParents()] as $related) {
+            foreach ($related as $u) {
+                if ($u->getId() === $this->getId()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function getLinkedToUser(): ?User { return $this->linkedToUser; }
     public function setLinkedToUser(?User $u): self
     {

@@ -113,7 +113,10 @@ class AuthSuccessListener
     {
         $primary = $user->getLinkedToUser();
         if ($primary !== null) {
-            return ['role' => 'dependent', 'primaryName' => $primary->getFullName()];
+            // `familyLink` : une relation parent / enfant est déclarée avec le compte principal. Si oui, la bascule de profil
+            // entre les deux comptes reste possible après un changement d'adresse ; sinon elle disparaît (elle ne tient
+            // alors qu'à l'adresse partagée) tant que ce lien n'est pas créé.
+            return ['role' => 'dependent', 'primaryName' => $primary->getFullName(), 'familyLink' => $user->isFamilyLinkedTo($primary)];
         }
         $mine = mb_strtolower($user->getEmail(), 'UTF-8');
         $names = [];
