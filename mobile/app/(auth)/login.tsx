@@ -35,14 +35,15 @@ export default function LoginScreen() {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
-  /** Lit la valeur d'un TextInput soit via le state React, soit en fallback
-   *  via le DOM (contourne un autofill Safari silencieux qui ne fire pas
-   *  onChangeText). */
+  /** Lit la valeur d'un TextInput. Sur le web, c'est le champ AFFICHÉ (le DOM) qui fait foi : un autofill (gestionnaire de
+   *  mots de passe, surtout dans une appli installée) écrit dans le nœud sans toujours déclencher onChangeText, et le
+   *  state React peut alors être vide OU périmé (ex : un mot de passe erroné tapé juste avant d'accepter la suggestion).
+   *  Sur mobile natif, il n'y a pas de DOM : le state suffit. */
   function readInput(stateValue: string, ref: React.RefObject<TextInput | null>): string {
-    if (stateValue !== '') return stateValue;
     if (Platform.OS !== 'web') return stateValue;
     const node = ref.current as unknown as { value?: string } | null;
-    return node?.value ?? stateValue;
+    const shown = node?.value;
+    return typeof shown === 'string' && shown !== '' ? shown : stateValue;
   }
 
   async function submit() {
@@ -68,7 +69,16 @@ export default function LoginScreen() {
         router.push({ pathname: '/(auth)/magic-link-request', params: { email: effectiveEmail } });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inattendue');
+      // 401 : identifiants refusés (le serveur répond en anglais) → message clair, avec la sortie « mot de passe oublié ».
+      if (err instanceof ApiError && err.status === 401) {
+        setError(
+          mode === 'password'
+            ? 'E-mail ou mot de passe incorrect. Vérifiez votre saisie, ou utilisez « Mot de passe oublié ? » pour en choisir un nouveau.'
+            : 'Connexion refusée. Réessayez.',
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Erreur inattendue');
+      }
     } finally {
       setBusy(false);
     }
