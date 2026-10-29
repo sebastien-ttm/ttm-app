@@ -32,7 +32,7 @@ import { COLORS, RADIUS, SPACING } from '@/config';
 import { useLiveSync } from '@/hooks/useLiveSync';
 import { type GeoPoint, formatPoint, getCurrentPoint, mapUrl } from '@/lib/geo';
 import { canPickFile, pickFile } from '@/lib/pickFile';
-import { startSharing, stopSharing, useSharing } from '@/lib/positionSharing';
+import { startSharing, stopSharing, useSharing, wakeLockSupported } from '@/lib/positionSharing';
 import { confirmAction } from '@/utils/confirm';
 import { formatRelativeFr } from '@/utils/html';
 
@@ -389,7 +389,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   const [left, setLeft] = useState(false);
   const [picker, setPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { sharing, error: shareError } = useSharing(groupId);
+  const { sharing, error: shareError, awake } = useSharing(groupId);
 
   const { online, resync } = useLiveSync<TrainingGroup>({
     enabled: !gone,
@@ -592,7 +592,14 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
                 </Text>
               </Pressable>
               {sharing && !shareError && (
-                <Text style={styles.hint}>Votre position est mise à jour pour le groupe toutes les 15 secondes. Gardez l'appli ouverte.</Text>
+                <Text style={styles.hint}>
+                  Votre position est mise à jour pour le groupe toutes les 15 secondes.{' '}
+                  {awake
+                    ? 'L\'écran reste allumé tant que le partage est actif : gardez l\'appli affichée au premier plan et pensez à arrêter le partage à la fin de la séance.'
+                    : wakeLockSupported()
+                      ? 'Gardez l\'appli affichée au premier plan : le partage s\'interrompt quand l\'écran s\'éteint ou que vous changez d\'appli.'
+                      : 'Votre navigateur ne peut pas garder l\'écran allumé : désactivez la mise en veille et gardez l\'appli affichée au premier plan, sinon le partage s\'interrompt.'}
+                </Text>
               )}
               {shareError && <Text style={styles.errorInline}>{shareError}</Text>}
             </>
