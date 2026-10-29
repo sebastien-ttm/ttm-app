@@ -10,8 +10,8 @@ import { COLORS, RADIUS, SPACING } from '@/config';
 type Phase =
   | { kind: 'loading' }
   | { kind: 'invalid'; message: string }
-  | { kind: 'ready'; currentEmail: string; newEmail: string; detachedFrom: string | null; alsoChanges: string[] }
-  | { kind: 'done'; newEmail: string; detachedFrom: string | null };
+  | { kind: 'ready'; currentEmail: string; newEmail: string; detachedFrom: string | null; familyLink: boolean | null; alsoChanges: string[] }
+  | { kind: 'done'; newEmail: string; detachedFrom: string | null; familyLink: boolean | null };
 
 /**
  * Cible du lien reçu par e-mail (adresse ACTUELLE) pour confirmer un
@@ -46,6 +46,7 @@ export default function ConfirmEmailChangeScreen() {
             currentEmail: resp.currentEmail,
             newEmail: resp.newEmail,
             detachedFrom: resp.detachedFrom ?? null,
+            familyLink: resp.familyLink ?? null,
             alsoChanges: resp.alsoChanges ?? [],
           });
         }
@@ -67,7 +68,7 @@ export default function ConfirmEmailChangeScreen() {
     setError(null);
     try {
       const resp = await auth.confirmEmailChange(token);
-      setPhase({ kind: 'done', newEmail: resp.newEmail, detachedFrom: resp.detachedFrom ?? null });
+      setPhase({ kind: 'done', newEmail: resp.newEmail, detachedFrom: resp.detachedFrom ?? null, familyLink: resp.familyLink ?? null });
       // Session ouverte sur cet appareil : rafraîchit l'adresse affichée.
       if (status === 'authenticated') {
         void refreshMe().catch(() => {});
@@ -115,6 +116,9 @@ export default function ConfirmEmailChangeScreen() {
                 <Text style={styles.text}>
                   Ce profil partage actuellement l'adresse de <Text style={styles.bold}>{phase.detachedFrom}</Text> :
                   il n'y sera plus rattaché par l'adresse partagée et aura sa propre connexion.
+                  {phase.familyLink === true
+                    ? ' Le lien parent / enfant est conservé : la bascule de profil entre les deux comptes reste possible.'
+                    : ' Aucun lien parent / enfant n\'est déclaré : la bascule de profil entre les deux comptes ne sera plus possible tant que ce lien n\'aura pas été créé.'}
                 </Text>
               )}
               {phase.alsoChanges.length > 0 && (
@@ -150,6 +154,9 @@ export default function ConfirmEmailChangeScreen() {
                 <Text style={styles.text}>
                   Ce profil n'est plus rattaché à l'adresse partagée de {phase.detachedFrom}. Pour vous connecter avec la
                   nouvelle adresse, utilisez « Mot de passe oublié ? » ou le lien e-mail si aucun mot de passe n'est défini.
+                  {phase.familyLink === true
+                    ? ' La bascule de profil entre les deux comptes reste possible (lien parent / enfant conservé).'
+                    : ' La bascule de profil entre les deux comptes ne sera possible qu\'une fois le lien parent / enfant créé (« Mes enfants » dans le profil du parent).'}
                 </Text>
               )}
               <Pressable style={styles.button} onPress={leave}>

@@ -97,9 +97,25 @@ export default function ProfileEmailScreen() {
               <Text style={styles.noticeText}>
                 Ce profil utilise pour l'instant l'adresse e-mail de {user.emailLink.primaryName}. Si vous la
                 changez, il aura sa propre adresse de connexion : il ne sera plus rattaché à ce compte par l'adresse
-                partagée, et {user.emailLink.primaryName} ne pourra plus passer sur ce profil de cette façon. Un lien
-                parent / enfant déclaré avec le club, s'il existe, est conservé. Le lien de confirmation part vers
-                l'adresse actuelle (partagée), qu'il faudra donc ouvrir pour valider.
+                partagée.
+              </Text>
+              {/* La bascule de profil ne tient plus qu'à la relation parent / enfant déclarée avec le club. */}
+              {user.emailLink.familyLink === true && (
+                <Text style={[styles.noticeText, styles.noticeOk]}>
+                  ✅ Un lien parent / enfant est déclaré avec {user.emailLink.primaryName} : la bascule de profil entre
+                  les deux comptes restera possible.
+                </Text>
+              )}
+              {user.emailLink.familyLink === false && (
+                <Text style={[styles.noticeText, styles.noticeWarn]}>
+                  ⚠️ Aucun lien parent / enfant n'est déclaré avec {user.emailLink.primaryName} : après le changement,
+                  la bascule de profil entre les deux comptes ne sera plus possible tant que ce lien n'aura pas été
+                  créé. {user.emailLink.primaryName} peut le créer depuis son profil (« Mes enfants », avec le numéro
+                  de licence), ou le club depuis le backend.
+                </Text>
+              )}
+              <Text style={styles.noticeText}>
+                Le lien de confirmation part vers l'adresse actuelle (partagée), qu'il faudra donc ouvrir pour valider.
               </Text>
             </View>
           )}
@@ -182,6 +198,8 @@ const styles = StyleSheet.create({
   },
   noticeTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
   noticeText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 19 },
+  noticeOk: { color: '#166534', fontWeight: '600' },
+  noticeWarn: { color: '#b45309', fontWeight: '600' },
   label: { color: COLORS.text, fontWeight: '600', fontSize: 13, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.surface,
