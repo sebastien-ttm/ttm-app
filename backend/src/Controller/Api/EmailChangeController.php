@@ -17,7 +17,9 @@ use Symfony\Component\Routing\Attribute\Route;
  * Changement d'adresse e-mail en libre-service.
  *
  *  - POST /api/me/email-change            (connecté) : demande → lien de
- *    confirmation envoyé à l'adresse ACTUELLE.
+ *    confirmation envoyé à l'adresse ACTUELLE. Un compte principal change
+ *    d'adresse avec ses profils rattachés ; un profil lié (adresse partagée)
+ *    change seul et devient indépendant (voir EmailChangeService::confirm).
  *  - GET  /api/auth/email-change/preview  (public, jeton) : résumé affiché
  *    avant confirmation.
  *  - POST /api/auth/email-change/confirm  (public, jeton) : applique le
@@ -68,10 +70,12 @@ class EmailChangeController extends AbstractController
                 Response::HTTP_GONE,
             );
         }
+        // Ce que le changement fera, à montrer avant de valider : un profil lié qui se détache de son compte principal
+        // (`detachedFrom`), ou les profils rattachés qui changent d'adresse avec lui (`alsoChanges`).
         return new JsonResponse([
             'currentEmail' => $pending->getUser()->getEmail(),
             'newEmail' => $pending->getNewEmail(),
-        ]);
+        ] + $this->emailChanges->impactOf($pending));
     }
 
     #[Route('/api/auth/email-change/confirm', methods: ['POST'])]
@@ -90,9 +94,16 @@ class EmailChangeController extends AbstractController
             $result['user']->getId(),
             $result['oldEmail'],
             $result['newEmail'],
+            $result['detachedFrom']?->getFullName(),
+            array_map(static fn (User $u) => $u->getFullName(), $result['alsoChanged']),
         ));
 
-        return new JsonResponse(['ok' => true, 'newEmail' => $result['newEmail']]);
+        return new JsonResponse([
+            'ok' => true,
+            'newEmail' => $result['newEmail'],
+            // Nom du compte principal auquel ce profil n'est plus rattaché (null s'il n'était pas lié).
+            'detachedFrom' => $result['detachedFrom']?->getFullName(),
+        ]);
     }
 
     /** « sebastien@triathlon.com » → « se***@triathlon.com ». */

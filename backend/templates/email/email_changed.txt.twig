@@ -4,7 +4,11 @@ Bonjour {{ user.prenom }},
 
   Ancienne adresse : {{ oldEmail }}
   Nouvelle adresse : {{ newEmail }}
-
+{% if detachedFrom %}
+Ce profil n'utilise plus l'adresse partagée avec {{ detachedFrom }} : il n'y est plus rattaché par l'e-mail et se connecte désormais avec sa nouvelle adresse.
+{% elseif alsoChanged|length > 0 %}
+Les profils rattachés à cette adresse sont passés à la nouvelle adresse avec ce compte : {{ alsoChanged|join(', ') }}.
+{% endif %}
 Vous n'êtes pas à l'origine de ce changement ? Contactez le club sans attendre pour sécuriser votre compte.{% endif %}
 
 — Triathlon Toulouse Métropole

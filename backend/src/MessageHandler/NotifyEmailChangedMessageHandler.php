@@ -46,6 +46,9 @@ class NotifyEmailChangedMessageHandler
                     'oldEmail' => $message->oldEmail,
                     'newEmail' => $message->newEmail,
                     'isNewAddress' => $isNewAddress,
+                    // `??` : un message mis en file avant cette version n'a pas ces champs (propriétés non initialisées).
+                    'detachedFrom' => $message->detachedFrom ?? null,
+                    'alsoChanged' => $message->alsoChanged ?? [],
                 ]);
             try {
                 $this->mailer->send($email);

@@ -23,6 +23,17 @@
                         Ancienne adresse : <strong>{{ oldEmail }}</strong><br>
                         Nouvelle adresse : <strong>{{ newEmail }}</strong>
                     </p>
+                    {% if detachedFrom %}
+                        <p style="font-size:14px;">
+                            Ce profil n'utilise plus l'adresse partagée avec <strong>{{ detachedFrom }}</strong> : il n'y est plus
+                            rattaché par l'e-mail et se connecte désormais avec sa nouvelle adresse.
+                        </p>
+                    {% elseif alsoChanged|length > 0 %}
+                        <p style="font-size:14px;">
+                            Les profils rattachés à cette adresse sont passés à la nouvelle adresse avec ce compte :
+                            <strong>{{ alsoChanged|join(', ') }}</strong>.
+                        </p>
+                    {% endif %}
                     <p style="font-size:13px; color:#b91c1c;">
                         <strong>Vous n'êtes pas à l'origine de ce changement ?</strong> Contactez le club sans attendre
                         pour sécuriser votre compte.

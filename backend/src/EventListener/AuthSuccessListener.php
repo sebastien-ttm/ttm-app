@@ -92,12 +92,38 @@ class AuthSuccessListener
             'notifyArticleEmail' => $user->isNotifyArticleEmail(),
             // Mailings groupés du club : reçus par défaut, l'adhérent peut s'en désinscrire.
             'notifyMailing' => !$user->isMailingOptedOut(),
+            // Adresse e-mail partagée : profil lié à un compte principal, ou compte principal avec des profils rattachés.
+            // Sert à expliquer ce que le changement d'adresse fera (écran « Modifier mon adresse e-mail »).
+            'emailLink' => self::emailLink($user),
             // Statut d'adhésion calculé : label prêt-à-afficher (« Adhérent
             // 2025-2026 » / « Adhérent externe 2025-2026 » / « Adhérent
             // 2024-2025 » quand needsRenewal). null pour les comptes
             // externes (parent, ami) — le client tombe alors sur subTypeLabel.
             'membershipStatus' => $membershipStatus,
         ];
+    }
+
+    /**
+     * Partage d'adresse e-mail du compte : `dependent` (profil lié, avec le nom du compte principal), `primary` (compte
+     * principal, avec les noms des profils rattachés qui ont la même adresse) ou null (adresse personnelle).
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function emailLink(User $user): ?array
+    {
+        $primary = $user->getLinkedToUser();
+        if ($primary !== null) {
+            return ['role' => 'dependent', 'primaryName' => $primary->getFullName()];
+        }
+        $mine = mb_strtolower($user->getEmail(), 'UTF-8');
+        $names = [];
+        foreach ($user->getDependents() as $dependent) {
+            if ($dependent->isActive() && mb_strtolower($dependent->getEmail(), 'UTF-8') === $mine) {
+                $names[] = $dependent->getFullName();
+            }
+        }
+
+        return $names === [] ? null : ['role' => 'primary', 'dependentNames' => $names];
     }
 
     /**

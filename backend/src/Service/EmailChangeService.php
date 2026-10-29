@@ -44,7 +44,6 @@ class EmailChangeService
         if ($newEmail === '' || mb_strlen($newEmail) > 180 || !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
             throw new \DomainException('Adresse e-mail invalide.', 422);
         }
-        $this->assertEligible($user);
         if ($newEmail === mb_strtolower($user->getEmail(), 'UTF-8')) {
             throw new \DomainException('C\'est déjà votre adresse e-mail actuelle.', 422);
         }
@@ -93,11 +92,15 @@ class EmailChangeService
     }
 
     /**
-     * Applique le changement. Le compte et ses dépendants qui partagent
-     * son adresse (famille rattachée) basculent ensemble — sinon la
-     * famille se retrouverait éclatée sur deux boîtes.
+     * Applique le changement.
      *
-     * @return array{user: User, oldEmail: string, newEmail: string}
+     *  - Compte PRINCIPAL : lui et ses dépendants qui partagent son adresse (famille rattachée) basculent ensemble —
+     *    sinon la famille se retrouverait éclatée sur deux boîtes.
+     *  - Compte LIÉ (dépendant d'un e-mail partagé) : lui seul change d'adresse. Il a alors sa propre connexion, donc
+     *    il n'est plus rattaché au compte principal par l'e-mail partagé (`linkedToUser` retiré : la connexion par
+     *    e-mail ne charge que des comptes principaux). Une éventuelle relation parent / enfant déclarée est conservée.
+     *
+     * @return array{user: User, oldEmail: string, newEmail: string, detachedFrom: ?User, alsoChanged: list<User>}
      *
      * @throws \DomainException
      */
@@ -110,7 +113,6 @@ class EmailChangeService
 
         $user = $request->getUser();
         $newEmail = $request->getNewEmail();
-        $this->assertEligible($user);
         // Re-vérification : l'adresse a pu être prise entre la demande et le clic.
         if ($this->isTaken($newEmail, $user)) {
             throw new \DomainException('Cette adresse e-mail est désormais utilisée par un autre compte.', 409);
@@ -118,9 +120,16 @@ class EmailChangeService
 
         $oldEmail = mb_strtolower($user->getEmail(), 'UTF-8');
         $user->setEmail($newEmail);
-        foreach ($user->getDependents() as $dependent) {
-            if (mb_strtolower($dependent->getEmail(), 'UTF-8') === $oldEmail) {
-                $dependent->setEmail($newEmail);
+        $detachedFrom = $user->getLinkedToUser();
+        $alsoChanged = [];
+        if ($detachedFrom !== null) {
+            $user->setLinkedToUser(null);
+        } else {
+            foreach ($user->getDependents() as $dependent) {
+                if (mb_strtolower($dependent->getEmail(), 'UTF-8') === $oldEmail) {
+                    $dependent->setEmail($newEmail);
+                    $alsoChanged[] = $dependent;
+                }
             }
         }
         $request->markUsed();
@@ -135,28 +144,35 @@ class EmailChangeService
             'userId' => $user->getId(),
             'from' => $oldEmail,
             'to' => $newEmail,
+            'detachedFrom' => $detachedFrom?->getId(),
+            'alsoChanged' => array_map(static fn (User $u) => $u->getId(), $alsoChanged),
         ]);
 
-        return ['user' => $user, 'oldEmail' => $oldEmail, 'newEmail' => $newEmail];
+        return ['user' => $user, 'oldEmail' => $oldEmail, 'newEmail' => $newEmail, 'detachedFrom' => $detachedFrom, 'alsoChanged' => $alsoChanged];
     }
 
     /**
-     * Seuls les comptes PRIMAIRES portent l'identité de connexion : un
-     * profil dépendant partage l'adresse (et la connexion) de son
-     * primaire, qui doit changer pour toute la famille.
+     * Ce que le changement fera pour la demande : compte lié qui se détache de son principal, ou comptes dépendants qui
+     * changent d'adresse avec lui. Sert à l'écran de confirmation, avant de valider.
+     *
+     * @return array{detachedFrom: ?string, alsoChanges: list<string>}
      */
-    private function assertEligible(User $user): void
+    public function impactOf(EmailChangeRequest $request): array
     {
+        $user = $request->getUser();
         $primary = $user->getLinkedToUser();
         if ($primary !== null) {
-            throw new \DomainException(
-                sprintf(
-                    'Ce profil partage l\'adresse e-mail de %s. Le changement se fait depuis le compte principal.',
-                    $primary->getFullName(),
-                ),
-                409,
-            );
+            return ['detachedFrom' => $primary->getFullName(), 'alsoChanges' => []];
         }
+        $old = mb_strtolower($user->getEmail(), 'UTF-8');
+        $names = [];
+        foreach ($user->getDependents() as $dependent) {
+            if (mb_strtolower($dependent->getEmail(), 'UTF-8') === $old) {
+                $names[] = $dependent->getFullName();
+            }
+        }
+
+        return ['detachedFrom' => null, 'alsoChanges' => $names];
     }
 
     private function isTaken(string $email, User $user): bool
