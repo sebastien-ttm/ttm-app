@@ -6,9 +6,9 @@ use App\Repository\TrainingGroupPositionRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Dernière position GPS partagée en direct par un encadrant d'un groupe d'entraînement : une ligne par (groupe,
- * encadrant), mise à jour à chaque envoi par l'appli et supprimée quand l'encadrant arrête le partage. Les membres du
- * groupe la voient se mettre à jour.
+ * Dernière position GPS partagée, à sa demande, par un encadrant ou un adhérent d'un groupe d'entraînement : une ligne
+ * par (groupe, personne), mise à jour à chaque envoi par l'appli et supprimée quand la personne la retire ou quitte le
+ * groupe. Les membres du groupe la voient sur la carte.
  */
 #[ORM\Entity(repositoryClass: TrainingGroupPositionRepository::class)]
 #[ORM\Table(name: 'training_group_position')]

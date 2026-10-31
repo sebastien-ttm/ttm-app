@@ -33,15 +33,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  *  - Encadrants / entraîneurs (espace Staff) : créent un groupe adossé à une séance de vélo ou de course à pied à venir
  *    (un groupe par encadrant et par séance, actif jusqu'à 8 h après le début de la séance ou jusqu'à ce qu'un encadrant le
- *    termine), avec un nombre maximal d'adhérents, une
+ *    supprime), avec un nombre maximal d'adhérents, une
  *    allure du club (1 à 5) et une vitesse ; ils le partagent avec d'autres encadrants, y ajoutent des adhérents, une
  *    trace GPX, des informations, des commentaires (éventuellement avec un point GPS) et partagent leur position.
- *  - Adhérents : choisissent un groupe depuis le détail du créneau, jusqu'au début de la séance et dans la limite des
- *    places (un seul groupe par séance) ; ils voient ensuite le groupe (onglet Entraînement), ses informations, ses
- *    encadrants, les autres membres, téléchargent la trace GPX et suivent la position des encadrants.
+ *  - Adhérents : choisissent un groupe depuis le détail du créneau, tant que le groupe est actif (même une fois la séance
+ *    commencée) et dans la limite des places (un seul groupe par séance) ; ils voient ensuite le groupe (onglet
+ *    Entraînement), ses informations, ses encadrants, les autres membres, téléchargent la trace GPX, écrivent des
+ *    commentaires et partagent leur position à leur demande, comme les encadrants.
  *
- * Données personnelles : le téléphone, le numéro de leurs parents et le contact d'urgence des adhérents ne sont lus que
- * par les encadrants du groupe ; les adhérents voient seulement le nom et la photo des autres membres.
+ * Données personnelles : le numéro de leurs parents et le contact d'urgence des adhérents ne sont lus que par les
+ * encadrants du groupe. Les adhérents voient le téléphone des autres membres (appel / WhatsApp), sauf celui d'un profil
+ * Jeune ; une position n'est visible que des encadrants et des adhérents du groupe.
  */
 #[IsGranted('ROLE_USER')]
 class TrainingGroupController extends AbstractController
@@ -50,8 +52,8 @@ class TrainingGroupController extends AbstractController
     use StaffLiveStateTrait;
 
     /**
-     * Les encadrants partagent leur position à la demande (un appui sur la carte), pas en continu : une position reste
-     * affichée, avec son âge, pendant toute la vie du groupe (8 h après le début de la séance).
+     * Les encadrants et les adhérents du groupe partagent leur position à la demande (un appui sur la carte), pas en
+     * continu : une position reste affichée, avec son âge, pendant toute la vie du groupe (8 h après le début de la séance).
      */
     private const POSITION_FRESH_MINUTES = 8 * 60;
     private const COMMENT_LIMIT = 100;
@@ -192,8 +194,9 @@ class TrainingGroupController extends AbstractController
      *
      * GET /api/training-groups/for-slot?week=YYYY-MM-DD&templateId=12  (ou &slotId=5)
      *
-     * Réponse : { groups: [...], closed, canChoose, myGroupId }. `closed` : la séance a commencé, plus de choix ni de
-     * retrait. Un créneau que le viewer ne voit pas (audience, stage) répond 404, comme le planning.
+     * Réponse : { groups: [...], closed, canChoose, myGroupId }. `closed` : les groupes de la séance sont terminés (le
+     * choix reste possible une fois la séance commencée, tant que le groupe est actif). Un créneau que le viewer ne voit
+     * pas (audience, stage) répond 404, comme le planning.
      */
     #[Route('/api/training-groups/for-slot', methods: ['GET'])]
     public function forSlot(Request $request): JsonResponse
@@ -212,8 +215,9 @@ class TrainingGroupController extends AbstractController
     }
 
     /**
-     * L'adhérent choisit ce groupe pour la séance : il quitte celui qu'il avait choisi pour la même séance. Refus
-     * (complet, séance commencée) : 409 portant `code` (full | closed) et le message à afficher.
+     * L'adhérent choisit ce groupe pour la séance (même commencée, tant que le groupe est actif) : il quitte celui qu'il
+     * avait choisi pour la même séance. Refus (complet, groupe terminé) : 409 portant `code` (full | closed) et le message
+     * à afficher.
      */
     #[Route('/api/training-groups/{id}/membership', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function join(int $id): JsonResponse
@@ -236,7 +240,7 @@ class TrainingGroupController extends AbstractController
         return new JsonResponse($this->slotGroupsFor($group, $viewer));
     }
 
-    /** L'adhérent quitte son groupe, tant que la séance n'a pas commencé. */
+    /** L'adhérent quitte son groupe. */
     #[Route('/api/training-groups/{id}/membership', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function leaveMembership(int $id): JsonResponse
     {
@@ -484,7 +488,7 @@ class TrainingGroupController extends AbstractController
         return new JsonResponse(['ok' => true]);
     }
 
-    /** Termine le groupe pour tout le monde. */
+    /** Supprime le groupe pour tout le monde (il disparaît tout de suite ; ses données sont purgées une semaine plus tard). */
     #[Route('/api/training-groups/{id}/close', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function close(int $id): JsonResponse
     {
@@ -500,13 +504,16 @@ class TrainingGroupController extends AbstractController
         return new JsonResponse(['ok' => true]);
     }
 
-    /** Ajoute un commentaire : un texte et / ou un point GPS. Body : { content?, latitude?, longitude? }. */
+    /**
+     * Ajoute un commentaire : un texte et / ou un point GPS. Body : { content?, latitude?, longitude? }. Les encadrants et
+     * les adhérents du groupe peuvent commenter.
+     */
     #[Route('/api/training-groups/{id}/comments', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function addComment(int $id, Request $request): JsonResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $group = $this->coachedGroup($id, $viewer);
+        $group = $this->groupFor($id, $viewer);
         if ($group === null) {
             return $this->notFound();
         }
@@ -536,18 +543,19 @@ class TrainingGroupController extends AbstractController
         $this->em->persist($comment);
         $this->em->flush();
 
-        return new JsonResponse($this->commentItem($comment, $viewer, true), Response::HTTP_CREATED);
+        return new JsonResponse($this->commentItem($comment, $viewer, $group->hasCoach($viewer)), Response::HTTP_CREATED);
     }
 
-    /** Supprime un de MES commentaires. */
+    /** Supprime un de MES commentaires ; un encadrant du groupe peut supprimer ceux des autres (modération). */
     #[Route('/api/training-groups/{id}/comments/{commentId}', methods: ['DELETE'], requirements: ['id' => '\d+', 'commentId' => '\d+'])]
     public function deleteComment(int $id, int $commentId): JsonResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $group = $this->coachedGroup($id, $viewer);
+        $group = $this->groupFor($id, $viewer);
         $comment = $group === null ? null : $this->comments->find($commentId);
-        if ($group === null || $comment === null || $comment->getTrainingGroup()->getId() !== $group->getId() || $comment->getAuthor()->getId() !== $viewer->getId()) {
+        if ($group === null || $comment === null || $comment->getTrainingGroup()->getId() !== $group->getId()
+            || !($comment->getAuthor()->getId() === $viewer->getId() || $group->hasCoach($viewer))) {
             return $this->notFound('Commentaire introuvable.');
         }
         $this->em->remove($comment);
@@ -614,13 +622,15 @@ class TrainingGroupController extends AbstractController
         return new JsonResponse(['ok' => true]);
     }
 
-    /** Met à jour MA position partagée en direct. Body : { latitude, longitude, accuracy? }. */
+    /**
+     * Partage MA position (encadrant ou adhérent du groupe), à ma demande. Body : { latitude, longitude, accuracy? }.
+     */
     #[Route('/api/training-groups/{id}/position', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function setPosition(int $id, Request $request): JsonResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $group = $this->coachedGroup($id, $viewer);
+        $group = $this->groupFor($id, $viewer);
         if ($group === null) {
             return $this->notFound();
         }
@@ -648,7 +658,7 @@ class TrainingGroupController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $group = $this->coachedGroup($id, $viewer);
+        $group = $this->groupFor($id, $viewer);
         if ($group === null) {
             return $this->notFound();
         }
@@ -967,8 +977,9 @@ class TrainingGroupController extends AbstractController
 
         return [
             'groups' => array_map(fn (TrainingGroup $g) => $this->slotGroupItem($g, $viewer, $viewerCoaches), $groups),
-            // La séance a commencé : plus de choix ni de retrait (l'encadrant gère encore son groupe).
-            'closed' => $start <= $now,
+            // Les groupes de la séance sont terminés (8 h après son début) ; avant, on peut choisir son groupe même une
+            // fois la séance commencée.
+            'closed' => TrainingGroupService::expiryFor(['startsAt' => $start]) <= $now,
             'canChoose' => $viewer->isAdherent() && $viewer->isActive(),
             'myGroupId' => $myGroupId,
         ];
@@ -1096,7 +1107,7 @@ class TrainingGroupController extends AbstractController
             'placesLeft' => $group->placesLeft(),
             'paceLevel' => $group->getPaceLevel(),
             'speed' => $group->getSpeed(),
-            // La séance a commencé : les adhérents ne choisissent ni ne quittent plus le groupe.
+            // La séance a commencé (information : les adhérents peuvent encore choisir ou quitter le groupe).
             'started' => $group->hasStarted(),
         ];
     }
@@ -1165,36 +1176,67 @@ class TrainingGroupController extends AbstractController
                 'telephone' => self::cleanPhone($u->getTelephone()),
                 'isMe' => $u->getId() === $viewer->getId(),
             ], $coaches),
-            'members' => array_map(fn (User $u) => $this->memberItem($u, $isCoach), $members),
+            'members' => array_map(fn (User $u) => $this->memberItem($u, $viewer, $isCoach ? 'full' : ($isSibling ? 'none' : 'phone')), $members),
             'attachments' => array_map(fn (TrainingGroupAttachment $a) => $this->attachmentItem($a), $this->attachments->findByGroup($group)),
             'comments' => array_map(fn (TrainingGroupComment $c) => $this->commentItem($c, $viewer, $isCoach), $this->comments->findLatest($group, self::COMMENT_LIMIT)),
-            'positions' => array_map(fn (TrainingGroupPosition $p) => [
-                'userId' => $p->getUser()->getId(),
-                'fullName' => $p->getUser()->getFullName(),
-                'latitude' => $p->getLatitude(),
-                'longitude' => $p->getLongitude(),
-                'accuracy' => $p->getAccuracy(),
-                'updatedAt' => $p->getUpdatedAt()->format(\DATE_ATOM),
-            ], $this->positions->findFresh($group, $since)),
+            'positions' => $this->positionItems($group, $isSibling, $since),
         ];
     }
 
     /**
-     * Un adhérent du groupe. Les encadrants du groupe voient en plus ses numéros (le sien, à défaut celui d'un parent
-     * pour un enfant sans téléphone, et son contact d'urgence) ; les autres membres n'ont que son nom et sa photo.
+     * Positions partagées dans le groupe : celles des encadrants et des adhérents (`isCoach` les distingue sur la carte).
+     * Un encadrant d'une autre équipe de la séance (lecture seule) ne voit que celles des encadrants ; la position d'une
+     * personne retirée du groupe depuis n'est plus affichée.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function positionItems(TrainingGroup $group, bool $viewerIsSibling, \DateTimeImmutable $since): array
+    {
+        $out = [];
+        foreach ($this->positions->findFresh($group, $since) as $p) {
+            $owner = $p->getUser();
+            $ownerIsCoach = $group->hasCoach($owner);
+            if (!$ownerIsCoach && (!$group->hasMember($owner) || $viewerIsSibling)) {
+                continue;
+            }
+            $out[] = [
+                'userId' => $owner->getId(),
+                'fullName' => $owner->getFullName(),
+                'isCoach' => $ownerIsCoach,
+                'latitude' => $p->getLatitude(),
+                'longitude' => $p->getLongitude(),
+                'accuracy' => $p->getAccuracy(),
+                'updatedAt' => $p->getUpdatedAt()->format(\DATE_ATOM),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Un adhérent du groupe, selon ce que `$viewer` peut en lire (`$contact`) :
+     *  - `full` (encadrant du groupe) : ses numéros — le sien, à défaut celui d'un parent pour un enfant sans téléphone, et
+     *    son contact d'urgence ;
+     *  - `phone` (adhérent du groupe) : son propre numéro seulement, pour l'appeler ou lui écrire sur WhatsApp — jamais
+     *    celui d'un profil Jeune, ni un numéro de parent ou d'urgence ;
+     *  - `none` (encadrant d'un autre groupe de la séance) : son nom et sa photo.
      *
      * @return array<string, mixed>
      */
-    private function memberItem(User $user, bool $withContact): array
+    private function memberItem(User $user, User $viewer, string $contact): array
     {
         $item = [
             'id' => $user->getId(),
             'nom' => $user->getNom(),
             'prenom' => $user->getPrenom(),
             'avatarUrl' => $this->avatars->urlFor($user),
+            'isMe' => $user->getId() === $viewer->getId(),
         ];
-        if (!$withContact) {
+        if ($contact === 'none') {
             return $item;
+        }
+        if ($contact === 'phone') {
+            return $item + ['telephone' => $user->isJeune() ? null : self::cleanPhone($user->getTelephone())];
         }
 
         $phone = self::cleanPhone($user->getTelephone());
@@ -1232,7 +1274,11 @@ class TrainingGroupController extends AbstractController
         ];
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Un commentaire. `canDelete` : l'auteur peut supprimer le sien, un encadrant du groupe ceux de tous (modération).
+     *
+     * @return array<string, mixed>
+     */
     private function commentItem(TrainingGroupComment $comment, User $viewer, bool $viewerIsCoach): array
     {
         $author = $comment->getAuthor();
@@ -1246,7 +1292,7 @@ class TrainingGroupController extends AbstractController
             'latitude' => $comment->getLatitude(),
             'longitude' => $comment->getLongitude(),
             'createdAt' => $comment->getCreatedAt()->format(\DATE_ATOM),
-            'canDelete' => $viewerIsCoach && $author->getId() === $viewer->getId(),
+            'canDelete' => $viewerIsCoach || $author->getId() === $viewer->getId(),
         ];
     }
 }

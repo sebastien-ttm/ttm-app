@@ -10,14 +10,15 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * Groupe d'entraînement « à la volée », créé depuis l'espace Staff par un encadrant / entraîneur juste avant une
  * séance. Éphémère : il reste actif jusqu'à 8 h après le début de la séance (`expiresAt`, voir TrainingGroupService::expiryFor()) ou
- * jusqu'à ce qu'un encadrant le termine (`closedAt`).
+ * jusqu'à ce qu'un encadrant le supprime (`closedAt`).
  *
  * Le groupe est adossé à une séance de vélo ou de course à pied (voir `slotTemplate` / `slot`) : un encadrant /
  * entraîneur y a au plus un groupe, et un adhérent n'est que dans un groupe par séance. Le groupe a un nombre maximal
  * d'adhérents (`capacity`), une allure du club de 1 à 5 (`paceLevel`) et une vitesse (`speed`). Il peut être partagé avec
  * d'autres encadrants (`coaches`, qui le gèrent ensemble) ; les adhérents (`members`) le choisissent depuis le créneau
- * jusqu'au début de la séance, ou y sont ajoutés par un encadrant, et le voient dans leur onglet Entraînement, avec les
- * informations, la trace GPX, les commentaires et la position en direct des encadrants.
+ * tant que le groupe est actif (même une fois la séance commencée), ou y sont ajoutés par un encadrant, et le voient dans
+ * leur onglet Entraînement, avec les informations, la trace GPX, les commentaires (qu'ils peuvent écrire) et les
+ * positions partagées par les encadrants et les adhérents.
  */
 #[ORM\Entity(repositoryClass: TrainingGroupRepository::class)]
 #[ORM\Table(name: 'training_group')]
@@ -228,8 +229,8 @@ class TrainingGroup
     }
 
     /**
-     * La séance a-t-elle commencé ? Les adhérents ne choisissent ni ne quittent plus un groupe une fois la séance
-     * lancée (l'encadrant peut encore ajouter ou retirer des adhérents).
+     * La séance a-t-elle commencé ? (Information : les adhérents peuvent choisir ou quitter le groupe tant qu'il est
+     * actif, même une fois la séance lancée.)
      */
     public function hasStarted(?\DateTimeImmutable $now = null): bool
     {

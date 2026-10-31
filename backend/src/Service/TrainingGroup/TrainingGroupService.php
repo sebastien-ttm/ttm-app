@@ -22,7 +22,7 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class TrainingGroupService
 {
-    /** Un groupe reste actif jusqu'à ce délai après le DÉBUT de sa séance (ou jusqu'à ce qu'un encadrant le termine). */
+    /** Un groupe reste actif jusqu'à ce délai après le DÉBUT de sa séance (ou jusqu'à ce qu'un encadrant le supprime). */
     public const ACTIVE_AFTER_START = '+8 hours';
     /** On propose les séances des 14 prochains jours. */
     private const SESSION_HORIZON = '+14 days';
@@ -122,8 +122,8 @@ class TrainingGroupService
     }
 
     /**
-     * Fin de validité d'un groupe adossé à `$session` : 8 heures après le DÉBUT de la séance (il se termine avant si un
-     * encadrant clique sur « Terminer le groupe »).
+     * Fin de validité d'un groupe adossé à `$session` : 8 heures après le DÉBUT de la séance (il disparaît avant si un
+     * encadrant clique sur « Supprimer le groupe »).
      *
      * @param array{startsAt: \DateTimeImmutable} $session
      */
@@ -229,9 +229,9 @@ class TrainingGroupService
     }
 
     /**
-     * Un adhérent choisit ce groupe pour la séance (il quitte alors celui qu'il avait choisi pour la même séance).
-     * Refusé si le groupe est complet ou si la séance a commencé. Renvoie null en cas de succès, sinon le refus :
-     * `['code' => …, 'message' => …, 'status' => HTTP]`.
+     * Un adhérent choisit ce groupe pour la séance (il quitte alors celui qu'il avait choisi pour la même séance), même
+     * une fois la séance commencée : tant que le groupe est actif. Refusé si le groupe est complet ou terminé. Renvoie
+     * null en cas de succès, sinon le refus : `['code' => …, 'message' => …, 'status' => HTTP]`.
      *
      * @return array{code: string, message: string, status: int}|null
      */
@@ -239,10 +239,7 @@ class TrainingGroupService
     {
         $now = new \DateTimeImmutable();
         if (!$group->isActive($now) || !$group->isAttached()) {
-            return self::refusal('closed', 'Ce groupe n\'est plus ouvert aux inscriptions.', 409);
-        }
-        if ($group->hasStarted($now)) {
-            return self::refusal('closed', 'La séance a commencé : le choix du groupe est clos.', 409);
+            return self::refusal('closed', 'Ce groupe est terminé.', 409);
         }
         if (!$user->isActive() || !$user->isAdherent() || $group->hasCoach($user)) {
             return self::refusal('forbidden', 'Vous ne pouvez pas rejoindre ce groupe.', 403);
@@ -264,6 +261,7 @@ class TrainingGroupService
             foreach ($this->groupsOnSameSession($group) as $other) {
                 if ($other->getId() !== $group->getId() && $other->hasMember($user)) {
                     $other->removeMember($user);
+                    $this->forgetPosition($other, $user);
                 }
             }
             $group->addMember($user);
@@ -274,7 +272,7 @@ class TrainingGroupService
     }
 
     /**
-     * Un adhérent quitte le groupe qu'il avait choisi, tant que la séance n'a pas commencé.
+     * Un adhérent quitte le groupe qu'il avait choisi (sa position partagée est retirée).
      *
      * @return array{code: string, message: string, status: int}|null
      */
@@ -283,13 +281,20 @@ class TrainingGroupService
         if (!$group->hasMember($user)) {
             return null;
         }
-        if ($group->hasStarted()) {
-            return self::refusal('closed', 'La séance a commencé : demandez à l\'encadrant de vous retirer du groupe.', 409);
-        }
         $group->removeMember($user);
+        $this->forgetPosition($group, $user);
         $this->em->flush();
 
         return null;
+    }
+
+    /** Efface la position partagée de `$user` dans `$group` (il n'en fait plus partie). */
+    private function forgetPosition(TrainingGroup $group, User $user): void
+    {
+        $this->em->createQuery('DELETE FROM App\Entity\TrainingGroupPosition p WHERE p.trainingGroup = :g AND p.user = :u')
+            ->setParameter('g', $group)
+            ->setParameter('u', $user)
+            ->execute();
     }
 
     /**
@@ -310,6 +315,7 @@ class TrainingGroupService
         foreach ($group->getMembers()->toArray() as $current) {
             if (!in_array($current->getId(), $wantedIds, true)) {
                 $group->removeMember($current);
+                $this->forgetPosition($group, $current);
             }
         }
         $this->em->flush();
