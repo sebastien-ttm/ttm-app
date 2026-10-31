@@ -22,12 +22,12 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class TrainingGroupService
 {
-    /** Un groupe expire au plus tard 10 jours après la fin de sa séance, même si le planning n'a rien d'autre à proposer. */
-    private const MAX_AFTER_SESSION = '+10 days';
+    /** Un groupe reste actif jusqu'à ce délai après le DÉBUT de sa séance (ou jusqu'à ce qu'un encadrant le termine). */
+    public const ACTIVE_AFTER_START = '+8 hours';
     /** On propose les séances des 14 prochains jours. */
     private const SESSION_HORIZON = '+14 days';
-    /** Semaines de planning parcourues : l'horizon, plus de quoi trouver le créneau qui suit la dernière séance. */
-    private const PLANNING_WEEKS = 5;
+    /** Semaines de planning parcourues, à partir d'hier : de quoi couvrir l'horizon des séances proposées. */
+    private const PLANNING_WEEKS = 3;
     /** Les groupes terminés sont supprimés (données et fichiers) après ce délai. */
     private const PURGE_AFTER = '-7 days';
 
@@ -41,8 +41,7 @@ class TrainingGroupService
     }
 
     /**
-     * Toutes les séances non annulées du planning à partir d'hier (sert à trouver le créneau suivant), la plus proche
-     * d'abord.
+     * Toutes les séances non annulées du planning à partir d'hier, la plus proche d'abord.
      *
      * @return list<array{row: array<string, mixed>, title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, monday: \DateTimeImmutable, occ: string}>
      */
@@ -123,25 +122,14 @@ class TrainingGroupService
     }
 
     /**
-     * Fin de validité d'un groupe adossé à `$session` : début du créneau qui suit (« le groupe reste jusqu'au prochain
-     * créneau »), sans jamais finir avant la fin de la séance ni dépasser 10 jours après elle.
+     * Fin de validité d'un groupe adossé à `$session` : 8 heures après le DÉBUT de la séance (il se termine avant si un
+     * encadrant clique sur « Terminer le groupe »).
      *
-     * @param array{startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable} $session
+     * @param array{startsAt: \DateTimeImmutable} $session
      */
-    private function expiryFor(array $session, \DateTimeImmutable $now): \DateTimeImmutable
+    public static function expiryFor(array $session): \DateTimeImmutable
     {
-        $expiresAt = $session['endsAt'];
-        foreach ($this->sessions($now) as $other) {
-            if ($other['startsAt'] > $session['startsAt']) {
-                if ($other['startsAt'] > $expiresAt) {
-                    $expiresAt = $other['startsAt'];
-                }
-                break;
-            }
-        }
-        $cap = $session['endsAt']->modify(self::MAX_AFTER_SESSION);
-
-        return $expiresAt < $cap ? $expiresAt : $cap;
+        return $session['startsAt']->modify(self::ACTIVE_AFTER_START);
     }
 
     /**
@@ -166,9 +154,8 @@ class TrainingGroupService
     ): TrainingGroup {
         $this->purgeOld();
 
-        $now = new \DateTimeImmutable();
         $row = $session['row'];
-        $group = new TrainingGroup($creator, $this->expiryFor($session, $now));
+        $group = new TrainingGroup($creator, self::expiryFor($session));
         $group->setName($name)->setInfo($info)->setSession($session['title'], $session['startsAt'])
             ->setCapacity($capacity)->setPaceLevel($paceLevel)->setSpeed($speed);
 
@@ -197,6 +184,24 @@ class TrainingGroupService
         $monday = $group->getWeekStartsAt() ?? new \DateTimeImmutable('today');
 
         return $this->groups->findActiveOnOccurrence($group->getSlotTemplate()?->getId(), $group->getSlot()?->getId(), $monday, new \DateTimeImmutable());
+    }
+
+    /**
+     * `$user` encadre-t-il un groupe actif de la même séance que `$group` (le sien ou un autre) ? Les encadrants d'une même
+     * séance ont une vue en lecture seule sur les groupes des autres.
+     */
+    public function coachesOnSameSession(TrainingGroup $group, User $user): bool
+    {
+        if (!$group->isAttached()) {
+            return false;
+        }
+        foreach ($this->groupsOnSameSession($group) as $other) {
+            if ($other->hasCoach($user)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

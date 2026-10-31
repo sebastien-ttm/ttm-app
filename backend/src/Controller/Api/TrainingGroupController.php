@@ -32,7 +32,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Groupes d'entraînement (voir TrainingGroup).
  *
  *  - Encadrants / entraîneurs (espace Staff) : créent un groupe adossé à une séance de vélo ou de course à pied à venir
- *    (un groupe par encadrant et par séance, valable jusqu'au créneau suivant), avec un nombre maximal d'adhérents, une
+ *    (un groupe par encadrant et par séance, actif jusqu'à 8 h après le début de la séance ou jusqu'à ce qu'un encadrant le
+ *    termine), avec un nombre maximal d'adhérents, une
  *    allure du club (1 à 5) et une vitesse ; ils le partagent avec d'autres encadrants, y ajoutent des adhérents, une
  *    trace GPX, des informations, des commentaires (éventuellement avec un point GPS) et partagent leur position.
  *  - Adhérents : choisissent un groupe depuis le détail du créneau, jusqu'au début de la séance et dans la limite des
@@ -48,8 +49,11 @@ class TrainingGroupController extends AbstractController
     use StaffOnlyTrait;
     use StaffLiveStateTrait;
 
-    /** Une position plus ancienne est celle d'un partage abandonné : elle n'est plus montrée. */
-    private const POSITION_FRESH_MINUTES = 30;
+    /**
+     * Les encadrants partagent leur position à la demande (un appui sur la carte), pas en continu : une position reste
+     * affichée, avec son âge, pendant toute la vie du groupe (8 h après le début de la séance).
+     */
+    private const POSITION_FRESH_MINUTES = 8 * 60;
     private const COMMENT_LIMIT = 100;
     private const GPX_MAX_BYTES = 5_000_000;
     private const GPX_MAX_FILES = 5;
@@ -150,7 +154,8 @@ class TrainingGroupController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $group = $this->groupFor($id, $viewer);
+        // Encadrant ou adhérent du groupe ; à défaut, encadrant d'un autre groupe de la même séance (lecture seule).
+        $group = $this->groupFor($id, $viewer) ?? $this->siblingGroupFor($id, $viewer);
         if ($group === null) {
             return $this->notFound();
         }
@@ -166,7 +171,8 @@ class TrainingGroupController extends AbstractController
         $viewer = $this->getUser();
         $att = $this->attachments->find($id);
         $group = $att?->getTrainingGroup();
-        if ($att === null || $group === null || !$group->isActive() || !($group->hasCoach($viewer) || $group->hasMember($viewer))) {
+        if ($att === null || $group === null || !$group->isActive()
+            || !($group->hasCoach($viewer) || $group->hasMember($viewer) || $this->service->coachesOnSameSession($group, $viewer))) {
             throw $this->createNotFoundException();
         }
         $response = $this->files->fileResponse($att);
@@ -672,6 +678,17 @@ class TrainingGroupController extends AbstractController
         return $group !== null && $group->isActive() && ($group->hasCoach($viewer) || $group->hasMember($viewer)) ? $group : null;
     }
 
+    /**
+     * Groupe actif d'une séance sur laquelle l'utilisateur encadre un AUTRE groupe : les encadrants d'une même séance ont
+     * une vue en lecture seule sur les groupes des autres (infos, adhérents, trace, commentaires, positions).
+     */
+    private function siblingGroupFor(int $id, User $viewer): ?TrainingGroup
+    {
+        $group = $this->groups->find($id);
+
+        return $group !== null && $group->isActive() && $this->service->coachesOnSameSession($group, $viewer) ? $group : null;
+    }
+
     /** Groupe actif dont l'utilisateur est encadrant. */
     private function coachedGroup(int $id, User $viewer): ?TrainingGroup
     {
@@ -937,15 +954,19 @@ class TrainingGroupController extends AbstractController
             $groups = $this->groups->findActiveOnOccurrence($templateId, $slotId, $monday, $now);
         }
         $myGroupId = null;
+        $viewerCoaches = false;
         foreach ($groups as $g) {
             if ($g->hasMember($viewer)) {
                 $myGroupId = $g->getId();
+            }
+            if ($g->hasCoach($viewer)) {
+                $viewerCoaches = true;
             }
         }
         $start = new \DateTimeImmutable($row['date'].' '.$row['startTime']);
 
         return [
-            'groups' => array_map(fn (TrainingGroup $g) => $this->slotGroupItem($g, $viewer), $groups),
+            'groups' => array_map(fn (TrainingGroup $g) => $this->slotGroupItem($g, $viewer, $viewerCoaches), $groups),
             // La séance a commencé : plus de choix ni de retrait (l'encadrant gère encore son groupe).
             'closed' => $start <= $now,
             'canChoose' => $viewer->isAdherent() && $viewer->isActive(),
@@ -987,7 +1008,7 @@ class TrainingGroupController extends AbstractController
      *
      * @return array<string, mixed>
      */
-    private function slotGroupItem(TrainingGroup $group, User $viewer): array
+    private function slotGroupItem(TrainingGroup $group, User $viewer, bool $viewerCoachesSession = false): array
     {
         return [
             'id' => $group->getId(),
@@ -1001,11 +1022,44 @@ class TrainingGroupController extends AbstractController
             'full' => $group->isFull(),
             'isMember' => $group->hasMember($viewer),
             'isCoach' => $group->hasCoach($viewer),
+            // Le viewer peut ouvrir ce groupe : le sien, celui qu'il a choisi, ou — encadrant de la séance — celui d'un autre.
+            'canView' => $group->hasCoach($viewer) || $group->hasMember($viewer) || $viewerCoachesSession,
             'coaches' => array_map(
                 fn (User $u) => ['id' => $u->getId(), 'fullName' => $u->getFullName(), 'avatarUrl' => $this->avatars->urlFor($u)],
                 array_values($group->getCoaches()->toArray()),
             ),
         ];
+    }
+
+    /**
+     * Les AUTRES groupes actifs de la séance de `$group`, vus par un encadrant de cette séance : de quoi naviguer entre
+     * les groupes (nom, allure, places, encadrants) et repérer les siens.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function siblingItems(TrainingGroup $group, User $viewer): array
+    {
+        $out = [];
+        foreach ($this->service->groupsOnSameSession($group) as $other) {
+            if ($other->getId() === $group->getId()) {
+                continue;
+            }
+            $out[] = [
+                'id' => $other->getId(),
+                'name' => $other->displayName(),
+                'paceLevel' => $other->getPaceLevel(),
+                'speed' => $other->getSpeed(),
+                'capacity' => $other->getCapacity(),
+                'memberCount' => $other->getMembers()->count(),
+                'isMine' => $other->hasCoach($viewer),
+                'coaches' => array_map(
+                    static fn (User $u) => $u->getFullName(),
+                    array_values($other->getCoaches()->toArray()),
+                ),
+            ];
+        }
+
+        return $out;
     }
 
     private static function cleanPhone(?string $raw): ?string
@@ -1074,6 +1128,7 @@ class TrainingGroupController extends AbstractController
     private function detailState(TrainingGroup $group, User $viewer): array
     {
         $isCoach = $group->hasCoach($viewer);
+        $isSibling = !$isCoach && !$group->hasMember($viewer);
         $byName = static fn (User $a, User $b): int => [mb_strtolower($a->getNom()), mb_strtolower($a->getPrenom()), $a->getId()]
             <=> [mb_strtolower($b->getNom()), mb_strtolower($b->getPrenom()), $b->getId()];
 
@@ -1089,6 +1144,10 @@ class TrainingGroupController extends AbstractController
             'name' => $group->displayName(),
             'rawName' => $group->getName(),
             'isMember' => $group->hasMember($viewer),
+            // Vue en lecture seule d'un groupe d'une autre équipe d'encadrants de la même séance.
+            'isSibling' => $isSibling,
+            // Les autres groupes de la même séance, pour ceux qui encadrent la séance (navigation entre les groupes).
+            'siblings' => $isCoach || $isSibling ? $this->siblingItems($group, $viewer) : [],
             'info' => $group->getInfo(),
             'createdAt' => $group->getCreatedAt()->format(\DATE_ATOM),
             'expiresAt' => $group->getExpiresAt()->format(\DATE_ATOM),

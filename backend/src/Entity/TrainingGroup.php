@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Groupe d'entraînement « à la volée », créé depuis l'espace Staff par un encadrant / entraîneur juste avant une
- * séance. Éphémère : il reste valable jusqu'au prochain créneau (`expiresAt`, voir TrainingGroupService::plan()) ou
+ * séance. Éphémère : il reste actif jusqu'à 8 h après le début de la séance (`expiresAt`, voir TrainingGroupService::expiryFor()) ou
  * jusqu'à ce qu'un encadrant le termine (`closedAt`).
  *
  * Le groupe est adossé à une séance de vélo ou de course à pied (voir `slotTemplate` / `slot`) : un encadrant /
@@ -94,7 +94,7 @@ class TrainingGroup
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    /** Fin de validité : début du prochain créneau après la séance de référence. */
+    /** Fin de validité : 8 heures après le début de la séance (groupes plus anciens : début du créneau suivant). */
     #[ORM\Column]
     private \DateTimeImmutable $expiresAt;
 
