@@ -108,7 +108,7 @@ export function SlotGroupsCard({ slot }: { slot: TrainingSlot }) {
             </Text>
 
             <View style={styles.actions}>
-              {(g.isMember || g.isCoach) && (
+              {g.canView && (
                 <Pressable
                   onPress={() => router.push(('/training-group/' + g.id) as never)}
                   accessibilityRole="button"

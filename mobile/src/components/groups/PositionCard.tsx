@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { createElement, useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { TrainingGroupPosition } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -17,10 +17,14 @@ function useTick(ms: number): void {
 }
 
 /**
- * Position d'un encadrant partagée en direct : carte OpenStreetMap (sur le web, avec le repère au bon endroit, mise à
- * jour à chaque nouvelle position), âge de la position, et lien pour l'ouvrir dans l'appli de cartes.
+ * Position d'un encadrant, partagée à sa demande : carte OpenStreetMap (sur le web, avec le repère au bon endroit),
+ * âge de la position, et lien pour l'ouvrir dans l'appli de cartes. `own` : c'est MA position — des boutons, sur la
+ * carte, pour l'actualiser (une nouvelle localisation, envoyée tout de suite) ou la retirer.
  */
-export function PositionCard({ position }: { position: TrainingGroupPosition }) {
+export function PositionCard({ position, own }: {
+  position: TrainingGroupPosition;
+  own?: { busy: boolean; onUpdate: () => void; onRemove: () => void };
+}) {
   useTick(10_000);
   const { latitude, longitude } = position;
 
@@ -54,11 +58,42 @@ export function PositionCard({ position }: { position: TrainingGroupPosition }) 
           <Text style={styles.openLabel}>Ouvrir la carte</Text>
         </Pressable>
       </View>
+
+      {own && (
+        <View style={styles.ownActions}>
+          <Pressable
+            onPress={own.onUpdate}
+            disabled={own.busy}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.update, (pressed || own.busy) && { opacity: 0.8 }]}
+          >
+            {own.busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="refresh" size={16} color="#fff" />}
+            <Text style={styles.updateLabel}>{own.busy ? 'Localisation en cours…' : 'Actualiser ma position'}</Text>
+          </Pressable>
+          <Pressable
+            onPress={own.onRemove}
+            disabled={own.busy}
+            accessibilityRole="button"
+            accessibilityLabel="Retirer ma position"
+            style={({ pressed }) => [styles.remove, (pressed || own.busy) && { opacity: 0.6 }]}
+          >
+            <Text style={styles.removeLabel}>Retirer</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  ownActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  update: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42,
+    borderRadius: RADIUS.md, backgroundColor: COLORS.primary, paddingHorizontal: 12,
+  },
+  updateLabel: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  remove: { paddingHorizontal: 12, paddingVertical: 10 },
+  removeLabel: { fontSize: 13, fontWeight: '700', color: COLORS.error },
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,

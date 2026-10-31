@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,9 +30,8 @@ import { PositionCard } from '@/components/groups/PositionCard';
 import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useLiveSync } from '@/hooks/useLiveSync';
-import { type GeoPoint, formatPoint, getCurrentPoint, mapUrl } from '@/lib/geo';
+import { formatPoint, getCurrentPoint, mapUrl } from '@/lib/geo';
 import { canPickFile, pickFile } from '@/lib/pickFile';
-import { startSharing, stopSharing, useSharing, wakeLockSupported } from '@/lib/positionSharing';
 import { confirmAction } from '@/utils/confirm';
 import { formatRelativeFr } from '@/utils/html';
 
@@ -216,7 +215,7 @@ function CoachManager({ group, onChange }: { group: TrainingGroup; onChange: (g:
     return (
       <Pressable onPress={() => void show()} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}>
         <Ionicons name="people" size={18} color={COLORS.primary} />
-        <Text style={styles.addBtnLabel}>Partager avec d'autres encadrants</Text>
+        <Text style={styles.addBtnLabel}>Ajouter d'autres encadrants</Text>
       </Pressable>
     );
   }
@@ -256,34 +255,17 @@ function CoachManager({ group, onChange }: { group: TrainingGroup; onChange: (g:
   );
 }
 
-/** Saisie d'un commentaire d'encadrant : texte et / ou point GPS (position de l'appareil à l'instant). */
+/** Saisie d'un commentaire d'encadrant : un texte pour le groupe. */
 function CommentComposer({ groupId, onPosted }: { groupId: number; onPosted: () => void }) {
   const [text, setText] = useState('');
-  const [point, setPoint] = useState<GeoPoint | null>(null);
-  const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  async function attachPoint() {
-    setLocating(true);
-    try {
-      setPoint(await getCurrentPoint());
-    } catch (e) {
-      notify(e instanceof Error ? e.message : 'Localisation impossible.');
-    } finally {
-      setLocating(false);
-    }
-  }
-
   async function send() {
-    if (busy || (text.trim() === '' && point === null)) return;
+    if (busy || text.trim() === '') return;
     setBusy(true);
     try {
-      await trainingGroups.addComment(groupId, {
-        content: text.trim() || undefined,
-        ...(point ? { latitude: point.latitude, longitude: point.longitude } : {}),
-      });
+      await trainingGroups.addComment(groupId, { content: text.trim() });
       setText('');
-      setPoint(null);
       onPosted();
     } catch (e) {
       notify(errorText(e, 'Envoi impossible.'));
@@ -304,31 +286,11 @@ function CommentComposer({ groupId, onPosted }: { groupId: number; onPosted: () 
         style={[styles.input, styles.textareaSmall]}
         editable={!busy}
       />
-      {point && (
-        <View style={styles.pointChip}>
-          <Ionicons name="location" size={16} color={COLORS.primary} />
-          <Text style={styles.pointText} numberOfLines={1}>
-            Point GPS joint · {formatPoint(point.latitude, point.longitude)}{point.accuracy !== null ? ` (±${Math.round(point.accuracy)} m)` : ''}
-          </Text>
-          <Pressable onPress={() => setPoint(null)} hitSlop={10} accessibilityLabel="Retirer le point GPS">
-            <Ionicons name="close-circle" size={18} color={COLORS.textSubtle} />
-          </Pressable>
-        </View>
-      )}
       <View style={styles.actions}>
         <Pressable
-          onPress={() => void attachPoint()}
-          disabled={locating || busy}
-          style={({ pressed }) => [styles.smallBtn, styles.ghost, { flexDirection: 'row', gap: 6 }, pressed && { opacity: 0.7 }]}
-          accessibilityRole="button"
-        >
-          {locating ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="location-outline" size={16} color={COLORS.primary} />}
-          <Text style={styles.ghostLabel}>{point ? 'Actualiser le point' : 'Joindre ma position'}</Text>
-        </Pressable>
-        <Pressable
           onPress={() => void send()}
-          disabled={busy || (text.trim() === '' && point === null)}
-          style={[styles.smallBtn, styles.primary, (busy || (text.trim() === '' && point === null)) && { opacity: 0.45 }]}
+          disabled={busy || text.trim() === ''}
+          style={[styles.smallBtn, styles.primary, (busy || text.trim() === '') && { opacity: 0.45 }]}
         >
           {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryLabel}>Publier</Text>}
         </Pressable>
@@ -389,7 +351,9 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   const [left, setLeft] = useState(false);
   const [picker, setPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const { sharing, error: shareError, awake } = useSharing(groupId);
+  // Partage de position à la demande (un appui sur la carte) : occupé / dernière erreur de localisation.
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const { online, resync } = useLiveSync<TrainingGroup>({
     enabled: !gone,
@@ -416,11 +380,6 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     }
   }, [groupId, resync]);
 
-  // Groupe terminé : plus de partage de position.
-  useEffect(() => {
-    if (gone) void stopSharing(false);
-  }, [gone]);
-
   if (left) {
     return (
       <View style={styles.center}>
@@ -438,7 +397,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     return (
       <View style={styles.center}>
         <Text style={styles.endedTitle}>Ce groupe est terminé</Text>
-        <Text style={styles.muted}>Un groupe se termine au prochain créneau d'entraînement, ou quand un encadrant le termine.</Text>
+        <Text style={styles.muted}>Un groupe se termine 8 heures après le début de la séance, ou quand un encadrant le termine.</Text>
         {onGone && (
           <Pressable onPress={onGone} style={[styles.smallBtn, styles.primary, { marginTop: SPACING.md }]}>
             <Text style={styles.primaryLabel}>Retour</Text>
@@ -452,6 +411,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   }
 
   const isCoach = group.isCoach;
+  const myId = group.coaches.find((c) => c.isMe)?.id;
 
   async function addGpx() {
     if (!canPickFile) {
@@ -513,10 +473,43 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     } as never);
   }
 
+  /** Envoie MA position, une fois : la carte du groupe se met à jour, et reste ainsi jusqu'à la prochaine demande. */
+  async function shareMyPosition() {
+    if (sharingBusy) return;
+    setSharingBusy(true);
+    setShareError(null);
+    try {
+      const p = await getCurrentPoint();
+      await trainingGroups.setPosition(groupId, {
+        latitude: p.latitude,
+        longitude: p.longitude,
+        ...(p.accuracy !== null ? { accuracy: Math.round(p.accuracy) } : {}),
+      });
+      await reload();
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'Partage de la position impossible.');
+    } finally {
+      setSharingBusy(false);
+    }
+  }
+
+  async function removeMyPosition() {
+    if (sharingBusy) return;
+    setSharingBusy(true);
+    setShareError(null);
+    try {
+      await trainingGroups.stopPosition(groupId);
+      await reload();
+    } catch (e) {
+      setShareError(errorText(e, 'Impossible de retirer votre position.'));
+    } finally {
+      setSharingBusy(false);
+    }
+  }
+
   async function endGroup() {
     if (!(await confirmAction('Terminer le groupe ?', 'Il disparaîtra pour tous ses membres.', 'Terminer'))) return;
     try {
-      await stopSharing(true);
       await trainingGroups.close(groupId);
       setGone(true);
       onGone?.();
@@ -528,7 +521,6 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   async function leaveGroup() {
     if (!(await confirmAction('Quitter ce groupe ?', 'Les autres encadrants le gardent ; s\'il n\'y en a pas, il se termine.', 'Quitter'))) return;
     try {
-      await stopSharing(true);
       await trainingGroups.leave(groupId);
       setGone(true);
       onGone?.();
@@ -575,35 +567,68 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
         <LiveStatus online={online} />
       </View>
 
+      {group.isSibling && (
+        <View style={styles.siblingBanner}>
+          <Text style={styles.siblingBannerText}>
+            👀 Groupe de {group.coaches.map((c) => c.fullName).join(', ')} — vous le consultez en lecture seule, car vous
+            encadrez un autre groupe de cette séance.
+          </Text>
+        </View>
+      )}
+
       {(group.positions.length > 0 || isCoach) && (
-        <Section title="📍 Position en direct">
-          {group.positions.map((p) => <PositionCard key={p.userId} position={p} />)}
-          {group.positions.length === 0 && <Text style={styles.muted}>Aucun encadrant ne partage sa position pour le moment.</Text>}
-          {isCoach && (
-            <>
-              <Pressable
-                onPress={() => (sharing ? void stopSharing(true) : startSharing(groupId))}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.shareBtn, sharing && styles.shareBtnOn, pressed && { opacity: 0.85 }]}
-              >
-                <Ionicons name={sharing ? 'stop-circle' : 'navigate-circle'} size={20} color={sharing ? '#fff' : COLORS.primary} />
-                <Text style={[styles.shareLabel, sharing && { color: '#fff' }]}>
-                  {sharing ? 'Arrêter le partage de ma position' : 'Partager ma position en direct'}
-                </Text>
-              </Pressable>
-              {sharing && !shareError && (
-                <Text style={styles.hint}>
-                  Votre position est mise à jour pour le groupe toutes les 15 secondes.{' '}
-                  {awake
-                    ? 'L\'écran reste allumé tant que le partage est actif : gardez l\'appli affichée au premier plan et pensez à arrêter le partage à la fin de la séance.'
-                    : wakeLockSupported()
-                      ? 'Gardez l\'appli affichée au premier plan : le partage s\'interrompt quand l\'écran s\'éteint ou que vous changez d\'appli.'
-                      : 'Votre navigateur ne peut pas garder l\'écran allumé : désactivez la mise en veille et gardez l\'appli affichée au premier plan, sinon le partage s\'interrompt.'}
-                </Text>
-              )}
-              {shareError && <Text style={styles.errorInline}>{shareError}</Text>}
-            </>
+        <Section title="📍 Position des encadrants">
+          {group.positions.map((p) => (
+            <PositionCard
+              key={p.userId}
+              position={p}
+              own={isCoach && p.userId === myId
+                ? { busy: sharingBusy, onUpdate: () => void shareMyPosition(), onRemove: () => void removeMyPosition() }
+                : undefined}
+            />
+          ))}
+          {group.positions.length === 0 && <Text style={styles.muted}>Aucun encadrant n'a partagé sa position pour le moment.</Text>}
+          {isCoach && !group.positions.some((p) => p.userId === myId) && (
+            <Pressable
+              onPress={() => void shareMyPosition()}
+              disabled={sharingBusy}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.shareBtn, (pressed || sharingBusy) && { opacity: 0.85 }]}
+            >
+              {sharingBusy ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="navigate-circle" size={20} color={COLORS.primary} />}
+              <Text style={styles.shareLabel}>{sharingBusy ? 'Localisation en cours…' : 'Partager ma position'}</Text>
+            </Pressable>
           )}
+          {isCoach && (
+            <Text style={styles.hint}>
+              Votre position n'est envoyée que lorsque vous appuyez sur le bouton : elle ne se met pas à jour toute seule
+              (un téléphone en veille ne la suit plus). Appuyez de nouveau pour l'actualiser.
+            </Text>
+          )}
+          {shareError && <Text style={styles.errorInline}>{shareError}</Text>}
+        </Section>
+      )}
+
+      {(isCoach || group.isSibling) && group.siblings.length > 0 && (
+        <Section title={'👥 Autres groupes de la séance (' + group.siblings.length + ')'}>
+          {group.siblings.map((g) => (
+            <Pressable
+              key={g.id}
+              onPress={() => router.push(('/training-group/' + g.id) as never)}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.siblingCard, pressed && { opacity: 0.8 }]}
+            >
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={styles.siblingName} numberOfLines={2}>{g.name}{g.isMine ? ' (le vôtre)' : ''}</Text>
+                <PaceBadge level={g.paceLevel} speed={g.speed} />
+                <Text style={styles.sub} numberOfLines={2}>
+                  {g.memberCount}{g.capacity !== null ? '/' + g.capacity : ''} adhérent{g.memberCount > 1 ? 's' : ''}
+                  {g.coaches.length > 0 ? ' · ' + g.coaches.join(', ') : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          ))}
         </Section>
       )}
 
@@ -722,9 +747,12 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
 
       {isCoach && (
         <View style={styles.dangerZone}>
-          <Pressable onPress={() => void leaveGroup()} style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.dangerLabel}>Quitter le groupe</Text>
-          </Pressable>
+          {/* Seul encadrant : il n'y a personne pour reprendre le groupe, il ne peut que le terminer. */}
+          {group.coaches.length > 1 && (
+            <Pressable onPress={() => void leaveGroup()} style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.7 }]}>
+              <Text style={styles.dangerLabel}>Quitter le groupe</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => void endGroup()} style={({ pressed }) => [styles.dangerBtn, styles.dangerBtnStrong, pressed && { opacity: 0.7 }]}>
             <Text style={[styles.dangerLabel, { color: '#fff' }]}>Terminer le groupe</Text>
           </Pressable>
@@ -805,6 +833,16 @@ const styles = StyleSheet.create({
   personRowOn: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
   personName: { flex: 1, fontSize: 14, color: COLORS.text },
   nom: { fontWeight: '700' },
+  siblingBanner: {
+    padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.secondarySoft,
+    borderLeftWidth: 4, borderLeftColor: COLORS.secondary,
+  },
+  siblingBannerText: { fontSize: 13, color: COLORS.secondaryDark, lineHeight: 19, fontWeight: '600' },
+  siblingCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: SPACING.md,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceAlt,
+  },
+  siblingName: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   // Adhérent du groupe : avatar à gauche, nom + boutons au centre (en colonne), retrait à droite.
   memberRow: {

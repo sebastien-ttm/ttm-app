@@ -1312,6 +1312,19 @@ export type TrainingGroupFacts = {
   started: boolean;
 };
 
+/** Un autre groupe de la même séance, vu par un encadrant de la séance. */
+export type TrainingGroupSibling = {
+  id: number;
+  name: string;
+  paceLevel: number | null;
+  speed: string | null;
+  capacity: number | null;
+  memberCount: number;
+  /** C'est un groupe que j'encadre moi-même. */
+  isMine: boolean;
+  coaches: string[];
+};
+
 export type TrainingGroup = TrainingGroupFacts & {
   id: number;
   /** Nom affiché (« Groupe de Marc » par défaut). */
@@ -1326,6 +1339,10 @@ export type TrainingGroup = TrainingGroupFacts & {
   isCoach: boolean;
   /** J'ai choisi ce groupe (ou un encadrant m'y a ajouté). */
   isMember: boolean;
+  /** Lecture seule : groupe d'un autre encadrant de la même séance (je n'en suis ni encadrant ni membre). */
+  isSibling: boolean;
+  /** Les autres groupes de la séance, pour les encadrants de la séance (vide pour un simple adhérent). */
+  siblings: TrainingGroupSibling[];
   session: TrainingGroupSession | null;
   coaches: TrainingGroupCoach[];
   members: TrainingGroupMember[];
@@ -1388,6 +1405,8 @@ export type SlotGroup = {
   full: boolean;
   isMember: boolean;
   isCoach: boolean;
+  /** Je peux ouvrir ce groupe : le mien, celui que j'ai choisi, ou — encadrant de la séance — celui d'un autre encadrant. */
+  canView: boolean;
   coaches: { id: number; fullName: string; avatarUrl: string | null }[];
 };
 

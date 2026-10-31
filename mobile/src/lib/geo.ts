@@ -1,13 +1,11 @@
 /**
  * Localisation de l'appareil (API de géolocalisation du navigateur ; sur mobile natif, celle de React Native) et liens
- * de carte. Utilisée par les groupes d'entraînement : point GPS joint à un commentaire et position partagée en direct.
+ * de carte. Utilisée par les groupes d'entraînement : un encadrant partage sa position à la demande, en un appui.
  */
 export type GeoPoint = { latitude: number; longitude: number; accuracy: number | null };
 
 type GeoProvider = {
   getCurrentPosition: (ok: (p: GeolocationPosition) => void, ko: (e: GeolocationPositionError) => void, o?: PositionOptions) => void;
-  watchPosition: (ok: (p: GeolocationPosition) => void, ko: (e: GeolocationPositionError) => void, o?: PositionOptions) => number;
-  clearWatch: (id: number) => void;
 };
 
 function provider(): GeoProvider | null {
@@ -48,20 +46,6 @@ export function getCurrentPoint(): Promise<GeoPoint> {
     }
     geo.getCurrentPosition((p) => resolve(toPoint(p)), (e) => reject(new Error(errorMessage(e))), OPTIONS);
   });
-}
-
-/**
- * Suit la position de l'appareil : `onPoint` est appelé à chaque nouvelle position. Renvoie la fonction qui arrête le
- * suivi. `onError` reçoit un message en français (refus de la localisation, GPS indisponible…).
- */
-export function watchPoint(onPoint: (point: GeoPoint) => void, onError: (message: string) => void): () => void {
-  const geo = provider();
-  if (!geo) {
-    onError('La localisation n\'est pas disponible sur cet appareil.');
-    return () => undefined;
-  }
-  const id = geo.watchPosition((p) => onPoint(toPoint(p)), (e) => onError(errorMessage(e)), OPTIONS);
-  return () => geo.clearWatch(id);
 }
 
 /** Lien OpenStreetMap vers un point (ouvre la carte, ou l'appli de cartes du téléphone). */

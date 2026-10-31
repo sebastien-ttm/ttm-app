@@ -103,7 +103,8 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
         <Text style={styles.introText}>
           Un groupe est adossé à une séance de vélo ou de course à pied. Les adhérents le choisissent depuis le créneau,
           jusqu'au début de la séance, dans la limite des places ; vous pouvez aussi y ajouter des adhérents. Il reste
-          ensuite actif jusqu'au créneau suivant : informations, trace GPX, commentaires et votre position en direct.
+          actif jusqu'à 8 heures après le début de la séance, ou jusqu'à ce que vous le terminiez : informations, trace GPX,
+          commentaires et votre position, partagée à votre demande.
         </Text>
         {onCancel && (
           <Pressable onPress={onCancel} accessibilityRole="button" style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.6 }]}>
@@ -205,7 +206,7 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
 
       {candidates.length > 0 && (
         <>
-          <Text style={styles.label}>Partager avec d'autres encadrants (facultatif)</Text>
+          <Text style={styles.label}>Ajouter d'autres encadrants (facultatif)</Text>
           {candidates.map((c) => {
             const busyElsewhere = c.activeGroupId !== null;
             const on = coachIds.has(c.id);
