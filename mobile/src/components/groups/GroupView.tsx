@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,7 @@ import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
 import { CapacityStepper, PaceBadge, PaceLevelPicker } from '@/components/groups/GroupFields';
+import { COACH_COLOR, GroupMap } from '@/components/groups/GroupMap';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { PositionCard } from '@/components/groups/PositionCard';
 import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
@@ -60,6 +61,12 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
   );
 }
 
+/**
+ * Brouillons en cours d'édition dans la vue : chaque éditeur ouvert s'y inscrit (une fonction qui l'enregistre et dit si
+ * ça a réussi), pour que « Sauvegarder » enregistre ce qui n'a pas encore été validé avant de quitter l'écran.
+ */
+const DraftsContext = createContext<Set<() => Promise<boolean>> | null>(null);
+
 /** Texte modifiable par un encadrant : affichage, « Modifier », éditeur en ligne (peut être vidé). */
 function InlineEdit({ value, placeholder, empty, multiline, maxLength, canEdit, onSave, textStyle }: {
   value: string | null;
@@ -71,21 +78,39 @@ function InlineEdit({ value, placeholder, empty, multiline, maxLength, canEdit, 
   onSave: (next: string) => Promise<void>;
   textStyle?: StyleProp<TextStyle>;
 }) {
+  const drafts = useContext(DraftsContext);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? '');
   const [busy, setBusy] = useState(false);
 
-  async function save() {
+  /** Enregistre le brouillon (rien à envoyer s'il n'a pas changé) ; false si l'enregistrement a échoué. */
+  async function save(): Promise<boolean> {
+    if (draft.trim() === (value ?? '').trim()) {
+      setEditing(false);
+      return true;
+    }
     setBusy(true);
     try {
       await onSave(draft.trim());
       setEditing(false);
+      return true;
     } catch (e) {
       notify(errorText(e, 'Enregistrement impossible.'));
+      return false;
     } finally {
       setBusy(false);
     }
   }
+
+  // Tant que l'éditeur est ouvert, « Sauvegarder » (en bas de l'écran) l'enregistre aussi.
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    if (!editing || !drafts) return;
+    const flush = () => saveRef.current();
+    drafts.add(flush);
+    return () => { drafts.delete(flush); };
+  }, [editing, drafts]);
 
   if (editing) {
     return (
@@ -255,7 +280,7 @@ function CoachManager({ group, onChange }: { group: TrainingGroup; onChange: (g:
   );
 }
 
-/** Saisie d'un commentaire d'encadrant : un texte pour le groupe. */
+/** Saisie d'un commentaire (encadrant ou adhérent du groupe) : un texte pour le groupe. */
 function CommentComposer({ groupId, onPosted }: { groupId: number; onPosted: () => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -299,7 +324,13 @@ function CommentComposer({ groupId, onPosted }: { groupId: number; onPosted: () 
   );
 }
 
-function CommentItem({ comment, groupId, onDeleted }: { comment: TrainingGroupComment; groupId: number; onDeleted: () => void }) {
+function CommentItem({ comment, groupId, byCoach, onDeleted }: {
+  comment: TrainingGroupComment;
+  groupId: number;
+  /** L'auteur est un encadrant du groupe. */
+  byCoach: boolean;
+  onDeleted: () => void;
+}) {
   async function remove() {
     if (!(await confirmAction('Supprimer ce commentaire ?', 'Il disparaîtra pour tout le groupe.', 'Supprimer'))) return;
     try {
@@ -313,7 +344,10 @@ function CommentItem({ comment, groupId, onDeleted }: { comment: TrainingGroupCo
   return (
     <View style={styles.comment}>
       <View style={styles.commentHead}>
-        <Text style={styles.commentAuthor} numberOfLines={1}>{comment.authorName}</Text>
+        <Text style={styles.commentAuthor} numberOfLines={1}>
+          {comment.authorName}
+          {byCoach ? <Text style={styles.commentCoach}>  Encadrant</Text> : null}
+        </Text>
         <Text style={styles.commentTime}>{formatRelativeFr(comment.createdAt)}</Text>
         {comment.canDelete && (
           <Pressable onPress={() => void remove()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Supprimer ce commentaire">
@@ -340,17 +374,21 @@ function CommentItem({ comment, groupId, onDeleted }: { comment: TrainingGroupCo
 
 /**
  * Un groupe d'entraînement. Les encadrants du groupe le gèrent (nom, informations, adhérents, encadrants, trace GPX,
- * commentaires, position en direct, fin du groupe) ; les adhérents le consultent (informations, encadrants, autres
- * membres, trace GPX, commentaires, position des encadrants). L'écran se met à jour tout seul toutes les quelques
- * secondes. `onGone` : appelé quand le groupe n'existe plus (terminé, expiré ou quitté).
+ * commentaires, position, suppression du groupe) ; les adhérents le consultent (informations, encadrants, autres
+ * membres avec leurs boutons d'appel et WhatsApp, trace GPX) et y participent : commentaires, et partage de leur
+ * position à leur demande, visible sur la carte des encadrants et des adhérents du groupe. L'écran se met à jour tout
+ * seul toutes les quelques secondes. `onGone` : appelé quand le groupe n'existe plus (supprimé, expiré ou quitté).
+ * `onDone` : si fourni, un bouton « Sauvegarder » (encadrant) enregistre les modifications en cours et l'appelle.
  */
-export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () => void }) {
+export function GroupView({ groupId, onGone, onDone }: { groupId: number; onGone?: () => void; onDone?: () => void }) {
   const [group, setGroup] = useState<TrainingGroup | null>(null);
   const router = useRouter();
   const [gone, setGone] = useState(false);
   const [left, setLeft] = useState(false);
   const [picker, setPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const drafts = useRef(new Set<() => Promise<boolean>>());
+  const [savingAll, setSavingAll] = useState(false);
   // Partage de position à la demande (un appui sur la carte) : occupé / dernière erreur de localisation.
   const [sharingBusy, setSharingBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -384,7 +422,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     return (
       <View style={styles.center}>
         <Text style={styles.endedTitle}>Vous avez quitté ce groupe</Text>
-        <Text style={styles.muted}>Vous pouvez en choisir un autre depuis le créneau d'entraînement, tant que la séance n'a pas commencé.</Text>
+        <Text style={styles.muted}>Vous pouvez en choisir un autre depuis le créneau d'entraînement, tant que les groupes de la séance sont actifs.</Text>
         {onGone && (
           <Pressable onPress={onGone} style={[styles.smallBtn, styles.primary, { marginTop: SPACING.md }]}>
             <Text style={styles.primaryLabel}>Retour</Text>
@@ -397,7 +435,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
     return (
       <View style={styles.center}>
         <Text style={styles.endedTitle}>Ce groupe est terminé</Text>
-        <Text style={styles.muted}>Un groupe se termine 8 heures après le début de la séance, ou quand un encadrant le termine.</Text>
+        <Text style={styles.muted}>Un groupe disparaît 8 heures après le début de la séance, ou quand un encadrant le supprime.</Text>
         {onGone && (
           <Pressable onPress={onGone} style={[styles.smallBtn, styles.primary, { marginTop: SPACING.md }]}>
             <Text style={styles.primaryLabel}>Retour</Text>
@@ -411,7 +449,11 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   }
 
   const isCoach = group.isCoach;
-  const myId = group.coaches.find((c) => c.isMe)?.id;
+  // Je participe au groupe (encadrant ou adhérent) : je commente et je partage ma position ; un encadrant d'un autre
+  // groupe de la séance (lecture seule) ne fait que consulter.
+  const isParticipant = isCoach || group.isMember;
+  const myId = group.coaches.find((c) => c.isMe)?.id ?? group.members.find((m) => m.isMe)?.id;
+  const coachIds = new Set(group.coaches.map((c) => c.id));
 
   async function addGpx() {
     if (!canPickFile) {
@@ -455,7 +497,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   }
 
   async function leaveAsMember() {
-    if (!(await confirmAction('Quitter ce groupe ?', 'Votre place sera libérée ; vous pourrez en choisir un autre depuis le créneau tant que la séance n\'a pas commencé.', 'Quitter'))) return;
+    if (!(await confirmAction('Quitter ce groupe ?', 'Votre place sera libérée et votre position partagée retirée ; vous pourrez en choisir un autre depuis le créneau.', 'Quitter'))) return;
     try {
       await trainingGroups.leaveAsMember(groupId);
       setLeft(true);
@@ -508,13 +550,27 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   }
 
   async function endGroup() {
-    if (!(await confirmAction('Terminer le groupe ?', 'Il disparaîtra pour tous ses membres.', 'Terminer'))) return;
+    if (!(await confirmAction('Supprimer le groupe ?', 'Il disparaîtra pour tous ses membres.', 'Supprimer'))) return;
     try {
       await trainingGroups.close(groupId);
       setGone(true);
       onGone?.();
     } catch (e) {
-      notify(errorText(e, 'Impossible de terminer le groupe.'));
+      notify(errorText(e, 'Impossible de supprimer le groupe.'));
+    }
+  }
+
+  /** Enregistre les éditeurs encore ouverts (nom, informations, vitesse), puis revient à l'écran précédent. */
+  async function saveAndBack() {
+    if (savingAll) return;
+    setSavingAll(true);
+    try {
+      for (const flush of [...drafts.current]) {
+        if (!(await flush())) return; // l'erreur est déjà affichée : on reste sur l'écran
+      }
+      onDone?.();
+    } finally {
+      setSavingAll(false);
     }
   }
 
@@ -530,6 +586,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
   }
 
   return (
+    <DraftsContext.Provider value={drafts.current}>
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 4 }}>
@@ -576,19 +633,22 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
         </View>
       )}
 
-      {(group.positions.length > 0 || isCoach) && (
-        <Section title="📍 Position des encadrants">
-          {group.positions.map((p) => (
+      {(group.positions.length > 0 || isParticipant) && (
+        <Section title="📍 Positions du groupe">
+          <GroupMap positions={group.positions} myId={myId} />
+          {/* Encadrants d'abord ; chacun avec son nom, sa couleur (rouge : encadrant, bleu : adhérent) et son âge. */}
+          {[...group.positions].sort((a, b) => Number(b.isCoach) - Number(a.isCoach)).map((p) => (
             <PositionCard
               key={p.userId}
               position={p}
-              own={isCoach && p.userId === myId
+              isMe={p.userId === myId}
+              own={isParticipant && p.userId === myId
                 ? { busy: sharingBusy, onUpdate: () => void shareMyPosition(), onRemove: () => void removeMyPosition() }
                 : undefined}
             />
           ))}
-          {group.positions.length === 0 && <Text style={styles.muted}>Aucun encadrant n'a partagé sa position pour le moment.</Text>}
-          {isCoach && !group.positions.some((p) => p.userId === myId) && (
+          {group.positions.length === 0 && <Text style={styles.muted}>Personne n'a partagé sa position pour le moment.</Text>}
+          {isParticipant && !group.positions.some((p) => p.userId === myId) && (
             <Pressable
               onPress={() => void shareMyPosition()}
               disabled={sharingBusy}
@@ -599,10 +659,11 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
               <Text style={styles.shareLabel}>{sharingBusy ? 'Localisation en cours…' : 'Partager ma position'}</Text>
             </Pressable>
           )}
-          {isCoach && (
+          {isParticipant && (
             <Text style={styles.hint}>
               Votre position n'est envoyée que lorsque vous appuyez sur le bouton : elle ne se met pas à jour toute seule
-              (un téléphone en veille ne la suit plus). Appuyez de nouveau pour l'actualiser.
+              (un téléphone en veille ne la suit plus). Elle est visible des encadrants et des adhérents du groupe, avec
+              votre nom ; vous pouvez la retirer à tout moment.
             </Text>
           )}
           {shareError && <Text style={styles.errorInline}>{shareError}</Text>}
@@ -675,9 +736,11 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
       </Section>
 
       <Section title="💬 Commentaires">
-        {isCoach && <CommentComposer groupId={groupId} onPosted={() => void reload()} />}
+        {isParticipant && <CommentComposer groupId={groupId} onPosted={() => void reload()} />}
         {group.comments.length === 0 && <Text style={styles.muted}>Aucun commentaire pour le moment.</Text>}
-        {group.comments.map((c) => <CommentItem key={c.id} comment={c} groupId={groupId} onDeleted={() => void reload()} />)}
+        {group.comments.map((c) => (
+          <CommentItem key={c.id} comment={c} groupId={groupId} byCoach={coachIds.has(c.authorId)} onDeleted={() => void reload()} />
+        ))}
       </Section>
 
       <Section title={`🧢 Encadrants (${group.coaches.length})`}>
@@ -705,11 +768,17 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
               <View style={styles.memberBody}>
                 <View style={styles.memberNameBox}>
                   <Text style={styles.memberName} numberOfLines={2}>
-                    <Text style={styles.nom}>{m.nom.toUpperCase()}</Text> {m.prenom}
+                    <Text style={styles.nom}>{m.nom.toUpperCase()}</Text> {m.prenom}{m.isMe ? ' (vous)' : ''}
                   </Text>
                 </View>
                 {isCoach && m.telephoneOf ? <Text style={styles.hint}>Joignable via {m.telephoneOf} (parent)</Text> : null}
                 {isCoach && !m.telephone ? <Text style={styles.hint}>Numéro non renseigné</Text> : null}
+                {/* Adhérent du groupe : appel et WhatsApp vers les autres adhérents (leur propre numéro seulement). */}
+                {!isCoach && group.isMember && !m.isMe && m.telephone ? (
+                  <View style={styles.memberActions}>
+                    <ContactButtons name={label} telephone={m.telephone} />
+                  </View>
+                ) : null}
                 {isCoach && (
                   <View style={styles.memberActions}>
                     {m.isJeune && <YouthDocsButton youthId={m.id} name={label} />}
@@ -732,7 +801,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
             </View>
           );
         })}
-        {!isCoach && group.isMember && !group.started && (
+        {!isCoach && group.isMember && (
           <Pressable onPress={() => void leaveAsMember()} accessibilityRole="button" style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.7 }]}>
             <Text style={styles.dangerLabel}>Quitter ce groupe</Text>
           </Pressable>
@@ -745,16 +814,30 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
         )}
       </Section>
 
+      {isCoach && onDone && (
+        // Les modifications se font sur place ; « Sauvegarder » enregistre celles qui seraient encore en cours de saisie
+        // (nom, informations, vitesse) puis revient à l'écran précédent (Entraînements).
+        <Pressable
+          onPress={() => void saveAndBack()}
+          disabled={savingAll}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.saveBtn, (pressed || savingAll) && { opacity: 0.8 }]}
+        >
+          {savingAll ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="checkmark-circle" size={20} color="#fff" />}
+          <Text style={styles.saveLabel}>{savingAll ? 'Enregistrement…' : 'Sauvegarder'}</Text>
+        </Pressable>
+      )}
+
       {isCoach && (
         <View style={styles.dangerZone}>
-          {/* Seul encadrant : il n'y a personne pour reprendre le groupe, il ne peut que le terminer. */}
+          {/* Seul encadrant : il n'y a personne pour reprendre le groupe, il ne peut que le supprimer. */}
           {group.coaches.length > 1 && (
             <Pressable onPress={() => void leaveGroup()} style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.7 }]}>
               <Text style={styles.dangerLabel}>Quitter le groupe</Text>
             </Pressable>
           )}
           <Pressable onPress={() => void endGroup()} style={({ pressed }) => [styles.dangerBtn, styles.dangerBtnStrong, pressed && { opacity: 0.7 }]}>
-            <Text style={[styles.dangerLabel, { color: '#fff' }]}>Terminer le groupe</Text>
+            <Text style={[styles.dangerLabel, { color: '#fff' }]}>Supprimer le groupe</Text>
           </Pressable>
         </View>
       )}
@@ -777,6 +860,7 @@ export function GroupView({ groupId, onGone }: { groupId: number; onGone?: () =>
         />
       )}
     </ScrollView>
+    </DraftsContext.Provider>
   );
 }
 
@@ -858,6 +942,12 @@ const styles = StyleSheet.create({
   comment: { gap: 4, padding: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   commentAuthor: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text },
+  commentCoach: { fontSize: 11, fontWeight: '800', color: COACH_COLOR },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48,
+    borderRadius: RADIUS.md, backgroundColor: COLORS.primary, marginTop: SPACING.sm,
+  },
+  saveLabel: { fontSize: 16, fontWeight: '800', color: '#fff' },
   commentTime: { fontSize: 11, color: COLORS.textMuted },
   pointLink: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pointLinkLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.secondaryDark },

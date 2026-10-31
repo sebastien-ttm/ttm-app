@@ -67,9 +67,9 @@ export function SlotGroupsCard({ slot }: { slot: TrainingSlot }) {
       <Text style={styles.cardTitle}>Groupes ({data.groups.length})</Text>
       <Text style={styles.intro}>
         {data.closed
-          ? 'La séance a commencé : le choix du groupe est clos.'
+          ? 'Les groupes de cette séance sont terminés.'
           : data.canChoose
-            ? 'Choisissez votre groupe avant la séance : un seul groupe par séance, dans la limite des places.'
+            ? 'Choisissez votre groupe, même une fois la séance commencée : un seul groupe par séance, dans la limite des places.'
             : 'Les groupes de cette séance.'}
       </Text>
 

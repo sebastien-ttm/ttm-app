@@ -1238,14 +1238,17 @@ export type TrainingGroupCoach = {
 };
 
 /**
- * Adhérent du groupe. `telephone`, `telephoneOf` et `telephoneUrgence` ne sont fournis qu'aux encadrants du groupe ;
- * les autres adhérents ne voient que le nom et la photo.
+ * Adhérent du groupe. Les encadrants du groupe reçoivent `telephone`, `telephoneOf` et `telephoneUrgence` ; les autres
+ * adhérents du groupe reçoivent seulement le téléphone propre de l'adhérent (jamais celui d'un profil Jeune, ni un numéro
+ * de parent ou d'urgence) ; un encadrant d'un autre groupe de la séance n'a que le nom et la photo.
  */
 export type TrainingGroupMember = {
   id: number;
   nom: string;
   prenom: string;
   avatarUrl: string | null;
+  /** C'est moi. */
+  isMe: boolean;
   telephone?: string | null;
   /** Nom du parent quand le numéro est le sien (enfant sans téléphone). */
   telephoneOf?: string | null;
@@ -1254,7 +1257,7 @@ export type TrainingGroupMember = {
   isJeune?: boolean;
 };
 
-/** Commentaire d'un encadrant : un texte et / ou un point GPS. */
+/** Commentaire d'un encadrant ou d'un adhérent du groupe : un texte et / ou un point GPS. */
 export type TrainingGroupComment = {
   id: number;
   authorId: number;
@@ -1267,10 +1270,12 @@ export type TrainingGroupComment = {
   canDelete: boolean;
 };
 
-/** Position partagée en direct par un encadrant. */
+/** Position partagée à sa demande par un encadrant ou un adhérent du groupe. */
 export type TrainingGroupPosition = {
   userId: number;
   fullName: string;
+  /** Encadrant (marqueur d'une autre couleur sur la carte) ou adhérent. */
+  isCoach: boolean;
   latitude: number;
   longitude: number;
   /** Précision du GPS en mètres, null si inconnue. */
@@ -1308,7 +1313,7 @@ export type TrainingGroupFacts = {
   paceLevel: number | null;
   /** Vitesse en texte libre (« 28 km/h », « 5'30 /km »), en complément de l'allure. */
   speed: string | null;
-  /** La séance a commencé : les adhérents ne choisissent ni ne quittent plus le groupe. */
+  /** La séance a commencé (les adhérents peuvent encore choisir ou quitter le groupe tant qu'il est actif). */
   started: boolean;
 };
 
@@ -1333,9 +1338,9 @@ export type TrainingGroup = TrainingGroupFacts & {
   rawName: string | null;
   info: string | null;
   createdAt: string;
-  /** Fin de validité : début du prochain créneau après la séance de référence. */
+  /** Fin de validité : 8 heures après le début de la séance (ou plus tôt si un encadrant supprime le groupe). */
   expiresAt: string;
-  /** Je suis encadrant de ce groupe (gestion complète) ; sinon simple adhérent (lecture seule). */
+  /** Je suis encadrant de ce groupe (gestion complète) ; sinon simple adhérent (consultation, commentaires, position). */
   isCoach: boolean;
   /** J'ai choisi ce groupe (ou un encadrant m'y a ajouté). */
   isMember: boolean;
@@ -1413,7 +1418,7 @@ export type SlotGroup = {
 /** Les groupes d'un créneau d'entraînement. */
 export type SlotGroups = {
   groups: SlotGroup[];
-  /** La séance a commencé : plus de choix ni de retrait. */
+  /** Les groupes de la séance sont terminés (8 heures après son début) : plus de choix. */
   closed: boolean;
   canChoose: boolean;
   /** Le groupe que j'ai choisi pour cette séance. */

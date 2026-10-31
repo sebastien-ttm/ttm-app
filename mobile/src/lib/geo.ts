@@ -55,15 +55,6 @@ export function mapUrl(latitude: number, longitude: number): string {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
 }
 
-/** URL de la carte OpenStreetMap intégrable (iframe, web) centrée sur un point, avec son repère. */
-export function embedMapUrl(latitude: number, longitude: number): string {
-  const lat = latitude.toFixed(6);
-  const lon = longitude.toFixed(6);
-  const d = 0.004;
-  const bbox = [longitude - d, latitude - d, longitude + d, latitude + d].map((n) => n.toFixed(6)).join('%2C');
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lon}`;
-}
-
 /** « 43.60443, 1.44356 » : coordonnées lisibles (copie / saisie dans une autre appli). */
 export function formatPoint(latitude: number, longitude: number): string {
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;

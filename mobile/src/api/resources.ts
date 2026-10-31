@@ -204,7 +204,7 @@ export const trainingGroups = {
   },
   /** Je choisis ce groupe pour la séance (je quitte celui que j'avais choisi). Refus (complet, séance commencée) : ApiError 409. */
   join: (id: number) => api.put<SlotGroups>(`/api/training-groups/${id}/membership`, {}),
-  /** Je quitte ce groupe, tant que la séance n'a pas commencé. */
+  /** Je quitte ce groupe. */
   leaveAsMember: (id: number) => api.delete<SlotGroups>(`/api/training-groups/${id}/membership`),
   close: (id: number) => api.post<{ ok: boolean }>(`/api/training-groups/${id}/close`, {}),
   addComment: (id: number, input: { content?: string; latitude?: number; longitude?: number }) =>
