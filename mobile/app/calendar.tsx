@@ -8,7 +8,7 @@ import type { EventItem } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MonthCalendar } from '@/components/MonthCalendar';
 import { COLORS } from '@/config';
-import { formatDate, formatDateTime } from '@/utils/html';
+import { formatDate, formatDateTime, htmlToText } from '@/utils/html';
 
 function startOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 0, 1);
@@ -137,6 +137,8 @@ export default function CalendarScreen() {
 
 function EventRow({ event }: { event: EventItem }) {
   const router = useRouter();
+  // Le descriptif est du HTML (éditeur de l'admin) : texte seul, sur une ligne, tronqué par numberOfLines.
+  const description = event.description ? htmlToText(event.description).replace(/\s+/g, ' ') : '';
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.75 }]}
@@ -160,7 +162,7 @@ function EventRow({ event }: { event: EventItem }) {
         </View>
         <Text style={styles.title}>{event.title}</Text>
         {event.location && <Text style={styles.location}>📍 {event.location}</Text>}
-        {event.description && <Text style={styles.description} numberOfLines={2}>{event.description}</Text>}
+        {description !== '' && <Text style={styles.description} numberOfLines={2}>{description}</Text>}
       </View>
     </Pressable>
   );

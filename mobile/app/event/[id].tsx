@@ -19,6 +19,7 @@ import { addEventToCalendar } from '@/lib/addToCalendar';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { htmlExcerpt } from '@/utils/html';
 
 /**
  * Prépare la description pour RichContent :
@@ -118,7 +119,7 @@ export default function EventDetailScreen() {
   }, [load]);
 
   // Titre partagé (web) : nom de l'événement + description.
-  useDocumentTitle(event?.title, event?.description ?? null);
+  useDocumentTitle(event?.title, event?.description ? htmlExcerpt(event.description, 160) : null);
 
   if (loading) {
     return (

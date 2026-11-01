@@ -1,6 +1,7 @@
 import { Linking, Platform } from 'react-native';
 
 import type { EventItem } from '@/api/types';
+import { htmlToText } from '@/utils/html';
 
 /**
  * Ajoute un événement au calendrier personnel de l'utilisateur.
@@ -21,7 +22,8 @@ export function addEventToCalendar(event: EventItem): void {
       dates: gcalDates,
     });
     if (event.location) params.set('location', event.location);
-    if (event.description) params.set('details', event.description);
+    // Le descriptif est du HTML : Google Agenda l'afficherait avec ses balises.
+    if (event.description) params.set('details', htmlToText(event.description));
     window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
     return;
   }
@@ -78,7 +80,8 @@ function buildEventIcs(event: EventItem, start: Date, end: Date | null): string 
   }
   lines.push(`SUMMARY:${(event.title || '').replace(/\r?\n/g, ' ')}`);
   if (event.location) lines.push(`LOCATION:${event.location.replace(/\r?\n/g, ' ')}`);
-  if (event.description) lines.push(`DESCRIPTION:${event.description.replace(/\r?\n/g, ' ')}`);
+  // Texte seul ; les sauts de ligne s'écrivent « \n » (deux caractères) dans un fichier .ics.
+  if (event.description) lines.push(`DESCRIPTION:${htmlToText(event.description).replace(/\r?\n/g, '\\n')}`);
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return lines.join('\r\n');
 }

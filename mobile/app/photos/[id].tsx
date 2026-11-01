@@ -36,9 +36,8 @@ const UPLOAD_MAX_SIDE = 2048;
 
 /**
  * Un album de Photos du club : grille des photos (ordre chronologique
- * d'ajout, chargement par pages), ajout de photos avec accord des
- * personnes photographiées et progression (le staff peut publier au nom
- * d'un autre adhérent : AuthorPicker), visionneuse plein écran
+ * d'ajout, chargement par pages), ajout de photos avec progression (le
+ * staff peut publier au nom d'un autre adhérent : AuthorPicker), visionneuse plein écran
  * (photos entières, flèches ‹ ›, suppression de ses propres photos),
  * partage de l'album et choix de sa photo de couverture (CoverEditor).
  * `?add=1` (juste après la création) ouvre directement l'ajout.
@@ -58,7 +57,6 @@ export default function PhotoAlbumScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [addOpen, setAddOpen] = useState(add === '1');
-  const [consent, setConsent] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [coverOpen, setCoverOpen] = useState(false);
@@ -104,10 +102,11 @@ export default function PhotoAlbumScreen() {
   }
 
   async function pickAndUpload() {
-    if (!consent || progress) return;
+    if (progress) return;
     const picked = await pickReducedPhotos(MAX_PICK, UPLOAD_MAX_SIDE);
     if (picked.length === 0) return;
 
+    setAddOpen(true); // l'avancement s'affiche dans le panneau d'ajout
     let failed = 0;
     let lastError: string | null = null;
     setProgress({ done: 0, total: picked.length, failed: 0 });
@@ -122,7 +121,6 @@ export default function PhotoAlbumScreen() {
     }
     setProgress(null);
     setAddOpen(false);
-    setConsent(false);
     setAuthor(null); // jamais de publication au nom de quelqu'un par défaut : on le rechoisit à chaque fois
     await loadFirst();
     if (failed > 0) {
@@ -212,7 +210,8 @@ export default function PhotoAlbumScreen() {
             </View>
 
             {!addOpen ? (
-              <Pressable style={styles.addButton} onPress={() => setAddOpen(true)}>
+              // Le panneau ne sert qu'au staff (choix de l'adhérent au nom de qui publier) : les autres vont droit à la galerie.
+              <Pressable style={styles.addButton} onPress={() => (album.canPostForOthers ? setAddOpen(true) : void pickAndUpload())}>
                 <Ionicons name="camera" size={20} color="#fff" />
                 <Text style={styles.addButtonLabel}>Ajouter mes photos</Text>
               </Pressable>
@@ -247,31 +246,11 @@ export default function PhotoAlbumScreen() {
                         <Text style={styles.authorChange}>Changer</Text>
                       </Pressable>
                     ) : null}
-                    <Pressable
-                      onPress={() => setConsent((c) => !c)}
-                      style={styles.consentRow}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: consent }}
-                    >
-                      <Ionicons
-                        name={consent ? 'checkbox' : 'square-outline'}
-                        size={22}
-                        color={consent ? COLORS.primary : COLORS.textMuted}
-                      />
-                      <Text style={styles.consentLabel}>
-                        Les personnes reconnaissables sur mes photos sont d'accord pour qu'elles soient
-                        partagées avec les adhérents du club (pour un mineur : son représentant légal).
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void pickAndUpload()}
-                      disabled={!consent}
-                      style={[styles.addButton, !consent && { opacity: 0.4 }]}
-                    >
+                    <Pressable onPress={() => void pickAndUpload()} style={[styles.addButton, { marginTop: 0 }]}>
                       <Ionicons name="images" size={20} color="#fff" />
                       <Text style={styles.addButtonLabel}>Choisir les photos (jusqu'à {MAX_PICK})</Text>
                     </Pressable>
-                    <Pressable onPress={() => { setAddOpen(false); setConsent(false); setAuthor(null); }} style={styles.cancelBtn}>
+                    <Pressable onPress={() => { setAddOpen(false); setAuthor(null); }} style={styles.cancelBtn}>
                       <Text style={styles.cancelLabel}>Annuler</Text>
                     </Pressable>
                   </>
@@ -482,8 +461,6 @@ const styles = StyleSheet.create({
   authorLabel: { fontSize: 12, color: COLORS.textMuted },
   authorValue: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   authorChange: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  consentLabel: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 19 },
   cancelBtn: { alignItems: 'center', paddingTop: SPACING.sm },
   cancelLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500' },
   tile: { width: '100%', height: '100%', backgroundColor: COLORS.surface },

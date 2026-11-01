@@ -567,7 +567,6 @@ export const photos = {
    */
   upload: async (albumId: number, photo: MarketplacePhotoInput, authorId?: number | null) => {
     const form = new FormData();
-    form.append('consent', '1');
     if (authorId) form.append('authorId', String(authorId));
     const { uri, mimeType, name } = photo;
     if (uri.startsWith('blob:') || uri.startsWith('data:')) {
