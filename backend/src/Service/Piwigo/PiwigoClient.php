@@ -195,6 +195,32 @@ class PiwigoClient
         return ['id' => $imageId, 'url' => $result['url'] ?? null];
     }
 
+    /**
+     * Où est une photo dans Piwigo : les albums qui la contiennent (id + nom) et son niveau de confidentialité. null si
+     * Piwigo ne la connaît plus (supprimée). Sert au contrôle d'un album depuis l'admin (voir PhotoAlbumAdminController).
+     *
+     * @return array{albums: list<array{id: int, name: string}>, level: int}|null
+     */
+    public function imageLocation(int $imageId): ?array
+    {
+        try {
+            $info = $this->call('pwg.images.getInfo', ['image_id' => $imageId]);
+        } catch (PiwigoException $e) {
+            if ($e->getCode() === 404) {
+                return null;
+            }
+            throw $e;
+        }
+
+        return [
+            'albums' => array_values(array_map(
+                fn ($c) => ['id' => (int) $c['id'], 'name' => self::decode(strip_tags((string) ($c['name'] ?? '')))],
+                $info['categories'] ?? [],
+            )),
+            'level' => (int) ($info['level'] ?? 0),
+        ];
+    }
+
     public function deleteImage(int $imageId): void
     {
         $this->call('pwg.images.delete', ['image_id' => $imageId, 'pwg_token' => $this->pwgToken()], true);
@@ -488,7 +514,11 @@ class PiwigoClient
             return $this->call($method, $params, $post, $multipart, false);
         }
         if ($failed) {
-            throw new PiwigoException(sprintf('%s : %s', $method, is_array($data) ? ($data['message'] ?? 'échec') : 'réponse invalide (HTTP '.$status.')'));
+            // Code d'erreur Piwigo (ex : 404 « image_id not found ») repris comme code de l'exception.
+            throw new PiwigoException(
+                sprintf('%s : %s', $method, is_array($data) ? ($data['message'] ?? 'échec') : 'réponse invalide (HTTP '.$status.')'),
+                is_array($data) ? (int) ($data['err'] ?? 0) : 0,
+            );
         }
 
         return is_array($data['result'] ?? null) ? $data['result'] : ['value' => $data['result'] ?? null];

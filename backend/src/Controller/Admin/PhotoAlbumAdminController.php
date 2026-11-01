@@ -24,6 +24,9 @@ class PhotoAlbumAdminController extends AbstractController
 {
     use EnsureAdminContextTrait;
 
+    /** Photos contrôlées par album (un appel Piwigo chacune). */
+    private const CHECK_LIMIT = 100;
+
     public function __construct(
         private readonly PiwigoClient $piwigo,
         private readonly PhotoUploadRepository $uploads,
@@ -54,6 +57,70 @@ class PhotoAlbumAdminController extends AbstractController
         return $this->render('admin/photo_albums.html.twig', [
             'albums' => $albums,
             'appCounts' => $this->uploads->countByAlbum(),
+            'error' => $error,
+        ]);
+    }
+
+    /**
+     * Contrôle d'un album : où sont réellement, dans Piwigo, les photos envoyées depuis l'appli ? L'appli ne garde une
+     * trace qu'une fois la photo acceptée par Piwigo ; si l'album n'en montre pas autant, la photo a été déplacée dans un
+     * autre album, retirée de tout album, supprimée, ou son compteur est en retard. Lecture seule.
+     */
+    #[Route('/admin/photo-albums/{id}/verifier', name: 'admin_photo_albums_check', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function check(int $id, Request $request): Response
+    {
+        if ($r = $this->ensureAdminContext($request, 'admin_photo_albums_check')) {
+            return $r;
+        }
+
+        $uploads = $this->uploads->findByAlbum($id);
+        $album = null;
+        $listed = null;
+        $rows = [];
+        $error = null;
+        if (!$this->piwigo->isConfigured()) {
+            $error = 'La galerie Piwigo n\'est pas configurée (PIWIGO_* dans .env).';
+        } else {
+            try {
+                foreach ($this->piwigo->listAlbums() as $a) {
+                    if ($a['id'] === $id) {
+                        $album = $a;
+                        break;
+                    }
+                }
+                if ($album !== null) {
+                    // Photos que Piwigo liste réellement pour l'album (indépendant du compteur affiché dans la liste).
+                    $listed = $this->piwigo->getAlbumImages($id, 0, 1)['total'];
+                }
+                foreach (array_slice($uploads, 0, self::CHECK_LIMIT) as $upload) {
+                    $where = $this->piwigo->imageLocation($upload->getPiwigoImageId());
+                    $rows[] = [
+                        'upload' => $upload,
+                        'found' => $where !== null,
+                        'inAlbum' => $where !== null && in_array($id, array_column($where['albums'], 'id'), true),
+                        'albums' => $where['albums'] ?? [],
+                        'level' => $where['level'] ?? null,
+                    ];
+                }
+            } catch (PiwigoException $e) {
+                $this->logger->error('Piwigo : contrôle d\'album impossible', ['albumId' => $id, 'error' => $e->getMessage()]);
+                $error = 'Galerie Piwigo injoignable : '.$e->getMessage();
+            }
+        }
+
+        return $this->render('admin/photo_album_check.html.twig', [
+            'albumId' => $id,
+            'albumName' => $album['name'] ?? ($uploads !== [] ? $uploads[0]->getAlbumName() : '#'.$id),
+            'albumExists' => $album !== null,
+            'counter' => $album['nbImages'] ?? null,
+            'listed' => $listed,
+            'traces' => count($uploads),
+            'limit' => self::CHECK_LIMIT,
+            'rows' => $rows,
+            'inAlbum' => count(array_filter($rows, static fn (array $r) => $r['inAlbum'])),
+            'elsewhere' => count(array_filter($rows, static fn (array $r) => $r['found'] && !$r['inAlbum'] && $r['albums'] !== [])),
+            'orphans' => count(array_filter($rows, static fn (array $r) => $r['found'] && $r['albums'] === [])),
+            'missing' => count(array_filter($rows, static fn (array $r) => !$r['found'])),
             'error' => $error,
         ]);
     }

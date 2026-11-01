@@ -1,0 +1,105 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Contrôle d'un album photos{% endblock %}
+{% block content_title %}🔎 Contrôle de l'album « {{ albumName }} »{% endblock %}
+
+{% block main %}
+    <p style="margin-bottom:12px;"><a href="{{ path('admin_photo_albums') }}">← Albums photos</a></p>
+
+    <p style="color:#64748b; margin-bottom:16px;">
+        L'appli n'enregistre une photo que lorsque Piwigo l'a acceptée. Cette page compare ces envois à ce que Piwigo en dit
+        aujourd'hui : dans l'album, déplacée dans un autre album, dans aucun album, ou supprimée. Lecture seule.
+    </p>
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+        {% if not albumExists %}
+            <div class="alert alert-warning">
+                L'album n° {{ albumId }} n'existe plus dans Piwigo (ou n'est plus sous l'album racine de l'appli).
+            </div>
+        {% endif %}
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+            {% set cards = [
+                {label: 'Compteur de l\'album dans Piwigo', value: counter is null ? '—' : counter},
+                {label: 'Photos que Piwigo liste dans l\'album', value: listed is null ? '—' : listed},
+                {label: 'Envoyées par l\'appli (nos traces)', value: traces},
+            ] %}
+            {% for c in cards %}
+                <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:12px 16px; min-width:200px;">
+                    <div style="font-size:12px; color:#64748b;">{{ c.label }}</div>
+                    <div style="font-size:24px; font-weight:700;">{{ c.value }}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if rows|length > 0 %}
+            <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:12px 16px; margin-bottom:16px; font-size:14px;">
+                <div><strong>{{ inAlbum }}</strong> dans l'album · <strong>{{ elsewhere }}</strong> rangée(s) dans un autre album ·
+                    <strong>{{ orphans }}</strong> dans aucun album · <strong>{{ missing }}</strong> supprimée(s) de Piwigo</div>
+
+                {% if missing > 0 %}
+                    <div style="margin-top:8px;">❌ Piwigo ne connaît plus {{ missing }} photo(s) : elles ont été supprimées dans Piwigo. Elles ne sont pas récupérables depuis l'appli.</div>
+                {% endif %}
+                {% if elsewhere > 0 %}
+                    <div style="margin-top:8px;">⚠️ {{ elsewhere }} photo(s) ont été déplacées dans un autre album. Dans Piwigo : <em>Photos → Gestionnaire par lot</em>, retrouvez-les (colonne « Rangée ailleurs » ci-dessous) puis associez-les à l'album.</div>
+                {% endif %}
+                {% if orphans > 0 %}
+                    <div style="margin-top:8px;">⚠️ {{ orphans }} photo(s) n'appartiennent à aucun album. Dans Piwigo : <em>Photos → Gestionnaire par lot</em>, filtre « Photos orphelines » (ou « Dans aucun album »), puis associez-les à l'album.</div>
+                {% endif %}
+                {% if inAlbum > 0 and listed is not null and listed == 0 %}
+                    <div style="margin-top:8px;">⚠️ Piwigo range {{ inAlbum }} photo(s) dans l'album mais ne les liste pas : vérifiez leur niveau de confidentialité ci-dessous (un niveau trop élevé les masque au compte technique de l'appli).</div>
+                {% elseif inAlbum > 0 and listed is not null and listed > 0 and counter is not null and counter < listed %}
+                    <div style="margin-top:8px;">ℹ️ Les photos sont bien dans l'album : seul son compteur est en retard côté Piwigo. Elles s'affichent dans l'appli.</div>
+                {% endif %}
+                {% if inAlbum == rows|length and listed is not null and listed > 0 %}
+                    <div style="margin-top:8px;">✅ Toutes les photos contrôlées sont dans l'album et listées par Piwigo.</div>
+                {% endif %}
+            </div>
+
+            <div style="background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
+                <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                    <thead>
+                        <tr style="background:#f8fafc; text-align:left;">
+                            <th style="padding:10px 14px;">N° Piwigo</th>
+                            <th style="padding:10px 14px;">Auteur</th>
+                            <th style="padding:10px 14px;">Envoyée le</th>
+                            <th style="padding:10px 14px;">État dans Piwigo</th>
+                            <th style="padding:10px 14px; text-align:right;">Niveau</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rows %}
+                            <tr style="border-top:1px solid #f1f5f9;">
+                                <td style="padding:10px 14px;">
+                                    {% if r.upload.piwigoUrl %}<a href="{{ r.upload.piwigoUrl }}" target="_blank" rel="noopener">{{ r.upload.piwigoImageId }}</a>{% else %}{{ r.upload.piwigoImageId }}{% endif %}
+                                </td>
+                                <td style="padding:10px 14px;">{{ r.upload.user.fullName }}</td>
+                                <td style="padding:10px 14px; white-space:nowrap;">{{ r.upload.createdAt|date('d/m/Y H:i') }}</td>
+                                <td style="padding:10px 14px;">
+                                    {% if not r.found %}
+                                        ❌ Supprimée de Piwigo
+                                    {% elseif r.inAlbum %}
+                                        ✅ Dans l'album
+                                    {% elseif r.albums|length > 0 %}
+                                        ⚠️ Rangée ailleurs :
+                                        {% for a in r.albums %}{{ a.name }} (n° {{ a.id }}){% if not loop.last %}, {% endif %}{% endfor %}
+                                    {% else %}
+                                        ⚠️ Dans aucun album
+                                    {% endif %}
+                                </td>
+                                <td style="padding:10px 14px; text-align:right;">{{ r.level is null ? '—' : r.level }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if traces > limit %}
+                <p style="color:#64748b; margin-top:8px;">Les {{ limit }} premières photos sur {{ traces }} sont contrôlées.</p>
+            {% endif %}
+        {% else %}
+            <p style="color:#94a3b8;">Aucune photo envoyée depuis l'appli pour cet album.</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

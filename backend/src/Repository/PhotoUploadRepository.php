@@ -66,6 +66,22 @@ class PhotoUploadRepository extends ServiceEntityRepository
         return $out;
     }
 
+    /**
+     * Photos envoyées depuis l'appli dans un album Piwigo, les plus anciennes d'abord.
+     *
+     * @return list<PhotoUpload>
+     */
+    public function findByAlbum(int $albumId): array
+    {
+        return $this->createQueryBuilder('p')
+            ->leftJoin('p.user', 'u')->addSelect('u')
+            ->where('p.piwigoAlbumId = :album')
+            ->setParameter('album', $albumId)
+            ->orderBy('p.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /** Supprime les traces d'envoi d'un album (après sa suppression dans Piwigo). */
     public function deleteByAlbum(int $albumId): int
     {

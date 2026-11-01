@@ -36,12 +36,20 @@
                             <div style="font-size:11px; color:#94a3b8;">N° Piwigo {{ album.id }}</div>
                         </td>
                         <td style="padding:12px 14px; vertical-align:top; text-align:right;">{{ album.nbImages }}</td>
-                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">{{ appCounts[album.id] ?? 0 }}</td>
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">
+                            {{ appCounts[album.id] ?? 0 }}
+                            {% if (appCounts[album.id] ?? 0) > album.nbImages %}
+                                <div style="font-size:11px; color:#b45309;" title="Piwigo compte moins de photos dans l'album que l'appli n'en a envoyé : utilisez « Contrôler ».">⚠️ écart</div>
+                            {% endif %}
+                        </td>
                         <td style="padding:12px 14px; vertical-align:top; white-space:nowrap;">
                             {{ album.dateLast ? album.dateLast|date('d/m/Y') : '—' }}
                         </td>
-                        <td style="padding:12px 14px; vertical-align:top; text-align:right;">
-                            <form method="post" action="{{ path('admin_photo_albums_delete', {id: album.id}) }}"
+                        <td style="padding:12px 14px; vertical-align:top; text-align:right; white-space:nowrap;">
+                            <a href="{{ path('admin_photo_albums_check', {id: album.id}) }}" class="btn btn-sm btn-secondary" style="margin-right:6px;">
+                                <i class="fa fa-search"></i> Contrôler
+                            </a>
+                            <form method="post" style="display:inline-block;" action="{{ path('admin_photo_albums_delete', {id: album.id}) }}"
                                   onsubmit="return confirm({{ ('Supprimer l\'album « ' ~ album.name ~ ' » et ses ' ~ album.nbImages ~ ' photo(s) ? Action irréversible.')|json_encode }});">
                                 <input type="hidden" name="_token" value="{{ csrf_token('photo_album_admin') }}">
                                 <button type="submit" class="btn btn-sm btn-danger">
