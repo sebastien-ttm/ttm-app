@@ -533,7 +533,7 @@ export type CapRow = CapState & {
 /** Prise de temps en cours, à venir ou récente. */
 export type StaffPerfTestSession = {
   id: number;
-  /** Code de l'épreuve (run_1500, swim_400, bike_climb_2k). */
+  /** Code de l'épreuve (run_1500, run_2000, swim_400, bike_climb_2k). */
   test: string;
   icon: string;
   /** Épreuve avec le bassin en natation (« 400 m natation — bassin 25 m »). */

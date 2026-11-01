@@ -244,7 +244,7 @@ export default function PerfTestsScreen() {
 
 type PerfTab = { key: string; label: string; short: string; icon: string; test: string; pool: number | null };
 
-const TEST_ORDER = ['run_1500', 'swim_400', 'bike_climb_2k'];
+const TEST_ORDER = ['run_1500', 'run_2000', 'swim_400', 'bike_climb_2k'];
 
 /**
  * Sous-onglets : une épreuve (et un bassin en natation) par onglet, réunion

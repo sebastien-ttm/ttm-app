@@ -270,7 +270,7 @@ function TrainingScreenInner() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={stylesPerf.title}>Mes temps et ceux du club</Text>
-                    <Text style={stylesPerf.sub}>1500 m course à pied · 400 m natation · montée vélo — par saison</Text>
+                    <Text style={stylesPerf.sub}>1500 m ou 2000 m course à pied · 400 m natation · montée vélo — par saison</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
                 </Pressable>

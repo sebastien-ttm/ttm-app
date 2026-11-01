@@ -113,7 +113,7 @@ export const trainingPlans = {
   get: (id: number) => api.get<TrainingPlan>(`/api/training-plans/${id}`),
 };
 
-/** Tests chronométrés (1500 m, 400 m nage, montée vélo) : temps de tous les adhérents, par saison d'entraînement. */
+/** Tests chronométrés (1500 m et 2000 m course, 400 m nage, montée vélo) : temps de tous les adhérents, par saison d'entraînement. */
 export const perfTests = {
   /** Mes demandes de temps déclarés (en attente, acceptées, refusées). */
   declarations: () => api.get<{ data: PerfTestDeclaration[] }>('/api/perf-tests/declarations'),
