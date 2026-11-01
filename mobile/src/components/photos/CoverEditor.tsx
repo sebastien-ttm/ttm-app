@@ -37,7 +37,7 @@ const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(ma
  */
 export function CoverEditor({ visible, images, total, coverImageId, focusX, focusY, url, onClose, onSave }: {
   visible: boolean;
-  /** Photos de l'album déjà chargées (les plus récentes d'abord). */
+  /** Photos de l'album déjà chargées (dans l'ordre chronologique d'ajout). */
   images: PhotoImage[];
   total: number;
   coverImageId: number | null;

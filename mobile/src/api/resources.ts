@@ -61,6 +61,7 @@ import type {
   PhotoAlbum,
   PhotoAlbumCoverResult,
   PhotoAlbumPage,
+  PhotoAuthor,
   PhotoImage,
   PoolBadge,
   RaceProposal,
@@ -558,10 +559,16 @@ export const photos = {
   albums: () => api.get<{ enabled: boolean; data: PhotoAlbum[] }>('/api/photos/albums'),
   album: (id: number, page = 0) => api.get<PhotoAlbumPage>(`/api/photos/albums/${id}?page=${page}`),
   createAlbum: (name: string, comment: string) => api.post<PhotoAlbum>('/api/photos/albums', { name, comment }),
-  /** Envoie UNE photo (déjà réduite) — l'appelant boucle pour la progression. */
-  upload: async (albumId: number, photo: MarketplacePhotoInput) => {
+  /** Adhérents au nom de qui publier (staff : entraîneurs, encadrants, CoDir, admins). */
+  authors: () => api.get<{ data: PhotoAuthor[] }>('/api/photos/authors'),
+  /**
+   * Envoie UNE photo (déjà réduite) — l'appelant boucle pour la progression. `authorId` : publier au nom d'un autre
+   * adhérent (staff seulement), sinon à son propre nom.
+   */
+  upload: async (albumId: number, photo: MarketplacePhotoInput, authorId?: number | null) => {
     const form = new FormData();
     form.append('consent', '1');
+    if (authorId) form.append('authorId', String(authorId));
     const { uri, mimeType, name } = photo;
     if (uri.startsWith('blob:') || uri.startsWith('data:')) {
       form.append('photo', await (await fetch(uri)).blob(), name);

@@ -1205,6 +1205,16 @@ export type PhotoAlbum = {
   coverFocusY: number;
   /** Seulement dans le détail d'un album : l'adhérent peut en choisir la couverture. */
   canEditCover?: boolean;
+  /** Seulement dans le détail d'un album : le staff peut y publier des photos au nom d'un autre adhérent. */
+  canPostForOthers?: boolean;
+};
+
+/** Adhérent au nom de qui le staff peut publier des photos (identité et photo seulement). */
+export type PhotoAuthor = {
+  id: number;
+  nom: string;
+  prenom: string;
+  avatarUrl: string | null;
 };
 
 /** Réponse de l'enregistrement de la couverture d'un album. */

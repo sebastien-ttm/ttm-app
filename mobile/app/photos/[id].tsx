@@ -18,8 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { photos as photosApi } from '@/api/resources';
-import type { PhotoAlbum, PhotoImage } from '@/api/types';
+import type { PhotoAlbum, PhotoAuthor, PhotoImage } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { AuthorPicker } from '@/components/photos/AuthorPicker';
 import { CoverEditor } from '@/components/photos/CoverEditor';
 import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -34,9 +35,10 @@ const MAX_PICK = 30;
 const UPLOAD_MAX_SIDE = 2048;
 
 /**
- * Un album de Photos du club : grille des photos (plus récentes
- * d'abord, chargement par pages), ajout de photos avec accord des
- * personnes photographiées et progression, visionneuse plein écran
+ * Un album de Photos du club : grille des photos (ordre chronologique
+ * d'ajout, chargement par pages), ajout de photos avec accord des
+ * personnes photographiées et progression (le staff peut publier au nom
+ * d'un autre adhérent : AuthorPicker), visionneuse plein écran
  * (photos entières, flèches ‹ ›, suppression de ses propres photos),
  * partage de l'album et choix de sa photo de couverture (CoverEditor).
  * `?add=1` (juste après la création) ouvre directement l'ajout.
@@ -60,6 +62,9 @@ export default function PhotoAlbumScreen() {
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [coverOpen, setCoverOpen] = useState(false);
+  /** Staff : adhérent au nom de qui publier les photos (null = moi). */
+  const [author, setAuthor] = useState<PhotoAuthor | null>(null);
+  const [authorPickerOpen, setAuthorPickerOpen] = useState(false);
 
   const loadFirst = useCallback(async () => {
     if (!id) {
@@ -108,7 +113,7 @@ export default function PhotoAlbumScreen() {
     setProgress({ done: 0, total: picked.length, failed: 0 });
     for (const [i, photo] of picked.entries()) {
       try {
-        await photosApi.upload(id, photo);
+        await photosApi.upload(id, photo, author?.id ?? null);
       } catch (e) {
         failed++;
         lastError = e instanceof ApiError ? e.message : 'Erreur réseau';
@@ -118,6 +123,7 @@ export default function PhotoAlbumScreen() {
     setProgress(null);
     setAddOpen(false);
     setConsent(false);
+    setAuthor(null); // jamais de publication au nom de quelqu'un par défaut : on le rechoisit à chaque fois
     await loadFirst();
     if (failed > 0) {
       showMessage(
@@ -224,6 +230,23 @@ export default function PhotoAlbumScreen() {
                   </View>
                 ) : (
                   <>
+                    {album.canPostForOthers ? (
+                      <Pressable
+                        onPress={() => setAuthorPickerOpen(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Choisir l'adhérent au nom de qui publier les photos"
+                        style={({ pressed }) => [styles.authorRow, author && styles.authorRowOn, pressed && { opacity: 0.8 }]}
+                      >
+                        <Ionicons name="person-circle-outline" size={26} color={COLORS.primary} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.authorLabel}>Photos publiées au nom de</Text>
+                          <Text style={styles.authorValue} numberOfLines={1}>
+                            {author ? `${author.prenom} ${author.nom.toUpperCase()}` : 'Moi-même'}
+                          </Text>
+                        </View>
+                        <Text style={styles.authorChange}>Changer</Text>
+                      </Pressable>
+                    ) : null}
                     <Pressable
                       onPress={() => setConsent((c) => !c)}
                       style={styles.consentRow}
@@ -248,7 +271,7 @@ export default function PhotoAlbumScreen() {
                       <Ionicons name="images" size={20} color="#fff" />
                       <Text style={styles.addButtonLabel}>Choisir les photos (jusqu'à {MAX_PICK})</Text>
                     </Pressable>
-                    <Pressable onPress={() => { setAddOpen(false); setConsent(false); }} style={styles.cancelBtn}>
+                    <Pressable onPress={() => { setAddOpen(false); setConsent(false); setAuthor(null); }} style={styles.cancelBtn}>
                       <Text style={styles.cancelLabel}>Annuler</Text>
                     </Pressable>
                   </>
@@ -298,6 +321,15 @@ export default function PhotoAlbumScreen() {
         onClose={() => setCoverOpen(false)}
         onSave={saveCover}
       />
+
+      {album.canPostForOthers ? (
+        <AuthorPicker
+          visible={authorPickerOpen}
+          selectedId={author?.id ?? null}
+          onPick={(a) => { setAuthor(a); setAuthorPickerOpen(false); }}
+          onClose={() => setAuthorPickerOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -442,6 +474,14 @@ const styles = StyleSheet.create({
   addHint: { fontSize: 12, color: COLORS.textMuted },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: COLORS.border, overflow: 'hidden' },
   progressBar: { height: 8, backgroundColor: COLORS.primary },
+  authorRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.sm,
+    padding: 10, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff',
+  },
+  authorRowOn: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  authorLabel: { fontSize: 12, color: COLORS.textMuted },
+  authorValue: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  authorChange: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   consentLabel: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 19 },
   cancelBtn: { alignItems: 'center', paddingTop: SPACING.sm },
