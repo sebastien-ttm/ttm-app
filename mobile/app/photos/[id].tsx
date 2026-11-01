@@ -20,6 +20,8 @@ import { ApiError } from '@/api/client';
 import { photos as photosApi } from '@/api/resources';
 import type { PhotoAlbum, PhotoImage } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { CoverEditor } from '@/components/photos/CoverEditor';
+import { ShareButton } from '@/components/ShareButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { pickReducedPhotos } from '@/lib/marketplacePhotos';
 import { usePhotoUrls } from '@/lib/photoUrls';
@@ -35,7 +37,8 @@ const UPLOAD_MAX_SIDE = 2048;
  * Un album de Photos du club : grille des photos (plus récentes
  * d'abord, chargement par pages), ajout de photos avec accord des
  * personnes photographiées et progression, visionneuse plein écran
- * (photos entières, flèches ‹ ›, suppression de ses propres photos).
+ * (photos entières, flèches ‹ ›, suppression de ses propres photos),
+ * partage de l'album et choix de sa photo de couverture (CoverEditor).
  * `?add=1` (juste après la création) ouvre directement l'ajout.
  */
 export default function PhotoAlbumScreen() {
@@ -56,6 +59,7 @@ export default function PhotoAlbumScreen() {
   const [consent, setConsent] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   const loadFirst = useCallback(async () => {
     if (!id) {
@@ -123,6 +127,16 @@ export default function PhotoAlbumScreen() {
     }
   }
 
+  async function saveCover(imageId: number | null, focusX: number, focusY: number) {
+    try {
+      const r = await photosApi.setCover(id, imageId, focusX, focusY);
+      setAlbum((a) => (a ? { ...a, coverImageId: r.coverImageId, coverFocusX: r.coverFocusX, coverFocusY: r.coverFocusY } : a));
+      setCoverOpen(false);
+    } catch (e) {
+      throw new Error(e instanceof ApiError ? e.message : 'Enregistrement impossible.');
+    }
+  }
+
   async function removeImage(image: PhotoImage) {
     const confirmed = await confirmAsync('Supprimer cette photo ?', 'Elle sera retirée de la galerie du club.');
     if (!confirmed) return;
@@ -130,6 +144,8 @@ export default function PhotoAlbumScreen() {
       await photosApi.remove(image.id);
       setImages((prev) => prev.filter((i) => i.id !== image.id));
       setTotal((t) => Math.max(0, t - 1));
+      // La photo supprimée ne peut plus servir de couverture (le serveur a repris celle de Piwigo).
+      if (album?.coverImageId === image.id) await loadFirst();
       setViewerIndex(null);
     } catch (e) {
       showMessage('Suppression impossible', e instanceof ApiError ? e.message : undefined);
@@ -174,6 +190,20 @@ export default function PhotoAlbumScreen() {
             <Text style={styles.title}>{album.name}</Text>
             <Text style={styles.meta}>{total} photo{total > 1 ? 's' : ''}</Text>
             {album.comment ? <Text style={styles.comment}>{album.comment}</Text> : null}
+
+            <View style={styles.actionsRow}>
+              <ShareButton path={`/photos/${album.id}`} title={album.name} />
+              {album.canEditCover ? (
+                <Pressable
+                  onPress={() => setCoverOpen(true)}
+                  accessibilityLabel="Choisir la photo de l'album"
+                  style={({ pressed }) => [styles.coverBtn, pressed && { opacity: 0.7 }]}
+                >
+                  <Ionicons name="image-outline" size={16} color={COLORS.primary} />
+                  <Text style={styles.coverBtnLabel}>Photo de l'album</Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             {!addOpen ? (
               <Pressable style={styles.addButton} onPress={() => setAddOpen(true)}>
@@ -255,6 +285,18 @@ export default function PhotoAlbumScreen() {
         onClose={() => setViewerIndex(null)}
         onDelete={(img) => void removeImage(img)}
         url={url}
+      />
+
+      <CoverEditor
+        visible={coverOpen}
+        images={images}
+        total={total}
+        coverImageId={album.coverImageId}
+        focusX={album.coverFocusX ?? 50}
+        focusY={album.coverFocusY ?? 50}
+        url={url}
+        onClose={() => setCoverOpen(false)}
+        onSave={saveCover}
       />
     </SafeAreaView>
   );
@@ -378,6 +420,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   meta: { fontSize: 13, color: COLORS.textMuted },
   comment: { fontSize: 14, color: COLORS.text, lineHeight: 20, marginTop: 4 },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: SPACING.sm },
+  coverBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff',
+  },
+  coverBtnLabel: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
   addButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: RADIUS.md,

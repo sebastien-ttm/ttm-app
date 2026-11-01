@@ -59,6 +59,7 @@ import type {
   PerfTestsMineResponse,
   PerfTestsResponse,
   PhotoAlbum,
+  PhotoAlbumCoverResult,
   PhotoAlbumPage,
   PhotoImage,
   PoolBadge,
@@ -571,6 +572,9 @@ export const photos = {
     return api.post<PhotoImage>(`/api/photos/albums/${albumId}/images`, form);
   },
   remove: (imageId: number) => api.delete<void>(`/api/photos/images/${imageId}`),
+  /** Photo qui représente l'album et son cadrage (imageId null = laisser Piwigo choisir). */
+  setCover: (albumId: number, imageId: number | null, focusX: number, focusY: number) =>
+    api.put<PhotoAlbumCoverResult>(`/api/photos/albums/${albumId}/cover`, { imageId, focusX, focusY }),
 };
 
 /** Bourse aux dossards (même accès que la bourse aux équipements). */

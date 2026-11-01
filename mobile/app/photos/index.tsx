@@ -87,7 +87,13 @@ export default function PhotoAlbumsScreen() {
                 style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && { opacity: 0.85 }]}
               >
                 {cover ? (
-                  <Image source={{ uri: cover }} style={[styles.cover, { height: cardWidth * 0.75 }]} contentFit="cover" transition={150} />
+                  <Image
+                    source={{ uri: cover }}
+                    style={[styles.cover, { height: cardWidth * 0.75 }]}
+                    contentFit="cover"
+                    contentPosition={{ left: `${item.coverFocusX ?? 50}%`, top: `${item.coverFocusY ?? 50}%` }}
+                    transition={150}
+                  />
                 ) : (
                   <View style={[styles.cover, styles.coverEmpty, { height: cardWidth * 0.75 }]}>
                     <Ionicons name="images-outline" size={28} color={COLORS.textMuted} />

@@ -1198,8 +1198,20 @@ export type PhotoAlbum = {
   nbImages: number;
   /** Date de la dernière photo ajoutée (format Piwigo « AAAA-MM-JJ hh:mm:ss »). */
   dateLast: string | null;
-  /** Photo de couverture (id Piwigo), null si album vide. */
+  /** Photo de couverture (id Piwigo, choisie par les adhérents sinon proposée par Piwigo), null si album vide. */
   coverImageId: number | null;
+  /** Cadrage de la couverture dans la vignette, en % (50 / 50 = centrée), comme `object-position`. */
+  coverFocusX: number;
+  coverFocusY: number;
+  /** Seulement dans le détail d'un album : l'adhérent peut en choisir la couverture. */
+  canEditCover?: boolean;
+};
+
+/** Réponse de l'enregistrement de la couverture d'un album. */
+export type PhotoAlbumCoverResult = {
+  coverImageId: number | null;
+  coverFocusX: number;
+  coverFocusY: number;
 };
 
 export type PhotoImage = {
