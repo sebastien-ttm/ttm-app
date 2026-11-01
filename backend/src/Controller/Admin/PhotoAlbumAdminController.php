@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Repository\PhotoAlbumCoverRepository;
 use App\Repository\PhotoUploadRepository;
 use App\Service\Piwigo\PiwigoClient;
 use App\Service\Piwigo\PiwigoException;
@@ -30,6 +31,7 @@ class PhotoAlbumAdminController extends AbstractController
     public function __construct(
         private readonly PiwigoClient $piwigo,
         private readonly PhotoUploadRepository $uploads,
+        private readonly PhotoAlbumCoverRepository $covers,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -148,6 +150,7 @@ class PhotoAlbumAdminController extends AbstractController
         }
 
         $this->uploads->deleteByAlbum($id);
+        $this->covers->deleteByAlbum($id);
         $this->logger->info('Album photo supprimé depuis l\'admin', [
             'albumId' => $id,
             'name' => $name,

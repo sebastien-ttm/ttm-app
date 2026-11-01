@@ -2,8 +2,10 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\PhotoAlbumCover;
 use App\Entity\PhotoUpload;
 use App\Entity\User;
+use App\Repository\PhotoAlbumCoverRepository;
 use App\Repository\PhotoUploadRepository;
 use App\Service\ImageResizer;
 use App\Service\Piwigo\PiwigoClient;
@@ -24,7 +26,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Piwigo, réservés aux adhérents connectés. Tout adhérent peut créer
  * un album et y publier des photos (publication immédiate) ; il peut
  * supprimer les siennes, un admin peut supprimer toutes celles postées
- * depuis l'appli. Les images sont servies par le backend
+ * depuis l'appli. La photo qui représente un album (et son cadrage) se
+ * choisit depuis l'appli (PhotoAlbumCover). Les images sont servies par le backend
  * (albums Piwigo privés), voir PiwigoClient::fetchDerivative.
  */
 #[IsGranted('ROLE_USER')]
@@ -40,6 +43,7 @@ class PhotoController extends AbstractController
     public function __construct(
         private readonly PiwigoClient $piwigo,
         private readonly PhotoUploadRepository $uploads,
+        private readonly PhotoAlbumCoverRepository $covers,
         private readonly ImageResizer $resizer,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -54,7 +58,7 @@ class PhotoController extends AbstractController
             return new JsonResponse(['enabled' => false, 'data' => []]);
         }
         try {
-            return new JsonResponse(['enabled' => true, 'data' => $this->piwigo->listAlbums()]);
+            return new JsonResponse(['enabled' => true, 'data' => $this->withCovers($this->piwigo->listAlbums())]);
         } catch (PiwigoException $e) {
             return $this->unavailable($e);
         }
@@ -100,6 +104,8 @@ class PhotoController extends AbstractController
             'nbImages' => 0,
             'dateLast' => null,
             'coverImageId' => null,
+            'coverFocusX' => PhotoAlbumCover::CENTER,
+            'coverFocusY' => PhotoAlbumCover::CENTER,
         ], Response::HTTP_CREATED);
     }
 
@@ -116,7 +122,7 @@ class PhotoController extends AbstractController
 
         try {
             $album = null;
-            foreach ($this->piwigo->listAlbums() as $a) {
+            foreach ($this->withCovers($this->piwigo->listAlbums()) as $a) {
                 if ($a['id'] === $id) {
                     $album = $a;
                     break;
@@ -145,7 +151,7 @@ class PhotoController extends AbstractController
         }, $result['images']);
 
         return new JsonResponse([
-            'album' => $album,
+            'album' => $album + ['canEditCover' => $this->canEditCover($user, $id)],
             'images' => $images,
             'page' => $page,
             'perPage' => self::PER_PAGE,
@@ -256,8 +262,64 @@ class PhotoController extends AbstractController
         }
         $this->em->remove($upload);
         $this->em->flush();
+        // Si c'était la photo de couverture de son album, l'album reprend celle de Piwigo.
+        $this->covers->forgetImage($imageId);
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Photo qui représente l'album dans la liste, et son cadrage. JSON : imageId (une photo de l'album ; null = laisser
+     * Piwigo choisir), focusX / focusY (0-100 : position de la photo dans la vignette, 50 = centrée). Réservé aux
+     * encadrants et aux adhérents qui ont posté des photos dans cet album.
+     */
+    #[Route('/api/photos/albums/{id}/cover', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function setCover(int $id, Request $request): JsonResponse
+    {
+        if (!$this->piwigo->isConfigured()) {
+            return new JsonResponse(['error' => 'La galerie photos n\'est pas encore configurée.'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+        /** @var User $user */
+        $user = $this->getUser();
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Requête invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $imageId = $payload['imageId'] ?? null;
+        if ($imageId !== null && (!is_numeric($imageId) || (int) $imageId <= 0)) {
+            return new JsonResponse(['error' => 'Photo invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        $imageId = $imageId !== null ? (int) $imageId : null;
+
+        try {
+            if (!$this->piwigo->isAllowedAlbum($id) || $id === $this->piwigo->getRootAlbumId()) {
+                throw $this->createNotFoundException('Album introuvable.');
+            }
+            if (!$this->canEditCover($user, $id)) {
+                return new JsonResponse(
+                    ['error' => 'Seuls les encadrants et les adhérents qui ont ajouté des photos à cet album peuvent en choisir la couverture.'],
+                    Response::HTTP_FORBIDDEN,
+                );
+            }
+            if ($imageId !== null) {
+                $where = $this->piwigo->imageLocation($imageId);
+                if ($where === null || !in_array($id, array_column($where['albums'], 'id'), true)) {
+                    return new JsonResponse(['error' => 'Cette photo n\'est pas dans l\'album.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+            }
+        } catch (PiwigoException $e) {
+            return $this->unavailable($e);
+        }
+
+        // Sans photo choisie, le cadrage n'a pas de sens : retour au centre.
+        $focusX = $imageId !== null ? self::focus($payload['focusX'] ?? null) : PhotoAlbumCover::CENTER;
+        $focusY = $imageId !== null ? self::focus($payload['focusY'] ?? null) : PhotoAlbumCover::CENTER;
+        $cover = $this->covers->findOneByAlbum($id) ?? new PhotoAlbumCover($id);
+        $cover->set($imageId, $focusX, $focusY);
+        $this->em->persist($cover);
+        $this->em->flush();
+
+        return new JsonResponse(['coverImageId' => $imageId, 'coverFocusX' => $focusX, 'coverFocusY' => $focusY]);
     }
 
     /**
@@ -287,6 +349,45 @@ class PhotoController extends AbstractController
         $response->setPrivate();
         $response->setMaxAge(7 * 86400);
         return $response;
+    }
+
+    /**
+     * Applique aux albums de Piwigo la couverture choisie par les adhérents : photo (à défaut celle que Piwigo propose)
+     * et cadrage.
+     *
+     * @param list<array<string, mixed>> $albums
+     * @return list<array<string, mixed>>
+     */
+    private function withCovers(array $albums): array
+    {
+        try {
+            $covers = $this->covers->indexedByAlbum();
+        } catch (\Throwable) {
+            $covers = []; // table pas encore migrée : on garde les couvertures de Piwigo
+        }
+
+        return array_map(static function (array $a) use ($covers) {
+            $cover = $covers[$a['id']] ?? null;
+            $chosen = $cover?->getCoverImageId();
+
+            return [
+                'coverImageId' => $chosen ?? $a['coverImageId'],
+                'coverFocusX' => $chosen !== null ? $cover->getFocusX() : PhotoAlbumCover::CENTER,
+                'coverFocusY' => $chosen !== null ? $cover->getFocusY() : PhotoAlbumCover::CENTER,
+            ] + $a;
+        }, $albums);
+    }
+
+    /** Encadrants, ou adhérent ayant posté au moins une photo dans l'album. */
+    private function canEditCover(User $user, int $albumId): bool
+    {
+        return $this->isGranted('ROLE_ENTRAINEUR') || $this->uploads->countByUserInAlbum($user, $albumId) > 0;
+    }
+
+    /** Position 0-100 envoyée par l'appli ; 50 (centrée) si absente ou invalide. */
+    private static function focus(mixed $value): int
+    {
+        return is_numeric($value) ? (int) round(max(0.0, min(100.0, (float) $value))) : PhotoAlbumCover::CENTER;
     }
 
     private function unavailable(PiwigoException $e): JsonResponse

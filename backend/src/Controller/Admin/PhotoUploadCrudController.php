@@ -3,6 +3,7 @@
 namespace App\Controller\Admin;
 
 use App\Entity\PhotoUpload;
+use App\Repository\PhotoAlbumCoverRepository;
 use App\Service\Piwigo\PiwigoClient;
 use App\Service\Piwigo\PiwigoException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,8 +24,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\UrlField;
  */
 class PhotoUploadCrudController extends AbstractCrudController
 {
-    public function __construct(private readonly PiwigoClient $piwigo)
-    {
+    public function __construct(
+        private readonly PiwigoClient $piwigo,
+        private readonly PhotoAlbumCoverRepository $covers,
+    ) {
     }
 
     public static function getEntityFqcn(): string
@@ -72,5 +75,8 @@ class PhotoUploadCrudController extends AbstractCrudController
             }
         }
         parent::deleteEntity($em, $entityInstance);
+        if ($entityInstance instanceof PhotoUpload) {
+            $this->covers->forgetImage($entityInstance->getPiwigoImageId());
+        }
     }
 }
