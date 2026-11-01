@@ -20,12 +20,30 @@
         .al-adj { font-size:12px; color:#b45309; white-space:nowrap; }
         .al-muted { color:#64748b; font-size:12px; }
         .al-empty { color:#64748b; font-size:13px; padding:8px 0; }
+        .al-inherit { font-size:12px; color:#1e40af; background:#eff6ff; border-radius:6px; padding:6px 10px; margin:6px 0 10px; }
+        .al-copy { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+        .al-copy select, .al-copy button { font-size:13px; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; }
+        .al-copy button { background:#0d2148; border-color:#0d2148; color:#fff; font-weight:600; cursor:pointer; }
+        .al-link { font-size:13px; font-weight:600; color:#1e40af; }
     </style>
 
     <div class="al-card al-help">
         Chaque adhérent a <strong>un temps par épreuve</strong> : son <strong>meilleur temps de la saison</strong>, avec la <strong>séance</strong> où il a été réalisé.
-        Il est classé dans une <strong>allure de 1 à 5</strong> d'après les intervalles de l'épreuve (menu « Intervalles d'allure », modifiables).
+        Il est classé dans une <strong>allure de 1 à 5</strong> d'après les intervalles de l'épreuve <strong>pour cette saison</strong> : ils sont propres à chaque saison, pour équilibrer le nombre d'adhérents dans chaque allure.
         Natation : un temps réalisé en <strong>bassin de 50 m</strong> est diminué de 10 secondes pour le classement — le temps réel et la mention restent affichés.
+        <div style="margin-top:8px;"><a class="al-link" href="{{ paceUrl }}">✏️ Modifier les intervalles d'allure</a></div>
+        {% if copySources|length > 0 %}
+            <form class="al-copy" method="post" action="{{ path('admin_perf_test_allures_copy') }}"
+                  onsubmit="return confirm('Reprendre les intervalles de cette saison pour {{ seasonLabel }} ? Ceux déjà définis pour {{ seasonLabel }} seront remplacés.');">
+                <input type="hidden" name="_token" value="{{ csrf_token('perf_test_allure_copy') }}">
+                <input type="hidden" name="to" value="{{ season }}">
+                <label for="al-from">Repartir des intervalles de la saison</label>
+                <select id="al-from" name="from">
+                    {% for s in copySources %}<option value="{{ s.year }}">{{ s.label }}</option>{% endfor %}
+                </select>
+                <button type="submit">Les reprendre pour {{ seasonLabel }}</button>
+            </form>
+        {% endif %}
     </div>
 
     {% if seasons|length > 1 %}
@@ -42,6 +60,11 @@
             <div class="al-help">
                 {% for iv in recap.intervals %}<strong>{{ iv.level }}</strong> : {{ iv.label }}{{ not loop.last ? ' · ' : '' }}{% endfor %}
             </div>
+            {% if recap.scaleSeason != season %}
+                <div class="al-inherit">ℹ️ Pas encore d'intervalles propres à la saison {{ seasonLabel }} : ceux de la saison {{ recap.scaleSeasonLabel }} s'appliquent.</div>
+            {% elseif not recap.scaleOwn %}
+                <div class="al-inherit">ℹ️ Aucun intervalle enregistré pour cette épreuve : les valeurs d'origine s'appliquent.</div>
+            {% endif %}
             {% if recap.adjustmentNote %}<div class="al-note">⚠️ {{ recap.adjustmentNote }}</div>{% endif %}
 
             {% if recap.rows|length == 0 %}

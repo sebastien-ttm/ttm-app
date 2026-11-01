@@ -10,10 +10,13 @@ use App\Enum\PerfTest;
 use App\Repository\PerfTestPaceRepository;
 use App\Repository\PerfTestResultRepository;
 use App\Repository\PerfTestSessionRepository;
+use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Allures du club (1 à 5) : le temps réalisé à un test classe l'adhérent dans une allure, par épreuve. Les intervalles
- * sont ceux de PerfTestPace, modifiables par les entraîneurs depuis le backend.
+ * Allures du club (1 à 5) : le temps réalisé à un test classe l'adhérent dans une allure, par épreuve ET par saison. Les
+ * intervalles sont ceux de PerfTestPace (une ligne par épreuve et par saison, modifiable par les entraîneurs depuis le
+ * backend) : le niveau général change d'une année à l'autre, les intervalles se règlent pour équilibrer les allures.
+ * Une saison sans intervalles à elle reprend ceux de la saison précédente la plus proche.
  *
  * Natation : un temps réalisé en bassin de 50 m est diminué de 10 secondes pour la comparaison (classement dans une
  * allure, meilleur temps de la saison) ; l'appli et le backend le mentionnent, avec le temps réel.
@@ -26,31 +29,99 @@ class PerfTestAllureService
     /** Secondes retirées d'un temps de natation en bassin de 50 m pour le comparer aux autres. */
     public const SWIM_50M_DEDUCTION_SECONDS = 10;
 
-    /** Ordre d'affichage des épreuves : course, natation, vélo. */
-    public const TESTS = [PerfTest::Run1500, PerfTest::Swim400, PerfTest::BikeClimb2k];
+    /** Ordre d'affichage des épreuves : course (1500 m puis 2000 m), natation, vélo. */
+    public const TESTS = [PerfTest::Run1500, PerfTest::Run2000, PerfTest::Swim400, PerfTest::BikeClimb2k];
 
-    /** @var array<string, PerfTestPace>|null */
+    /**
+     * Échelles enregistrées, par épreuve, de la saison la plus ancienne à la plus récente.
+     *
+     * @var array<string, list<PerfTestPace>>|null
+     */
     private ?array $scales = null;
+
+    /** @var array<string, PerfTestPace> échelles d'origine (jamais enregistrées), par « épreuve:saison » */
+    private array $originals = [];
 
     public function __construct(
         private readonly PerfTestPaceRepository $paces,
         private readonly PerfTestResultRepository $results,
+        private readonly EntityManagerInterface $em,
     ) {
     }
 
-    /** Échelle d'allures d'une épreuve : celle enregistrée, à défaut les valeurs d'origine. */
-    public function scale(PerfTest $test): PerfTestPace
+    /**
+     * Échelle d'allures d'une épreuve pour une saison : celle de la saison ; à défaut celle de la saison précédente la plus
+     * proche, puis de la plus proche suivante ; à défaut les valeurs d'origine.
+     */
+    public function scale(PerfTest $test, int $season): PerfTestPace
     {
         if ($this->scales === null) {
+            $this->scales = [];
             try {
-                $this->scales = $this->paces->findAllByTest();
+                foreach ($this->paces->findAllOrdered() as $pace) {
+                    $this->scales[$pace->getTest()->value][] = $pace;
+                }
             } catch (\Throwable) {
-                // Table pas encore créée (migration en attente) : on retombe sur les valeurs d'origine.
+                // Table pas encore migrée : on retombe sur les valeurs d'origine.
                 $this->scales = [];
             }
         }
 
-        return $this->scales[$test->value] ??= new PerfTestPace($test);
+        $earlier = null;
+        $later = null;
+        foreach ($this->scales[$test->value] ?? [] as $pace) {
+            if ($pace->getSeasonStartYear() === $season) {
+                return $pace;
+            }
+            if ($pace->getSeasonStartYear() < $season) {
+                $earlier = $pace; // la liste est croissante : on garde la plus récente avant `$season`
+            } elseif ($later === null) {
+                $later = $pace;
+            }
+        }
+
+        return $earlier ?? $later ?? ($this->originals[$test->value.':'.$season] ??= new PerfTestPace($test, $season));
+    }
+
+    /**
+     * Saisons pour lesquelles des intervalles sont enregistrés (de la plus récente à la plus ancienne) : sources possibles
+     * d'une copie vers une autre saison.
+     *
+     * @return list<int>
+     */
+    public function seasonsWithScales(): array
+    {
+        try {
+            return $this->paces->findSeasonYears();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Copie les intervalles de toutes les épreuves de la saison `$from` vers la saison `$to` (en remplaçant ceux que `$to`
+     * avait déjà) : de quoi partir de l'année précédente puis ajuster. Renvoie le nombre d'épreuves copiées.
+     */
+    public function copySeason(int $from, int $to): int
+    {
+        if ($from === $to) {
+            return 0;
+        }
+        $count = 0;
+        foreach (PerfTest::cases() as $test) {
+            $source = $this->scale($test, $from);
+            $target = $this->paces->findOneFor($test, $to);
+            if ($target === null) {
+                $target = new PerfTestPace($test, $to);
+                $this->em->persist($target);
+            }
+            $target->copyThresholds($source);
+            ++$count;
+        }
+        $this->em->flush();
+        $this->scales = null; // relu à la prochaine demande
+
+        return $count;
     }
 
     /** Le temps d'une natation en bassin de 50 m est corrigé avant comparaison. */
@@ -65,22 +136,22 @@ class PerfTestAllureService
         return $this->isAdjusted($test, $poolLength) ? max(1, $seconds - self::SWIM_50M_DEDUCTION_SECONDS) : $seconds;
     }
 
-    /** Allure (1 à 5) d'un temps retenu. */
-    public function levelFor(PerfTest $test, int $effectiveSeconds): int
+    /** Allure (1 à 5) d'un temps retenu, d'après les intervalles de la saison. */
+    public function levelFor(PerfTest $test, int $season, int $effectiveSeconds): int
     {
-        return $this->scale($test)->levelFor($effectiveSeconds);
+        return $this->scale($test, $season)->levelFor($effectiveSeconds);
     }
 
     /**
-     * Les intervalles d'une épreuve, pour l'affichage.
+     * Les intervalles d'une épreuve pour une saison, pour l'affichage.
      *
      * @return list<array{level: int, label: string}>
      */
-    public function intervals(PerfTest $test): array
+    public function intervals(PerfTest $test, int $season): array
     {
         return array_map(
             static fn (array $i) => ['level' => $i['level'], 'label' => $i['label']],
-            $this->scale($test)->intervals(),
+            $this->scale($test, $season)->intervals(),
         );
     }
 
@@ -117,10 +188,11 @@ class PerfTestAllureService
         $entries = array_values($best);
         usort($entries, static fn (array $a, array $b) => [$a['effective'], $a['result']->getSortName()] <=> [$b['effective'], $b['result']->getSortName()]);
 
+        $scale = $this->scale($test, $startYear);
         $rows = [];
         $mine = null;
         foreach ($entries as $entry) {
-            $row = $this->row($test, $entry['result'], $entry['effective'], $viewer);
+            $row = $this->row($test, $startYear, $entry['result'], $entry['effective'], $viewer);
             $rows[] = $row;
             if ($row['mine']) {
                 $mine = ['level' => $row['level'], 'time' => $row['time'], 'effectiveTime' => $row['effectiveTime'], 'adjusted' => $row['adjusted']];
@@ -132,7 +204,11 @@ class PerfTestAllureService
             'label' => $test->label(),
             'shortLabel' => $test->shortLabel(),
             'icon' => $test->icon(),
-            'intervals' => $this->intervals($test),
+            'intervals' => $this->intervals($test, $startYear),
+            // Saison dont viennent les intervalles : la même, ou une saison précédente tant que celle-ci n'a pas les siens.
+            'scaleSeason' => $scale->getSeasonStartYear(),
+            'scaleSeasonLabel' => $scale->getSeasonLabel(),
+            'scaleOwn' => $scale->getId() !== null && $scale->getSeasonStartYear() === $startYear,
             'adjustmentNote' => $this->adjustmentNote($test),
             'rows' => $rows,
             'mine' => $mine,
@@ -141,7 +217,8 @@ class PerfTestAllureService
 
     /**
      * Mes allures : pour chaque épreuve où j'ai un temps, mon meilleur temps (retenu) de la saison la plus récente où je
-     * l'ai passée, avec mon allure et la séance. Dans l'ordre course, natation, vélo ; vide si je n'ai aucun temps.
+     * l'ai passée, avec mon allure d'après les intervalles de CETTE saison et la séance. Dans l'ordre course (1500 m,
+     * 2000 m), natation, vélo ; vide si je n'ai aucun temps.
      *
      * @return list<array<string, mixed>>
      */
@@ -169,7 +246,7 @@ class PerfTestAllureService
                 continue;
             }
             $entry = $latest[$test->value];
-            $row = $this->row($test, $entry['result'], $entry['effective'], $user);
+            $row = $this->row($test, $entry['season'], $entry['result'], $entry['effective'], $user);
             $out[] = [
                 'test' => $test->value,
                 'label' => $test->label(),
@@ -183,7 +260,7 @@ class PerfTestAllureService
                 'adjusted' => $row['adjusted'],
                 'poolLength' => $row['poolLength'],
                 'session' => $row['session'],
-                'intervals' => $this->intervals($test),
+                'intervals' => $this->intervals($test, $entry['season']),
                 'adjustmentNote' => $this->adjustmentNote($test),
             ];
         }
@@ -196,14 +273,14 @@ class PerfTestAllureService
      *
      * @return array<string, mixed>
      */
-    private function row(PerfTest $test, PerfTestResult $result, int $effective, ?User $viewer): array
+    private function row(PerfTest $test, int $season, PerfTestResult $result, int $effective, ?User $viewer): array
     {
         $session = $result->getSession();
 
         return [
             'userId' => $result->getUser()?->getId(),
             'fullName' => $result->getDisplayName(),
-            'level' => $this->levelFor($test, $effective),
+            'level' => $this->levelFor($test, $season, $effective),
             'timeSeconds' => $result->getTimeSeconds(),
             'time' => PerfTestResult::format($result->getTimeSeconds()),
             'effectiveSeconds' => $effective,

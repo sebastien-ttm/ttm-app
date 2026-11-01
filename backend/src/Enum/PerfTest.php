@@ -8,6 +8,7 @@ namespace App\Enum;
 enum PerfTest: string
 {
     case Run1500 = 'run_1500';
+    case Run2000 = 'run_2000';
     case Swim400 = 'swim_400';
     case BikeClimb2k = 'bike_climb_2k';
 
@@ -15,6 +16,7 @@ enum PerfTest: string
     {
         return match ($this) {
             self::Run1500 => '1500 m course à pied',
+            self::Run2000 => '2000 m course à pied',
             self::Swim400 => '400 m natation',
             self::BikeClimb2k => 'Montée 2 km vélo',
         };
@@ -25,6 +27,7 @@ enum PerfTest: string
     {
         return match ($this) {
             self::Run1500 => '1500 m',
+            self::Run2000 => '2000 m',
             self::Swim400 => '400 m nage',
             self::BikeClimb2k => 'Montée 2 km',
         };
@@ -33,7 +36,7 @@ enum PerfTest: string
     public function icon(): string
     {
         return match ($this) {
-            self::Run1500 => '🏃',
+            self::Run1500, self::Run2000 => '🏃',
             self::Swim400 => '🏊',
             self::BikeClimb2k => '🚴',
         };
@@ -49,6 +52,7 @@ enum PerfTest: string
     {
         return match ($this) {
             self::Run1500 => [180, 1500],
+            self::Run2000 => [240, 2400],
             self::Swim400 => [180, 1500],
             self::BikeClimb2k => [60, 2400],
         };

@@ -18,22 +18,38 @@ class PerfTestPaceRepository extends ServiceEntityRepository
     }
 
     /**
-     * Les échelles d'allure enregistrées, par valeur d'épreuve (`run_1500`…).
+     * Toutes les échelles d'allure enregistrées, de la saison la plus ancienne à la plus récente.
      *
-     * @return array<string, PerfTestPace>
+     * @return list<PerfTestPace>
      */
-    public function findAllByTest(): array
+    public function findAllOrdered(): array
     {
-        $out = [];
-        foreach ($this->findAll() as $pace) {
-            $out[$pace->getTest()->value] = $pace;
-        }
-
-        return $out;
+        return $this->createQueryBuilder('p')
+            ->orderBy('p.seasonStartYear', 'ASC')
+            ->addOrderBy('p.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
-    public function findOneByTest(PerfTest $test): ?PerfTestPace
+    /** L'échelle d'une épreuve pour une saison précise (null si cette saison n'a pas la sienne). */
+    public function findOneFor(PerfTest $test, int $seasonStartYear): ?PerfTestPace
     {
-        return $this->findOneBy(['test' => $test]);
+        return $this->findOneBy(['test' => $test, 'seasonStartYear' => $seasonStartYear]);
+    }
+
+    /**
+     * Saisons (année de début) pour lesquelles des intervalles sont enregistrés, de la plus récente à la plus ancienne.
+     *
+     * @return list<int>
+     */
+    public function findSeasonYears(): array
+    {
+        $rows = $this->createQueryBuilder('p')
+            ->select('DISTINCT p.seasonStartYear AS y')
+            ->orderBy('p.seasonStartYear', 'DESC')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $r) => (int) $r['y'], $rows);
     }
 }

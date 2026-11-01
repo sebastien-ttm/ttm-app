@@ -3,17 +3,23 @@
 namespace App\Controller\Admin;
 
 use App\Entity\PerfTestPace;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use App\Enum\PerfTest;
+use App\Repository\PerfTestSessionRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
+use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Regex;
 
 /**
- * Intervalles des 5 allures du club, par épreuve : les entraîneurs en modifient les temps. Une ligne par épreuve
- * (course, natation, vélo), créée par la migration : ni création ni suppression ici.
+ * Intervalles des 5 allures du club, par épreuve ET par saison : les entraîneurs en modifient les temps pour équilibrer
+ * le nombre d'adhérents dans chaque allure (le niveau général change d'une année à l'autre). Une ligne par épreuve et par
+ * saison ; une saison sans ligne reprend celle de la saison précédente. Pour démarrer une saison, « Récap des allures »
+ * permet de copier les intervalles d'une autre saison, à ajuster ici ensuite.
  */
 class PerfTestPaceCrudController extends AbstractCrudController
 {
@@ -28,30 +34,50 @@ class PerfTestPaceCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('Intervalles d\'allure')
             ->setEntityLabelInPlural('Intervalles d\'allure')
             ->setEntityPermission('ROLE_ENTRAINEUR')
-            ->setDefaultSort(['id' => 'ASC'])
+            ->setDefaultSort(['seasonStartYear' => 'DESC', 'id' => 'ASC'])
             ->setHelp(
                 Crud::PAGE_INDEX,
                 'Le temps réalisé au test classe l\'adhérent dans une allure de 1 à 5. Chaque allure va jusqu\'à un temps maximal (inclus) ; '
-                .'l\'allure 5 n\'a pas de borne. Natation : un temps réalisé en bassin de 50 m est diminué de 10 secondes avant la comparaison. '
-                .'Les changements s\'appliquent tout de suite, au récap de toutes les saisons.',
+                .'l\'allure 5 n\'a pas de borne. Les intervalles sont propres à chaque SAISON : réglez-les pour équilibrer le nombre d\'adhérents '
+                .'dans chaque allure (le « Récap des allures » les compte). Une saison sans ligne reprend celle de la saison précédente. '
+                .'Natation : un temps réalisé en bassin de 50 m est diminué de 10 secondes avant la comparaison. '
+                .'Les changements s\'appliquent tout de suite au récap de la saison concernée.',
             );
     }
 
-    public function configureActions(Actions $actions): Actions
+    public function configureFilters(Filters $filters): Filters
     {
-        // Trois lignes fixes (une par épreuve), créées par la migration.
-        return parent::configureActions($actions)->disable(Action::NEW, Action::DELETE);
+        return $filters->add(ChoiceFilter::new('seasonStartYear', 'Saison')->setChoices(PerfTestPace::seasonChoices()));
+    }
+
+    /** Nouvelle ligne : saison en cours, 1500 m (intervalles d'origine à adapter). */
+    public function createEntity(string $entityFqcn): PerfTestPace
+    {
+        return new PerfTestPace(PerfTest::Run1500, PerfTestSessionRepository::seasonStartYear(new \DateTimeImmutable('today')));
     }
 
     public function configureFields(string $pageName): iterable
     {
-        yield TextField::new('testLabel', 'Épreuve')->hideOnForm();
-        yield TextField::new('intervalsText', 'Intervalles actuels')->hideOnForm();
+        yield TextField::new('seasonLabel', 'Saison')->onlyOnIndex();
+        yield TextField::new('testLabel', 'Épreuve')->onlyOnIndex();
+        yield TextField::new('intervalsText', 'Intervalles actuels')->onlyOnIndex();
 
-        // Édition : l'épreuve s'affiche sans pouvoir être changée, puis les 4 temps maximaux.
-        yield TextField::new('testLabel', 'Épreuve')
-            ->setFormTypeOption('disabled', true)
+        // L'épreuve et la saison se choisissent à la création ; ensuite elles s'affichent sans pouvoir être changées.
+        $editing = $pageName === Crud::PAGE_EDIT;
+        yield ChoiceField::new('test', 'Épreuve')
+            ->setFormType(EnumType::class)
+            ->setFormTypeOptions([
+                'class' => PerfTest::class,
+                'choice_label' => fn (PerfTest $t) => $t->icon().' '.$t->label(),
+                'disabled' => $editing,
+            ])
             ->onlyOnForms();
+        yield ChoiceField::new('seasonStartYear', 'Saison')
+            ->setChoices(PerfTestPace::seasonChoices())
+            ->setFormTypeOption('disabled', $editing)
+            ->setHelp('Saison d\'entraînement : du 1er septembre au 31 août (2026-2027 démarre le 1er septembre 2026).')
+            ->onlyOnForms();
+
         foreach ([1, 2, 3, 4] as $n) {
             yield TextField::new('level'.$n.'MaxLabel', 'Allure '.$n.' : jusqu\'à (inclus)')
                 ->onlyOnForms()
