@@ -93,12 +93,12 @@ class PhotoUploadRepository extends ServiceEntityRepository
             ->execute();
     }
 
-    /** Photos que cet adhérent a envoyées dans cet album. */
+    /** Photos que cet adhérent a envoyées dans cet album, ou que le staff y a publiées en son nom. */
     public function countByUserInAlbum(User $user, int $albumId): int
     {
         return (int) $this->createQueryBuilder('p')
             ->select('COUNT(p.id)')
-            ->where('p.user = :user')
+            ->where('p.user = :user OR p.uploadedBy = :user')
             ->andWhere('p.piwigoAlbumId = :album')
             ->setParameter('user', $user)
             ->setParameter('album', $albumId)

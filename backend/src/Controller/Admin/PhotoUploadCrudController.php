@@ -50,6 +50,9 @@ class PhotoUploadCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield AssociationField::new('user', 'Auteur');
+        yield AssociationField::new('uploadedBy', 'Envoyée par')
+            ->setHelp('Renseigné quand un membre du staff a publié la photo au nom de l\'auteur.')
+            ->hideOnForm();
         yield TextField::new('albumName', 'Album');
         yield IntegerField::new('piwigoImageId', 'N° Piwigo');
         yield UrlField::new('piwigoUrl', 'Voir sur Piwigo');

@@ -26,6 +26,14 @@ class PhotoUpload
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
+    /**
+     * Renseigné quand un membre du staff a publié la photo au nom de `user` : celui qui l'a réellement envoyée
+     * (il peut la supprimer, l'admin le voit). Null = la photo a été envoyée par `user` lui-même.
+     */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $uploadedBy = null;
+
     #[ORM\Column]
     private int $piwigoImageId;
 
@@ -43,9 +51,10 @@ class PhotoUpload
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(User $user, int $piwigoImageId, int $piwigoAlbumId, string $albumName, ?string $piwigoUrl)
+    public function __construct(User $user, int $piwigoImageId, int $piwigoAlbumId, string $albumName, ?string $piwigoUrl, ?User $uploadedBy = null)
     {
         $this->user = $user;
+        $this->uploadedBy = $uploadedBy;
         $this->piwigoImageId = $piwigoImageId;
         $this->piwigoAlbumId = $piwigoAlbumId;
         $this->albumName = mb_substr($albumName, 0, 255);
@@ -55,6 +64,7 @@ class PhotoUpload
 
     public function getId(): ?int { return $this->id; }
     public function getUser(): User { return $this->user; }
+    public function getUploadedBy(): ?User { return $this->uploadedBy; }
     public function getPiwigoImageId(): int { return $this->piwigoImageId; }
     public function getPiwigoAlbumId(): int { return $this->piwigoAlbumId; }
     public function getAlbumName(): string { return $this->albumName; }

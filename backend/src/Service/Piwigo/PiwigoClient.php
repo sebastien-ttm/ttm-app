@@ -139,7 +139,9 @@ class PiwigoClient
     }
 
     /**
-     * Photos d'un album, les plus récentes d'abord (page 0 = première).
+     * Photos d'un album dans l'ordre chronologique d'ajout, les plus anciennes d'abord (page 0 = première). Les photos
+     * envoyées d'un coup ont la même date d'ajout à la seconde près : l'identifiant Piwigo les départage, donc l'ordre
+     * d'envoi est conservé.
      *
      * @return array{images: list<array{id: int, width: int, height: int, dateAvailable: ?string}>, total: int}
      */
@@ -149,7 +151,7 @@ class PiwigoClient
             'cat_id' => $albumId,
             'page' => $page,
             'per_page' => $perPage,
-            'order' => 'date_available desc',
+            'order' => 'date_available asc, id asc',
         ]);
 
         $images = [];

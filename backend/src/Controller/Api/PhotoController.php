@@ -7,6 +7,8 @@ use App\Entity\PhotoUpload;
 use App\Entity\User;
 use App\Repository\PhotoAlbumCoverRepository;
 use App\Repository\PhotoUploadRepository;
+use App\Repository\UserRepository;
+use App\Service\AvatarService;
 use App\Service\ImageResizer;
 use App\Service\Piwigo\PiwigoClient;
 use App\Service\Piwigo\PiwigoException;
@@ -26,8 +28,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Piwigo, réservés aux adhérents connectés. Tout adhérent peut créer
  * un album et y publier des photos (publication immédiate) ; il peut
  * supprimer les siennes, un admin peut supprimer toutes celles postées
- * depuis l'appli. La photo qui représente un album (et son cadrage) se
- * choisit depuis l'appli (PhotoAlbumCover). Les images sont servies par le backend
+ * depuis l'appli. Le staff (entraîneurs, encadrants, CoDir, admins) peut publier au nom d'un autre adhérent
+ * (PhotoUpload::$uploadedBy garde qui a réellement envoyé la photo). La photo qui représente un album (et son
+ * cadrage) se choisit depuis l'appli (PhotoAlbumCover). Les images sont servies par le backend
  * (albums Piwigo privés), voir PiwigoClient::fetchDerivative.
  */
 #[IsGranted('ROLE_USER')]
@@ -44,6 +47,8 @@ class PhotoController extends AbstractController
         private readonly PiwigoClient $piwigo,
         private readonly PhotoUploadRepository $uploads,
         private readonly PhotoAlbumCoverRepository $covers,
+        private readonly UserRepository $users,
+        private readonly AvatarService $avatars,
         private readonly ImageResizer $resizer,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -109,7 +114,7 @@ class PhotoController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
-    /** Photos d'un album, les plus récentes d'abord. ?page=0,1… */
+    /** Photos d'un album dans l'ordre chronologique d'ajout (les plus anciennes d'abord). ?page=0,1… */
     #[Route('/api/photos/albums/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function album(int $id, Request $request): JsonResponse
     {
@@ -141,17 +146,21 @@ class PhotoController extends AbstractController
         $images = array_map(function (array $img) use ($known, $user, $isAdmin) {
             $upload = $known[$img['id']] ?? null;
             $mine = $upload !== null && $upload->getUser()->getId() === $user->getId();
+            $sentByMe = $upload?->getUploadedBy()?->getId() === $user->getId();
             return $img + [
                 'authorName' => $upload?->getUser()->getFullName(),
                 'mine' => $mine,
                 // Seules les photos postées depuis l'appli se suppriment ici ;
                 // les autres se gèrent dans l'admin Piwigo.
-                'canDelete' => $upload !== null && ($mine || $isAdmin),
+                'canDelete' => $upload !== null && ($mine || $sentByMe || $isAdmin),
             ];
         }, $result['images']);
 
         return new JsonResponse([
-            'album' => $album + ['canEditCover' => $this->canEditCover($user, $id)],
+            'album' => $album + [
+                'canEditCover' => $this->canEditCover($user, $id),
+                'canPostForOthers' => $this->canPostForOthers($user),
+            ],
             'images' => $images,
             'page' => $page,
             'perPage' => self::PER_PAGE,
@@ -160,9 +169,10 @@ class PhotoController extends AbstractController
     }
 
     /**
-     * Envoi d'UNE photo dans un album (multipart : photo, consent=1).
+     * Envoi d'UNE photo dans un album (multipart : photo, consent=1, authorId?).
      * L'appli envoie les photos une par une (barre de progression, pas
-     * de dépassement des limites PHP).
+     * de dépassement des limites PHP). `authorId` : adhérent au nom de qui la photo est publiée, réservé au staff
+     * (voir canPostForOthers) ; absent = l'envoyeur lui-même.
      */
     #[Route('/api/photos/albums/{id}/images', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function upload(int $id, Request $request): JsonResponse
@@ -186,7 +196,26 @@ class PhotoController extends AbstractController
         if ($file->getSize() > self::MAX_UPLOAD_BYTES) {
             return new JsonResponse(['error' => 'Photo trop lourde (20 Mo max).'], Response::HTTP_BAD_REQUEST);
         }
-        if ($this->uploads->countByUserSince($user, new \DateTimeImmutable('-1 hour')) >= self::MAX_PHOTOS_PER_HOUR) {
+
+        // Publication au nom d'un autre adhérent : staff seulement, vers un compte actif.
+        $author = $user;
+        $rawAuthor = (string) $request->request->get('authorId', '');
+        if ($rawAuthor !== '' && $rawAuthor !== (string) $user->getId()) {
+            if (!$this->canPostForOthers($user)) {
+                return new JsonResponse(
+                    ['error' => 'Seul le staff peut publier des photos au nom d\'un autre adhérent.'],
+                    Response::HTTP_FORBIDDEN,
+                );
+            }
+            $found = ctype_digit($rawAuthor) ? $this->em->find(User::class, (int) $rawAuthor) : null;
+            if (!$found instanceof User || !$found->isActive()) {
+                return new JsonResponse(['error' => 'Adhérent introuvable.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $author = $found;
+        }
+        $onBehalf = $author->getId() !== $user->getId();
+
+        if ($this->uploads->countByUserSince($author, new \DateTimeImmutable('-1 hour')) >= self::MAX_PHOTOS_PER_HOUR) {
             return new JsonResponse(
                 ['error' => 'Beaucoup de photos envoyées en peu de temps. Réessayez dans un moment.'],
                 Response::HTTP_TOO_MANY_REQUESTS,
@@ -218,9 +247,11 @@ class PhotoController extends AbstractController
                 $added = $this->piwigo->addImage(
                     $id,
                     $tmp,
-                    sprintf('ttm-%d-%s.jpg', $user->getId(), bin2hex(random_bytes(4))),
-                    $user->getFullName(),
-                    'Photo envoyée depuis l\'appli TTM.',
+                    sprintf('ttm-%d-%s.jpg', $author->getId(), bin2hex(random_bytes(4))),
+                    $author->getFullName(),
+                    $onBehalf
+                        ? 'Photo envoyée depuis l\'appli TTM par '.$user->getFullName().'.'
+                        : 'Photo envoyée depuis l\'appli TTM.',
                 );
             } finally {
                 @unlink($tmp);
@@ -229,19 +260,42 @@ class PhotoController extends AbstractController
             return $this->unavailable($e);
         }
 
-        $upload = new PhotoUpload($user, $added['id'], $id, $albumName, $added['url']);
+        $upload = new PhotoUpload($author, $added['id'], $id, $albumName, $added['url'], $onBehalf ? $user : null);
         $this->em->persist($upload);
         $this->em->flush();
 
         return new JsonResponse([
             'id' => $added['id'],
-            'authorName' => $user->getFullName(),
-            'mine' => true,
+            'authorName' => $author->getFullName(),
+            'mine' => !$onBehalf,
             'canDelete' => true,
         ], Response::HTTP_CREATED);
     }
 
-    /** Suppression d'une photo postée depuis l'appli (auteur ou admin). */
+    /**
+     * Adhérents au nom de qui le staff peut publier des photos : identité et photo seulement (pas de coordonnées,
+     * contrairement à l'annuaire du staff sportif).
+     */
+    #[Route('/api/photos/authors', methods: ['GET'])]
+    public function authors(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$this->canPostForOthers($user)) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $members = array_map(fn (User $u): array => [
+            'id' => $u->getId(),
+            'nom' => $u->getNom(),
+            'prenom' => $u->getPrenom(),
+            'avatarUrl' => $this->avatars->urlFor($u),
+        ], $this->users->findAdherentsForStaffDirectory());
+
+        return new JsonResponse(['data' => $members]);
+    }
+
+    /** Suppression d'une photo postée depuis l'appli (auteur, envoyeur pour le compte de l'auteur, ou admin). */
     #[Route('/api/photos/images/{imageId}', methods: ['DELETE'], requirements: ['imageId' => '\d+'])]
     public function delete(int $imageId): JsonResponse
     {
@@ -251,7 +305,9 @@ class PhotoController extends AbstractController
         if ($upload === null) {
             throw $this->createNotFoundException('Photo introuvable.');
         }
-        if ($upload->getUser()->getId() !== $user->getId() && !$this->isGranted('ROLE_ADMIN')) {
+        $isAuthor = $upload->getUser()->getId() === $user->getId();
+        $sentByMe = $upload->getUploadedBy()?->getId() === $user->getId();
+        if (!$isAuthor && !$sentByMe && !$this->isGranted('ROLE_ADMIN')) {
             return new JsonResponse(['error' => 'Vous ne pouvez supprimer que vos propres photos.'], Response::HTTP_FORBIDDEN);
         }
 
@@ -382,6 +438,15 @@ class PhotoController extends AbstractController
     private function canEditCover(User $user, int $albumId): bool
     {
         return $this->isGranted('ROLE_ENTRAINEUR') || $this->uploads->countByUserInAlbum($user, $albumId) > 0;
+    }
+
+    /**
+     * Publier au nom d'un autre adhérent : mêmes profils que l'espace « Staff » de l'appli (émargement) — entraîneurs,
+     * encadrants, membres du CoDir et administrateurs.
+     */
+    private function canPostForOthers(User $user): bool
+    {
+        return $user->isEntraineur() || $user->isEncadrant() || $user->getBoardRole() !== null || $user->isAdmin();
     }
 
     /** Position 0-100 envoyée par l'appli ; 50 (centrée) si absente ou invalide. */
