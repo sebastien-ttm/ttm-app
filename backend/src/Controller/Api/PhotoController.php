@@ -169,7 +169,7 @@ class PhotoController extends AbstractController
     }
 
     /**
-     * Envoi d'UNE photo dans un album (multipart : photo, consent=1, authorId?).
+     * Envoi d'UNE photo dans un album (multipart : photo, authorId?).
      * L'appli envoie les photos une par une (barre de progression, pas
      * de dépassement des limites PHP). `authorId` : adhérent au nom de qui la photo est publiée, réservé au staff
      * (voir canPostForOthers) ; absent = l'envoyeur lui-même.
@@ -183,12 +183,7 @@ class PhotoController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if ($request->request->get('consent') !== '1') {
-            return new JsonResponse(
-                ['error' => 'Merci de confirmer que les personnes photographiées sont d\'accord.'],
-                Response::HTTP_BAD_REQUEST,
-            );
-        }
+        // Pas d'accord à cocher à l'envoi : l'adhésion au club vaut accord pour la galerie réservée aux adhérents.
         $file = $request->files->get('photo');
         if (!$file instanceof UploadedFile || !$file->isValid()) {
             return new JsonResponse(['error' => 'Photo manquante ou envoi interrompu.'], Response::HTTP_BAD_REQUEST);
