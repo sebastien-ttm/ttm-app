@@ -7,12 +7,15 @@ use App\Entity\TrainingGroupAttachment;
 use App\Entity\TrainingGroupComment;
 use App\Entity\TrainingGroupPosition;
 use App\Entity\User;
+use App\Entity\YouthDocument;
 use App\Enum\Sport;
+use App\Enum\YouthDocumentType;
 use App\Repository\TrainingGroupAttachmentRepository;
 use App\Repository\TrainingGroupCommentRepository;
 use App\Repository\TrainingGroupPositionRepository;
 use App\Repository\TrainingGroupRepository;
 use App\Repository\UserRepository;
+use App\Repository\YouthDocumentRepository;
 use App\Service\AvatarService;
 use App\Service\Training\TrainingRegistrationService;
 use App\Service\Training\WeeklyScheduleService;
@@ -68,6 +71,7 @@ class TrainingGroupController extends AbstractController
         private readonly TrainingGroupAttachmentRepository $attachments,
         private readonly TrainingGroupPositionRepository $positions,
         private readonly UserRepository $users,
+        private readonly YouthDocumentRepository $youthDocuments,
         private readonly AvatarService $avatars,
         private readonly EntityManagerInterface $em,
         private readonly WeeklyScheduleService $schedule,
@@ -1147,6 +1151,16 @@ class TrainingGroupController extends AbstractController
         usort($coaches, $byName);
         $members = array_values($group->getMembers()->toArray());
         usort($members, $byName);
+        // Encadrant : autorisations de rentrer seul des jeunes du groupe, en une requête.
+        $goHomeAlone = [];
+        if ($isCoach) {
+            $youth = array_values(array_filter($members, static fn (User $u) => $u->isJeune()));
+            foreach ($this->youthDocuments->findGroupedByOwner($youth) as $ownerId => $byType) {
+                if (isset($byType[YouthDocumentType::GoHomeAlone->value])) {
+                    $goHomeAlone[$ownerId] = $byType[YouthDocumentType::GoHomeAlone->value];
+                }
+            }
+        }
 
         $since = (new \DateTimeImmutable())->modify('-'.self::POSITION_FRESH_MINUTES.' minutes');
 
@@ -1176,7 +1190,10 @@ class TrainingGroupController extends AbstractController
                 'telephone' => self::cleanPhone($u->getTelephone()),
                 'isMe' => $u->getId() === $viewer->getId(),
             ], $coaches),
-            'members' => array_map(fn (User $u) => $this->memberItem($u, $viewer, $isCoach ? 'full' : ($isSibling ? 'none' : 'phone')), $members),
+            'members' => array_map(
+                fn (User $u) => $this->memberItem($u, $viewer, $isCoach ? 'full' : ($isSibling ? 'none' : 'phone'), $goHomeAlone[(int) $u->getId()] ?? null),
+                $members,
+            ),
             'attachments' => array_map(fn (TrainingGroupAttachment $a) => $this->attachmentItem($a), $this->attachments->findByGroup($group)),
             'comments' => array_map(fn (TrainingGroupComment $c) => $this->commentItem($c, $viewer, $isCoach), $this->comments->findLatest($group, self::COMMENT_LIMIT)),
             'positions' => $this->positionItems($group, $isSibling, $since),
@@ -1216,14 +1233,14 @@ class TrainingGroupController extends AbstractController
     /**
      * Un adhérent du groupe, selon ce que `$viewer` peut en lire (`$contact`) :
      *  - `full` (encadrant du groupe) : ses numéros — le sien, à défaut celui d'un parent pour un enfant sans téléphone, et
-     *    son contact d'urgence ;
+     *    son contact d'urgence ; pour un jeune, son autorisation de rentrer seul (`$goHomeAlone`, null si non déposée) ;
      *  - `phone` (adhérent du groupe) : son propre numéro seulement, pour l'appeler ou lui écrire sur WhatsApp — jamais
      *    celui d'un profil Jeune, ni un numéro de parent ou d'urgence ;
      *  - `none` (encadrant d'un autre groupe de la séance) : son nom et sa photo.
      *
      * @return array<string, mixed>
      */
-    private function memberItem(User $user, User $viewer, string $contact): array
+    private function memberItem(User $user, User $viewer, string $contact, ?YouthDocument $goHomeAlone = null): array
     {
         $item = [
             'id' => $user->getId(),
@@ -1256,8 +1273,13 @@ class TrainingGroupController extends AbstractController
             'telephone' => $phone,
             'telephoneOf' => $phoneOf,
             'telephoneUrgence' => self::cleanPhone($user->getTelephoneUrgence()),
-            // Profil Jeune : accès rapide à ses documents officiels (fiche sanitaire, autorisation de sortie).
+            // Profil Jeune : accès rapide à ses documents (fiche sanitaire, autorisation de sortie, de rentrer seul).
             'isJeune' => $user->isJeune(),
+            // Jeune : son autorisation de rentrer seul, à vérifier en fin de séance (null = non déposée).
+            'goHomeAlone' => !$user->isJeune() || $goHomeAlone === null ? null : [
+                'url' => rtrim($this->publicUrl, '/').'/api/youth-documents/file/'.$goHomeAlone->getId(),
+                'expired' => $goHomeAlone->isExpired(new \DateTimeImmutable('today')),
+            ],
         ];
     }
 
