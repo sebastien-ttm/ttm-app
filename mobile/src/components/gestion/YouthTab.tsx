@@ -16,6 +16,7 @@ type Filter = 'all' | 'missing';
 const KINDS: { kind: YouthDocumentKind; icon: string; label: string }[] = [
   { kind: 'health_form', icon: '🩺', label: 'Fiche sanitaire' },
   { kind: 'exit_authorization', icon: '🛂', label: 'Autorisation de sortie' },
+  { kind: 'go_home_alone', icon: '🏠', label: 'Rentrer seul' },
 ];
 
 /** Pour la recherche : sans accents ni casse (« élodie » trouve « Elodie »). */
@@ -28,8 +29,8 @@ function isOk(doc: YouthDocument | null): boolean {
 }
 
 /**
- * Onglet « Jeunes » de l'espace Staff : les adhérents jeunes avec l'état de leur fiche sanitaire et de leur autorisation de
- * sortie du territoire. Les documents manquants ou expirés sont en évidence (filtre « À compléter ») ; un appui sur une
+ * Onglet « Jeunes » de l'espace Staff : les adhérents jeunes avec l'état de leur fiche sanitaire, de leur autorisation de
+ * sortie du territoire et de leur autorisation de rentrer seul. Les documents manquants ou expirés sont en évidence (filtre « À compléter ») ; un appui sur une
  * pastille ouvre directement le document, un appui sur la ligne ouvre la fiche du jeune (documents, contacts, dépôt).
  */
 export function YouthTab() {
@@ -59,14 +60,14 @@ export function YouthTab() {
   }, [load]);
 
   const incomplete = useMemo(
-    () => (rows ?? []).filter((y) => KINDS.some((k) => !isOk(y.documents[k.kind]))).length,
+    () => (rows ?? []).filter((y) => KINDS.some((k) => !isOk(y.documents[k.kind] ?? null))).length,
     [rows],
   );
 
   const shown = useMemo(() => {
     const q = normalize(query.trim());
     return (rows ?? []).filter((y) => {
-      if (filter === 'missing' && KINDS.every((k) => isOk(y.documents[k.kind]))) return false;
+      if (filter === 'missing' && KINDS.every((k) => isOk(y.documents[k.kind] ?? null))) return false;
       return q === '' || normalize(`${y.nom} ${y.prenom}`).includes(q) || normalize(`${y.prenom} ${y.nom}`).includes(q);
     });
   }, [rows, query, filter]);
@@ -141,7 +142,7 @@ export function YouthTab() {
               </Text>
               <View style={styles.docs}>
                 {KINDS.map((k) => {
-                  const doc = item.documents[k.kind];
+                  const doc = item.documents[k.kind] ?? null;
                   const ok = isOk(doc);
                   return (
                     <Pressable

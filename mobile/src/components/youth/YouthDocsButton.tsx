@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { COLORS } from '@/config';
 
 /**
- * Raccourci rond vers les documents officiels d'un jeune (fiche sanitaire, autorisation de sortie du territoire), pour le
- * staff : depuis l'annuaire des adhérents ou un groupe d'entraînement, deux appuis suffisent pour ouvrir la fiche sanitaire.
+ * Raccourci rond vers les documents d'un jeune (fiche sanitaire, autorisation de sortie du territoire, autorisation de
+ * rentrer seul), pour le staff : depuis l'annuaire des adhérents ou un groupe d'entraînement, deux appuis suffisent pour ouvrir la fiche sanitaire.
  */
 export function YouthDocsButton({ youthId, name }: { youthId: number; name: string }) {
   const router = useRouter();
@@ -13,7 +13,7 @@ export function YouthDocsButton({ youthId, name }: { youthId: number; name: stri
     <Pressable
       onPress={() => router.push(('/youth-documents/' + youthId) as never)}
       accessibilityRole="button"
-      accessibilityLabel={`Fiche sanitaire et autorisation de sortie du territoire de ${name}`}
+      accessibilityLabel={`Documents de ${name} : fiche sanitaire, autorisation de sortie du territoire, autorisation de rentrer seul`}
       style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}
     >
       <Text style={styles.icon}>🩺</Text>

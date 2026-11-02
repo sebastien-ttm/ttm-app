@@ -18,7 +18,6 @@ import type { StaffDirectorySeason, StaffMember } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
-import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatPhoneFr } from '@/utils/phone';
 
@@ -28,7 +27,7 @@ function normalize(text: string): string {
 }
 
 /**
- * Onglet « Adhérents » de l'espace Staff : tous les adhérents actifs avec
+ * Onglet « Séniors » de l'espace Staff : les adhérents actifs (hors jeunes) avec
  * nom, prénom et téléphone, avec un bouton d'appel (urgences), un bouton
  * WhatsApp pour leur écrire facilement et, s'il est connu, le numéro de leur
  * contact d'urgence (affiché et appelable). Regroupés par
@@ -52,7 +51,8 @@ export function MembersTab() {
     try {
       setError(null);
       const resp = await staffDirectory.list();
-      setMembers(resp.data);
+      // Les jeunes ont leur propre onglet (documents, contacts) : celui-ci ne liste que les séniors.
+      setMembers(resp.data.filter((m) => !m.isJeune));
       setSeason(resp.season);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
@@ -158,7 +158,7 @@ export function MembersTab() {
           La liste des adhérents de la saison {season.label} n'est pas encore importée : l'appartenance n'est pas indiquée.
         </Text>
       )}
-      <Text style={styles.count}>{total} adhérent{total > 1 ? 's' : ''}</Text>
+      <Text style={styles.count}>{total} sénior{total > 1 ? 's' : ''}</Text>
 
       <SectionList
         sections={sections}
@@ -211,8 +211,6 @@ export function MembersTab() {
               )}
             </View>
             <View style={styles.actions}>
-              {/* Jeune : fiche sanitaire et autorisation de sortie du territoire. */}
-              {item.isJeune && <YouthDocsButton youthId={item.id} name={`${item.prenom} ${item.nom}`} />}
               {(item.telephone || item.telephoneUrgence) && (
                 <ContactButtons
                   name={`${item.prenom} ${item.nom}`}

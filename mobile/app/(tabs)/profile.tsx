@@ -266,7 +266,7 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Mes documents</Text>
-              <Text style={styles.actionHint}>Fiche sanitaire · Autorisation de sortie du territoire</Text>
+              <Text style={styles.actionHint}>Fiche sanitaire · Sortie du territoire · Rentrer seul</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>

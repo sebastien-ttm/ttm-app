@@ -1471,10 +1471,10 @@ export type TrainingGroupInput = {
   speed: string;
 };
 
-// ---- Documents officiels des jeunes : fiche sanitaire et autorisation de sortie du territoire ----
+// ---- Documents des jeunes : fiche sanitaire, autorisation de sortie du territoire, autorisation de rentrer seul ----
 
-/** Type d'un document officiel de jeune (un seul document par jeune et par type). */
-export type YouthDocumentKind = 'health_form' | 'exit_authorization';
+/** Type d'un document de jeune (un seul document par jeune et par type). */
+export type YouthDocumentKind = 'health_form' | 'exit_authorization' | 'go_home_alone';
 
 export type YouthDocument = {
   id: number;
@@ -1509,6 +1509,8 @@ export type YouthOwner = {
 export type YouthDocumentsDetail = {
   owner: YouthOwner;
   documents: YouthDocumentsByKind;
+  /** Modèle à télécharger par type (URL authentifiée, jeton en `?bearer=`) : Cerfa officiel ou PDF du club pré-rempli. */
+  templates: Record<YouthDocumentKind, string>;
   /** Numéros pour joindre le jeune et son contact d'urgence : fournis au staff seulement. */
   contact: { telephone: string | null; telephoneOf: string | null; telephoneUrgence: string | null } | null;
 };

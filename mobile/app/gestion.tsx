@@ -17,9 +17,9 @@ type GestionTab = 'presences' | 'emargements' | 'groupe' | 'jeunes' | 'adherents
 const TABS: { key: GestionTab; label: string }[] = [
   { key: 'presences', label: 'Présences' },
   { key: 'emargements', label: 'Émargements' },
-  { key: 'groupe', label: 'Groupe' },
+  { key: 'groupe', label: 'Groupes' },
   { key: 'jeunes', label: 'Jeunes' },
-  { key: 'adherents', label: 'Adhérents' },
+  { key: 'adherents', label: 'Séniors' },
 ];
 
 /**
@@ -30,11 +30,11 @@ const TABS: { key: GestionTab; label: string }[] = [
  *  - Émargements : présence aux événements (entraîneur, encadrant, CoDir,
  *    admin) ; remise des bonnets et saisie des temps des tests chronométrés
  *    (entraîneur, admin) ;
- *  - Groupe (entraîneur, encadrant) : mon groupe d'entraînement à la volée, créé avant une séance
+ *  - Groupes (entraîneur, encadrant) : mon groupe d'entraînement à la volée, créé avant une séance
  *    (adhérents, encadrants, informations, trace GPX, commentaires, position en direct) ;
- *  - Jeunes (entraîneur, encadrant) : fiche sanitaire et autorisation de sortie du territoire de chaque
- *    jeune, avec les documents manquants en évidence et l'ouverture en un appui ;
- *  - Adhérents (entraîneur, encadrant) : annuaire (nom, prénom, téléphone)
+ *  - Jeunes (entraîneur, encadrant) : fiche sanitaire, autorisation de sortie du territoire et autorisation
+ *    de rentrer seul de chaque jeune, avec les documents manquants en évidence et l'ouverture en un appui ;
+ *  - Séniors (entraîneur, encadrant) : annuaire des adhérents adultes (nom, prénom, téléphone)
  *    avec appel ou message WhatsApp en un geste.
  * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.
  */

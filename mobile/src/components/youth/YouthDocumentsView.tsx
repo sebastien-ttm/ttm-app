@@ -28,6 +28,12 @@ const KINDS: { kind: YouthDocumentKind; icon: string; title: string; help: strin
     title: 'Autorisation de sortie du territoire',
     help: 'Formulaire officiel AST (Cerfa n° 15646*01) signé par un parent, avec la copie de sa pièce d\'identité. Indiquez sa date de fin de validité.',
   },
+  {
+    kind: 'go_home_alone',
+    icon: '🏠',
+    title: 'Autorisation de rentrer seul',
+    help: 'Document du club signé par un parent : le jeune peut quitter seul l\'entraînement et rentrer seul chez lui. Valable pour la saison en cours.',
+  },
 ];
 
 function notify(message: string): void {
@@ -40,16 +46,18 @@ function dateLabel(iso: string): string {
 }
 
 /**
- * Un document (fiche sanitaire ou autorisation de sortie du territoire) : état (déposé, expiré, manquant), ouverture en un
- * appui, envoi / remplacement (photo ou PDF) avec date de fin de validité facultative, suppression.
+ * Un document (fiche sanitaire, autorisation de sortie du territoire ou de rentrer seul) : état (déposé, expiré, manquant),
+ * ouverture en un appui, modèle à télécharger, envoi / remplacement (photo ou PDF) avec date de fin de validité
+ * facultative, suppression.
  */
-function DocumentCard({ youthId, kind, icon, title, help, document, onChanged }: {
+function DocumentCard({ youthId, kind, icon, title, help, document, templateUrl, onChanged }: {
   youthId: number;
   kind: YouthDocumentKind;
   icon: string;
   title: string;
   help: string;
   document: YouthDocument | null;
+  templateUrl: string | undefined;
   onChanged: () => void;
 }) {
   const [validUntil, setValidUntil] = useState<string | null>(document?.validUntil ?? null);
@@ -121,6 +129,18 @@ function DocumentCard({ youthId, kind, icon, title, help, document, onChanged }:
 
       <Text style={styles.help}>{help}</Text>
 
+      {templateUrl && (
+        <Pressable
+          onPress={() => void openAttachment((token) => withBearer(templateUrl, token))}
+          accessibilityRole="button"
+          accessibilityLabel={`Télécharger le modèle : ${title}`}
+          style={({ pressed }) => [styles.templateBtn, pressed && { opacity: 0.7 }]}
+        >
+          <Ionicons name="download-outline" size={16} color={COLORS.secondaryDark} />
+          <Text style={styles.templateLabel}>Télécharger le modèle à remplir</Text>
+        </Pressable>
+      )}
+
       <Text style={styles.fieldLabel}>Valable jusqu'au (facultatif)</Text>
       <DateField initialIso={document?.validUntil ?? undefined} onChange={setValidUntil} disabled={busy} />
 
@@ -145,8 +165,8 @@ function DocumentCard({ youthId, kind, icon, title, help, document, onChanged }:
 }
 
 /**
- * Documents officiels d'un jeune : fiche sanitaire et autorisation de sortie du territoire. Le jeune, ses parents et le
- * staff peuvent les ouvrir et les déposer ; le staff y trouve aussi de quoi joindre le jeune et son contact d'urgence.
+ * Documents d'un jeune : fiche sanitaire, autorisation de sortie du territoire et autorisation de rentrer seul (document
+ * du club), chacun avec son modèle à télécharger. Le jeune, ses parents et le staff peuvent les ouvrir et les déposer ; le staff y trouve aussi de quoi joindre le jeune et son contact d'urgence.
  */
 export function YouthDocumentsView({ youthId }: { youthId: number }) {
   const [detail, setDetail] = useState<YouthDocumentsDetail | null>(null);
@@ -168,7 +188,7 @@ export function YouthDocumentsView({ youthId }: { youthId: number }) {
   }
 
   const { owner, documents, contact } = detail;
-  const missingCount = KINDS.filter((k) => documents[k.kind] === null || documents[k.kind]?.expired).length;
+  const missingCount = KINDS.filter((k) => !documents[k.kind] || documents[k.kind]?.expired).length;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -211,7 +231,8 @@ export function YouthDocumentsView({ youthId }: { youthId: number }) {
           icon={k.icon}
           title={k.title}
           help={k.help}
-          document={documents[k.kind]}
+          document={documents[k.kind] ?? null}
+          templateUrl={detail.templates?.[k.kind]}
           onChanged={() => void load()}
         />
       ))}
@@ -252,6 +273,11 @@ const styles = StyleSheet.create({
   statusExpired: { color: '#b45309' },
   meta: { fontSize: 12, color: COLORS.textMuted },
   help: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17 },
+  templateBtn: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.secondaryDark, backgroundColor: '#eff6ff',
+  },
+  templateLabel: { fontSize: 13, fontWeight: '700', color: COLORS.secondaryDark },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginTop: 2 },
   openBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12,
