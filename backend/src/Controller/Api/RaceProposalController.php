@@ -214,6 +214,59 @@ class RaceProposalController extends AbstractController
             );
         }
 
+        $this->setVote($proposal, $user, $status);
+        // Plus présent (« Peut-être » ou réponse retirée) : il ne fait plus aucune course de la compétition.
+        if ($status !== RaceProposalVote::INTERESTED) {
+            foreach ($proposal->getCourses() as $course) {
+                $course->removeParticipant($user);
+            }
+        }
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($proposal, $user));
+    }
+
+    /**
+     * Je fais (ou ne fais plus) cette course. Body : { "join": true|false }. Faire une course vaut présence à la
+     * compétition : la réponse passe à « Intéressé(e) / Je suis inscrit(e) ».
+     */
+    #[Route('/api/races/{id}/courses/{courseId}/participation', methods: ['POST'], requirements: ['id' => '\d+', 'courseId' => '\d+'])]
+    public function courseParticipation(int $id, int $courseId, Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $proposal = $this->findOr404($id);
+        $course = null;
+        foreach ($proposal->getCourses() as $c) {
+            if ($c->getId() === $courseId) {
+                $course = $c;
+            }
+        }
+        if ($course === null) {
+            throw $this->createNotFoundException('Course introuvable.');
+        }
+        if ($proposal->isVotingClosed()) {
+            return new JsonResponse(
+                ['error' => sprintf('Les réponses sont closes depuis le %s.', $proposal->getRegistrationDeadline()?->modify('+1 day')->format('d/m/Y'))],
+                Response::HTTP_CONFLICT,
+            );
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (is_array($payload) && ($payload['join'] ?? false) === true) {
+            $course->addParticipant($user);
+            $this->setVote($proposal, $user, RaceProposalVote::INTERESTED);
+        } else {
+            $course->removeParticipant($user);
+        }
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($proposal, $user));
+    }
+
+    /** Enregistre la réponse de l'adhérent à la compétition (null = retire sa réponse). Le flush reste à l'appelant. */
+    private function setVote(RaceProposal $proposal, User $user, ?string $status): void
+    {
         $existing = $this->votes->findOneByProposalAndUser($proposal, $user);
         if ($status === null) {
             if ($existing !== null) {
@@ -227,9 +280,6 @@ class RaceProposalController extends AbstractController
             $proposal->getVotes()->add($vote);
             $this->em->persist($vote);
         }
-        $this->em->flush();
-
-        return new JsonResponse($this->serialize($proposal, $user));
     }
 
     /**
@@ -430,6 +480,12 @@ class RaceProposalController extends AbstractController
                 'details' => $c->getDetails(),
                 'authorFirstName' => $c->getAuthor()?->getPrenom(),
                 'canDelete' => $this->canDeleteCourse($c, $viewer),
+                // Adhérents qui font cette course, et si j'en fais partie.
+                'participants' => array_map(
+                    static fn (User $u) => ['id' => $u->getId(), 'fullName' => $u->getFullName()],
+                    $c->getParticipants()->toArray(),
+                ),
+                'participating' => $c->hasParticipant($viewer),
             ], $r->getCourses()->toArray()),
         ];
     }
