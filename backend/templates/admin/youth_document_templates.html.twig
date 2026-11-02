@@ -14,6 +14,9 @@
         {% set type = row.type %}
         <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
             <h3 style="margin-top:0;">{{ type.icon }} {{ type.label }}</h3>
+            {% if type.isPerStage %}
+                <p style="color:#64748b; font-size:13px; margin:-6px 0 10px 0;">Demandée pour chaque stage auquel participe un jeune (fiche documents du jeune → Stages).</p>
+            {% endif %}
 
             <p style="margin:0 0 12px 0;">
                 {% if row.uploaded %}

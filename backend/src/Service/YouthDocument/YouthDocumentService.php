@@ -2,6 +2,7 @@
 
 namespace App\Service\YouthDocument;
 
+use App\Entity\Stage;
 use App\Entity\User;
 use App\Entity\YouthDocument;
 use App\Enum\YouthDocumentType;
@@ -89,7 +90,7 @@ class YouthDocumentService
      *
      * @throws \RuntimeException si le fichier ne peut pas être enregistré
      */
-    public function store(User $owner, YouthDocumentType $type, UploadedFile $file, array $kind, User $by, ?\DateTimeImmutable $validUntil): YouthDocument
+    public function store(User $owner, YouthDocumentType $type, UploadedFile $file, array $kind, User $by, ?\DateTimeImmutable $validUntil, ?Stage $stage = null): YouthDocument
     {
         $dir = $this->ownerDir($owner);
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
@@ -105,7 +106,7 @@ class YouthDocumentService
         }
         $size = (int) filesize($dir.\DIRECTORY_SEPARATOR.$storedName);
 
-        $existing = $this->documents->findOneByOwnerAndType($owner, $type);
+        $existing = $this->documents->findOneByOwnerAndType($owner, $type, $stage);
         if ($existing !== null) {
             $this->deleteFile($existing);
             $existing->replaceFile($storedName, $original, $kind['mime'], $size, $by, $validUntil);
@@ -113,7 +114,7 @@ class YouthDocumentService
             return $existing;
         }
 
-        $document = new YouthDocument($owner, $type, $storedName, $original, $kind['mime'], $size, $by, $validUntil);
+        $document = new YouthDocument($owner, $type, $storedName, $original, $kind['mime'], $size, $by, $validUntil, $stage);
         $this->em->persist($document);
 
         return $document;

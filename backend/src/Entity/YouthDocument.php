@@ -7,16 +7,18 @@ use App\Repository\YouthDocumentRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Document officiel d'un adhérent jeune : fiche sanitaire ou autorisation de sortie du territoire, déposé par le jeune,
- * l'un de ses parents ou le staff, consultable par eux et par le staff (entraîneurs, encadrants) et les administrateurs.
+ * Document d'un adhérent jeune, déposé par le jeune, l'un de ses parents ou le staff, consultable par eux et par le
+ * staff (entraîneurs, encadrants) et les administrateurs. Documents permanents (fiche sanitaire, autorisation de rentrer
+ * seul) sans stage ; autorisation de sortie du territoire rattachée à un stage auquel le jeune participe.
  * Données sensibles : fichier stocké hors du dossier public (var/uploads/youth-documents/{jeune}/), servi uniquement par
  * l'API authentifiée.
  *
- * Un seul document par (jeune, type) : un nouvel envoi remplace le précédent (voir replaceFile).
+ * Un seul document par (jeune, type, stage) : un nouvel envoi remplace le précédent (voir replaceFile).
  */
 #[ORM\Entity(repositoryClass: YouthDocumentRepository::class)]
 #[ORM\Table(name: 'youth_document')]
-#[ORM\UniqueConstraint(name: 'uniq_youth_document_owner_type', columns: ['owner_id', 'type'])]
+#[ORM\UniqueConstraint(name: 'uniq_youth_document_owner_type_stage', columns: ['owner_id', 'type', 'stage_id'])]
+#[ORM\Index(name: 'idx_youth_document_stage', columns: ['stage_id'])]
 class YouthDocument
 {
     #[ORM\Id]
@@ -31,6 +33,11 @@ class YouthDocument
 
     #[ORM\Column(length: 24, enumType: YouthDocumentType::class)]
     private YouthDocumentType $type;
+
+    /** Stage concerné (autorisation de sortie du territoire) ; null pour un document permanent. */
+    #[ORM\ManyToOne(targetEntity: Stage::class)]
+    #[ORM\JoinColumn(name: 'stage_id', nullable: true, onDelete: 'CASCADE')]
+    private ?Stage $stage = null;
 
     #[ORM\Column(length: 64)]
     private string $storedName;
@@ -52,14 +59,15 @@ class YouthDocument
     #[ORM\Column]
     private \DateTimeImmutable $uploadedAt;
 
-    /** Fin de validité si elle est connue (typiquement l'autorisation de sortie du territoire) ; null = sans échéance. */
+    /** Fin de validité si elle est connue ; null = sans échéance. */
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $validUntil = null;
 
-    public function __construct(User $owner, YouthDocumentType $type, string $storedName, string $originalName, string $mimeType, int $size, ?User $uploadedBy, ?\DateTimeImmutable $validUntil)
+    public function __construct(User $owner, YouthDocumentType $type, string $storedName, string $originalName, string $mimeType, int $size, ?User $uploadedBy, ?\DateTimeImmutable $validUntil, ?Stage $stage = null)
     {
         $this->owner = $owner;
         $this->type = $type;
+        $this->stage = $stage;
         $this->replaceFile($storedName, $originalName, $mimeType, $size, $uploadedBy, $validUntil);
     }
 
@@ -80,6 +88,7 @@ class YouthDocument
     public function getId(): ?int { return $this->id; }
     public function getOwner(): User { return $this->owner; }
     public function getType(): YouthDocumentType { return $this->type; }
+    public function getStage(): ?Stage { return $this->stage; }
     public function getStoredName(): string { return $this->storedName; }
     public function getOriginalName(): string { return $this->originalName; }
     public function getMimeType(): string { return $this->mimeType; }

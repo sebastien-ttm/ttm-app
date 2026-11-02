@@ -7,9 +7,11 @@ use App\Entity\PerfTestSession;
 use App\Entity\Stage;
 use App\Entity\Survey;
 use App\Entity\User;
+use App\Enum\YouthDocumentType;
 use App\Repository\StageRepository;
 use App\Repository\SurveyDismissalRepository;
 use App\Repository\SurveyResponseRepository;
+use App\Repository\YouthDocumentRepository;
 use App\Service\Context\ContextContentSerializer;
 use App\Service\Training\TrainingRegistrationService;
 use Psr\Log\LoggerInterface;
@@ -34,7 +36,9 @@ class StageController extends AbstractController
         private readonly TrainingRegistrationService $trainingRegistrations,
         private readonly SurveyResponseRepository $surveyResponses,
         private readonly SurveyDismissalRepository $surveyDismissals,
+        private readonly YouthDocumentRepository $youthDocuments,
         private readonly LoggerInterface $logger,
+        private readonly string $publicUrl,
     ) {
     }
 
@@ -79,8 +83,46 @@ class StageController extends AbstractController
                 $stage->getPerfTestSessions()->toArray(),
             ),
             'articles' => $this->content->articles($stage->getArticles(), $viewer),
-            'participants' => $this->content->participants($stage->getParticipants()),
+            'participants' => $this->participants($stage, $viewer),
         ]);
+    }
+
+    /**
+     * Participants du stage. Pour le staff (entraîneurs, encadrants, administrateurs), chaque jeune porte en plus son
+     * autorisation de sortie du territoire pour ce stage (`exitAuthorization` : URL et expiration, null = manquante).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function participants(Stage $stage, User $viewer): array
+    {
+        $rows = $this->content->participants($stage->getParticipants());
+        if (!$viewer->isEntraineur() && !$viewer->isEncadrant() && !$viewer->isAdmin()) {
+            return $rows;
+        }
+
+        $youth = array_values(array_filter($stage->getParticipants()->toArray(), static fn (User $u) => $u->isJeune()));
+        $isYouth = [];
+        foreach ($youth as $u) {
+            $isYouth[(int) $u->getId()] = true;
+        }
+        $docs = $this->youthDocuments->findForStage($stage, YouthDocumentType::ExitAuthorization, $youth);
+        $today = new \DateTimeImmutable('today');
+
+        return array_map(function (array $row) use ($isYouth, $docs, $today) {
+            $id = (int) $row['id'];
+            if (!isset($isYouth[$id])) {
+                return $row + ['isJeune' => false];
+            }
+            $doc = $docs[$id] ?? null;
+
+            return $row + [
+                'isJeune' => true,
+                'exitAuthorization' => $doc === null ? null : [
+                    'url' => rtrim($this->publicUrl, '/').'/api/youth-documents/file/'.$doc->getId(),
+                    'expired' => $doc->isExpired($today),
+                ],
+            ];
+        }, $rows);
     }
 
     /** @return array<string, mixed> */

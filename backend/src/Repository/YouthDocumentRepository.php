@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Stage;
 use App\Entity\User;
 use App\Entity\YouthDocument;
 use App\Enum\YouthDocumentType;
@@ -18,13 +19,55 @@ class YouthDocumentRepository extends ServiceEntityRepository
         parent::__construct($registry, YouthDocument::class);
     }
 
-    public function findOneByOwnerAndType(User $owner, YouthDocumentType $type): ?YouthDocument
+    /** Le document d'un type : permanent (`$stage` null) ou rattaché à ce stage. */
+    public function findOneByOwnerAndType(User $owner, YouthDocumentType $type, ?Stage $stage = null): ?YouthDocument
     {
-        return $this->findOneBy(['owner' => $owner, 'type' => $type]);
+        return $this->findOneBy(['owner' => $owner, 'type' => $type, 'stage' => $stage]);
     }
 
     /**
-     * Documents de plusieurs jeunes en une requête (liste du staff), groupés par jeune puis par type.
+     * Documents d'un type rattachés à un stage, pour plusieurs jeunes (participants du stage).
+     *
+     * @param list<User> $owners
+     *
+     * @return array<int, YouthDocument> identifiant du jeune → document
+     */
+    public function findForStage(Stage $stage, YouthDocumentType $type, array $owners): array
+    {
+        if ($owners === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->findBy(['stage' => $stage, 'type' => $type, 'owner' => $owners]) as $doc) {
+            $out[(int) $doc->getOwner()->getId()] = $doc;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Documents d'un type d'un jeune pour plusieurs stages.
+     *
+     * @param list<Stage> $stages
+     *
+     * @return array<int, YouthDocument> identifiant du stage → document
+     */
+    public function findForOwnerByStage(User $owner, YouthDocumentType $type, array $stages): array
+    {
+        if ($stages === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->findBy(['owner' => $owner, 'type' => $type, 'stage' => $stages]) as $doc) {
+            $out[(int) $doc->getStage()?->getId()] = $doc;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Documents permanents (sans stage) de plusieurs jeunes en une requête (liste du staff), groupés par jeune puis par
+     * type.
      *
      * @param list<User> $owners
      *
@@ -39,6 +82,7 @@ class YouthDocumentRepository extends ServiceEntityRepository
             ->addSelect('ub')
             ->leftJoin('d.uploadedBy', 'ub')
             ->where('d.owner IN (:owners)')
+            ->andWhere('d.stage IS NULL')
             ->setParameter('owners', $owners)
             ->getQuery()
             ->getResult();

@@ -2,9 +2,11 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Stage;
 use App\Entity\User;
 use App\Entity\YouthDocument;
 use App\Enum\YouthDocumentType;
+use App\Repository\StageRepository;
 use App\Repository\UserRepository;
 use App\Repository\YouthDocumentRepository;
 use App\Service\AvatarService;
@@ -23,8 +25,9 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Documents des adhérents jeunes : fiche sanitaire, autorisation de sortie du territoire et autorisation de rentrer seul
- * (document du club), chacun avec un modèle à télécharger (voir YouthDocument).
+ * Documents des adhérents jeunes, chacun avec un modèle à télécharger (voir YouthDocument) : documents permanents
+ * (fiche sanitaire, autorisation de rentrer seul) et, pour chaque stage auquel le jeune participe, son autorisation de
+ * sortie du territoire (paramètre `stageId`).
  *
  * Données sensibles (santé, identité) : accès limité au jeune lui-même, à ses parents (comptes parents rattachés, ou compte
  * principal de l'e-mail partagé), au staff (entraîneurs, encadrants) et aux administrateurs. Pour tout autre compte, le jeune
@@ -39,6 +42,7 @@ class YouthDocumentController extends AbstractController
         private readonly YouthDocumentTemplateService $templates,
         private readonly YouthDocumentRepository $documents,
         private readonly UserRepository $users,
+        private readonly StageRepository $stages,
         private readonly AvatarService $avatars,
         private readonly EntityManagerInterface $em,
         private readonly string $publicUrl,
@@ -83,7 +87,8 @@ class YouthDocumentController extends AbstractController
 
     /**
      * Dépose (ou remplace) un document. Multipart : type (health_form | exit_authorization | go_home_alone), file (PDF, JPG, PNG ou WebP,
-     * 10 Mo max), validUntil (AAAA-MM-JJ, facultatif).
+     * 10 Mo max), validUntil (AAAA-MM-JJ, facultatif), stageId (obligatoire pour exit_authorization : stage publié
+     * auquel le jeune participe).
      */
     #[Route('/api/youth-documents/{userId}', methods: ['POST'], requirements: ['userId' => '\d+'])]
     public function upload(int $userId, Request $request): JsonResponse
@@ -98,6 +103,13 @@ class YouthDocumentController extends AbstractController
         $type = YouthDocumentType::tryFrom((string) $request->request->get('type', ''));
         if ($type === null) {
             return $this->invalid('Type de document invalide.');
+        }
+        $stage = null;
+        if ($type->isPerStage()) {
+            $stage = $this->stageFor($youth, (string) $request->request->get('stageId', ''));
+            if ($stage === null) {
+                return $this->invalid('Stage introuvable : l\'autorisation de sortie du territoire se dépose pour un stage auquel le jeune participe.');
+            }
         }
 
         $file = $request->files->get('file');
@@ -125,7 +137,7 @@ class YouthDocumentController extends AbstractController
         }
 
         try {
-            $document = $this->service->store($youth, $type, $file, $kind, $viewer, $validUntil);
+            $document = $this->service->store($youth, $type, $file, $kind, $viewer, $validUntil, $stage);
         } catch (\RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -167,14 +179,18 @@ class YouthDocumentController extends AbstractController
         return $response;
     }
 
-    /** Supprime le document d'un type. */
+    /** Supprime le document d'un type (query `stageId` pour l'autorisation de sortie du territoire d'un stage). */
     #[Route('/api/youth-documents/{userId}/{type}', methods: ['DELETE'], requirements: ['userId' => '\d+', 'type' => 'health_form|exit_authorization|go_home_alone'])]
-    public function delete(int $userId, string $type): JsonResponse
+    public function delete(int $userId, string $type, Request $request): JsonResponse
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
         $youth = $this->youthFor($userId, $viewer);
-        $document = $youth === null ? null : $this->documents->findOneByOwnerAndType($youth, YouthDocumentType::from($type));
+        $kind = YouthDocumentType::from($type);
+        $stage = $youth !== null && $kind->isPerStage() ? $this->stageFor($youth, (string) $request->query->get('stageId', '')) : null;
+        $document = $youth === null || ($kind->isPerStage() && $stage === null)
+            ? null
+            : $this->documents->findOneByOwnerAndType($youth, $kind, $stage);
         if ($youth === null || $document === null) {
             return $this->notFound('Document introuvable.');
         }
@@ -237,6 +253,18 @@ class YouthDocumentController extends AbstractController
         return $youth !== null && $youth->isJeune() && $this->canAccess($viewer, $youth) ? $youth : null;
     }
 
+    /** Le stage demandé, s'il est publié, auquel le jeune participe et qui est à venir, en cours ou terminé depuis peu. */
+    private function stageFor(User $youth, string $rawId): ?Stage
+    {
+        foreach ($this->stages->findCurrentForParticipant($youth) as $stage) {
+            if ((string) $stage->getId() === trim($rawId)) {
+                return $stage;
+            }
+        }
+
+        return null;
+    }
+
     private function notFound(string $message = 'Jeune introuvable.'): JsonResponse
     {
         return new JsonResponse(['error' => $message], Response::HTTP_NOT_FOUND);
@@ -270,7 +298,7 @@ class YouthDocumentController extends AbstractController
     }
 
     /**
-     * Les types de document d'un jeune, null quand il n'a rien déposé.
+     * Les documents permanents d'un jeune, null quand il n'a rien déposé.
      *
      * @param array<string, YouthDocument> $byType
      *
@@ -279,7 +307,7 @@ class YouthDocumentController extends AbstractController
     private function documentsMap(array $byType, \DateTimeImmutable $today): array
     {
         $out = [];
-        foreach (YouthDocumentType::cases() as $type) {
+        foreach (YouthDocumentType::permanentCases() as $type) {
             $document = $byType[$type->value] ?? null;
             $out[$type->value] = $document === null ? null : $this->item($document, $today);
         }
@@ -316,9 +344,23 @@ class YouthDocumentController extends AbstractController
             $templates[$type->value] = rtrim($this->publicUrl, '/').'/api/youth-documents/'.$youth->getId().'/template/'.$type->value;
         }
 
+        // Stages du jeune (publiés, à venir, en cours ou terminés depuis peu) avec son autorisation de sortie du territoire.
+        $today = new \DateTimeImmutable('today');
+        $stages = $this->stages->findCurrentForParticipant($youth);
+        $exitByStage = $this->documents->findForOwnerByStage($youth, YouthDocumentType::ExitAuthorization, $stages);
+
         return [
             'owner' => $this->ownerItem($youth),
-            'documents' => $this->documentsMap($byType, new \DateTimeImmutable('today')),
+            'documents' => $this->documentsMap($byType, $today),
+            'stages' => array_map(fn (Stage $s) => [
+                'id' => $s->getId(),
+                'title' => $s->getTitle(),
+                'icon' => $s->getIcon(),
+                'location' => $s->getLocation(),
+                'startsOn' => $s->getStartsOn()?->format('Y-m-d'),
+                'endsOn' => $s->getEndsOn()?->format('Y-m-d'),
+                'exitAuthorization' => isset($exitByStage[(int) $s->getId()]) ? $this->item($exitByStage[(int) $s->getId()], $today) : null,
+            ], $stages),
             // Modèle à télécharger pour chaque type (URL authentifiée : jeton en `?bearer=`).
             'templates' => $templates,
             // Le staff peut joindre le jeune (ou, à défaut, un parent) et son contact d'urgence depuis cette fiche.
