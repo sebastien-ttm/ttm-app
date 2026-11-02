@@ -1137,7 +1137,24 @@ export type RaceProposal = {
   maybeCount: number;
   interested: { id: number; fullName: string }[];
   maybe: { id: number; fullName: string }[];
+  /** Courses (épreuves) de la compétition, ajoutées par les adhérents. Absent des anciennes réponses. */
+  courses?: RaceCourse[];
 };
+
+/** Course d'une compétition proposée : « Triathlon M », « Trail 25 km »… */
+export type RaceCourse = {
+  id: number;
+  name: string;
+  /** AAAA-MM-JJ, dans les dates de la compétition ; null = non précisé. */
+  date: string | null;
+  /** Distances, horaire de départ, format… */
+  details: string | null;
+  authorFirstName: string | null;
+  /** Je l'ai ajoutée, ou la compétition est la mienne. */
+  canDelete: boolean;
+};
+
+export type RaceCourseInput = { name: string; date: string; details: string };
 
 export type RaceProposalInput = {
   name: string;

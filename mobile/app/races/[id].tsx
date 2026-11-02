@@ -10,6 +10,7 @@ import { races as racesApi } from '@/api/resources';
 import type { RaceProposal, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
+import { RaceCourses } from '@/components/RaceCourses';
 import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
@@ -136,6 +137,8 @@ export default function RaceDetailScreen() {
               <Text style={styles.descriptionText}>{race.description}</Text>
             </View>
           ) : null}
+
+          <RaceCourses race={race} onChange={setRace} />
 
           {race.carpoolingEnabled && (
             <Pressable

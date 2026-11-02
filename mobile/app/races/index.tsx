@@ -187,7 +187,10 @@ function RaceCard({ item, busy, onOpen, footer }: {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-          <Text style={styles.cardDate}>{formatRaceDates(item.raceDate, item.raceEndDate)}</Text>
+          <Text style={styles.cardDate}>
+            {formatRaceDates(item.raceDate, item.raceEndDate)}
+            {item.courses && item.courses.length > 0 ? ` · ${item.courses.length} course${item.courses.length > 1 ? 's' : ''}` : ''}
+          </Text>
           <View style={styles.badgeRow}>
             <View style={[styles.typeBadge, { backgroundColor: meta.color }]}>
               <Text style={styles.typeBadgeLabel}>{item.typeLabel}</Text>

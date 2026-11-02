@@ -64,6 +64,7 @@ import type {
   PhotoAuthor,
   PhotoImage,
   PoolBadge,
+  RaceCourseInput,
   RaceProposal,
   RaceProposalInput,
   RaceTypeOption,
@@ -602,9 +603,9 @@ export const bibs = {
     api.post<MarketplaceConversation>(`/api/bibs/${id}/conversation`, { content }),
 };
 
-/** Courses proposées par les adhérents (onglet Social) + votes d'intérêt. */
+/** Compétitions proposées par les adhérents (onglet Social) + votes d'intérêt + courses (épreuves). */
 export const races = {
-  /** Courses à venir, la plus proche d'abord, + liste des types disponibles. */
+  /** Compétitions à venir ou en cours, la plus proche d'abord, + liste des types disponibles. */
   list: () => api.get<{ data: RaceProposal[]; types: RaceTypeOption[] }>('/api/races'),
   get: (id: number) => api.get<RaceProposal>(`/api/races/${id}`),
   create: (input: RaceProposalInput) => api.post<RaceProposal>('/api/races', input),
@@ -612,6 +613,9 @@ export const races = {
   remove: (id: number) => api.delete<void>(`/api/races/${id}`),
   /** null = retire le vote. */
   vote: (id: number, status: RaceVote | null) => api.post<RaceProposal>(`/api/races/${id}/vote`, { status }),
+  /** Ajoute une course (épreuve) à la compétition ; renvoie la compétition à jour. */
+  addCourse: (id: number, input: RaceCourseInput) => api.post<RaceProposal>(`/api/races/${id}/courses`, input),
+  removeCourse: (id: number, courseId: number) => api.delete<RaceProposal>(`/api/races/${id}/courses/${courseId}`),
 };
 
 export const staff = {
