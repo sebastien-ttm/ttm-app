@@ -1281,6 +1281,8 @@ export type TrainingGroupMember = {
   telephoneUrgence?: string | null;
   /** Profil Jeune (fourni aux encadrants du groupe) : accès rapide à ses documents officiels. */
   isJeune?: boolean;
+  /** Jeune (encadrants du groupe) : autorisation de rentrer seul, URL authentifiée (`?bearer=`) ; null = non déposée. */
+  goHomeAlone?: { url: string; expired: boolean } | null;
 };
 
 /** Commentaire d'un encadrant ou d'un adhérent du groupe : un texte et / ou un point GPS. */

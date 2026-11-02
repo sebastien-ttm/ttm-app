@@ -28,6 +28,7 @@ import { CapacityStepper, PaceBadge, PaceLevelPicker, speedPlaceholder } from '@
 import { COACH_COLOR, GroupMap } from '@/components/groups/GroupMap';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { PositionCard } from '@/components/groups/PositionCard';
+import { GoHomeAloneButton } from '@/components/youth/GoHomeAloneButton';
 import { YouthDocsButton } from '@/components/youth/YouthDocsButton';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useLiveSync } from '@/hooks/useLiveSync';
@@ -782,6 +783,7 @@ export function GroupView({ groupId, onGone, onDone }: { groupId: number; onGone
                 {isCoach && (
                   <View style={styles.memberActions}>
                     {m.isJeune && <YouthDocsButton youthId={m.id} name={label} />}
+                    {m.isJeune && <GoHomeAloneButton youthId={m.id} name={label} doc={m.goHomeAlone} />}
                     <ContactButtons
                       name={label}
                       telephone={m.telephone}
