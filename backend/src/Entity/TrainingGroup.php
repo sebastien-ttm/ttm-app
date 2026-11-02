@@ -31,8 +31,6 @@ class TrainingGroup
     public const SPEED_MAX = 60;
     /** Le club est structuré en 5 allures (1 à 5) : le niveau du groupe pour que chacun choisisse le sien. */
     public const PACE_LEVELS = [1, 2, 3, 4, 5];
-    /** Sports pour lesquels un groupe peut être créé (valeurs de Sport). */
-    public const SPORTS = ['velo', 'course'];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -61,7 +59,7 @@ class TrainingGroup
     /**
      * Séance d'entraînement à laquelle le groupe est adossé : un créneau de la semaine type (`slotTemplate` + la
      * semaine `weekStartsAt`) ou un créneau occasionnel (`slot`) — même convention que TrainingSlotRegistration. Les
-     * adhérents choisissent un groupe depuis ce créneau, jusqu'à son début. Vélo ou course à pied uniquement. Null pour
+     * adhérents choisissent un groupe depuis ce créneau, jusqu'à son début. Tous sports (natation, vélo, course, multi…). Null pour
      * un groupe créé avant cette règle : il reste géré à la main par ses encadrants, sans choix possible par les adhérents.
      */
     #[ORM\ManyToOne(targetEntity: TrainingSlotTemplate::class)]

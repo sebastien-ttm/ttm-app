@@ -290,7 +290,7 @@ class TrainingGroupController extends AbstractController
             return $this->invalid(sprintf('Informations trop longues (%d caractères max).', TrainingGroup::INFO_MAX));
         }
 
-        // Séance : vélo ou course à pied, en cours ou à venir.
+        // Séance : tout sport, en cours ou à venir.
         $slotInput = is_array($p['slot'] ?? null) ? $p['slot'] : [];
         $target = $this->parseSlotTarget($slotInput);
         if ($target instanceof JsonResponse) {
@@ -848,7 +848,7 @@ class TrainingGroupController extends AbstractController
     }
 
     /**
-     * Séances auxquelles l'encadrant peut adosser un nouveau groupe : vélo et course à pied à venir, hors celles où il a
+     * Séances auxquelles l'encadrant peut adosser un nouveau groupe : tous sports, à venir, hors celles où il a
      * déjà son groupe.
      *
      * @return list<array<string, mixed>>
@@ -960,7 +960,7 @@ class TrainingGroupController extends AbstractController
 
         $now = new \DateTimeImmutable();
         $groups = [];
-        if (in_array($row['sport'], TrainingGroup::SPORTS, true) && !$row['isCancelled']) {
+        if (!$row['isCancelled']) {
             $groups = $this->groups->findActiveOnOccurrence($templateId, $slotId, $monday, $now);
         }
         $myGroupId = null;

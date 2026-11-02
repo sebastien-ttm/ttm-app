@@ -13,7 +13,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Cycle de vie des groupes d'entraînement : séances auxquelles on peut les adosser (vélo et course à pied), durée de
+ * Cycle de vie des groupes d'entraînement : séances auxquelles on peut les adosser (tous sports), durée de
  * validité d'après le planning, création, choix d'un groupe par les adhérents (avec le nombre de places), gestion des
  * encadrants et des adhérents (avec notification des personnes ajoutées), nettoyage.
  *
@@ -71,15 +71,15 @@ class TrainingGroupService
         return $out;
     }
 
-    /** Un groupe peut-il être adossé à cette séance ? Vélo ou course à pied, non commencée depuis plus de sa durée. */
+    /** Un groupe peut-il être adossé à cette séance ? Tout sport, séance pas encore terminée. */
     private static function isEligible(array $session, \DateTimeImmutable $now): bool
     {
-        return in_array($session['row']['sport'], TrainingGroup::SPORTS, true) && $session['endsAt'] > $now;
+        return $session['endsAt'] > $now;
     }
 
     /**
-     * Séances auxquelles on peut adosser un nouveau groupe : vélo et course à pied, en cours ou à venir dans les 14
-     * prochains jours.
+     * Séances auxquelles on peut adosser un nouveau groupe : tous sports (natation, vélo, course, multi…), en cours ou à
+     * venir dans les 14 prochains jours.
      *
      * @return list<array{row: array<string, mixed>, title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, monday: \DateTimeImmutable, occ: string}>
      */
