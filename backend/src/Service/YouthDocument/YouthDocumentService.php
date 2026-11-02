@@ -35,9 +35,9 @@ class YouthDocumentService
 
     /**
      * PDF du modèle « autorisation de rentrer seul » à imprimer et faire signer par un parent, pré-rempli avec le nom et
-     * la date de naissance du jeune.
+     * la date de naissance du jeune (vierge sans jeune : aperçu depuis le backend).
      */
-    public function renderGoHomeAloneTemplate(User $youth): string
+    public function renderGoHomeAloneTemplate(?User $youth): string
     {
         $logo = $this->publicDir.'/img/banner-default.jpg';
         $html = $this->twig->render('youth_document/go_home_alone.html.twig', [

@@ -9,6 +9,7 @@ use App\Repository\UserRepository;
 use App\Repository\YouthDocumentRepository;
 use App\Service\AvatarService;
 use App\Service\YouthDocument\YouthDocumentService;
+use App\Service\YouthDocument\YouthDocumentTemplateService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -35,6 +36,7 @@ class YouthDocumentController extends AbstractController
 {
     public function __construct(
         private readonly YouthDocumentService $service,
+        private readonly YouthDocumentTemplateService $templates,
         private readonly YouthDocumentRepository $documents,
         private readonly UserRepository $users,
         private readonly AvatarService $avatars,
@@ -133,8 +135,8 @@ class YouthDocumentController extends AbstractController
     }
 
     /**
-     * Modèle à remplir pour un type (jeton en query `bearer`) : renvoie vers le formulaire Cerfa officiel, ou génère le
-     * PDF du document du club pré-rempli au nom du jeune.
+     * Modèle à remplir pour un type (jeton en query `bearer`) : le modèle déposé depuis le backend s'il y en a un ;
+     * sinon renvoie vers le formulaire Cerfa officiel, ou génère le PDF du document du club pré-rempli au nom du jeune.
      */
     #[Route('/api/youth-documents/{userId}/template/{type}', methods: ['GET'], requirements: ['userId' => '\d+', 'type' => 'health_form|exit_authorization|go_home_alone'])]
     public function template(int $userId, string $type): Response
@@ -147,6 +149,10 @@ class YouthDocumentController extends AbstractController
         }
 
         $kind = YouthDocumentType::from($type);
+        $uploaded = $this->templates->response($kind);
+        if ($uploaded !== null) {
+            return $uploaded;
+        }
         $official = $kind->officialTemplateUrl();
         if ($official !== null) {
             return new RedirectResponse($official);

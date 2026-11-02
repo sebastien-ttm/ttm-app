@@ -219,6 +219,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bannière', 'fa fa-image', Banner::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Badge piscines (QR)', 'fa fa-qrcode', PoolBadge::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Modèles documents jeunes', 'fa fa-file-signature', 'admin_youth_document_templates')],
             ],
             'Adhérents' => [
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],

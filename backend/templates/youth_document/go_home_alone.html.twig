@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Autorisation de rentrer seul — {{ youth.fullName }}</title>
+    <title>Autorisation de rentrer seul{% if youth %} — {{ youth.fullName }}{% endif %}</title>
     <style>
         @page { margin: 18mm 20mm 20mm 20mm; }
         body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.5; }
@@ -32,8 +32,12 @@
     <div class="subtitle">Triathlon Toulouse Métropole — à l'issue des entraînements et activités du club</div>
 
     <div class="box">
-        <strong>Jeune adhérent(e) :</strong> {{ youth.prenom }} {{ youth.nom|upper }}
-        {% if youth.dateNaissance %} — né(e) le {{ youth.dateNaissance|date('d/m/Y') }}{% endif %}
+        {% if youth %}
+            <strong>Jeune adhérent(e) :</strong> {{ youth.prenom }} {{ youth.nom|upper }}
+            {% if youth.dateNaissance %} — né(e) le {{ youth.dateNaissance|date('d/m/Y') }}{% endif %}
+        {% else %}
+            <strong>Jeune adhérent(e) :</strong> <span class="line">&nbsp;</span> né(e) le <span class="line-short">&nbsp;</span>
+        {% endif %}
     </div>
 
     <p>Je soussigné(e) <span class="line">&nbsp;</span>,</p>

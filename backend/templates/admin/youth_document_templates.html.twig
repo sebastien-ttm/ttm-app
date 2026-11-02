@@ -1,0 +1,55 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Modèles des documents jeunes{% endblock %}
+{% block content_title %}🧒 Modèles des documents jeunes{% endblock %}
+
+{% block main %}
+    <p style="color:#64748b; font-size:14px; max-width:760px;">
+        Dans l'appli, chaque document d'un jeune propose un bouton « Télécharger le modèle à remplir ». Déposez ici
+        votre propre modèle pour remplacer celui proposé par défaut. Retirer votre modèle rétablit le modèle par défaut.
+        Formats acceptés : PDF, Word (.docx, .doc), OpenDocument (.odt), JPG ou PNG — {{ maxMB }} Mo maximum.
+    </p>
+
+    {% for row in rows %}
+        {% set type = row.type %}
+        <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+            <h3 style="margin-top:0;">{{ type.icon }} {{ type.label }}</h3>
+
+            <p style="margin:0 0 12px 0;">
+                {% if row.uploaded %}
+                    <strong style="color:#166534;">Modèle du club déposé</strong> :
+                    {{ row.uploaded.name }} · {{ (row.uploaded.size / 1024)|round }} Ko ·
+                    mis à jour le {{ row.uploaded.updatedAt|date('d/m/Y à H:i') }}
+                {% elseif row.officialUrl %}
+                    <strong>Modèle par défaut</strong> : formulaire Cerfa officiel sur service-public.fr.
+                {% else %}
+                    <strong>Modèle par défaut</strong> : PDF du club généré par l'appli, pré-rempli au nom du jeune.
+                {% endif %}
+            </p>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+                <a href="{{ path('admin_youth_document_template_file', {type: type.value}) }}" target="_blank" rel="noopener"
+                   class="btn btn-secondary">👁️ Voir le modèle proposé</a>
+                {% if row.uploaded %}
+                    <form method="post" action="{{ path('admin_youth_document_template_delete', {type: type.value}) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('Retirer ce modèle ? Le modèle par défaut sera de nouveau proposé.');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('youth_document_template') }}">
+                        <button type="submit" class="btn btn-danger">Retirer et revenir au modèle par défaut</button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <form method="post" enctype="multipart/form-data"
+                  action="{{ path('admin_youth_document_template_upload', {type: type.value}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('youth_document_template') }}">
+                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <input type="file" name="file" required
+                           accept=".pdf,.docx,.doc,.odt,.jpg,.jpeg,.png"
+                           style="padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                    <button type="submit" class="btn btn-primary">{{ row.uploaded ? 'Remplacer le modèle' : 'Déposer un modèle' }}</button>
+                </div>
+            </form>
+        </div>
+    {% endfor %}
+{% endblock %}
