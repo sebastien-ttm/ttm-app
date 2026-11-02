@@ -11,7 +11,7 @@ import { RaceForm } from '@/components/RaceForm';
 import { COLORS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
-/** Modification d'une course proposée (auteur uniquement — 404 sinon côté API). */
+/** Modification d'une compétition proposée (auteur uniquement — 404 sinon côté API). */
 export default function RaceEditScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
@@ -45,13 +45,14 @@ export default function RaceEditScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Modifier la course' }} />
+      <Stack.Screen options={{ title: 'Modifier la compétition' }} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <RaceForm
             initial={{
               name: race.name,
               raceDate: race.raceDate,
+              raceEndDate: race.raceEndDate ?? '',
               url: race.url ?? '',
               description: race.description ?? '',
               captain: race.captain,

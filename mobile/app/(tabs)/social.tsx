@@ -335,7 +335,7 @@ export default function ContactScreen() {
           </View>
 
           <View style={styles.surveysSection}>
-            <Text style={styles.surveysSectionTitle}>🏁 Courses proposées</Text>
+            <Text style={styles.surveysSectionTitle}>🏁 Compétitions proposées</Text>
             <Pressable
               onPress={() => router.push('/races' as never)}
               style={({ pressed }) => [styles.marketCard, styles.raceCard, pressed && { opacity: 0.75 }]}
@@ -345,8 +345,8 @@ export default function ContactScreen() {
                 <NewBadge count={newCounts.races} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.surveyCardTitle}>Courses à faire ensemble</Text>
-                <Text style={styles.surveyCardMeta}>Proposer une course · voter · inscription groupée</Text>
+                <Text style={styles.surveyCardTitle}>Compétitions à faire ensemble</Text>
+                <Text style={styles.surveyCardMeta}>Proposer une compétition · voter · inscription groupée</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
             </Pressable>

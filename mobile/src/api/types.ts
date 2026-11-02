@@ -1100,7 +1100,7 @@ export type MarketplaceConversation = {
   messages: MarketplaceMessage[];
 };
 
-// ---- Courses proposées (onglet Social) ----
+// ---- Compétitions proposées (onglet Social) : un ou plusieurs jours, une ou plusieurs épreuves ----
 
 export type RaceType = 'triathlon' | 'trail' | 'route' | 'cyclosportive' | 'eau_libre' | 'autre';
 export type RaceTypeOption = { value: RaceType; label: string };
@@ -1110,8 +1110,10 @@ export type RaceVote = 'interested' | 'maybe';
 export type RaceProposal = {
   id: number;
   name: string;
-  /** AAAA-MM-JJ */
+  /** Premier jour AAAA-MM-JJ */
   raceDate: string;
+  /** Dernier jour AAAA-MM-JJ (compétition sur plusieurs jours) ; null = une seule journée. Absent des anciennes réponses. */
+  raceEndDate?: string | null;
   url: string | null;
   /** Texte libre de présentation (distance, parcours, contexte…). Absent des anciennes réponses. */
   description?: string | null;
@@ -1140,6 +1142,8 @@ export type RaceProposal = {
 export type RaceProposalInput = {
   name: string;
   raceDate: string;
+  /** Dernier jour AAAA-MM-JJ ('' = une seule journée). */
+  raceEndDate: string;
   url: string;
   /** Texte libre ('' = aucun). */
   description: string;

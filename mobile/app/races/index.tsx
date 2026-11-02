@@ -8,7 +8,7 @@ import { races as racesApi } from '@/api/resources';
 import type { RaceProposal, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
-import { formatRaceDate, raceTypeMeta } from '@/components/RaceForm';
+import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen } from '@/lib/seenListings';
@@ -16,7 +16,7 @@ import { markSeen } from '@/lib/seenListings';
 type Tab = 'browse' | 'mine';
 
 /**
- * Courses proposées par les adhérents (onglet Social) : onglet « À venir »
+ * Compétitions proposées par les adhérents (onglet Social) : onglet « À venir »
  * (toutes les propositions, la plus proche d'abord, vote d'intérêt
  * directement depuis la carte) + « Mes propositions » (modifier /
  * supprimer). Même organisation que la bourse aux équipements.
@@ -85,7 +85,7 @@ export default function RacesScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Courses proposées' }} />
+      <Stack.Screen options={{ title: 'Compétitions proposées' }} />
 
       <View style={styles.tabs}>
         <Pressable onPress={() => setTab('browse')} style={[styles.tab, tab === 'browse' && styles.tabActive]}>
@@ -102,7 +102,7 @@ export default function RacesScreen() {
 
       <Pressable style={styles.newButton} onPress={() => router.push('/races/new' as never)}>
         <Ionicons name="add-circle" size={20} color="#fff" />
-        <Text style={styles.newButtonLabel}>Proposer une course</Text>
+        <Text style={styles.newButtonLabel}>Proposer une compétition</Text>
       </Pressable>
 
       {error ? (
@@ -160,8 +160,8 @@ export default function RacesScreen() {
                 <Ionicons name="flag-outline" size={32} color={COLORS.textMuted} />
                 <Text style={styles.emptyLabel}>
                   {tab === 'browse'
-                    ? 'Aucune course proposée pour le moment. Lancez la première !'
-                    : "Vous n'avez pas encore proposé de course."}
+                    ? 'Aucune compétition proposée pour le moment. Lancez la première !'
+                    : "Vous n'avez pas encore proposé de compétition."}
                 </Text>
               </View>
             ) : null
@@ -187,7 +187,7 @@ function RaceCard({ item, busy, onOpen, footer }: {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-          <Text style={styles.cardDate}>{formatRaceDate(item.raceDate)}</Text>
+          <Text style={styles.cardDate}>{formatRaceDates(item.raceDate, item.raceEndDate)}</Text>
           <View style={styles.badgeRow}>
             <View style={[styles.typeBadge, { backgroundColor: meta.color }]}>
               <Text style={styles.typeBadgeLabel}>{item.typeLabel}</Text>

@@ -10,13 +10,13 @@ import { races as racesApi } from '@/api/resources';
 import type { RaceProposal, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
-import { formatRaceDate, raceTypeMeta } from '@/components/RaceForm';
+import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatRelativeFr } from '@/utils/html';
 
 /**
- * Détail d'une course proposée : infos, lien vers le site, vote
+ * Détail d'une compétition proposée : infos, lien vers le site, vote
  * d'intérêt (Intéressé(e) / Peut-être) et liste des adhérents
  * intéressés — utile au capitaine pour l'inscription groupée. Si c'est
  * ma proposition : modifier / supprimer.
@@ -80,7 +80,7 @@ export default function RaceDetailScreen() {
   if (loading) {
     return (
       <>
-        <Stack.Screen options={{ title: 'Course' }} />
+        <Stack.Screen options={{ title: 'Compétition' }} />
         <FullScreenLoading />
       </>
     );
@@ -88,7 +88,7 @@ export default function RaceDetailScreen() {
   if (error || !race) {
     return (
       <>
-        <Stack.Screen options={{ title: 'Course' }} />
+        <Stack.Screen options={{ title: 'Compétition' }} />
         <ErrorState message={error ?? 'Introuvable.'} onRetry={load} />
       </>
     );
@@ -110,7 +110,7 @@ export default function RaceDetailScreen() {
           <Text style={styles.title}>{race.name}</Text>
           <View style={styles.dateRow}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.text} />
-            <Text style={styles.date}>{formatRaceDate(race.raceDate)}</Text>
+            <Text style={styles.date}>{formatRaceDates(race.raceDate, race.raceEndDate)}</Text>
           </View>
           <Text style={styles.author}>
             Proposée par {race.authorFullName} · {formatRelativeFr(race.createdAt)}

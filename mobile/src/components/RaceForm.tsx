@@ -31,10 +31,25 @@ export function raceTypeMeta(type: RaceType) {
 export const formatRaceDate = formatIsoDate;
 
 /**
- * Formulaire commun création / édition d'une course proposée : nom,
- * date, site Internet, description libre, type, case « Je me propose d'être
- * capitaine » (avec, dans ce cas, la date limite de réponse avant l'inscription
- * groupée) et covoiturage.
+ * Dates d'une compétition : « sam. 14 juin 2026 » sur une journée, « du 13 au 15 juin 2026 », « du 30 mai au
+ * 1 juin 2026 » ou « du 31 déc. 2026 au 2 janv. 2027 » sur plusieurs jours.
+ */
+export function formatRaceDates(start: string, end?: string | null): string {
+  if (!end || end === start) return formatIsoDate(start);
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  const s = new Date(sy, sm - 1, sd);
+  const e = new Date(ey, em - 1, ed);
+  const endLabel = e.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (sy !== ey) return `du ${s.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${endLabel}`;
+  if (sm !== em) return `du ${s.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} au ${endLabel}`;
+  return `du ${sd} au ${endLabel}`;
+}
+
+/**
+ * Formulaire commun création / édition d'une compétition proposée : nom, dates de début et de fin (une compétition
+ * peut durer plusieurs jours et comporter plusieurs épreuves), site Internet, description libre, type, case « Je me
+ * propose d'être capitaine » (avec, dans ce cas, la date limite de réponse avant l'inscription groupée) et covoiturage.
  */
 export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   initial?: RaceProposalInput;
@@ -44,6 +59,8 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [isoDate, setIsoDate] = useState<string | null>(initial?.raceDate ?? null);
+  // Dernier jour : null = une seule journée (ou saisie incomplète).
+  const [endIso, setEndIso] = useState<string | null>(initial?.raceEndDate || null);
   const [url, setUrl] = useState(initial?.url ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [type, setType] = useState<RaceType | null>(initial?.type ?? null);
@@ -58,13 +75,14 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
 
   async function submit() {
     setError(null);
-    if (name.trim() === '') { setError('Le nom de la course ne peut pas être vide.'); return; }
-    if (isoDate === null) { setError('Date invalide (JJ/MM/AAAA).'); return; }
-    if (type === null) { setError('Choisissez le type de course.'); return; }
-    // La date limite n'a de sens que pour un capitaine ; elle ne peut pas dépasser le jour de la course.
+    if (name.trim() === '') { setError('Le nom de la compétition ne peut pas être vide.'); return; }
+    if (isoDate === null) { setError('Date de début invalide (JJ/MM/AAAA).'); return; }
+    if (endIso !== null && endIso < isoDate) { setError('La date de fin doit être le jour du début ou après.'); return; }
+    if (type === null) { setError('Choisissez le type de compétition.'); return; }
+    // La date limite n'a de sens que pour un capitaine ; elle ne peut pas dépasser le premier jour.
     const deadline = captain ? deadlineIso : null;
     if (deadline !== null && deadline > isoDate) {
-      setError('La date limite de réponse doit être au plus tard le jour de la course.');
+      setError('La date limite de réponse doit être au plus tard le premier jour de la compétition.');
       return;
     }
     setBusy(true);
@@ -72,6 +90,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
       await onSubmit({
         name: name.trim(),
         raceDate: isoDate,
+        raceEndDate: endIso ?? '',
         url: url.trim(),
         description: description.trim(),
         captain,
@@ -88,7 +107,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
 
   return (
     <View>
-      <Text style={styles.label}>Nom de la course</Text>
+      <Text style={styles.label}>Nom de la compétition</Text>
       <TextInput
         value={name}
         onChangeText={setName}
@@ -99,8 +118,12 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
         editable={!busy}
       />
 
-      <Text style={styles.label}>Date</Text>
+      <Text style={styles.label}>Date de début</Text>
       <DateField initialIso={initial?.raceDate} onChange={setIsoDate} disabled={busy} minIso={todayIso()} />
+
+      <Text style={styles.label}>Date de fin (facultative)</Text>
+      <DateField initialIso={initial?.raceEndDate || undefined} onChange={setEndIso} disabled={busy} minIso={isoDate ?? todayIso()} />
+      <Text style={styles.counter}>Laissez vide pour une compétition sur une seule journée.</Text>
 
       <Text style={styles.label}>Site Internet (facultatif)</Text>
       <TextInput
@@ -120,7 +143,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
       <TextInput
         value={description}
         onChangeText={setDescription}
-        placeholder="Distances, parcours, niveau, hébergement, contexte…"
+        placeholder="Épreuves proposées, distances, parcours, niveau, hébergement…"
         placeholderTextColor={COLORS.textSubtle}
         multiline
         maxLength={3000}
@@ -129,7 +152,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
       />
       <Text style={styles.counter}>{description.length} / 3000</Text>
 
-      <Text style={styles.label}>Type de course</Text>
+      <Text style={styles.label}>Type de compétition</Text>
       <View style={styles.typeGrid}>
         {RACE_TYPES.map((t) => {
           const active = type === t.value;

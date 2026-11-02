@@ -32,7 +32,7 @@ export function CarpoolBoard({ kind, id }: { kind: CarpoolKind; id: number }) {
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) { setError(kind === 'event' ? 'Événement invalide.' : 'Course invalide.'); return; }
+    if (!id) { setError(kind === 'event' ? 'Événement invalide.' : 'Compétition invalide.'); return; }
     try {
       setError(null);
       const resp = await api.get(kind, id);
