@@ -616,6 +616,9 @@ export const races = {
   /** Ajoute une course (épreuve) à la compétition ; renvoie la compétition à jour. */
   addCourse: (id: number, input: RaceCourseInput) => api.post<RaceProposal>(`/api/races/${id}/courses`, input),
   removeCourse: (id: number, courseId: number) => api.delete<RaceProposal>(`/api/races/${id}/courses/${courseId}`),
+  /** Je fais (join) ou ne fais plus cette course ; la faire vaut présence à la compétition. */
+  courseParticipation: (id: number, courseId: number, join: boolean) =>
+    api.post<RaceProposal>(`/api/races/${id}/courses/${courseId}/participation`, { join }),
 };
 
 export const staff = {

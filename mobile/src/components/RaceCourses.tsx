@@ -16,7 +16,8 @@ function notify(message: string): void {
 /**
  * Courses (épreuves) d'une compétition proposée : liste par date, ajout par n'importe quel adhérent (nom, jour dans
  * les dates de la compétition, précisions), suppression par celui qui l'a ajoutée ou l'auteur de la compétition.
- * `onChange` reçoit la compétition à jour renvoyée par l'API.
+ * Chacun indique la ou les courses qu'il fait (« Je fais cette course ») : en choisir une le compte présent à la
+ * compétition. `onChange` reçoit la compétition à jour renvoyée par l'API.
  */
 export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: (race: RaceProposal) => void }) {
   const courses = race.courses ?? [];
@@ -27,6 +28,19 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
   const [details, setDetails] = useState('');
   const [busy, setBusy] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [joiningId, setJoiningId] = useState<number | null>(null);
+  const closed = race.votesClosed === true;
+
+  async function toggle(courseId: number, join: boolean) {
+    setJoiningId(courseId);
+    try {
+      onChange(await racesApi.courseParticipation(race.id, courseId, join));
+    } catch (e) {
+      notify(e instanceof ApiError ? e.message : 'Réponse impossible. Réessayez.');
+    } finally {
+      setJoiningId(null);
+    }
+  }
 
   async function add() {
     if (name.trim() === '' || busy) return;
@@ -63,8 +77,11 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
         <Text style={styles.muted}>Aucune course indiquée pour le moment : ajoutez celles proposées par la compétition.</Text>
       )}
 
-      {courses.map((c) => (
-        <View key={c.id} style={styles.course}>
+      {courses.map((c) => {
+        const people = c.participants ?? [];
+        const mine = c.participating === true;
+        return (
+        <View key={c.id} style={[styles.course, mine && styles.courseMine]}>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.courseName}>{c.name}</Text>
             {(c.date && multiDay) || c.details ? (
@@ -72,7 +89,24 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
                 {[c.date && multiDay ? formatIsoDate(c.date) : null, c.details].filter(Boolean).join(' · ')}
               </Text>
             ) : null}
+            {people.length > 0 && (
+              <Text style={styles.coursePeople}>
+                {people.length} participant{people.length > 1 ? 's' : ''} : {people.map((p) => p.fullName).join(', ')}
+              </Text>
+            )}
             {c.authorFirstName ? <Text style={styles.courseAuthor}>ajoutée par {c.authorFirstName}</Text> : null}
+            <Pressable
+              onPress={() => void toggle(c.id, !mine)}
+              disabled={closed || joiningId === c.id}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: mine, disabled: closed }}
+              style={({ pressed }) => [styles.joinBtn, mine && styles.joinBtnActive, (closed || pressed) && { opacity: 0.6 }]}
+            >
+              {joiningId === c.id
+                ? <ActivityIndicator size="small" color={mine ? '#fff' : COLORS.primary} />
+                : <Ionicons name={mine ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={mine ? '#fff' : COLORS.primary} />}
+              <Text style={[styles.joinLabel, mine && { color: '#fff' }]}>{mine ? 'Je fais cette course' : 'Je fais cette course ?'}</Text>
+            </Pressable>
           </View>
           {c.canDelete && (
             <Pressable
@@ -88,7 +122,12 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
             </Pressable>
           )}
         </View>
-      ))}
+        );
+      })}
+
+      {courses.length > 0 && (
+        <Text style={styles.hint}>Choisir au moins une course vous compte présent(e) à la compétition.</Text>
+      )}
 
       {open ? (
         <View style={styles.form}>
@@ -156,6 +195,16 @@ const styles = StyleSheet.create({
   courseName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   courseMeta: { fontSize: 13, color: COLORS.text },
   courseAuthor: { fontSize: 11, color: COLORS.textMuted },
+  courseMine: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  coursePeople: { fontSize: 12, color: COLORS.textMuted },
+  joinBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: COLORS.primary, backgroundColor: COLORS.surface,
+  },
+  joinBtnActive: { backgroundColor: COLORS.primary },
+  joinLabel: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  hint: { fontSize: 12, color: COLORS.textMuted, marginBottom: SPACING.sm },
   form: {
     padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.primary,
     backgroundColor: COLORS.surface,

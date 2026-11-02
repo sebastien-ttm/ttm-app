@@ -1152,6 +1152,10 @@ export type RaceCourse = {
   authorFirstName: string | null;
   /** Je l'ai ajoutée, ou la compétition est la mienne. */
   canDelete: boolean;
+  /** Adhérents qui font cette course (faire une course vaut présence à la compétition). Absent des anciennes réponses. */
+  participants?: { id: number; fullName: string }[];
+  /** Je fais cette course. */
+  participating?: boolean;
 };
 
 export type RaceCourseInput = { name: string; date: string; details: string };
