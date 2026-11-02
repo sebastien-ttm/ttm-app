@@ -147,6 +147,12 @@ class Article implements OwnedContentInterface
      */
     private ?array $newAttachments = null;
 
+    /**
+     * Case du formulaire admin (non persistée) : à l'enregistrement d'une modification, l'article reprend la date
+     * actuelle et redevient « non lu » pour tous, comme un nouvel article (voir ArticleCrudController::updateEntity).
+     */
+    private bool $republishAsNew = false;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -229,6 +235,9 @@ class Article implements OwnedContentInterface
     public function getNewAttachments(): ?array { return $this->newAttachments; }
     /** @param array<int, \Symfony\Component\HttpFoundation\File\UploadedFile>|null $files */
     public function setNewAttachments(?array $files): self { $this->newAttachments = $files; return $this; }
+
+    public function isRepublishAsNew(): bool { return $this->republishAsNew; }
+    public function setRepublishAsNew(bool $republish): self { $this->republishAsNew = $republish; return $this; }
 
     #[ORM\PreUpdate]
     public function touchUpdatedAt(): void

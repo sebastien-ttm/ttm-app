@@ -8,6 +8,8 @@ use App\Entity\TrainingSlot;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Message\SendArticleEmailsMessage;
+use App\Repository\ArticleReadRepository;
 use App\Repository\TripRepository;
 use App\Security\ContentDeleteVoter;
 use App\Service\Article\ArticleAttachmentService;
@@ -27,6 +29,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ArticleCrudController extends AbstractCrudController
@@ -39,6 +42,8 @@ class ArticleCrudController extends AbstractCrudController
     public function __construct(
         private readonly ArticleAttachmentService $attachments,
         private readonly TripRepository $trips,
+        private readonly ArticleReadRepository $reads,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -128,6 +133,12 @@ class ArticleCrudController extends AbstractCrudController
             ->setHelp('Laisser vide = publier immédiatement. Date future = publication programmée.');
         yield BooleanField::new('notifyOnPublish', 'Notification push à la publication')
             ->onlyOnForms();
+        // Modification seulement : republier l'article comme s'il venait de paraître.
+        yield BooleanField::new('republishAsNew', '🆕 Republier comme nouvel article')
+            ->onlyWhenUpdating()
+            ->setHelp('Cochez si la modification mérite d\'être signalée : à l\'enregistrement, l\'article prend la date actuelle, '
+                .'remonte en tête des actualités et redevient « non lu » pour tous. Si « Notification push à la publication » '
+                .'est cochée, les adhérents sont de nouveau prévenus. Sans cette case, la date de publication ne change pas.');
         yield ChoiceField::new('audience', 'Audience cible')
             ->setChoices(Profile::choices())
             ->allowMultipleChoices()
@@ -239,9 +250,24 @@ class ArticleCrudController extends AbstractCrudController
 
     public function updateEntity(EntityManagerInterface $em, $entityInstance): void
     {
+        $republish = $entityInstance instanceof Article && $entityInstance->isRepublishAsNew();
+        if ($republish) {
+            $entityInstance->setRepublishAsNew(false);
+            $entityInstance->setPublishedAt(new \DateTimeImmutable());
+            // Nouvelle parution : la notification (e-mail + push) peut repartir.
+            $entityInstance->setEmailsSentAt(null);
+        }
         $this->defaultPublishedAtToNow($entityInstance);
         parent::updateEntity($em, $entityInstance);
         $this->processNewAttachments($em, $entityInstance);
+
+        if ($republish) {
+            $this->reads->forgetReads($entityInstance);
+            if ($entityInstance->isNotifyOnPublish()) {
+                $this->bus->dispatch(new SendArticleEmailsMessage((int) $entityInstance->getId()));
+            }
+            $this->addFlash('success', 'Article republié : il apparaît comme nouveau dans les actualités.');
+        }
     }
 
     /**

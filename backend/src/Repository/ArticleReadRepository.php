@@ -49,6 +49,17 @@ class ArticleReadRepository extends ServiceEntityRepository
         return $read;
     }
 
+    /** Oublie toutes les lectures de l'article : il redevient « non lu » pour tout le monde (article republié). */
+    public function forgetReads(Article $article): void
+    {
+        $this->createQueryBuilder('r')
+            ->delete()
+            ->where('r.article = :article')
+            ->setParameter('article', $article)
+            ->getQuery()
+            ->execute();
+    }
+
     /**
      * Marque l'article comme lu (sans effet s'il l'est déjà). Passe par le SQL direct (INSERT IGNORE)
      * plutôt que par l'ORM : deux requêtes concurrentes ne peuvent pas planter sur l'index unique, et un
