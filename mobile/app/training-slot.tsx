@@ -181,7 +181,7 @@ export default function TrainingSlotDetailScreen() {
         )}
         {registration && !participantsFailed && <TrainingParticipants participants={participants} count={registration.count} capacity={registration.capacity} />}
 
-        {/* Vélo / course à pied : les groupes de la séance, à choisir avant son début (allure, places, encadrants). */}
+        {/* Tout sport : les groupes de la séance, à choisir avant son début (allure, places, encadrants). */}
         {!isPast && <SlotGroupsCard slot={slot} />}
 
         {slot.description ? (

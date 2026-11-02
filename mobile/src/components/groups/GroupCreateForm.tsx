@@ -6,7 +6,7 @@ import { ApiError } from '@/api/client';
 import { trainingGroups } from '@/api/resources';
 import type { StaffMember, TrainingGroup, TrainingGroupSessionOption, TrainingGroupStaffCandidate } from '@/api/types';
 import { MemberAvatar } from '@/components/MemberAvatar';
-import { CapacityStepper, PaceLevelPicker } from '@/components/groups/GroupFields';
+import { CapacityStepper, PaceLevelPicker, speedPlaceholder } from '@/components/groups/GroupFields';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -152,7 +152,7 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
       <TextInput
         value={speed}
         onChangeText={setSpeed}
-        placeholder={session?.sport === 'course' ? "Ex : 5'30 /km" : 'Ex : 28 km/h'}
+        placeholder={speedPlaceholder(session?.sport)}
         placeholderTextColor={COLORS.textSubtle}
         maxLength={60}
         style={styles.input}

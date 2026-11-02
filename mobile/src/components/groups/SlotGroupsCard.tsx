@@ -10,15 +10,12 @@ import { MemberAvatar } from '@/components/MemberAvatar';
 import { PaceBadge } from '@/components/groups/GroupFields';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 
-/** Sports pour lesquels des groupes sont proposés (valeurs de SportKey). */
-const GROUP_SPORTS = ['velo', 'course'];
-
 function isSlotGroups(body: unknown): body is SlotGroups {
   return typeof body === 'object' && body !== null && Array.isArray((body as SlotGroups).groups);
 }
 
 /**
- * Détail d'un créneau de vélo ou de course à pied : les groupes de la séance, à choisir avant son début. Chaque groupe
+ * Détail d'un créneau (tout sport : natation, vélo, course, multi…) : les groupes de la séance, à choisir avant son début. Chaque groupe
  * indique son allure (1 à 5), sa vitesse, ses encadrants et ses places ; on n'en choisit qu'un par séance (en choisir
  * un autre libère le premier). Rien n'est affiché s'il n'y a pas de groupe pour cette séance.
  */
@@ -27,7 +24,7 @@ export function SlotGroupsCard({ slot }: { slot: TrainingSlot }) {
   const [data, setData] = useState<SlotGroups | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const eligible = GROUP_SPORTS.includes(slot.sport) && !slot.isCancelled;
+  const eligible = !slot.isCancelled;
   const slotKey = `${slot.date}|${slot.id ?? ''}|${slot.templateId ?? ''}`;
 
   // À l'ouverture et au retour sur le créneau (après avoir consulté un groupe) : relecture, pour des places à jour.

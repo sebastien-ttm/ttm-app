@@ -6,6 +6,14 @@ import { COLORS, RADIUS } from '@/config';
 /** L'échelle du club : 5 allures (1 à 5). */
 export const PACE_LEVELS = [1, 2, 3, 4, 5] as const;
 
+/** Exemple de vitesse adapté au sport de la séance, pour le champ « Vitesse ». */
+export function speedPlaceholder(sport: string | null | undefined): string {
+  if (sport === 'course') return "Ex : 5'30 /km";
+  if (sport === 'natation') return "Ex : 1'50 /100 m";
+  if (sport === 'velo') return 'Ex : 28 km/h';
+  return 'Ex : 28 km/h vélo, 5\'30 /km course';
+}
+
 /**
  * Allure du club (1 à 5) et vitesse d'un groupe, en une pastille : « Allure 3 · 28 km/h ». Rien si ni l'une ni l'autre
  * n'est renseignée.

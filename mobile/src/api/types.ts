@@ -1318,7 +1318,7 @@ export type TrainingGroupSlotRef = {
 };
 
 /**
- * Ce qui rattache un groupe à sa séance : sport (vélo / course à pied), places, allure du club (1 à 5) et vitesse.
+ * Ce qui rattache un groupe à sa séance : sport (natation, vélo, course, multi…), places, allure du club (1 à 5) et vitesse.
  * Tout est null pour un ancien groupe, créé avant l'adossement à un créneau.
  */
 export type TrainingGroupFacts = {
@@ -1333,7 +1333,7 @@ export type TrainingGroupFacts = {
   placesLeft: number | null;
   /** Allure du club : 1 à 5 ; null si non précisée. */
   paceLevel: number | null;
-  /** Vitesse en texte libre (« 28 km/h », « 5'30 /km »), en complément de l'allure. */
+  /** Vitesse en texte libre (« 28 km/h », « 5'30 /km », « 1'50 /100 m »), en complément de l'allure. */
   speed: string | null;
   /** La séance a commencé (les adhérents peuvent encore choisir ou quitter le groupe tant qu'il est actif). */
   started: boolean;
@@ -1390,7 +1390,7 @@ export type TrainingGroupSummary = TrainingGroupFacts & {
   coaches: { id: number; fullName: string; avatarUrl: string | null }[];
 };
 
-/** Séance (vélo ou course à pied, à venir) à laquelle un encadrant peut adosser un nouveau groupe. */
+/** Séance (tout sport, à venir) à laquelle un encadrant peut adosser un nouveau groupe. */
 export type TrainingGroupSessionOption = {
   occ: string;
   /** Date AAAA-MM-JJ du lundi de la semaine. */

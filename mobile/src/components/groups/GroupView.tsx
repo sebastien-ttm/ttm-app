@@ -24,7 +24,7 @@ import { LiveStatus } from '@/components/LiveStatus';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { ContactButtons } from '@/components/groups/ContactButtons';
-import { CapacityStepper, PaceBadge, PaceLevelPicker } from '@/components/groups/GroupFields';
+import { CapacityStepper, PaceBadge, PaceLevelPicker, speedPlaceholder } from '@/components/groups/GroupFields';
 import { COACH_COLOR, GroupMap } from '@/components/groups/GroupMap';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { PositionCard } from '@/components/groups/PositionCard';
@@ -184,7 +184,7 @@ function PaceAndPlaces({ group, onChange }: { group: TrainingGroup; onChange: (g
         <Text style={styles.fieldLabel}>Vitesse</Text>
         <InlineEdit
           value={group.speed}
-          placeholder={group.sport === 'course' ? "Ex : 5'30 /km" : 'Ex : 28 km/h'}
+          placeholder={speedPlaceholder(group.sport)}
           empty="Non précisée."
           maxLength={60}
           canEdit
