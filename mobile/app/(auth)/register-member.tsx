@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { webDateInputStyle } from '@/components/DateField';
 import { APP_NAME, COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 
 /**
@@ -133,16 +134,7 @@ export default function RegisterMemberScreen() {
                 value={dateNaissance}
                 onChange={(e: { target: { value: string } }) => setDateNaissance(e.target.value)}
                 disabled={busy}
-                style={{
-                  fontFamily: 'inherit',
-                  fontSize: 15,
-                  padding: '12px 14px',
-                  borderRadius: RADIUS.md,
-                  border: `1px solid ${COLORS.border}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.text,
-                  marginBottom: SPACING.md,
-                }}
+                style={webDateInputStyle(dateNaissance === '', { marginBottom: SPACING.md })}
               />
             ) : (
               <TextInput

@@ -21,6 +21,27 @@ function frToIso(fr: string): string | null {
   return `${y}-${mo}-${d}`;
 }
 
+/**
+ * Style d'un <input type="date"> web aligné sur les TextInput : même police que react-native-web (sans elle, le champ
+ * hérite de la police serif par défaut de la page), même taille, mêmes marges, pleine largeur ; « jj/mm/aaaa » en
+ * couleur de placeholder tant que la date est vide.
+ */
+export function webDateInputStyle(empty: boolean, overrides: Record<string, string | number> = {}): Record<string, string | number> {
+  return {
+    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+    fontSize: 15,
+    lineHeight: 'normal',
+    padding: '12px 14px',
+    width: '100%',
+    boxSizing: 'border-box',
+    borderRadius: RADIUS.md,
+    border: `1px solid ${COLORS.border}`,
+    backgroundColor: COLORS.surface,
+    color: empty ? COLORS.textSubtle : COLORS.text,
+    ...overrides,
+  };
+}
+
 export function todayIso(): string {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -67,15 +88,7 @@ export function DateField({ initialIso, onChange, disabled, minIso }: {
           setText(e.target.value);
           onChange(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : null);
         }}
-        style={{
-          fontFamily: 'inherit',
-          fontSize: 15,
-          padding: 12,
-          borderRadius: RADIUS.md,
-          border: `1px solid ${COLORS.border}`,
-          backgroundColor: COLORS.surface,
-          color: COLORS.text,
-        }}
+        style={webDateInputStyle(text === '')}
       />
     );
   }

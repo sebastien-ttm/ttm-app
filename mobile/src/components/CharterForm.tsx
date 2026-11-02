@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from '
 
 import type { AuthenticatedUser } from '@/api/client';
 import type { CharterAnswers, CharterField } from '@/api/types';
+import { webDateInputStyle } from '@/components/DateField';
 import { RichContent } from '@/components/RichContent';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -183,15 +184,8 @@ function DateInput({ value, onChange }: { value: string; onChange: (v: string) =
         type="date"
         value={value}
         onChange={(e: { target: { value: string } }) => onChange(e.target.value)}
-        style={{
-          fontFamily: 'inherit',
-          fontSize: 15,
-          padding: 10,
-          borderRadius: RADIUS.sm,
-          border: `1px solid ${COLORS.border}`,
-          backgroundColor: '#fff',
-          color: COLORS.text,
-        }}
+        // Mêmes marges, coins et fond que les autres champs de la charte (styles.input).
+        style={webDateInputStyle(value === '', { padding: '10px 12px', borderRadius: RADIUS.sm, backgroundColor: '#fff' })}
       />
     );
   }
