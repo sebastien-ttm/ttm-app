@@ -158,7 +158,7 @@ export default function ProfileChildrenScreen() {
                       hitSlop={8}
                       onPress={() => router.push(('/youth-documents/' + c.id) as never)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Documents de ${c.fullName} : fiche sanitaire et autorisation de sortie du territoire`}
+                      accessibilityLabel={`Documents de ${c.fullName} : fiche sanitaire, autorisation de rentrer seul, stages`}
                       style={({ pressed }) => [styles.docsBtn, pressed && { opacity: 0.6 }]}
                     >
                       <Text style={styles.docsLabel}>🩺 Documents</Text>

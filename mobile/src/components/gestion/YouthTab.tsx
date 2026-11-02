@@ -5,7 +5,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View 
 
 import { ApiError } from '@/api/client';
 import { youthDocuments } from '@/api/resources';
-import type { StaffYouth, YouthDocument, YouthDocumentKind } from '@/api/types';
+import type { StaffYouth, YouthDocument, YouthPermanentKind } from '@/api/types';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -13,9 +13,9 @@ import { openAttachment, withBearer } from '@/lib/openAttachment';
 
 type Filter = 'all' | 'missing';
 
-const KINDS: { kind: YouthDocumentKind; icon: string; label: string }[] = [
+// L'autorisation de sortie du territoire n'est pas suivie ici : elle se dépose pour chaque stage.
+const KINDS: { kind: YouthPermanentKind; icon: string; label: string }[] = [
   { kind: 'health_form', icon: '🩺', label: 'Fiche sanitaire' },
-  { kind: 'exit_authorization', icon: '🛂', label: 'Autorisation de sortie' },
   { kind: 'go_home_alone', icon: '🏠', label: 'Rentrer seul' },
 ];
 
@@ -29,8 +29,8 @@ function isOk(doc: YouthDocument | null): boolean {
 }
 
 /**
- * Onglet « Jeunes » de l'espace Staff : les adhérents jeunes avec l'état de leur fiche sanitaire, de leur autorisation de
- * sortie du territoire et de leur autorisation de rentrer seul. Les documents manquants ou expirés sont en évidence (filtre « À compléter ») ; un appui sur une
+ * Onglet « Jeunes » de l'espace Staff : les adhérents jeunes avec l'état de leur fiche sanitaire et de leur autorisation
+ * de rentrer seul. Les documents manquants ou expirés sont en évidence (filtre « À compléter ») ; un appui sur une
  * pastille ouvre directement le document, un appui sur la ligne ouvre la fiche du jeune (documents, contacts, dépôt).
  */
 export function YouthTab() {

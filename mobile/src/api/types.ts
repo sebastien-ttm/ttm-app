@@ -1477,10 +1477,13 @@ export type TrainingGroupInput = {
   speed: string;
 };
 
-// ---- Documents des jeunes : fiche sanitaire, autorisation de sortie du territoire, autorisation de rentrer seul ----
+// ---- Documents des jeunes : fiche sanitaire et autorisation de rentrer seul (permanentes), autorisation de sortie du
+// territoire (une par stage) ----
 
-/** Type d'un document de jeune (un seul document par jeune et par type). */
+/** Type d'un document de jeune. */
 export type YouthDocumentKind = 'health_form' | 'exit_authorization' | 'go_home_alone';
+/** Documents permanents (un par jeune) ; l'autorisation de sortie du territoire se dépose pour chaque stage. */
+export type YouthPermanentKind = Exclude<YouthDocumentKind, 'exit_authorization'>;
 
 export type YouthDocument = {
   id: number;
@@ -1501,8 +1504,19 @@ export type YouthDocument = {
   url: string;
 };
 
-/** Un document par type ; null = rien de déposé. */
-export type YouthDocumentsByKind = Record<YouthDocumentKind, YouthDocument | null>;
+/** Un document permanent par type ; null = rien de déposé. */
+export type YouthDocumentsByKind = Record<YouthPermanentKind, YouthDocument | null>;
+
+/** Stage auquel participe le jeune, avec son autorisation de sortie du territoire pour ce stage (null = manquante). */
+export type YouthStage = {
+  id: number;
+  title: string;
+  icon: string | null;
+  location: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
+  exitAuthorization: YouthDocument | null;
+};
 
 export type YouthOwner = {
   id: number;
@@ -1515,6 +1529,8 @@ export type YouthOwner = {
 export type YouthDocumentsDetail = {
   owner: YouthOwner;
   documents: YouthDocumentsByKind;
+  /** Stages publiés du jeune (à venir, en cours ou terminés depuis peu). Absent des anciennes réponses. */
+  stages?: YouthStage[];
   /** Modèle à télécharger par type (URL authentifiée, jeton en `?bearer=`) : Cerfa officiel ou PDF du club pré-rempli. */
   templates: Record<YouthDocumentKind, string>;
   /** Numéros pour joindre le jeune et son contact d'urgence : fournis au staff seulement. */
@@ -1545,6 +1561,10 @@ export type TripParticipant = {
   prenom: string;
   nom: string;
   avatarUrl: string | null;
+  /** Participant d'un stage vu par le staff : profil Jeune. */
+  isJeune?: boolean;
+  /** Stage, staff, jeune : autorisation de sortie du territoire pour ce stage (null = manquante). */
+  exitAuthorization?: { url: string; expired: boolean } | null;
 };
 
 /** Vue de contexte d'un déplacement : infos pratiques, événements du calendrier, articles dédiés, participants. */

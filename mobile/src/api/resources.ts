@@ -227,22 +227,24 @@ export const trainingGroups = {
 };
 
 /**
- * Documents officiels des jeunes (fiche sanitaire, autorisation de sortie du territoire) : déposés par le jeune, ses parents
- * ou le staff ; consultables par eux, le staff et les administrateurs. `overview` : vue d'ensemble du staff.
+ * Documents des jeunes (fiche sanitaire, autorisation de rentrer seul, et autorisation de sortie du territoire pour
+ * chaque stage) : déposés par le jeune, ses parents ou le staff ; consultables par eux, le staff et les administrateurs.
+ * `overview` : vue d'ensemble du staff. `stageId` : obligatoire pour l'autorisation de sortie du territoire.
  */
 export const youthDocuments = {
   overview: () => api.get<{ data: StaffYouth[]; total: number }>('/api/staff/youth'),
   get: (youthId: number) => api.get<YouthDocumentsDetail>(`/api/youth-documents/${youthId}`),
   /** Dépose (ou remplace) le document d'un type. `validUntil` : AAAA-MM-JJ, facultatif. */
-  upload: (youthId: number, kind: YouthDocumentKind, file: Blob, name: string, validUntil?: string | null) => {
+  upload: (youthId: number, kind: YouthDocumentKind, file: Blob, name: string, validUntil?: string | null, stageId?: number | null) => {
     const form = new FormData();
     form.append('type', kind);
     form.append('file', file, name);
     if (validUntil) form.append('validUntil', validUntil);
+    if (stageId) form.append('stageId', String(stageId));
     return api.post<YouthDocument>(`/api/youth-documents/${youthId}`, form);
   },
-  remove: (youthId: number, kind: YouthDocumentKind) =>
-    api.delete<{ ok: boolean }>(`/api/youth-documents/${youthId}/${kind}`),
+  remove: (youthId: number, kind: YouthDocumentKind, stageId?: number | null) =>
+    api.delete<{ ok: boolean }>(`/api/youth-documents/${youthId}/${kind}${stageId ? `?stageId=${stageId}` : ''}`),
 };
 
 /** Notifications push web (PWA) : configuration serveur et abonnement de ce navigateur. */

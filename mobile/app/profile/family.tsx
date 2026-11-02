@@ -206,7 +206,7 @@ function RelationRow({
         <Pressable
           onPress={() => router.push(('/youth-documents/' + person.id) as never)}
           accessibilityRole="button"
-          accessibilityLabel={`Documents de ${person.fullName} : fiche sanitaire et autorisation de sortie du territoire`}
+          accessibilityLabel={`Documents de ${person.fullName} : fiche sanitaire, autorisation de rentrer seul, stages`}
           style={({ pressed }) => [styles.smallBtn, styles.btnDocs, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.btnDocsLabel}>🩺 Documents</Text>

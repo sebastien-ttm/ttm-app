@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 
 import { ApiError } from '@/api/client';
 import { youthDocuments } from '@/api/resources';
-import type { YouthDocument, YouthDocumentKind, YouthDocumentsDetail } from '@/api/types';
+import type { YouthDocument, YouthDocumentKind, YouthDocumentsDetail, YouthPermanentKind, YouthStage } from '@/api/types';
 import { DateField } from '@/components/DateField';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MemberAvatar } from '@/components/MemberAvatar';
@@ -15,18 +15,13 @@ import { canPickFile, pickFile } from '@/lib/pickFile';
 import { confirmAction } from '@/utils/confirm';
 import { formatPhoneFr } from '@/utils/phone';
 
-const KINDS: { kind: YouthDocumentKind; icon: string; title: string; help: string }[] = [
+/** Documents permanents du jeune. */
+const KINDS: { kind: YouthPermanentKind; icon: string; title: string; help: string }[] = [
   {
     kind: 'health_form',
     icon: '🩺',
     title: 'Fiche sanitaire',
     help: 'Fiche sanitaire de liaison officielle (Cerfa n° 10008*02), remplie et signée par un parent : vaccins, allergies, traitements, personnes à prévenir.',
-  },
-  {
-    kind: 'exit_authorization',
-    icon: '🛂',
-    title: 'Autorisation de sortie du territoire',
-    help: 'Formulaire officiel AST (Cerfa n° 15646*01) signé par un parent, avec la copie de sa pièce d\'identité. Indiquez sa date de fin de validité.',
   },
   {
     kind: 'go_home_alone',
@@ -35,6 +30,15 @@ const KINDS: { kind: YouthDocumentKind; icon: string; title: string; help: strin
     help: 'Document du club signé par un parent : le jeune peut quitter seul l\'entraînement et rentrer seul chez lui. Valable pour la saison en cours.',
   },
 ];
+
+/** Autorisation de sortie du territoire : demandée pour chaque stage auquel participe le jeune. */
+const EXIT_HELP = 'Formulaire officiel AST (Cerfa n° 15646*01) signé par un parent, avec la copie de sa pièce d\'identité, pour ce stage. Indiquez sa date de fin de validité.';
+
+function stageDates(stage: YouthStage): string {
+  if (!stage.startsOn) return '';
+  const start = dateLabel(stage.startsOn);
+  return stage.endsOn && stage.endsOn !== stage.startsOn ? `du ${start} au ${dateLabel(stage.endsOn)}` : start;
+}
 
 function notify(message: string): void {
   if (Platform.OS === 'web') window.alert(message);
@@ -46,13 +50,14 @@ function dateLabel(iso: string): string {
 }
 
 /**
- * Un document (fiche sanitaire, autorisation de sortie du territoire ou de rentrer seul) : état (déposé, expiré, manquant),
- * ouverture en un appui, modèle à télécharger, envoi / remplacement (photo ou PDF) avec date de fin de validité
- * facultative, suppression.
+ * Un document (fiche sanitaire, autorisation de rentrer seul, ou autorisation de sortie du territoire d'un stage —
+ * `stageId`) : état (déposé, expiré, manquant), ouverture en un appui, modèle à télécharger, envoi / remplacement (photo
+ * ou PDF) avec date de fin de validité facultative, suppression.
  */
-function DocumentCard({ youthId, kind, icon, title, help, document, templateUrl, onChanged }: {
+function DocumentCard({ youthId, kind, stageId, icon, title, help, document, templateUrl, onChanged }: {
   youthId: number;
   kind: YouthDocumentKind;
+  stageId?: number;
   icon: string;
   title: string;
   help: string;
@@ -73,7 +78,7 @@ function DocumentCard({ youthId, kind, icon, title, help, document, templateUrl,
     if (file === null) return;
     setBusy(true);
     try {
-      await youthDocuments.upload(youthId, kind, file, file.name, validUntil);
+      await youthDocuments.upload(youthId, kind, file, file.name, validUntil, stageId);
       onChanged();
     } catch (e) {
       notify(e instanceof ApiError ? e.message : 'Envoi impossible. Réessayez.');
@@ -86,7 +91,7 @@ function DocumentCard({ youthId, kind, icon, title, help, document, templateUrl,
     if (!(await confirmAction('Supprimer ce document ?', `« ${document?.name ?? title} » sera supprimé.`, 'Supprimer'))) return;
     setBusy(true);
     try {
-      await youthDocuments.remove(youthId, kind);
+      await youthDocuments.remove(youthId, kind, stageId);
       onChanged();
     } catch (e) {
       notify(e instanceof ApiError ? e.message : 'Suppression impossible.');
@@ -165,8 +170,10 @@ function DocumentCard({ youthId, kind, icon, title, help, document, templateUrl,
 }
 
 /**
- * Documents d'un jeune : fiche sanitaire, autorisation de sortie du territoire et autorisation de rentrer seul (document
- * du club), chacun avec son modèle à télécharger. Le jeune, ses parents et le staff peuvent les ouvrir et les déposer ; le staff y trouve aussi de quoi joindre le jeune et son contact d'urgence.
+ * Documents d'un jeune : fiche sanitaire et autorisation de rentrer seul (document du club), puis, pour chaque stage
+ * auquel il participe, son autorisation de sortie du territoire ; chacun avec son modèle à télécharger. Le jeune, ses
+ * parents et le staff peuvent les ouvrir et les déposer ; le staff y trouve aussi de quoi joindre le jeune et son
+ * contact d'urgence.
  */
 export function YouthDocumentsView({ youthId }: { youthId: number }) {
   const [detail, setDetail] = useState<YouthDocumentsDetail | null>(null);
@@ -188,7 +195,9 @@ export function YouthDocumentsView({ youthId }: { youthId: number }) {
   }
 
   const { owner, documents, contact } = detail;
-  const missingCount = KINDS.filter((k) => !documents[k.kind] || documents[k.kind]?.expired).length;
+  const stages = detail.stages ?? [];
+  const missingCount = KINDS.filter((k) => !documents[k.kind] || documents[k.kind]?.expired).length
+    + stages.filter((s) => !s.exitAuthorization || s.exitAuthorization.expired).length;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -236,6 +245,30 @@ export function YouthDocumentsView({ youthId }: { youthId: number }) {
           onChanged={() => void load()}
         />
       ))}
+
+      {stages.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>🏕️ Stages</Text>
+          {stages.map((s) => (
+            <View key={s.id} style={styles.stageBlock}>
+              <Text style={styles.stageTitle}>{s.icon ? `${s.icon} ` : ''}{s.title}</Text>
+              <Text style={styles.stageMeta}>{[stageDates(s), s.location].filter(Boolean).join(' · ')}</Text>
+              <DocumentCard
+                key={'exit:' + s.id + ':' + (s.exitAuthorization?.id ?? 'none')}
+                youthId={youthId}
+                kind="exit_authorization"
+                stageId={s.id}
+                icon="🛂"
+                title="Autorisation de sortie du territoire"
+                help={EXIT_HELP}
+                document={s.exitAuthorization}
+                templateUrl={detail.templates?.exit_authorization}
+                onChanged={() => void load()}
+              />
+            </View>
+          ))}
+        </>
+      )}
 
       <Text style={styles.privacy}>
         Ces documents contiennent des données de santé et d'identité : ils ne sont visibles que par le jeune, ses parents,
@@ -295,5 +328,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md, backgroundColor: COLORS.primary,
   },
   uploadLabel: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', marginTop: SPACING.sm },
+  stageBlock: { gap: 6 },
+  stageTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  stageMeta: { fontSize: 13, color: COLORS.textMuted },
   privacy: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', lineHeight: 16, marginTop: SPACING.sm },
 });

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { TripParticipant, TripSummary } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { MemberAvatar } from '@/components/MemberAvatar';
+import { openAttachment, withBearer } from '@/lib/openAttachment';
 import { tripDatesLabel, tripPhase, tripStatusLabel } from '@/utils/trip';
 
 /**
@@ -56,16 +57,38 @@ export function ContextSection({ title, icon, children }: { title: string; icon:
   );
 }
 
-/** Participants : photo (ou initiales) et nom, sans coordonnées. */
+/**
+ * Participants : photo (ou initiales) et nom, sans coordonnées. Stage vu par le staff : sous chaque jeune, une pastille
+ * 🛂 pour son autorisation de sortie du territoire (verte déposée et ouverte d'un appui, orange expirée, rouge manquante
+ * qui ouvre sa fiche documents pour la déposer).
+ */
 export function ParticipantsGrid({ participants }: { participants: TripParticipant[] }) {
+  const router = useRouter();
   return (
     <View style={styles.people}>
-      {participants.map((p) => (
-        <View key={p.id} style={styles.person}>
-          <MemberAvatar prenom={p.prenom} nom={p.nom} avatarUrl={p.avatarUrl} size={44} />
-          <Text style={styles.personName} numberOfLines={2}>{p.prenom} {p.nom}</Text>
-        </View>
-      ))}
+      {participants.map((p) => {
+        const showExit = p.isJeune === true && p.exitAuthorization !== undefined;
+        const exit = p.exitAuthorization ?? null;
+        const state = !exit ? 'missing' : exit.expired ? 'expired' : 'ok';
+        return (
+          <View key={p.id} style={styles.person}>
+            <MemberAvatar prenom={p.prenom} nom={p.nom} avatarUrl={p.avatarUrl} size={44} />
+            <Text style={styles.personName} numberOfLines={2}>{p.prenom} {p.nom}</Text>
+            {showExit && (
+              <Pressable
+                onPress={() => (exit
+                  ? void openAttachment((token) => withBearer(exit.url, token))
+                  : router.push(('/youth-documents/' + p.id) as never))}
+                accessibilityRole="button"
+                accessibilityLabel={`Autorisation de sortie du territoire de ${p.prenom} ${p.nom} : ${state === 'ok' ? 'ouvrir' : state === 'expired' ? 'expirée' : 'manquante'}`}
+                style={({ pressed }) => [styles.exitPill, styles[`exit_${state}`], pressed && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.exitLabel, styles[`exitLabel_${state}`]]}>🛂 {state === 'ok' ? 'AST' : state === 'expired' ? 'Expirée' : 'Manque'}</Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -142,6 +165,14 @@ const styles = StyleSheet.create({
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   person: { width: 76, alignItems: 'center', gap: 4 },
   personName: { fontSize: 11, color: COLORS.text, textAlign: 'center' },
+  exitPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
+  exit_ok: { backgroundColor: '#dcfce7', borderColor: '#86efac' },
+  exit_expired: { backgroundColor: '#ffedd5', borderColor: '#fdba74' },
+  exit_missing: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+  exitLabel: { fontSize: 10, fontWeight: '700' },
+  exitLabel_ok: { color: '#166534' },
+  exitLabel_expired: { color: '#9a3412' },
+  exitLabel_missing: { color: '#991b1b' },
   cardsSection: { gap: SPACING.sm, marginTop: SPACING.md, paddingHorizontal: SPACING.md },
   cardsHeading: { fontSize: 13, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   card: {
