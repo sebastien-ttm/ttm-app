@@ -54,7 +54,7 @@ class RaceProposalController extends AbstractController
     /**
      * Création. JSON : name, raceDate (premier jour AAAA-MM-JJ), raceEndDate? (dernier jour AAAA-MM-JJ, vide = une
      * seule journée), url?, description?, captain, registrationDeadline? (capitaine : date limite de réponse
-     * AAAA-MM-JJ), type.
+     * AAAA-MM-JJ), type, courses? (liste de { name, date?, details? }).
      */
     #[Route('/api/races', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -70,6 +70,17 @@ class RaceProposalController extends AbstractController
         $error = $this->apply($proposal, $payload, true);
         if ($error !== null) {
             return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
+        }
+        // Courses saisies dès la création (facultatif) : tout est enregistré ensemble, ou rien.
+        $courses = $payload['courses'] ?? [];
+        if (!is_array($courses)) {
+            return new JsonResponse(['error' => 'Liste des courses invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+        foreach ($courses as $input) {
+            $error = is_array($input) ? $this->addCourseFrom($proposal, $user, $input) : 'Course invalide.';
+            if ($error !== null) {
+                return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
+            }
         }
         $this->em->persist($proposal);
         $this->em->flush();
@@ -123,37 +134,53 @@ class RaceProposalController extends AbstractController
             return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
-        $name = trim((string) ($payload['name'] ?? ''));
+        $error = $this->addCourseFrom($proposal, $user, $payload);
+        if ($error !== null) {
+            return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
+        }
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($proposal, $user), Response::HTTP_CREATED);
+    }
+
+    /**
+     * Ajoute à la compétition la course décrite par `$input` (name, date?, details?) ; le flush reste à l'appelant.
+     * Retourne un message d'erreur ou null.
+     *
+     * @param array<string, mixed> $input
+     */
+    private function addCourseFrom(RaceProposal $proposal, User $user, array $input): ?string
+    {
+        $name = trim((string) ($input['name'] ?? ''));
         if ($name === '') {
-            return new JsonResponse(['error' => 'Indiquez le nom de la course.'], Response::HTTP_BAD_REQUEST);
+            return 'Indiquez le nom de la course.';
         }
         if (mb_strlen($name) > RaceProposalCourse::NAME_MAX) {
-            return new JsonResponse(['error' => sprintf('Nom trop long (%d caractères max).', RaceProposalCourse::NAME_MAX)], Response::HTTP_BAD_REQUEST);
+            return sprintf('Nom de course trop long (%d caractères max).', RaceProposalCourse::NAME_MAX);
         }
 
         $date = null;
-        $raw = trim((string) ($payload['date'] ?? ''));
+        $raw = trim((string) ($input['date'] ?? ''));
         if ($raw !== '') {
             $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
             if ($date === false || $date->format('Y-m-d') !== $raw) {
-                return new JsonResponse(['error' => 'Date de la course invalide.'], Response::HTTP_BAD_REQUEST);
+                return sprintf('Date de la course « %s » invalide.', $name);
             }
             if ($date < $proposal->getRaceDate() || $date > $proposal->getLastDay()) {
-                return new JsonResponse(['error' => 'La date de la course doit être comprise dans les dates de la compétition.'], Response::HTTP_BAD_REQUEST);
+                return sprintf('La date de la course « %s » doit être comprise dans les dates de la compétition.', $name);
             }
         }
 
-        $details = trim((string) ($payload['details'] ?? ''));
+        $details = trim((string) ($input['details'] ?? ''));
         if (mb_strlen($details) > RaceProposalCourse::DETAILS_MAX) {
-            return new JsonResponse(['error' => sprintf('Précisions trop longues (%d caractères max).', RaceProposalCourse::DETAILS_MAX)], Response::HTTP_BAD_REQUEST);
+            return sprintf('Précisions trop longues (%d caractères max).', RaceProposalCourse::DETAILS_MAX);
         }
 
         $course = new RaceProposalCourse($proposal, $user, $name, $date, $details === '' ? null : $details);
         $proposal->addCourse($course);
         $this->em->persist($course);
-        $this->em->flush();
 
-        return new JsonResponse($this->serialize($proposal, $user), Response::HTTP_CREATED);
+        return null;
     }
 
     /** Retire une course : celui qui l'a ajoutée ou l'auteur de la compétition. */
