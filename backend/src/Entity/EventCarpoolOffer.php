@@ -121,7 +121,14 @@ class EventCarpoolOffer
             return sprintf('📅 %s (%s)', $this->event->getTitle(), $this->event->getStartsAt()->format('d/m/Y'));
         }
         if ($this->raceProposal !== null) {
-            return sprintf('🏁 %s (%s)', $this->raceProposal->getName(), $this->raceProposal->getRaceDate()->format('d/m/Y'));
+            $end = $this->raceProposal->getRaceEndDate();
+
+            return sprintf(
+                '🏁 %s (%s%s)',
+                $this->raceProposal->getName(),
+                $this->raceProposal->getRaceDate()->format('d/m/Y'),
+                $end !== null ? ' → '.$end->format('d/m/Y') : '',
+            );
         }
         return '—';
     }

@@ -17,7 +17,7 @@ class RaceProposalRepository extends ServiceEntityRepository
     }
 
     /**
-     * Courses à venir (date >= aujourd'hui), la plus proche d'abord.
+     * Compétitions à venir ou en cours (dernier jour >= aujourd'hui), la plus proche d'abord.
      * Les votes sont chargés dans la même requête (compteurs + vote du
      * viewer sans N+1).
      *
@@ -28,7 +28,7 @@ class RaceProposalRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->leftJoin('r.author', 'a')->addSelect('a')
             ->leftJoin('r.votes', 'v')->addSelect('v')
-            ->where('r.raceDate >= :today')
+            ->where('r.raceDate >= :today OR r.raceEndDate >= :today')
             ->setParameter('today', new \DateTimeImmutable('today'), 'date_immutable')
             ->orderBy('r.raceDate', 'ASC')
             ->addOrderBy('r.createdAt', 'ASC')

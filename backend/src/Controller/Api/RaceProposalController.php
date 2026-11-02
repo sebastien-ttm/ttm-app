@@ -17,10 +17,9 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Courses proposées (onglet Social) : n'importe quel adhérent propose
- * une course (capitaine ou non), les autres indiquent leur intérêt.
- * Seules les courses à venir sont listées ; l'auteur peut modifier ou
- * supprimer sa proposition.
+ * Compétitions proposées (onglet Social) : n'importe quel adhérent propose une compétition — un événement d'un ou
+ * plusieurs jours, avec une ou plusieurs épreuves — (capitaine ou non), les autres indiquent leur intérêt. Seules les
+ * compétitions à venir ou en cours sont listées ; l'auteur peut modifier ou supprimer sa proposition.
  */
 #[IsGranted('ROLE_USER')]
 class RaceProposalController extends AbstractController
@@ -52,8 +51,9 @@ class RaceProposalController extends AbstractController
     }
 
     /**
-     * Création. JSON : name, raceDate (AAAA-MM-JJ), url?, description?, captain, registrationDeadline? (capitaine :
-     * date limite de réponse AAAA-MM-JJ), type.
+     * Création. JSON : name, raceDate (premier jour AAAA-MM-JJ), raceEndDate? (dernier jour AAAA-MM-JJ, vide = une
+     * seule journée), url?, description?, captain, registrationDeadline? (capitaine : date limite de réponse
+     * AAAA-MM-JJ), type.
      */
     #[Route('/api/races', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -165,7 +165,7 @@ class RaceProposalController extends AbstractController
         if ($creating || array_key_exists('name', $payload)) {
             $name = trim((string) ($payload['name'] ?? ''));
             if ($name === '') {
-                return 'Le nom de la course ne peut pas être vide.';
+                return 'Le nom de la compétition ne peut pas être vide.';
             }
             if (mb_strlen($name) > 150) {
                 return 'Nom trop long (150 caractères max).';
@@ -177,12 +177,33 @@ class RaceProposalController extends AbstractController
             $raw = (string) ($payload['raceDate'] ?? '');
             $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
             if ($date === false || $date->format('Y-m-d') !== $raw) {
-                return 'Date de la course invalide.';
+                return 'Date de début de la compétition invalide.';
             }
-            if ($date < new \DateTimeImmutable('today')) {
-                return 'La date de la course est déjà passée.';
+            // Une date inchangée n'est pas revalidée : une compétition en cours (commencée hier) reste modifiable.
+            $unchanged = $proposal->getId() !== null && $proposal->getRaceDate()->format('Y-m-d') === $raw;
+            if (!$unchanged && $date < new \DateTimeImmutable('today')) {
+                return 'La date de début de la compétition est déjà passée.';
             }
+            $end = $proposal->getRaceEndDate();
             $proposal->setRaceDate($date);
+            $proposal->setRaceEndDate($end);
+        }
+
+        // Dernier jour (AAAA-MM-JJ, vide = une seule journée).
+        if (array_key_exists('raceEndDate', $payload)) {
+            $raw = trim((string) ($payload['raceEndDate'] ?? ''));
+            if ($raw === '') {
+                $proposal->setRaceEndDate(null);
+            } else {
+                $end = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+                if ($end === false || $end->format('Y-m-d') !== $raw) {
+                    return 'Date de fin de la compétition invalide.';
+                }
+                $proposal->setRaceEndDate($end);
+            }
+        }
+        if ($proposal->getLastDay() < $proposal->getRaceDate()) {
+            return 'La date de fin doit être le jour du début ou après.';
         }
 
         if (array_key_exists('url', $payload)) {
@@ -233,7 +254,7 @@ class RaceProposalController extends AbstractController
             // Pas de capitaine, pas d'inscription groupée : pas de date limite.
             $proposal->setRegistrationDeadline(null);
         } elseif ($proposal->getRegistrationDeadline() !== null && $proposal->getRegistrationDeadline() > $proposal->getRaceDate()) {
-            return 'La date limite de réponse doit être au plus tard le jour de la course.';
+            return 'La date limite de réponse doit être au plus tard le premier jour de la compétition.';
         }
 
         if (array_key_exists('carpoolingEnabled', $payload)) {
@@ -243,7 +264,7 @@ class RaceProposalController extends AbstractController
         if ($creating || array_key_exists('type', $payload)) {
             $type = RaceType::tryFrom((string) ($payload['type'] ?? ''));
             if ($type === null) {
-                return 'Type de course invalide.';
+                return 'Type de compétition invalide.';
             }
             $proposal->setType($type);
         }
@@ -255,7 +276,7 @@ class RaceProposalController extends AbstractController
     {
         $proposal = $this->proposals->find($id);
         if ($proposal === null) {
-            throw $this->createNotFoundException('Course introuvable.');
+            throw $this->createNotFoundException('Compétition introuvable.');
         }
         return $proposal;
     }
@@ -264,7 +285,7 @@ class RaceProposalController extends AbstractController
     {
         $proposal = $this->findOr404($id);
         if ($proposal->getAuthor()->getId() !== $viewer->getId()) {
-            throw $this->createNotFoundException('Course introuvable.');
+            throw $this->createNotFoundException('Compétition introuvable.');
         }
         return $proposal;
     }
@@ -301,6 +322,8 @@ class RaceProposalController extends AbstractController
             'id' => $r->getId(),
             'name' => $r->getName(),
             'raceDate' => $r->getRaceDate()->format('Y-m-d'),
+            // Dernier jour d'une compétition sur plusieurs jours ; null = une seule journée.
+            'raceEndDate' => $r->getRaceEndDate()?->format('Y-m-d'),
             'url' => $r->getUrl(),
             'description' => $r->getDescription(),
             'captain' => $r->isCaptain(),

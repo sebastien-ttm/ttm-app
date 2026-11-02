@@ -21,7 +21,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\UrlField;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 
 /**
- * Courses proposées par les adhérents (onglet Social côté mobile) :
+ * Compétitions proposées par les adhérents (onglet Social côté mobile) :
  * modération (modification, suppression). Pas de création depuis le
  * backend — une proposition a toujours un auteur adhérent. L'auteur et
  * les votes ne sont pas modifiables.
@@ -36,8 +36,8 @@ class RaceProposalCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Course proposée')
-            ->setEntityLabelInPlural('Courses proposées')
+            ->setEntityLabelInSingular('Compétition proposée')
+            ->setEntityLabelInPlural('Compétitions proposées')
             ->setEntityPermission('ROLE_ENTRAINEUR')
             ->setDefaultSort(['raceDate' => 'DESC'])
             ->setSearchFields(['name', 'author.nom', 'author.prenom']);
@@ -45,9 +45,13 @@ class RaceProposalCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        yield TextField::new('name', 'Course');
-        yield DateField::new('raceDate', 'Date')
+        yield TextField::new('name', 'Compétition');
+        yield DateField::new('raceDate', 'Début')
             ->setFormat('d MMM yyyy');
+        yield DateField::new('raceEndDate', 'Fin')
+            ->setFormat('d MMM yyyy')
+            ->setRequired(false)
+            ->setHelp('Dernier jour, pour une compétition sur plusieurs jours. Vide = une seule journée.');
         // EnumType : le formulaire manipule directement des RaceType
         // (même choix que boardRole dans UserCrudController).
         yield ChoiceField::new('type', 'Type')

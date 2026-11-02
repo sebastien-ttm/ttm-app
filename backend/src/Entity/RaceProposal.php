@@ -10,8 +10,8 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * Course proposée par un adhérent (onglet Social) : les autres
- * adhérents indiquent leur intérêt (RaceProposalVote).
+ * Compétition proposée par un adhérent (onglet Social) : un événement d'un ou plusieurs jours, qui peut comporter
+ * plusieurs épreuves ou courses. Les autres adhérents indiquent leur intérêt (RaceProposalVote).
  *
  * `captain` = l'auteur se porte capitaine : il prend contact avec
  * l'organisateur et propose une inscription groupée.
@@ -35,8 +35,13 @@ class RaceProposal
     #[Assert\Length(max: 150)]
     private string $name = '';
 
+    /** Premier jour de la compétition. */
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $raceDate;
+
+    /** Dernier jour de la compétition (incluse) ; null = une seule journée. */
+    #[ORM\Column(name: 'race_end_date', type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $raceEndDate = null;
 
     #[ORM\Column(length: 500, nullable: true)]
     #[Assert\Length(max: 500)]
@@ -99,6 +104,17 @@ class RaceProposal
 
     public function getRaceDate(): \DateTimeImmutable { return $this->raceDate; }
     public function setRaceDate(\DateTimeImmutable $d): self { $this->raceDate = $d; return $this; }
+
+    public function getRaceEndDate(): ?\DateTimeImmutable { return $this->raceEndDate; }
+    /** Une date de fin égale au premier jour est enregistrée comme « une seule journée » (null). */
+    public function setRaceEndDate(?\DateTimeImmutable $d): self
+    {
+        $this->raceEndDate = $d !== null && $d->format('Y-m-d') === $this->raceDate->format('Y-m-d') ? null : $d;
+        return $this;
+    }
+
+    /** Dernier jour de la compétition : la date de fin, ou le premier jour pour une compétition d'une journée. */
+    public function getLastDay(): \DateTimeImmutable { return $this->raceEndDate ?? $this->raceDate; }
 
     public function getUrl(): ?string { return $this->url; }
     public function setUrl(?string $url): self

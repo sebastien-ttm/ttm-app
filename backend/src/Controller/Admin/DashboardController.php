@@ -193,7 +193,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Échanges vendeurs / acheteurs', 'fa fa-right-left', 'admin_marketplace_exchanges')],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Courses proposées', 'fa fa-flag-checkered', RaceProposal::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Compétitions proposées', 'fa fa-flag-checkered', RaceProposal::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Covoiturages', 'fa fa-car', EventCarpoolOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Photos du club', 'fa fa-camera', PhotoUpload::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Albums photos', 'fa fa-images', 'admin_photo_albums')],
