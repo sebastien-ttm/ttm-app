@@ -7,7 +7,7 @@ import { RaceForm } from '@/components/RaceForm';
 import { COLORS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 
-/** Proposer une compétition : nom, dates de début et de fin, site, type, « je me propose d'être capitaine ». */
+/** Proposer une compétition : nom, dates de début et de fin, courses, site, type, « je me propose d'être capitaine ». */
 export default function RaceNewScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
@@ -18,6 +18,7 @@ export default function RaceNewScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <RaceForm
+            withCourses
             submitLabel="Publier la proposition"
             onSubmit={async (input) => {
               const created = await racesApi.create(input);

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import type { RaceProposalInput, RaceType } from '@/api/types';
+import type { RaceCourseInput, RaceProposalInput, RaceType } from '@/api/types';
 import { DateField, formatIsoDate, todayIso } from '@/components/DateField';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
@@ -51,12 +51,20 @@ export function formatRaceDates(start: string, end?: string | null): string {
  * peut durer plusieurs jours et comporter plusieurs épreuves), site Internet, description libre, type, case « Je me
  * propose d'être capitaine » (avec, dans ce cas, la date limite de réponse avant l'inscription groupée) et covoiturage.
  */
-export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
+export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses = false }: {
   initial?: RaceProposalInput;
   submitLabel: string;
   onSubmit: (input: RaceProposalInput) => Promise<void>;
   onCancel: () => void;
+  /** Création : saisie des courses de la compétition (ensuite, elles se gèrent depuis le détail). */
+  withCourses?: boolean;
 }) {
+  const [courses, setCourses] = useState<RaceCourseInput[]>([]);
+  const [courseName, setCourseName] = useState('');
+  const [courseDate, setCourseDate] = useState<string | null>(null);
+  const [courseDetails, setCourseDetails] = useState('');
+  // Remonté pour vider le champ date après chaque ajout (DateField garde sa saisie en interne).
+  const [courseKey, setCourseKey] = useState(0);
   const [name, setName] = useState(initial?.name ?? '');
   const [isoDate, setIsoDate] = useState<string | null>(initial?.raceDate ?? null);
   // Dernier jour : null = une seule journée (ou saisie incomplète).
@@ -72,6 +80,17 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = !busy && name.trim() !== '' && isoDate !== null && type !== null;
+  const multiDay = isoDate !== null && endIso !== null && endIso !== isoDate;
+
+  function addCourse() {
+    const n = courseName.trim();
+    if (n === '') return;
+    setCourses((prev) => [...prev, { name: n, date: courseDate ?? '', details: courseDetails.trim() }]);
+    setCourseName('');
+    setCourseDetails('');
+    setCourseDate(null);
+    setCourseKey((k) => k + 1);
+  }
 
   async function submit() {
     setError(null);
@@ -97,6 +116,13 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
         registrationDeadline: deadline ?? '',
         carpoolingEnabled,
         type,
+        // Une course saisie mais pas encore ajoutée à la liste est prise aussi. Jour seulement sur plusieurs jours.
+        ...(withCourses ? {
+          courses: [
+            ...courses,
+            ...(courseName.trim() !== '' ? [{ name: courseName.trim(), date: courseDate ?? '', details: courseDetails.trim() }] : []),
+          ].map((c) => ({ ...c, date: multiDay ? c.date : '' })),
+        } : {}),
       });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur inattendue.');
@@ -151,6 +177,71 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel }: {
         editable={!busy}
       />
       <Text style={styles.counter}>{description.length} / 3000</Text>
+
+      {withCourses && (
+        <>
+          <Text style={styles.label}>Courses (facultatif)</Text>
+          <Text style={styles.captainHint}>
+            Les courses ou épreuves de la compétition : chacun pourra indiquer celles qu'il fait. Vous pourrez en
+            ajouter d'autres ensuite.
+          </Text>
+          {courses.map((c, i) => (
+            <View key={i} style={styles.courseRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.courseName}>{c.name}</Text>
+                {(multiDay && c.date) || c.details ? (
+                  <Text style={styles.captainHint}>
+                    {[multiDay && c.date ? formatIsoDate(c.date) : null, c.details].filter(Boolean).join(' · ')}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={() => setCourses((prev) => prev.filter((_, j) => j !== i))}
+                disabled={busy}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Retirer la course ${c.name}`}
+              >
+                <Ionicons name="close-circle" size={22} color={COLORS.textSubtle} />
+              </Pressable>
+            </View>
+          ))}
+          <View style={styles.deadlineBox}>
+            <TextInput
+              value={courseName}
+              onChangeText={setCourseName}
+              placeholder="Nom : Triathlon M, Trail 25 km, Relais…"
+              placeholderTextColor={COLORS.textSubtle}
+              maxLength={120}
+              style={styles.input}
+              editable={!busy}
+            />
+            {multiDay && (
+              <>
+                <Text style={[styles.deadlineLabel, { marginTop: SPACING.sm }]}>Jour (facultatif)</Text>
+                <DateField key={courseKey} onChange={setCourseDate} disabled={busy} minIso={isoDate ?? undefined} />
+              </>
+            )}
+            <TextInput
+              value={courseDetails}
+              onChangeText={setCourseDetails}
+              placeholder="Précisions : distances, heure de départ…"
+              placeholderTextColor={COLORS.textSubtle}
+              maxLength={500}
+              style={[styles.input, { marginTop: SPACING.sm }]}
+              editable={!busy}
+            />
+            <Pressable
+              onPress={addCourse}
+              disabled={busy || courseName.trim() === ''}
+              style={({ pressed }) => [styles.addCourseBtn, (busy || courseName.trim() === '' || pressed) && { opacity: 0.5 }]}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.addCourseLabel}>Ajouter cette course</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
 
       <Text style={styles.label}>Type de compétition</Text>
       <View style={styles.typeGrid}>
@@ -266,6 +357,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   deadlineLabel: { color: COLORS.text, fontWeight: '600', fontSize: 13, marginBottom: 6 },
+  courseRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: SPACING.md, marginBottom: 6,
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+  },
+  courseName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  addCourseBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: SPACING.sm, paddingVertical: 6 },
+  addCourseLabel: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

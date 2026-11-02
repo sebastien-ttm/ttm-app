@@ -1165,6 +1165,8 @@ export type RaceProposalInput = {
   raceDate: string;
   /** Dernier jour AAAA-MM-JJ ('' = une seule journée). */
   raceEndDate: string;
+  /** Création seulement : courses saisies avec la compétition. */
+  courses?: RaceCourseInput[];
   url: string;
   /** Texte libre ('' = aucun). */
   description: string;
