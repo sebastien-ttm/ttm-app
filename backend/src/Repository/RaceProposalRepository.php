@@ -28,6 +28,7 @@ class RaceProposalRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->leftJoin('r.author', 'a')->addSelect('a')
             ->leftJoin('r.votes', 'v')->addSelect('v')
+            ->leftJoin('r.courses', 'c')->addSelect('c')
             ->where('r.raceDate >= :today OR r.raceEndDate >= :today')
             ->setParameter('today', new \DateTimeImmutable('today'), 'date_immutable')
             ->orderBy('r.raceDate', 'ASC')

@@ -88,12 +88,39 @@ class RaceProposal
     #[ORM\OrderBy(['createdAt' => 'ASC'])]
     private Collection $votes;
 
+    /**
+     * Courses (épreuves) de la compétition, ajoutées par les adhérents.
+     *
+     * @var Collection<int, RaceProposalCourse>
+     */
+    #[ORM\OneToMany(targetEntity: RaceProposalCourse::class, mappedBy: 'proposal', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['courseDate' => 'ASC', 'createdAt' => 'ASC'])]
+    private Collection $courses;
+
     public function __construct(User $author)
     {
         $this->author = $author;
         $this->raceDate = new \DateTimeImmutable('today');
         $this->createdAt = new \DateTimeImmutable();
         $this->votes = new ArrayCollection();
+        $this->courses = new ArrayCollection();
+    }
+
+    /** @return Collection<int, RaceProposalCourse> */
+    public function getCourses(): Collection { return $this->courses; }
+
+    public function addCourse(RaceProposalCourse $course): self
+    {
+        if (!$this->courses->contains($course)) {
+            $this->courses->add($course);
+        }
+        return $this;
+    }
+
+    public function removeCourse(RaceProposalCourse $course): self
+    {
+        $this->courses->removeElement($course);
+        return $this;
     }
 
     public function getId(): ?int { return $this->id; }

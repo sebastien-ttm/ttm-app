@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\RaceProposal;
+use App\Entity\RaceProposalCourse;
 use App\Entity\RaceProposalVote;
 use App\Entity\User;
 use App\Enum\RaceType;
@@ -105,6 +106,84 @@ class RaceProposalController extends AbstractController
         $this->em->remove($this->findOwnedOr404($id, $user));
         $this->em->flush();
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Ajoute une course à la compétition (tout adhérent). JSON : name, date? (AAAA-MM-JJ, dans les dates de la
+     * compétition), details? (distances, horaire…).
+     */
+    #[Route('/api/races/{id}/courses', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function createCourse(int $id, Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $proposal = $this->findOr404($id);
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $name = trim((string) ($payload['name'] ?? ''));
+        if ($name === '') {
+            return new JsonResponse(['error' => 'Indiquez le nom de la course.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($name) > RaceProposalCourse::NAME_MAX) {
+            return new JsonResponse(['error' => sprintf('Nom trop long (%d caractères max).', RaceProposalCourse::NAME_MAX)], Response::HTTP_BAD_REQUEST);
+        }
+
+        $date = null;
+        $raw = trim((string) ($payload['date'] ?? ''));
+        if ($raw !== '') {
+            $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+            if ($date === false || $date->format('Y-m-d') !== $raw) {
+                return new JsonResponse(['error' => 'Date de la course invalide.'], Response::HTTP_BAD_REQUEST);
+            }
+            if ($date < $proposal->getRaceDate() || $date > $proposal->getLastDay()) {
+                return new JsonResponse(['error' => 'La date de la course doit être comprise dans les dates de la compétition.'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $details = trim((string) ($payload['details'] ?? ''));
+        if (mb_strlen($details) > RaceProposalCourse::DETAILS_MAX) {
+            return new JsonResponse(['error' => sprintf('Précisions trop longues (%d caractères max).', RaceProposalCourse::DETAILS_MAX)], Response::HTTP_BAD_REQUEST);
+        }
+
+        $course = new RaceProposalCourse($proposal, $user, $name, $date, $details === '' ? null : $details);
+        $proposal->addCourse($course);
+        $this->em->persist($course);
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($proposal, $user), Response::HTTP_CREATED);
+    }
+
+    /** Retire une course : celui qui l'a ajoutée ou l'auteur de la compétition. */
+    #[Route('/api/races/{id}/courses/{courseId}', methods: ['DELETE'], requirements: ['id' => '\d+', 'courseId' => '\d+'])]
+    public function deleteCourse(int $id, int $courseId): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $proposal = $this->findOr404($id);
+        $course = null;
+        foreach ($proposal->getCourses() as $c) {
+            if ($c->getId() === $courseId) {
+                $course = $c;
+            }
+        }
+        if ($course === null || !$this->canDeleteCourse($course, $user)) {
+            throw $this->createNotFoundException('Course introuvable.');
+        }
+
+        $proposal->removeCourse($course);
+        $this->em->remove($course);
+        $this->em->flush();
+
+        return new JsonResponse($this->serialize($proposal, $user));
+    }
+
+    private function canDeleteCourse(RaceProposalCourse $course, User $user): bool
+    {
+        return $course->getAuthor()?->getId() === $user->getId()
+            || $course->getProposal()->getAuthor()->getId() === $user->getId();
     }
 
     /**
@@ -343,6 +422,15 @@ class RaceProposalController extends AbstractController
             'maybeCount' => count($maybe),
             'interested' => $interested,
             'maybe' => $maybe,
+            // Courses (épreuves) de la compétition, par date puis ordre d'ajout.
+            'courses' => array_map(fn (RaceProposalCourse $c) => [
+                'id' => $c->getId(),
+                'name' => $c->getName(),
+                'date' => $c->getCourseDate()?->format('Y-m-d'),
+                'details' => $c->getDetails(),
+                'authorFirstName' => $c->getAuthor()?->getPrenom(),
+                'canDelete' => $this->canDeleteCourse($c, $viewer),
+            ], $r->getCourses()->toArray()),
         ];
     }
 }
