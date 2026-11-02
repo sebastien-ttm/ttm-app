@@ -89,7 +89,7 @@ class YouthDocumentTemplateController extends AbstractController
 
     /** Le modèle actuellement proposé : le fichier déposé, sinon le modèle par défaut (Cerfa ou PDF vierge du club). */
     #[Route('/admin/youth-document-templates/{type}/file', name: 'admin_youth_document_template_file', methods: ['GET'], requirements: ['type' => self::TYPE_REQUIREMENT])]
-    public function file(string $type): Response
+    public function preview(string $type): Response
     {
         $kind = YouthDocumentType::from($type);
         $uploaded = $this->templates->response($kind);
