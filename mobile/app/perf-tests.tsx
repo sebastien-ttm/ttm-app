@@ -115,12 +115,13 @@ export default function PerfTestsScreen() {
     );
   }
 
-  const tabs = data ? buildTabs(data.groups, mine) : [];
+  const tabs = data ? buildTabs(data.groups) : [];
   const activeTab = tabs.find((t) => t.key === tab) ?? tabs[0];
   const activeGroup = data && activeTab ? data.groups.find((g) => g.key === activeTab.key) : undefined;
   const activeMine = activeTab ? mine.find((g) => g.key === activeTab.key) : undefined;
-  const recaps = data?.recaps ?? [];
-  const showRecap = mode === 'season' && recaps.some((r) => r.rows.length > 0);
+  // Récap : seulement les épreuves qui ont au moins un temps sur la saison affichée.
+  const recaps = (data?.recaps ?? []).filter((r) => r.rows.length > 0);
+  const showRecap = mode === 'season' && recaps.length > 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
@@ -156,7 +157,7 @@ export default function PerfTestsScreen() {
                 </ScrollView>
               )}
 
-              {recaps.some((r) => r.rows.length > 0) && (
+              {recaps.length > 0 && (
                 <View style={styles.modeSwitch} accessibilityRole="tablist">
                   {([['season', '🏅 Récap de la saison'], ['session', '📋 Par séance']] as const).map(([key, label]) => {
                     const active = mode === key;
@@ -177,7 +178,7 @@ export default function PerfTestsScreen() {
 
               {showRecap ? (
                 <SeasonRecap recaps={recaps} seasonLabel={seasonLabel(data)} />
-              ) : tabs.length === 0 || !activeTab ? (
+              ) : tabs.length === 0 || !activeTab || !activeGroup ? (
                 <EmptyState
                   icon="⏱️"
                   title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
@@ -204,14 +205,7 @@ export default function PerfTestsScreen() {
                     </ScrollView>
                   )}
 
-                  {activeGroup ? (
-                    <GroupCard key={activeGroup.key} group={activeGroup} open={open} onToggle={toggle} />
-                  ) : (
-                    <View style={styles.card}>
-                      <Text style={styles.cardTitle}>{activeTab.icon} {activeTab.label}</Text>
-                      <Text style={styles.noMine}>Aucun test sur cette épreuve pour la saison {seasonLabel(data)}.</Text>
-                    </View>
-                  )}
+                  <GroupCard key={activeGroup.key} group={activeGroup} open={open} onToggle={toggle} />
 
                   <CorrectionBox
                     key={`${activeTab.key}:${data.season}`}
@@ -247,14 +241,14 @@ type PerfTab = { key: string; label: string; short: string; icon: string; test: 
 const TEST_ORDER = ['run_1500', 'run_2000', 'swim_400', 'bike_climb_2k'];
 
 /**
- * Sous-onglets : une épreuve (et un bassin en natation) par onglet, réunion
- * des épreuves de la saison affichée et de celles où j'ai déjà un temps
- * (pour que « Mon évolution » reste accessible), dans l'ordre course / nage / vélo.
+ * Sous-onglets : une épreuve (et un bassin en natation) par onglet, seulement
+ * celles qui ont eu au moins une prise de temps sur la saison affichée, dans
+ * l'ordre course / nage / vélo.
  */
-function buildTabs(groups: PerfTestGroup[], mine: PerfTestMineGroup[]): PerfTab[] {
+function buildTabs(groups: PerfTestGroup[]): PerfTab[] {
   const byKey = new Map<string, PerfTab>();
-  for (const g of [...groups, ...mine]) {
-    if (!byKey.has(g.key)) {
+  for (const g of groups) {
+    if (g.sessions.length > 0 && !byKey.has(g.key)) {
       byKey.set(g.key, {
         key: g.key,
         label: g.label,
