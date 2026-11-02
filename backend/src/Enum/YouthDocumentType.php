@@ -3,8 +3,8 @@
 namespace App\Enum;
 
 /**
- * Documents officiels à fournir pour un adhérent jeune (mineur). Un seul document par type et par jeune : le nouvel envoi
- * remplace le précédent.
+ * Documents à fournir pour un adhérent jeune (mineur). Un seul document par type et par jeune : le nouvel envoi remplace
+ * le précédent. Chaque type a un modèle à télécharger (voir officialTemplateUrl()).
  */
 enum YouthDocumentType: string
 {
@@ -12,12 +12,15 @@ enum YouthDocumentType: string
     case HealthForm = 'health_form';
     /** Autorisation de sortie du territoire d'un mineur (Cerfa 15646*01), avec la copie de la pièce d'identité du parent. */
     case ExitAuthorization = 'exit_authorization';
+    /** Document du club : autorisation parentale pour que le jeune quitte seul l'entraînement et rentre seul chez lui. */
+    case GoHomeAlone = 'go_home_alone';
 
     public function label(): string
     {
         return match ($this) {
             self::HealthForm => 'Fiche sanitaire',
             self::ExitAuthorization => 'Autorisation de sortie du territoire',
+            self::GoHomeAlone => 'Autorisation de rentrer seul',
         };
     }
 
@@ -26,6 +29,20 @@ enum YouthDocumentType: string
         return match ($this) {
             self::HealthForm => '🩺',
             self::ExitAuthorization => '🛂',
+            self::GoHomeAlone => '🏠',
+        };
+    }
+
+    /**
+     * Modèle officiel à remplir (formulaire Cerfa sur service-public.fr). null pour le document du club, dont le modèle
+     * est généré par l'appli, pré-rempli au nom du jeune (voir YouthDocumentService::renderTemplate()).
+     */
+    public function officialTemplateUrl(): ?string
+    {
+        return match ($this) {
+            self::HealthForm => 'https://www.formulaires.service-public.fr/gf/cerfa_10008.do',
+            self::ExitAuthorization => 'https://www.formulaires.service-public.fr/gf/cerfa_15646.do',
+            self::GoHomeAlone => null,
         };
     }
 }

@@ -97,6 +97,7 @@ services:
     App\Service\YouthDocument\YouthDocumentService:
         arguments:
             $youthDocumentsDir: '%app.uploads.youth_documents_dir%'
+            $publicDir: '%kernel.project_dir%/public'
 
     App\Service\StaticPage\StaticPageAttachmentService:
         arguments:

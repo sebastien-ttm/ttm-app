@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Autorisation de rentrer seul — {{ youth.fullName }}</title>
+    <style>
+        @page { margin: 18mm 20mm 20mm 20mm; }
+        body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.5; }
+        h1 { font-size: 16pt; margin: 0 0 4pt 0; color: #0d2148; text-align: center; }
+        .subtitle { text-align: center; font-size: 10pt; color: #4b5563; margin-bottom: 18pt; }
+        .banner { text-align: center; margin: 0 0 12pt 0; }
+        .banner img { display: inline-block; max-width: 60%; max-height: 80pt; }
+        .box { padding: 8pt 12pt; background: #f4f6fa; border-left: 3pt solid #0d2148; margin: 10pt 0 14pt 0; }
+        .line { border-bottom: 1pt dotted #6b7280; display: inline-block; min-width: 220pt; }
+        .line-short { border-bottom: 1pt dotted #6b7280; display: inline-block; min-width: 110pt; }
+        p { margin: 0 0 9pt 0; }
+        .check { font-family: "DejaVu Sans"; font-size: 12pt; margin-right: 4pt; }
+        ul { list-style: none; padding: 0; margin: 4pt 0 10pt 12pt; }
+        li { margin-bottom: 3pt; }
+        .note { font-size: 9pt; color: #4b5563; margin-top: 14pt; }
+        table.sign { width: 100%; margin-top: 18pt; }
+        table.sign td { vertical-align: top; width: 50%; font-size: 10pt; }
+        .sign-area { height: 70pt; border: 1pt solid #9ca3af; margin-top: 4pt; }
+    </style>
+</head>
+<body>
+    {% if bannerDataUri %}
+        <div class="banner"><img src="{{ bannerDataUri }}" alt=""></div>
+    {% endif %}
+
+    <h1>Autorisation parentale de rentrer seul(e)</h1>
+    <div class="subtitle">Triathlon Toulouse Métropole — à l'issue des entraînements et activités du club</div>
+
+    <div class="box">
+        <strong>Jeune adhérent(e) :</strong> {{ youth.prenom }} {{ youth.nom|upper }}
+        {% if youth.dateNaissance %} — né(e) le {{ youth.dateNaissance|date('d/m/Y') }}{% endif %}
+    </div>
+
+    <p>Je soussigné(e) <span class="line">&nbsp;</span>,</p>
+    <p>agissant en qualité de <span class="check">☐</span> père <span class="check">☐</span> mère
+        <span class="check">☐</span> représentant légal de l'enfant désigné ci-dessus,</p>
+    <p>demeurant <span class="line" style="min-width: 360pt;">&nbsp;</span></p>
+    <p>téléphone <span class="line-short">&nbsp;</span>,</p>
+
+    <p><strong>autorise mon enfant à quitter seul(e) le lieu d'entraînement</strong> à la fin des séances et activités
+        organisées par Triathlon Toulouse Métropole, et à rentrer seul(e) à son domicile, par le moyen suivant :</p>
+    <ul>
+        <li><span class="check">☐</span> à pied</li>
+        <li><span class="check">☐</span> à vélo</li>
+        <li><span class="check">☐</span> en transports en commun</li>
+        <li><span class="check">☐</span> autre : <span class="line-short">&nbsp;</span></li>
+    </ul>
+
+    <p>Je reconnais que la responsabilité du club et de ses encadrants cesse dès la fin de la séance, lorsque mon enfant
+        quitte le lieu d'entraînement. Il m'appartient de prévenir l'encadrant de toute modification (récupération
+        exceptionnelle par un tiers, horaire différent…).</p>
+
+    <p>Cette autorisation est valable pour la saison sportive en cours. Elle peut être retirée à tout moment par écrit
+        auprès du club.</p>
+
+    <table class="sign">
+        <tr>
+            <td>
+                Fait à <span class="line-short">&nbsp;</span><br>
+                le <span class="line-short">&nbsp;</span>
+            </td>
+            <td>
+                Signature du représentant légal,<br>
+                précédée de la mention « Lu et approuvé »
+                <div class="sign-area"></div>
+            </td>
+        </tr>
+    </table>
+
+    <p class="note">Document à remettre signé au club, ou à déposer (photo ou PDF) dans l'appli : Profil → Documents
+        du jeune → Autorisation de rentrer seul.</p>
+</body>
+</html>

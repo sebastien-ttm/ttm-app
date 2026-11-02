@@ -7,14 +7,17 @@ use App\Entity\YouthDocument;
 use App\Enum\YouthDocumentType;
 use App\Repository\YouthDocumentRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Twig\Environment;
 
 /**
- * Stockage des documents officiels des jeunes (fiche sanitaire, autorisation de sortie du territoire) : un seul document
- * par (jeune, type), fichier sous var/uploads/youth-documents/{jeune}/ — hors du dossier public, servi uniquement par
- * l'API authentifiée.
+ * Stockage des documents des jeunes (fiche sanitaire, autorisation de sortie du territoire, autorisation de rentrer seul) :
+ * un seul document par (jeune, type), fichier sous var/uploads/youth-documents/{jeune}/ — hors du dossier public, servi
+ * uniquement par l'API authentifiée. Génère aussi le modèle du document du club, pré-rempli au nom du jeune.
  */
 class YouthDocumentService
 {
@@ -24,8 +27,33 @@ class YouthDocumentService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly YouthDocumentRepository $documents,
+        private readonly Environment $twig,
         private readonly string $youthDocumentsDir,
+        private readonly string $publicDir,
     ) {
+    }
+
+    /**
+     * PDF du modèle « autorisation de rentrer seul » à imprimer et faire signer par un parent, pré-rempli avec le nom et
+     * la date de naissance du jeune.
+     */
+    public function renderGoHomeAloneTemplate(User $youth): string
+    {
+        $logo = $this->publicDir.'/img/banner-default.jpg';
+        $html = $this->twig->render('youth_document/go_home_alone.html.twig', [
+            'youth' => $youth,
+            'bannerDataUri' => is_file($logo) ? 'data:image/jpeg;base64,'.base64_encode((string) file_get_contents($logo)) : null,
+        ]);
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return (string) $dompdf->output();
     }
 
     /**

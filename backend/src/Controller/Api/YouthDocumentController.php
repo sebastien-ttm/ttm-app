@@ -13,14 +13,17 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Documents officiels des adhérents jeunes : fiche sanitaire et autorisation de sortie du territoire (voir YouthDocument).
+ * Documents des adhérents jeunes : fiche sanitaire, autorisation de sortie du territoire et autorisation de rentrer seul
+ * (document du club), chacun avec un modèle à télécharger (voir YouthDocument).
  *
  * Données sensibles (santé, identité) : accès limité au jeune lui-même, à ses parents (comptes parents rattachés, ou compte
  * principal de l'e-mail partagé), au staff (entraîneurs, encadrants) et aux administrateurs. Pour tout autre compte, le jeune
@@ -40,7 +43,7 @@ class YouthDocumentController extends AbstractController
     ) {
     }
 
-    /** Vue d'ensemble pour le staff : les jeunes actifs et l'état de leurs deux documents. */
+    /** Vue d'ensemble pour le staff : les jeunes actifs et l'état de leurs documents. */
     #[Route('/api/staff/youth', methods: ['GET'])]
     public function overview(): JsonResponse
     {
@@ -77,7 +80,7 @@ class YouthDocumentController extends AbstractController
     }
 
     /**
-     * Dépose (ou remplace) un document. Multipart : type (health_form | exit_authorization), file (PDF, JPG, PNG ou WebP,
+     * Dépose (ou remplace) un document. Multipart : type (health_form | exit_authorization | go_home_alone), file (PDF, JPG, PNG ou WebP,
      * 10 Mo max), validUntil (AAAA-MM-JJ, facultatif).
      */
     #[Route('/api/youth-documents/{userId}', methods: ['POST'], requirements: ['userId' => '\d+'])]
@@ -129,8 +132,37 @@ class YouthDocumentController extends AbstractController
         return new JsonResponse($this->item($document, new \DateTimeImmutable('today')), Response::HTTP_CREATED);
     }
 
+    /**
+     * Modèle à remplir pour un type (jeton en query `bearer`) : renvoie vers le formulaire Cerfa officiel, ou génère le
+     * PDF du document du club pré-rempli au nom du jeune.
+     */
+    #[Route('/api/youth-documents/{userId}/template/{type}', methods: ['GET'], requirements: ['userId' => '\d+', 'type' => 'health_form|exit_authorization|go_home_alone'])]
+    public function template(int $userId, string $type): Response
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $youth = $this->youthFor($userId, $viewer);
+        if ($youth === null) {
+            throw $this->createNotFoundException();
+        }
+
+        $kind = YouthDocumentType::from($type);
+        $official = $kind->officialTemplateUrl();
+        if ($official !== null) {
+            return new RedirectResponse($official);
+        }
+
+        $name = 'autorisation-rentrer-seul-'.trim((string) preg_replace('/[^a-zA-Z0-9]+/', '-', $youth->getFullName()), '-').'.pdf';
+        $response = new Response($this->service->renderGoHomeAloneTemplate($youth));
+        $response->headers->set('Content-Type', 'application/pdf');
+        $response->headers->set('Content-Disposition', HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name));
+        $response->headers->set('Cache-Control', 'private, no-store');
+
+        return $response;
+    }
+
     /** Supprime le document d'un type. */
-    #[Route('/api/youth-documents/{userId}/{type}', methods: ['DELETE'], requirements: ['userId' => '\d+', 'type' => 'health_form|exit_authorization'])]
+    #[Route('/api/youth-documents/{userId}/{type}', methods: ['DELETE'], requirements: ['userId' => '\d+', 'type' => 'health_form|exit_authorization|go_home_alone'])]
     public function delete(int $userId, string $type): JsonResponse
     {
         /** @var User $viewer */
@@ -232,7 +264,7 @@ class YouthDocumentController extends AbstractController
     }
 
     /**
-     * Les deux types de document d'un jeune, null quand il n'a rien déposé.
+     * Les types de document d'un jeune, null quand il n'a rien déposé.
      *
      * @param array<string, YouthDocument> $byType
      *
@@ -273,9 +305,16 @@ class YouthDocumentController extends AbstractController
     {
         $byType = $this->documents->findGroupedByOwner([$youth])[(int) $youth->getId()] ?? [];
 
+        $templates = [];
+        foreach (YouthDocumentType::cases() as $type) {
+            $templates[$type->value] = rtrim($this->publicUrl, '/').'/api/youth-documents/'.$youth->getId().'/template/'.$type->value;
+        }
+
         return [
             'owner' => $this->ownerItem($youth),
             'documents' => $this->documentsMap($byType, new \DateTimeImmutable('today')),
+            // Modèle à télécharger pour chaque type (URL authentifiée : jeton en `?bearer=`).
+            'templates' => $templates,
             // Le staff peut joindre le jeune (ou, à défaut, un parent) et son contact d'urgence depuis cette fiche.
             'contact' => $this->isStaff($viewer) || $viewer->isAdmin() ? $this->contact($youth) : null,
         ];
