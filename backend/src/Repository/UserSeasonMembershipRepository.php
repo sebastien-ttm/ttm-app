@@ -42,6 +42,19 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * Toutes les adhésions, avec leur adhérent et leur saison (statistiques multi-saisons, une requête).
+     *
+     * @return list<UserSeasonMembership>
+     */
+    public function findAllWithUserAndSeason(): array
+    {
+        return $this->createQueryBuilder('m')
+            ->join('m.user', 'u')->addSelect('u')
+            ->join('m.season', 's')->addSelect('s')
+            ->getQuery()->getResult();
+    }
+
     /** @return list<UserSeasonMembership> */
     public function findBySeason(TrainingSeason $season): array
     {

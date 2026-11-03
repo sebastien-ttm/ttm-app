@@ -16,6 +16,40 @@
     </div>
 {% endmacro %}
 
+{# Courbe SVG préparée par AdherentStatsController::chart() : graduations, abscisses, une ligne par série. #}
+{% macro chart(c) %}
+    <div style="background:#fff; padding:16px 18px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+            <div style="font-size:14px; font-weight:700; color:#0f172a;">{{ c.title }}{% if c.unit %} <span style="color:#64748b; font-weight:400;">({{ c.unit }})</span>{% endif %}</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                {% for l in c.lines %}
+                    <span style="font-size:12px; color:#334155; display:inline-flex; align-items:center; gap:5px;">
+                        <span style="display:inline-block; width:14px; height:3px; background:{{ l.color }}; border-radius:2px;"></span>{{ l.name }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        <svg viewBox="0 0 {{ c.width }} {{ c.height }}" style="width:100%; height:auto; display:block;" role="img" aria-label="{{ c.title }}">
+            {% for t in c.ticks %}
+                <line x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ t.y }}" y2="{{ t.y }}" stroke="#e2e8f0" stroke-width="1" />
+                <text x="{{ c.left - 6 }}" y="{{ t.y + 4 }}" text-anchor="end" font-size="11" fill="#64748b">{{ t.label }}</text>
+            {% endfor %}
+            <line x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ c.bottom }}" y2="{{ c.bottom }}" stroke="#94a3b8" stroke-width="1" />
+            {% for xl in c.xLabels %}
+                <text x="{{ xl.x }}" y="{{ c.bottom + 18 }}" text-anchor="middle" font-size="11" fill="#64748b">{{ xl.label }}</text>
+            {% endfor %}
+            {% for l in c.lines %}
+                {% for seg in l.segments %}
+                    <polyline points="{{ seg }}" fill="none" stroke="{{ l.color }}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                {% endfor %}
+                {% for d in l.dots %}
+                    <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.5" fill="#fff" stroke="{{ l.color }}" stroke-width="2"><title>{{ l.name }} — {{ d.title }}</title></circle>
+                {% endfor %}
+            {% endfor %}
+        </svg>
+    </div>
+{% endmacro %}
+
 {% import _self as ui %}
 
 {% block main %}
@@ -25,6 +59,19 @@
                 Aucune saison définie. Créez-en une via <strong>Entraînements → Saison d'entraînement</strong>
                 puis importez un CSV pour rattacher des adhérents.
             </p>
+        </div>
+    {% endif %}
+
+    {% if charts|length > 0 %}
+        <h3 style="font-size:16px; color:#0f172a; margin:0 0 6px 0;">📈 Évolution au fil des saisons</h3>
+        <p style="font-size:12px; color:#64748b; margin:0 0 12px 0;">
+            Jeunes : de mini-poussin à junior (catégorie FFTri de la saison). Réadhésion : part des adhérents de la
+            saison précédente qui ont repris une licence. Survolez un point pour sa valeur.
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:16px; margin-bottom:24px;">
+            {% for c in charts %}
+                {{ ui.chart(c) }}
+            {% endfor %}
         </div>
     {% endif %}
 
@@ -47,24 +94,48 @@
                     Aucun adhérent rattaché à cette saison.
                 </p>
             {% else %}
-                {# ---- Bandeau KPI ---- #}
-                <div style="display:flex; gap:20px; flex-wrap:wrap; padding:14px 16px; background:#f8fafc; border-radius:6px; margin-bottom:16px;">
-                    <div>
-                        <div style="font-size:26px; font-weight:700; color:#0d2148; line-height:1;">{{ s.total }}</div>
-                        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Adhérents</div>
-                    </div>
-                    <div style="width:1px; background:#e2e8f0;"></div>
-                    <div>
-                        <div style="font-size:26px; font-weight:700; color:#1d4ed8; line-height:1;">
-                            {{ s.avgAge is null ? '—' : s.avgAge|number_format(1, ',', ' ') ~ ' ans' }}
+                {# ---- Ensemble / jeunes / seniors ---- #}
+                <div style="overflow-x:auto; margin-bottom:16px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:14px; min-width:560px;">
+                        <thead>
+                            <tr style="background:#f8fafc; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:0.4px;">
+                                <th style="padding:8px; text-align:left;"></th>
+                                <th style="padding:8px; text-align:right;">Adhérents</th>
+                                <th style="padding:8px; text-align:right;">Nouvelles licences</th>
+                                <th style="padding:8px; text-align:right;">Réadhésion</th>
+                                <th style="padding:8px; text-align:right;">Âge moyen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, label in groupLabels %}
+                                {% set g = s.groups[key] %}
+                                <tr style="border-bottom:1px solid #f1f5f9; {{ key == 'all' ? 'font-weight:700;' : '' }}">
+                                    <td style="padding:8px;">
+                                        <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:{{ groupColors[key] }}; margin-right:6px;"></span>{{ label }}
+                                    </td>
+                                    <td style="padding:8px; text-align:right;">
+                                        {{ g.total }}
+                                        {% if key != 'all' and s.total > 0 %}<span style="color:#94a3b8; font-weight:400;"> · {{ (g.total / s.total * 100)|round }} %</span>{% endif %}
+                                    </td>
+                                    <td style="padding:8px; text-align:right;">{{ g.newLicences is null ? '—' : g.newLicences }}</td>
+                                    <td style="padding:8px; text-align:right;">
+                                        {% if g.renewalRate is null %}
+                                            —
+                                        {% else %}
+                                            {{ g.renewalRate|number_format(1, ',', ' ') }} %
+                                            <span style="color:#94a3b8; font-weight:400; font-size:12px;">({{ g.renewed }}/{{ g.previousTotal }})</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding:8px; text-align:right;">{{ g.avgAge is null ? '—' : g.avgAge|number_format(1, ',', ' ') ~ ' ans' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if not s.hasPrevious %}
+                        <div style="font-size:12px; color:#94a3b8; margin-top:6px;">
+                            Première saison enregistrée : nouvelles licences et réadhésion non calculables.
                         </div>
-                        <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">
-                            Âge moyen
-                            {% if s.avgAgeSampleSize > 0 and s.avgAgeSampleSize < s.total %}
-                                ({{ s.avgAgeSampleSize }}/{{ s.total }} renseignés)
-                            {% endif %}
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
 
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:24px;">
