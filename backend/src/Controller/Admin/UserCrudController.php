@@ -303,17 +303,16 @@ class UserCrudController extends AbstractCrudController
 
         // Barre de boutons « saison » au-dessus de l'index — même pattern
         // que TrainingSlotTemplate. Un bouton par saison connue + « Toutes ».
+        // EasyAdmin affiche les actions globales dans l'ordre INVERSE de leur
+        // ajout (global_actions|reverse) : on ajoute donc les saisons de la
+        // plus ancienne à la plus récente, puis « Toutes », pour obtenir à
+        // l'écran « Toutes », puis la saison la plus récente… la plus ancienne.
         $current = $this->currentSeasonFilter();
         $todayId = $this->seasons->findCurrent()?->getId();
 
-        $btnAll = Action::new('seasonAll', '👥 Toutes les saisons')
-            ->linkToUrl($this->seasonUrl(self::SEASON_ALL))
-            ->setCssClass('btn '.($current === self::SEASON_ALL ? 'btn-primary' : 'btn-secondary'))
-            ->createAsGlobalAction();
-        $result->add(Crud::PAGE_INDEX, $btnAll);
-
         $seasons = $this->seasons->createQueryBuilder('s')
-            ->orderBy('s.startsAt', 'DESC')
+            ->orderBy('s.startsAt', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
             ->getQuery()->getResult();
         foreach ($seasons as $s) {
             /** @var TrainingSeason $s */
@@ -336,12 +335,18 @@ class UserCrudController extends AbstractCrudController
                 ->createAsGlobalAction());
         }
 
+        $btnAll = Action::new('seasonAll', '👥 Toutes les saisons')
+            ->linkToUrl($this->seasonUrl(self::SEASON_ALL))
+            ->setCssClass('btn '.($current === self::SEASON_ALL ? 'btn-primary' : 'btn-secondary'))
+            ->createAsGlobalAction();
+        $result->add(Crud::PAGE_INDEX, $btnAll);
+
         return $result;
     }
 
     /**
      * Filtre l'index par saison d'adhésion selon le query param
-     * `?seasonFilter=<id>|all` (défaut : toutes).
+     * `?seasonFilter=<id>|all` (défaut : la saison courante, à défaut toutes).
      */
     public function createIndexQueryBuilder(
         SearchDto $searchDto,
@@ -393,7 +398,15 @@ class UserCrudController extends AbstractCrudController
         if (is_string($raw) && ctype_digit($raw)) {
             return $raw;
         }
-        return self::SEASON_ALL;
+        // Sans choix explicite : la liste montre les adhérents de la saison courante (bouton ⭐ sélectionné).
+        // Seulement sur la liste — l'autocomplétion (champ « Enfants »…) passe aussi par createIndexQueryBuilder
+        // et doit continuer de chercher parmi tous les adhérents.
+        if ($this->getContext()?->getCrud()?->getCurrentAction() !== Action::INDEX) {
+            return self::SEASON_ALL;
+        }
+        $currentId = $this->seasons->findCurrent()?->getId();
+
+        return $currentId !== null ? (string) $currentId : self::SEASON_ALL;
     }
 
     private function seasonUrl(string $filter): string
