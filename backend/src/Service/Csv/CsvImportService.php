@@ -199,18 +199,52 @@ class CsvImportService
             }
         }
 
-        $records = (new Statement())->process($csv);
+        /** @var list<array{int, array<string, string>}> $rows [n° de ligne du fichier, ligne] */
+        $rows = [];
         $line = 1;
+        foreach ((new Statement())->process($csv) as $record) {
+            $rows[] = [++$line, $record];
+        }
         /** @var array<int, array{user: User, isRenewal: bool}> $welcomeCandidates */
         $welcomeCandidates = [];
 
-        foreach ($records as $record) {
-            $line++;
+        // Un adhérent peut avoir deux licences la même saison (compétition + loisir) : même clé (licence normalisée),
+        // donc même compte. Une seule ligne par clé est importée — la licence compétition quand il y en a une, sinon
+        // la première. Les comptes créés ne sont écrits en base qu'au flush final : sans ce choix préalable, la
+        // seconde ligne créerait un second compte avec la même licence et l'import entier échouerait sur l'index
+        // unique.
+        /** @var array<string, int> $keptRow clé de licence → index dans $rows de la ligne retenue */
+        $keptRow = [];
+        foreach ($rows as $i => [, $record]) {
+            $key = User::normalizeLicence(trim($this->resolveCol($record, self::COL_NUM_LICENCE)));
+            if ($key === null) {
+                continue;
+            }
+            if (!isset($keptRow[$key])
+                || (!$this->isCompetitionLicence($rows[$keptRow[$key]][1]) && $this->isCompetitionLicence($record))) {
+                $keptRow[$key] = $i;
+            }
+        }
 
+        foreach ($rows as $i => [$line, $record]) {
             try {
                 $numLicence = trim($this->resolveCol($record, self::COL_NUM_LICENCE));
                 if ($numLicence === '') {
                     $result->addError($line, 'Numéro de licence vide', $record);
+                    continue;
+                }
+                $kept = $keptRow[(string) User::normalizeLicence($numLicence)];
+                if ($kept !== $i) {
+                    $result->skipped++;
+                    $result->duplicates[] = sprintf(
+                        '%s %s (licence %s, ligne %d — ligne %d retenue : %s)',
+                        trim($this->resolveCol($record, self::COL_PRENOM)),
+                        trim($this->resolveCol($record, self::COL_NOM)),
+                        $numLicence,
+                        $line,
+                        $rows[$kept][0],
+                        trim($this->resolveCol($rows[$kept][1], self::COL_TYPE_LICENCE)) ?: 'type non précisé',
+                    );
                     continue;
                 }
 
@@ -921,6 +955,22 @@ class CsvImportService
                 }
             }
         }
+    }
+
+    /**
+     * Licence compétition ? D'après le type de licence (« A - Lic. club - Compétition - Jeune »…), ou, sans type, le
+     * 7e caractère du numéro FFTri (C = compétition, L = loisir…).
+     *
+     * @param array<string, string> $record
+     */
+    private function isCompetitionLicence(array $record): bool
+    {
+        $type = mb_strtolower(trim($this->resolveCol($record, self::COL_TYPE_LICENCE)), 'UTF-8');
+        if ($type !== '') {
+            return str_contains($type, 'compétition') || str_contains($type, 'competition');
+        }
+
+        return strtoupper(mb_substr(trim($this->resolveCol($record, self::COL_NUM_LICENCE)), 6, 1)) === 'C';
     }
 
     private function isStatutActive(string $statut): bool

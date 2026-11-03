@@ -42,6 +42,14 @@ class CsvImportResult
      * @var list<string>
      */
     public array $pendingMatched = [];
+    /**
+     * Lignes ignorées : deux licences la même saison pour un même adhérent (ex : compétition + loisir), seule la
+     * licence compétition est importée (à défaut, la première du fichier) — « Prénom Nom (licence X, ligne N — ligne M
+     * retenue : type) ». Comptées dans `skipped`.
+     *
+     * @var list<string>
+     */
+    public array $duplicates = [];
     /** @var list<array{line: int, error: string, raw?: array<string, string>}> */
     public array $errors = [];
 
@@ -74,6 +82,7 @@ class CsvImportResult
             'externalParentsDeactivated' => $this->externalParentsDeactivated,
             'externalParentsReactivated' => $this->externalParentsReactivated,
             'skipped' => $this->skipped,
+            'duplicates' => $this->duplicates,
             'errors' => $this->errors,
         ];
     }
