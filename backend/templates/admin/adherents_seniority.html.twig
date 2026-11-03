@@ -1,0 +1,73 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Ancienneté des adhérents{% endblock %}
+{% block content_title %}🎖️ Ancienneté des adhérents{% endblock %}
+
+{% block main %}
+    <p style="color:#64748b; font-size:14px; max-width:820px;">
+        Nombre de saisons où l'adhérent a une adhésion enregistrée (imports de la saison et imports historiques),
+        sur {{ seasonCount }} saison{{ seasonCount > 1 ? 's' : '' }} connue{{ seasonCount > 1 ? 's' : '' }}.
+        Les saisons ne sont pas forcément consécutives. Les ex æquo partagent le même rang.
+        {% if currentSeason %}« Saison en cours » : adhérent de la saison {{ currentSeason }}.{% endif %}
+    </p>
+
+    {# === Répartition === #}
+    <div style="background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:20px;">
+        <h3 style="margin-top:0; font-size:16px;">Répartition ({{ total }} adhérents)</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            {% for seasons, count in distribution %}
+                <span style="padding:4px 10px; border-radius:999px; background:#f1f5f9; font-size:13px;">
+                    <strong>{{ seasons }}</strong> saison{{ seasons > 1 ? 's' : '' }} : {{ count }}
+                </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# === Classement === #}
+    <div style="background:#fff; border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <h3 style="margin:0; font-size:16px;">
+                {{ showAll ? 'Tous les adhérents' : 'Les plus anciens (' ~ limit ~ ' premiers rangs)' }}
+            </h3>
+            {% if showAll %}
+                <a href="{{ ea_url().setRoute('admin_adherents_seniority').generateUrl() }}" class="btn btn-secondary btn-sm">Voir seulement les plus anciens</a>
+            {% else %}
+                <a href="{{ ea_url().setRoute('admin_adherents_seniority', {all: '1'}).generateUrl() }}" class="btn btn-secondary btn-sm">Voir tous les adhérents ({{ total }})</a>
+            {% endif %}
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th style="padding:8px; text-align:right; width:50px;">Rang</th>
+                    <th style="padding:8px; text-align:left;">Adhérent</th>
+                    <th style="padding:8px; text-align:right;">Saisons</th>
+                    <th style="padding:8px; text-align:left;">Première saison</th>
+                    <th style="padding:8px; text-align:left;">Dernière saison</th>
+                    <th style="padding:8px; text-align:left;">Saison en cours</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    {% set u = row.user %}
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:8px; text-align:right; color:#64748b;">
+                            {{ row.rank == 1 ? '🥇' : row.rank == 2 ? '🥈' : row.rank == 3 ? '🥉' : row.rank }}
+                        </td>
+                        <td style="padding:8px;">
+                            <a href="{{ ea_url().setController('App\\Controller\\Admin\\UserCrudController').setAction('detail').setEntityId(u.id) }}">
+                                <strong>{{ u.nom|upper }}</strong> {{ u.prenom }}
+                            </a>
+                        </td>
+                        <td style="padding:8px; text-align:right; font-weight:700;">{{ row.seasons }}</td>
+                        <td style="padding:8px; color:#64748b;">{{ row.firstYear ? row.firstYear ~ '-' ~ (row.firstYear + 1) : '—' }}</td>
+                        <td style="padding:8px; color:#64748b;">{{ row.lastYear ? row.lastYear ~ '-' ~ (row.lastYear + 1) : '—' }}</td>
+                        <td style="padding:8px;">{{ row.current ? '✅' : '' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6" style="padding:12px; color:#94a3b8; font-style:italic;">Aucune adhésion enregistrée.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

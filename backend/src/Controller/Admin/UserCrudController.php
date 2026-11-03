@@ -8,6 +8,7 @@ use App\Enum\BoardRole;
 use App\Enum\Profile;
 use App\Enum\UserType;
 use App\Repository\TrainingSeasonRepository;
+use App\Repository\UserSeasonMembershipRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
@@ -40,10 +41,14 @@ class UserCrudController extends AbstractCrudController
     /** Query param name pour le filtre saison (barre de boutons index). */
     private const SEASON_ALL = 'all';
 
+    /** @var array<int, array{seasons: int, firstYear: ?int, lastYear: ?int}>|null chargée à la première ligne affichée */
+    private ?array $seniority = null;
+
     public function __construct(
         private readonly UserPasswordHasherInterface $hasher,
         private readonly EntityManagerInterface $em,
         private readonly TrainingSeasonRepository $seasons,
+        private readonly UserSeasonMembershipRepository $memberships,
         private readonly RequestStack $requestStack,
         private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
@@ -224,6 +229,11 @@ class UserCrudController extends AbstractCrudController
             ->setNumOfRows(4);
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
         yield BooleanField::new('isActive', 'Actif');
+        // Ancienneté : nombre de saisons d'adhésion (imports courants et historiques), avec la première saison.
+        yield TextField::new('seniority', 'Ancienneté')
+            ->hideOnForm()
+            ->setSortable(false)
+            ->formatValue(fn ($value, ?User $user) => $user === null ? '' : $this->seniorityLabel($user));
         yield BooleanField::new('notifyTrainingPlanEmail', 'Email plans d\'entraînement')
             ->hideOnIndex()
             ->setHelp('Opt-in adhérent : recevoir un email à chaque publication de plan. L\'adhérent gère lui-même cette case depuis son profil mobile.');
@@ -354,6 +364,23 @@ class UserCrudController extends AbstractCrudController
         $qb->andWhere($qb->expr()->exists($sub->getDQL()))
             ->setParameter('seasonId', (int) $filter);
         return $qb;
+    }
+
+    /** « 12 saisons · depuis 2012-2013 », « 1 saison · 2025-2026 », « — » sans aucune adhésion enregistrée. */
+    private function seniorityLabel(User $user): string
+    {
+        $this->seniority ??= $this->memberships->seniorityByUser();
+        $s = $this->seniority[(int) $user->getId()] ?? null;
+        if ($s === null) {
+            return '—';
+        }
+        $label = $s['seasons'].' saison'.($s['seasons'] > 1 ? 's' : '');
+        if ($s['firstYear'] !== null) {
+            $first = $s['firstYear'].'-'.($s['firstYear'] + 1);
+            $label .= $s['seasons'] > 1 ? ' · depuis '.$first : ' · '.$first;
+        }
+
+        return $label;
     }
 
     private function currentSeasonFilter(): string

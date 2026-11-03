@@ -671,6 +671,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * Getter « virtuel » : sert uniquement à ce qu'EasyAdmin trouve une propriété pour la colonne Ancienneté ; la
+     * valeur est calculée côté CRUD (UserCrudController::seniorityLabel, une requête pour toute la liste).
+     */
+    public function getSeniority(): string { return ''; }
+
+    /**
      * Résumé textuel pour affichage admin :
      *  - "→ Dupont Paul (A123)" si ce user est lié à un primaire
      *  - "Compte principal · 2 dépendants" si primaire avec dépendants

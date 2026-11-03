@@ -91,6 +91,34 @@ class UserSeasonMembershipRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ancienneté de chaque adhérent, en une requête : nombre de saisons où il a une adhésion (import courant ou
+     * historique), années de début de sa première et de sa dernière saison (null si la saison n'a pas de dates).
+     *
+     * @return array<int, array{seasons: int, firstYear: ?int, lastYear: ?int}> identifiant de l'adhérent → ancienneté
+     */
+    public function seniorityByUser(): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('IDENTITY(m.user) AS uid', 'COUNT(m.id) AS seasons', 'MIN(s.startsAt) AS firstStart', 'MAX(s.startsAt) AS lastStart')
+            ->join('m.season', 's')
+            ->groupBy('m.user')
+            ->getQuery()
+            ->getScalarResult();
+
+        $year = static fn (mixed $date): ?int => $date === null ? null : (int) substr((string) $date, 0, 4);
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r['uid']] = [
+                'seasons' => (int) $r['seasons'],
+                'firstYear' => $year($r['firstStart']),
+                'lastYear' => $year($r['lastStart']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Prochain numéro d'ordre libre pour les factures de la saison :
      * MAX(invoice_sequence) + 1, ou 1 si aucun.
      *

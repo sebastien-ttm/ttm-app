@@ -230,6 +230,7 @@ class DashboardController extends AbstractDashboardController
                 [CapDistributionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Bonnets du club', 'fa fa-person-swimming', 'admin_cap_distribution')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Groupes d\'adhérents', 'fa fa-user-group', MemberGroup::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Statistiques adhérents', 'fa fa-chart-pie', 'admin_adherents_stats')],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Ancienneté', 'fa fa-medal', 'admin_adherents_seniority')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Importer un CSV', 'fa fa-file-import', 'admin_csv_import')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Email de bienvenue', 'fa fa-envelope-open-text', WelcomeEmailTemplate::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages d\'adhésion', 'fa fa-id-card', MembershipSettings::class)],
