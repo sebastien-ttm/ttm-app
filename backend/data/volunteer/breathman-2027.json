@@ -1,0 +1,4045 @@
+{
+  "slug": "breathman-2027",
+  "name": "Breathman 2027",
+  "startsOn": "2027-06-19",
+  "endsOn": "2027-06-20",
+  "location": "Lac de Saint-Ferréol, Revel",
+  "applicationsDeadline": "2026-12-15",
+  "intro": "Deux façons de rejoindre l'aventure : piloter une activité en amont comme référent·e, ou encadrer une équipe comme responsable terrain les jours J. Choisis celle qui te ressemble.",
+  "poles": [
+    {
+      "name": "Coordination générale",
+      "managerNames": "Fabien & Seb",
+      "color": "sun",
+      "activities": [
+        {
+          "name": "Programme",
+          "title": "Chef d'orchestre du Breathman",
+          "pitch": "Tu tiens le calendrier de toute l'organisation et tu t'assures que les six directions avancent ensemble jusqu'au 19 juin.",
+          "published": false,
+          "manualNames": "Fabien, Seb",
+          "content": {
+            "missions": [
+              "Valider le programme des épreuves et le rétroplanning",
+              "Faire vivre les échanges réguliers entre responsables de pôle et référents",
+              "Piloter le déroulé du week-end depuis le PC course"
+            ],
+            "strengths": [
+              "Avoir une vision d'ensemble et aimer coordonner",
+              "Savoir trancher quand deux pôles veulent la même chose",
+              "Connaître le Breathman de l'intérieur"
+            ],
+            "eco": "Tu inscris la charte triathlon durable dans les échanges avec les pôles et dans le bilan de l'édition.",
+            "facts": [
+              {
+                "value": "+67",
+                "label": "NPS de l'édition 2026"
+              },
+              {
+                "value": "2 500",
+                "label": "inscrits visés en 2027"
+              },
+              {
+                "value": "6",
+                "label": "épreuves sur le week-end"
+              }
+            ],
+            "gain": "Voir les 33 pôles tourner ensemble le jour J",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Valider le programme des épreuves : M, 6-9, 10-13 et S le samedi, L, XS et Swimrun S le dimanche",
+                "due": "J-6 mois",
+                "links": "Coordination courses, Sécurité & Parcours"
+              },
+              {
+                "phase": "A",
+                "text": "Fixer le rétroplanning général et les dates des comités de pilotage",
+                "due": "J-6 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Arbitrer les horaires des épreuves (partage des parcours, rotations du parc à vélos)",
+                "due": "J-5 mois",
+                "links": "Coordination courses, Parc à vélos"
+              },
+              {
+                "phase": "A",
+                "text": "Préparer le dossier de présentation pour la mairie de Revel et les partenaires institutionnels",
+                "due": "J-5 mois",
+                "links": "Autorisation Admin., Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser des échanges réguliers entre les responsables de pôle et leurs référents : avancement, points durs, besoins vis-à-vis des autres pôles",
+                "due": "En continu",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Recruter les bénévoles de l'organisation et les répartir dans les équipes",
+                "due": "J-6 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "P",
+                "text": "Diffuser le programme définitif et le guide athlète",
+                "due": "J-15",
+                "links": "Réseaux & presse, Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Réunir tous les responsables de pôle pour la revue finale",
+                "due": "J-7",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "P",
+                "text": "Valider l'annuaire des contacts et le plan radio du week-end",
+                "due": "J-3",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "O",
+                "text": "Suivre le déroulé horaire du week-end depuis le PC course",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Décider des adaptations (météo, retard, annulation d'une épreuve) avec le directeur de course",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "O",
+                "text": "Animer le débriefing à chaud avec les responsables de pôle",
+                "due": "J+7",
+                "links": "Tous les pôles"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Budget & Achats",
+          "title": "Gardien·ne du budget",
+          "pitch": "Tu suis chaque euro du Breathman, des paliers d'inscription jusqu'à la dernière caisse du dimanche soir.",
+          "published": false,
+          "manualNames": "Fabien, Seb",
+          "content": {
+            "missions": [
+              "Construire et suivre le budget prévisionnel par direction",
+              "Valider les devis et les engagements de dépense",
+              "Organiser les caisses et les paiements sur place"
+            ],
+            "strengths": [
+              "Être rigoureux·se avec les chiffres",
+              "Être à l'aise avec un tableur",
+              "Savoir dire non avec le sourire"
+            ],
+            "eco": "Tu donnes la priorité aux achats locaux, réutilisables ou empruntés.",
+            "facts": [
+              {
+                "value": "114 997 €",
+                "label": "de chiffre d'affaires en 2026"
+              },
+              {
+                "value": "86 504 €",
+                "label": "de dépenses prévues en 2027"
+              },
+              {
+                "value": "+69 614 €",
+                "label": "de résultat visé"
+              }
+            ],
+            "gain": "Une vue unique sur l'économie d'un grand événement sportif",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Construire le budget prévisionnel par pôle à partir de l'édition précédente et des tarifs d'inscription",
+                "due": "J-6 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Suivre les recettes d'inscription à chaque palier tarifaire (31/10, 31/01, 31/05)",
+                "due": "À chaque palier",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Centraliser les devis et valider les engagements de dépense",
+                "due": "J-4 à J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Souscrire l'assurance responsabilité civile de l'organisateur",
+                "due": "J-3 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les fonds de caisse (buvette, boutique, repas du samedi soir, inscriptions sur place)",
+                "due": "J-7",
+                "links": "Buvette, Boutique, Repas samedi soir"
+              },
+              {
+                "phase": "P",
+                "text": "Mettre en service les terminaux de paiement par carte",
+                "due": "J-7",
+                "links": "Buvette, Boutique"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir la caisse centrale : remises et retraits d'espèces des points de vente",
+                "due": "Samedi et dimanche",
+                "links": "Buvette, Boutique, Repas samedi soir"
+              },
+              {
+                "phase": "O",
+                "text": "Collecter les justificatifs des achats faits sur place",
+                "due": "Samedi et dimanche",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "O",
+                "text": "Compter les caisses et mettre les recettes en sécurité",
+                "due": "Dimanche soir",
+                "links": "Buvette, Boutique"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Tissu local",
+          "title": "Ambassadeur·rice du territoire",
+          "pitch": "Tu fais du Breathman l'affaire de tout le territoire : associations, clubs et entreprises de Revel et des environs.",
+          "published": false,
+          "manualNames": "Fabien, Seb",
+          "content": {
+            "missions": [
+              "Associer les associations locales et signer les conventions",
+              "Mobiliser les entreprises locales : dons, prêts, salariés bénévoles",
+              "Accueillir les clubs et animer les challenges clubs"
+            ],
+            "strengths": [
+              "Avoir un bon réseau local",
+              "Aimer convaincre et créer du lien",
+              "Connaître la vie associative de Revel"
+            ],
+            "eco": "Un partenaire local, c'est moins de transport et plus de produits de saison.",
+            "facts": [
+              {
+                "value": "219",
+                "label": "clubs représentés en 2026"
+              },
+              {
+                "value": "90 %",
+                "label": "des bénévoles habitent en Haute-Garonne"
+              },
+              {
+                "value": "≈ 100",
+                "label": "nuitées déclarées dans la région"
+              }
+            ],
+            "gain": "Un carnet d'adresses local qui grandit chaque année",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Identifier les associations locales à associer (clubs sportifs, comités des fêtes, écoles)",
+                "due": "J-6 mois",
+                "links": "Recrutement, Jeunes & écoles"
+              },
+              {
+                "phase": "A",
+                "text": "Proposer aux associations des missions contre une rétribution (signalisation, buvette, parkings)",
+                "due": "J-5 mois",
+                "links": "Recrutement, Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Signer une convention avec chaque association",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Promouvoir l'offre clubs et les challenges (club le plus lointain, le plus représenté, meilleur club)",
+                "due": "J-4 mois",
+                "links": "Inscriptions, Réseaux & presse"
+              },
+              {
+                "phase": "A",
+                "text": "Identifier les entreprises locales à associer (commerces, artisans, producteurs, employeurs de Revel et des environs)",
+                "due": "J-6 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Proposer aux entreprises locales de s'impliquer : dons de produits, prêt de matériel, salariés bénévoles ou participants",
+                "due": "J-4 mois",
+                "links": "Partenaires, Matériel & achats, Recrutement"
+              },
+              {
+                "phase": "P",
+                "text": "Confirmer les effectifs et les créneaux de chaque association",
+                "due": "J-15",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer l'accueil des clubs : espace privatif, retrait groupé des dossards, référent dédié",
+                "due": "J-7",
+                "links": "Inscriptions, Implantation"
+              },
+              {
+                "phase": "P",
+                "text": "Confirmer la participation des entreprises locales (livraisons, salariés présents, horaires)",
+                "due": "J-15",
+                "links": "Matériel & achats, Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les représentants des associations et des clubs",
+                "due": "Samedi et dimanche",
+                "links": "Accueil & bien-être"
+              },
+              {
+                "phase": "O",
+                "text": "Accompagner les clubs pendant le week-end",
+                "due": "Samedi et dimanche",
+                "links": "Parc à vélos, Photo & vidéo"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les entreprises locales et les remercier au micro",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Éco-responsabilité",
+          "title": "Gardien·ne de la charte verte",
+          "pitch": "Tu fais du Breathman un triathlon plus propre, du choix des gobelets jusqu'au bilan de la charte.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Rédiger la charte triathlon durable avec les pôles",
+              "Suivre les actions : gobelets réutilisables, tri, covoiturage",
+              "Organiser l'opération de nettoyage du site"
+            ],
+            "strengths": [
+              "Être sensible aux sujets environnementaux",
+              "Aimer embarquer les autres",
+              "Être concret·e et pragmatique"
+            ],
+            "eco": "C'est le cœur de ta mission : chaque pôle a son geste éco, et c'est toi qui en fais le bilan.",
+            "facts": [
+              {
+                "value": "56 %",
+                "label": "des bénévoles venus en covoiturage en 2026"
+              },
+              {
+                "value": "25 %",
+                "label": "des coureurs aussi"
+              },
+              {
+                "value": "Bravo",
+                "label": "« pour votre démarche éco-responsable », un coureur en 2026"
+              }
+            ],
+            "gain": "Un impact concret et mesurable sur l'événement",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Rédiger la charte triathlon durable",
+                "due": "J-6 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir les actions écoresponsables et suivre leur mise en place (gobelets réutilisables, tri, covoiturage)",
+                "due": "J-4 à J-1 mois",
+                "links": "Ravitaillements, Buvette, Parkings & circulation"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser une opération de nettoyage du site",
+                "due": "Date à fixer",
+                "links": "Implantation, Tissu local"
+              },
+              {
+                "phase": "P",
+                "text": "Installer les points de tri et leur signalétique",
+                "due": "Veille",
+                "links": "Signalétique, Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Suivre le tri des déchets sur le site",
+                "due": "Samedi et dimanche",
+                "links": "Ravitaillements, Buvette"
+              },
+              {
+                "phase": "O",
+                "text": "Faire le bilan des actions de la charte",
+                "due": "Dimanche soir",
+                "links": "Programme"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": []
+    },
+    {
+      "name": "Courses",
+      "managerNames": "Corentin & Chris",
+      "color": "teal",
+      "activities": [
+        {
+          "name": "Coordination courses",
+          "title": "Directeur·rice des départs",
+          "pitch": "Tu écris les règles du jeu, tu donnes les départs et tu valides les classements de chaque épreuve.",
+          "published": false,
+          "manualNames": "Christophe, Nico",
+          "content": {
+            "missions": [
+              "Rédiger les règlements et obtenir l'agrément fédéral",
+              "Organiser les zones de départ, de transition et d'arrivée",
+              "Coordonner arbitres, PC sécurité et chronométrage pendant les courses"
+            ],
+            "strengths": [
+              "Connaître la réglementation FFTri",
+              "Garder son calme sous pression",
+              "Avoir une voix qui porte"
+            ],
+            "eco": "Tu rappelles dans le règlement et au briefing qu'aucun déchet ne se jette hors des zones prévues.",
+            "facts": [
+              {
+                "value": "1 833",
+                "label": "classés en 2026"
+              },
+              {
+                "value": "98,6 %",
+                "label": "de finishers parmi les partants individuels"
+              }
+            ],
+            "gain": "Le meilleur point de vue sur chaque départ",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Rédiger le règlement de chaque épreuve (M, S, L, XS, jeunes, Swimrun, relais et duo)",
+                "due": "J-6 mois",
+                "links": "Programme"
+              },
+              {
+                "phase": "A",
+                "text": "Déclarer les épreuves à la fédération et obtenir l'agrément",
+                "due": "J-5 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Demander les arbitres à la ligue",
+                "due": "J-4 mois",
+                "links": "Repas & hébergement"
+              },
+              {
+                "phase": "A",
+                "text": "Définir les zones de départ, de transition et d'arrivée",
+                "due": "J-4 mois",
+                "links": "Implantation, Sécurité & Parcours"
+              },
+              {
+                "phase": "P",
+                "text": "Rédiger le guide athlète et le briefing de course",
+                "due": "J-15",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "P",
+                "text": "Faire le point final avec le corps arbitral",
+                "due": "Veille",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "P",
+                "text": "Installer la chambre d'appel et les sas de départ",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Conduire les briefings et donner les départs",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers"
+              },
+              {
+                "phase": "O",
+                "text": "Coordonner arbitres, PC sécurité et chronométrage pendant les courses",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours, Chronométrage"
+              },
+              {
+                "phase": "O",
+                "text": "Traiter les réclamations et valider les classements",
+                "due": "Samedi et dimanche",
+                "links": "Chronométrage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Inscriptions",
+          "title": "Maître·sse des dossards",
+          "pitch": "Tu es le premier contact des 2 500 coureurs attendus, de l'inscription en ligne jusqu'au retrait du dossard.",
+          "published": true,
+          "manualNames": "Corentin, Christophe",
+          "content": {
+            "missions": [
+              "Paramétrer la plateforme et suivre les inscriptions",
+              "Répondre aux concurrents et aux clubs",
+              "Préparer et tenir le retrait des dossards"
+            ],
+            "strengths": [
+              "Aimer le contact et répondre vite",
+              "Être à l'aise avec les outils en ligne",
+              "Être organisé·e"
+            ],
+            "eco": "Tu limites le papier : confirmations par e-mail et enveloppes sans goodies jetables.",
+            "facts": [
+              {
+                "value": "2 390",
+                "label": "inscriptions en 2026"
+              },
+              {
+                "value": "93 %",
+                "label": "jugent l'inscription et le retrait faciles"
+              },
+              {
+                "value": "+76 %",
+                "label": "d'inscrits au 13 octobre par rapport à 2025"
+              }
+            ],
+            "gain": "Être le premier sourire que voient les coureurs",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Choisir la plateforme d'inscription et y saisir les courses et les tarifs",
+                "due": "J-9 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Ouvrir la plateforme d'inscription avec les tarifs et les paliers",
+                "due": "J-8 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Suivre les inscriptions et relancer avant chaque changement de tarif",
+                "due": "À chaque palier",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "A",
+                "text": "Traiter les demandes des clubs (réduction à partir de 5 inscrits)",
+                "due": "En continu",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Vérifier les licences, pass compétition et certificats médicaux",
+                "due": "En continu",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Répondre aux e-mails des concurrents",
+                "due": "En continu",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Ajuster les quotas de chaque course selon le nombre d'inscrits",
+                "due": "En continu",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Trouver un partenaire (magasin de sport par exemple) pour accueillir un retrait anticipé des dossards quelques jours avant l'événement",
+                "due": "J-3 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Faire imprimer et numéroter les dossards",
+                "due": "J-15",
+                "links": "Chronométrage"
+              },
+              {
+                "phase": "P",
+                "text": "Clôturer les inscriptions en ligne et éditer les listes de départ",
+                "due": "J-7",
+                "links": "Chronométrage"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les enveloppes (dossard, puce, bonnet, autocollants)",
+                "due": "J-3",
+                "links": "Chronométrage"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les retraits groupés pour les clubs",
+                "due": "J-3",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "P",
+                "text": "Annoncer les deux possibilités de retrait des dossards (anticipé chez le partenaire, sur site) dans le guide athlète",
+                "due": "J-15",
+                "links": "Réseaux & presse, Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Tenir le retrait anticipé des dossards chez le partenaire, quelques jours avant l'événement",
+                "due": "Quelques jours avant",
+                "links": "Partenaires, Planning & rotations, Dotation coureur"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir le retrait des dossards sur site",
+                "due": "Veille, samedi et dimanche",
+                "links": "Accueil & bien-être"
+              },
+              {
+                "phase": "O",
+                "text": "Gérer les inscriptions de dernière minute et les changements",
+                "due": "Samedi et dimanche",
+                "links": "Budget & Achats, Chronométrage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Chronométrage",
+          "title": "Gardien·ne du temps",
+          "pitch": "Tu fais en sorte que chaque seconde de chaque coureur soit mesurée, publiée et affichée.",
+          "published": false,
+          "manualNames": "Corentin, Christophe",
+          "content": {
+            "missions": [
+              "Choisir le prestataire et définir les points de chronométrage",
+              "Préparer les listes de départ et les installations",
+              "Suivre la publication des résultats et des classements"
+            ],
+            "strengths": [
+              "Avoir l'esprit technique",
+              "Être précis·e",
+              "Savoir travailler avec un prestataire"
+            ],
+            "eco": "Tu privilégies les puces réutilisables et les résultats en ligne plutôt qu'imprimés.",
+            "facts": [
+              {
+                "value": "9 074 €",
+                "label": "de budget chronométrage en 2026"
+              },
+              {
+                "value": "16",
+                "label": "classements publiés en 2026"
+              }
+            ],
+            "gain": "Les résultats en avant-première",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Choisir le mode de chronométrage (prestataire ou interne) et signer le contrat",
+                "due": "J-6 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Définir les points de chronométrage (départ, transitions, arrivée, points intermédiaires)",
+                "due": "J-4 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir l'électricité et la connexion réseau aux points de chronométrage",
+                "due": "J-3 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Transmettre les listes de départ au chronométreur",
+                "due": "J-5",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Installer les tapis et tester le matériel",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Chronométrer toutes les épreuves",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Publier les résultats en direct et à l'affichage",
+                "due": "Samedi et dimanche",
+                "links": "Réseaux & presse, Animations & speakers"
+              },
+              {
+                "phase": "O",
+                "text": "Éditer les classements pour les podiums",
+                "due": "Samedi et dimanche",
+                "links": "Lots & podiums"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Lots & podiums",
+          "title": "Chef·fe des podiums",
+          "pitch": "Tu prépares les médailles, les lots et les cérémonies qui récompensent les coureurs.",
+          "published": true,
+          "manualNames": "Nico",
+          "content": {
+            "missions": [
+              "Définir les récompenses et commander médailles et trophées",
+              "Collecter les lots auprès des partenaires",
+              "Organiser des cérémonies courtes et à l'ombre"
+            ],
+            "strengths": [
+              "Avoir le sens du détail",
+              "Aimer la mise en scène",
+              "Être organisé·e"
+            ],
+            "eco": "Tu reconduis les médailles en bois et tu évites les lots jetables.",
+            "facts": [
+              {
+                "value": "2 400",
+                "label": "médailles achetées en 2026"
+              },
+              {
+                "value": "Bois",
+                "label": "les médailles 2026, « les plus belles jamais vues »"
+              }
+            ],
+            "gain": "Être aux premières loges des podiums",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Définir les récompenses par épreuve et par catégorie",
+                "due": "J-5 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Commander les médailles finisher, les trophées et les médailles personnalisées des clubs de plus de 50 inscrits",
+                "due": "J-3 mois",
+                "links": "Budget & Achats, Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Collecter les lots auprès des partenaires",
+                "due": "J-3 à J-1 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Trier et étiqueter les lots par podium",
+                "due": "J-7",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Écrire le déroulé des cérémonies avec les horaires",
+                "due": "J-7",
+                "links": "Animations & speakers"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les sacs de récompense",
+                "due": "J-7",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Installer le podium",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Remettre les médailles finisher sur la ligne d'arrivée",
+                "due": "Samedi et dimanche",
+                "links": "Aire d'arrivée"
+              },
+              {
+                "phase": "O",
+                "text": "Animer les podiums avec les élus et les partenaires",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers, Partenaires"
+              },
+              {
+                "phase": "O",
+                "text": "Remettre les prix des challenges clubs",
+                "due": "Dimanche",
+                "links": "Tissu local"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Dotation coureur",
+          "title": "Chef·fe de la dotation",
+          "pitch": "Tu choisis ce que chaque coureur emporte du Breathman, et tu fais en sorte que le tarif paraisse justifié.",
+          "published": false,
+          "manualNames": "Fabien, Seb",
+          "content": {
+            "missions": [
+              "Faire arbitrer la dotation par le comité de pilotage",
+              "Commander la dotation avant mars, avec l'aide d'un partenaire si possible",
+              "Remettre la dotation au retrait des dossards"
+            ],
+            "strengths": [
+              "Avoir le sens du produit et du budget",
+              "Savoir comparer des devis",
+              "Aimer faire plaisir aux coureurs"
+            ],
+            "eco": "Tu choisis des objets utiles et durables plutôt que des goodies jetables.",
+            "facts": [
+              {
+                "value": "18 %",
+                "label": "des coureurs trouvaient le tarif injustifié en 2026, faute de dotation"
+              },
+              {
+                "value": "5,18 €",
+                "label": "de médaille et dotation par inscrit au budget 2027"
+              },
+              {
+                "value": "Avant mars",
+                "label": "pour les devis et la commande"
+              }
+            ],
+            "gain": "Voir les coureurs repartir avec ta dotation",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Arbitrer la dotation coureur avec le comité de pilotage (sac à dos pour le L, serviette, visière, option « Dossard Vert » sans dotation)",
+                "due": "J-6 mois",
+                "links": "Budget & Achats, Programme"
+              },
+              {
+                "phase": "A",
+                "text": "Chercher un partenaire pour fournir ou financer une partie de la dotation",
+                "due": "J-5 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Demander les devis et passer commande",
+                "due": "Avant mars",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Mettre en avant la dotation dans la communication et sur la page d'inscription",
+                "due": "J-4 mois",
+                "links": "Réseaux & presse, Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Réceptionner la dotation et la répartir par épreuve",
+                "due": "J-7",
+                "links": "Inscriptions, Matériel & achats"
+              },
+              {
+                "phase": "O",
+                "text": "Remettre la dotation aux coureurs au retrait des dossards",
+                "due": "Veille, samedi et dimanche",
+                "links": "Inscriptions"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Triathlon des écoles",
+          "title": "Initiateur·rice du triathlon des écoles",
+          "pitch": "Tu fais découvrir le triathlon aux élèves de Revel, quelques jours avant le Breathman.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Monter le projet avec la mairie de Revel et les enseignants",
+              "Adapter le format et préparer les parcours",
+              "Encadrer la journée et inviter les familles au week-end"
+            ],
+            "strengths": [
+              "Aimer transmettre aux enfants",
+              "Avoir le contact facile avec les enseignants",
+              "Être patient·e et rassurant·e"
+            ],
+            "eco": "Tu sensibilises les élèves au tri et au vélo comme moyen de transport.",
+            "facts": [
+              {
+                "value": "Nouveau",
+                "label": "format en 2027, avant le week-end"
+              },
+              {
+                "value": "94",
+                "label": "jeunes inscrits au cross triathlon 2026"
+              }
+            ],
+            "gain": "Voir des enfants franchir leur première ligne d'arrivée",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Fixer avec le service des sports de la mairie de Revel la date, le lieu et le format du triathlon découverte (avant le week-end de course)",
+                "due": "J-6 mois",
+                "links": "Programme, Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Présenter le projet aux directeurs d'école et aux enseignants de Revel, et arrêter la liste des classes",
+                "due": "J-5 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Adapter le format à l'âge des élèves (distances, lieu de natation, sécurité)",
+                "due": "J-4 mois",
+                "links": "PC sécurité & secours, Natation"
+              },
+              {
+                "phase": "A",
+                "text": "Préparer les parcours vélo et course à pied",
+                "due": "J-3 mois",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir le matériel : vélos et casques de prêt, chronométrage, dossards, récompenses",
+                "due": "J-2 mois",
+                "links": "Matériel & achats, Chronométrage, Lots & podiums"
+              },
+              {
+                "phase": "A",
+                "text": "Recruter les encadrants parmi les adhérents du club",
+                "due": "J-2 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "A",
+                "text": "Recueillir les autorisations parentales et le droit à l'image",
+                "due": "J-1 mois",
+                "links": "Photo & vidéo"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les encadrants et les enseignants",
+                "due": "Veille de la découverte",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Installer les parcours et le parc à vélos",
+                "due": "Veille de la découverte",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les classes et encadrer le triathlon découverte",
+                "due": "Jour de la découverte",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Remettre les récompenses et inviter les familles au week-end Breathman",
+                "due": "Jour de la découverte",
+                "links": "Lots & podiums, Réseaux & presse"
+              }
+            ],
+            "phaseDates": [
+              "Avant la découverte",
+              "Veille de la découverte",
+              "Jour de la découverte"
+            ]
+          }
+        },
+        {
+          "name": "Paratriathlon",
+          "title": "Référent·e paratriathlon",
+          "pitch": "Tu permets à chaque paratriathlète de vivre son Breathman dans les meilleures conditions.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Suivre la feuille de route paratriathlon de la FFTri",
+              "Recenser les besoins de chaque athlète",
+              "Organiser l'accueil, les handlers et les guides"
+            ],
+            "strengths": [
+              "Être attentif·ve aux besoins de chacun",
+              "Connaître le handisport est un plus",
+              "Être organisé·e"
+            ],
+            "eco": "Tu conçois des aménagements d'accès réutilisables d'une édition à l'autre.",
+            "facts": [
+              {
+                "value": "Nouveau",
+                "label": "pôle créé pour 2027"
+              }
+            ],
+            "gain": "Rendre la course accessible à tous",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Suivre la feuille de route paratriathlon de la FFTri",
+                "due": "J-6 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Recenser les paratriathlètes inscrits et leurs besoins",
+                "due": "J-2 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir la logistique d'accueil de chaque paratriathlète (accès, transition, handlers, guides)",
+                "due": "J-1 mois",
+                "links": "Implantation, Parc à vélos"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les handlers et les arbitres",
+                "due": "Veille",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les paratriathlètes et les accompagner en transition",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Pratique féminine",
+          "title": "Référent·e pratique féminine",
+          "pitch": "Tu fais du Breathman une course où les femmes se sentent attendues, sur la ligne de départ comme sur le podium.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Définir et piloter les actions en faveur de la pratique féminine",
+              "Veiller à l'égalité des classements, des podiums et des récompenses",
+              "Donner envie aux femmes de s'inscrire, par la communication et des séances découverte"
+            ],
+            "strengths": [
+              "Être convaincu·e que le triathlon se conjugue au féminin",
+              "Aimer fédérer et animer",
+              "Être à l'aise pour parler au micro ou sur les réseaux, c'est un plus"
+            ],
+            "eco": "Tu privilégies des dotations utiles, aux bonnes tailles, pour éviter le gaspillage.",
+            "facts": [
+              {
+                "value": "Nouveau",
+                "label": "pôle créé pour 2027"
+              }
+            ],
+            "gain": "Faire grandir la place des femmes dans le triathlon",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Définir les actions en faveur de la pratique féminine : objectif de participation, relais et duos féminins, tarif d'appel",
+                "due": "J-6 mois",
+                "links": "Programme, Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Garantir un classement et des podiums féminins sur toutes les épreuves, à récompenses égales",
+                "due": "J-5 mois",
+                "links": "Lots & podiums, Chronométrage"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir des tailles et des coupes femme dans la dotation et la boutique",
+                "due": "J-5 mois",
+                "links": "Dotation coureur, Boutique"
+              },
+              {
+                "phase": "A",
+                "text": "Monter une campagne de communication avec des portraits de triathlètes féminines",
+                "due": "J-4 mois",
+                "links": "Réseaux & presse, Photo & vidéo"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser avec le club des séances d'entraînement découverte réservées aux femmes",
+                "due": "J-3 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "P",
+                "text": "Vérifier les vestiaires et toilettes femmes près du départ et des transitions",
+                "due": "Veille",
+                "links": "Implantation"
+              },
+              {
+                "phase": "O",
+                "text": "Mettre en valeur les finisheuses et les podiums féminins au micro et sur les réseaux",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers, Réseaux & presse"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": [
+        {
+          "name": "Responsable du retrait des dossards",
+          "title": "Lance la course",
+          "pitch": "Le premier sourire du week-end, c'est ton équipe : chez notre partenaire quelques jours avant, puis sur site, chaque coureur repart avec son dossard, sa puce et l'envie d'en découdre.",
+          "published": true,
+          "requiredCount": 2,
+          "manualNames": "Corentin",
+          "activity": "Inscriptions",
+          "content": {
+            "reportsTo": "Référent·e Inscriptions",
+            "location": "Chez le partenaire (retrait anticipé), puis stand de retrait au village",
+            "countNote": "Un chez le partenaire (retrait anticipé), un sur site",
+            "team": "Les bénévoles du retrait des dossards",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing et test de l'outil d'inscription"
+              },
+              {
+                "when": "Quelques jours avant",
+                "what": "Retrait anticipé chez le partenaire"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Installation du stand sur site et retrait en soirée"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Matinées de retrait sur site, avant chaque départ"
+              }
+            ],
+            "missions": [
+              "Tenir le retrait anticipé chez le partenaire, quelques jours avant",
+              "Installer le stand sur site par plages de dossards",
+              "Vérifier les documents demandés par le règlement",
+              "Remettre dossard, puce, bonnet et dotation",
+              "Gérer les cas particuliers avec le référent Inscriptions",
+              "Faire le point des puces remises"
+            ],
+            "rules": [
+              "Pas de dossard sans les documents exigés",
+              "Chaque puce remise est notée",
+              "Un cas inhabituel : on appelle le référent, on n'improvise pas"
+            ],
+            "equipment": [
+              "Ordinateur ou tablette",
+              "Listes des inscrits",
+              "Dossards, puces, dotations"
+            ],
+            "prerequisites": [
+              "À l'aise avec un ordinateur ou une tablette"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sécurité & Parcours",
+      "managerNames": "Pascale & Eric",
+      "color": "coral",
+      "activities": [
+        {
+          "name": "Autorisation Admin.",
+          "title": "As des autorisations",
+          "pitch": "Tu obtiens le feu vert de la préfecture, des mairies, de VNF et de la ligue : c'est lui qui rend la course possible.",
+          "published": false,
+          "manualNames": "Pascale",
+          "content": {
+            "missions": [
+              "Déposer les dossiers en préfecture et à la ligue",
+              "Obtenir les arrêtés des mairies et l'accord de VNF",
+              "Tenir le classeur des autorisations au PC"
+            ],
+            "strengths": [
+              "Être rigoureux·se et méthodique",
+              "Ne pas avoir peur des formulaires",
+              "Savoir relancer poliment"
+            ],
+            "eco": "Tu intègres les engagements de la charte durable dans les dossiers déposés.",
+            "facts": [
+              {
+                "value": "Saluées",
+                "label": "les démarches admin, dans le retour d'expérience 2026"
+              },
+              {
+                "value": "5",
+                "label": "interlocuteurs : préfecture, mairies, VNF, communauté de communes, ligue"
+              }
+            ],
+            "gain": "Comprendre comment un événement se monte, de l'intérieur",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Envoyer le dossier d'organisation à la ligue de triathlon",
+                "due": "J-5 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Déposer les dossiers de manifestation sportive en préfecture",
+                "due": "J-4 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Obtenir l'autorisation de Voies navigables de France pour utiliser le plan d'eau",
+                "due": "J-4 mois",
+                "links": "Natation"
+              },
+              {
+                "phase": "A",
+                "text": "Obtenir l'accord de la communauté de communes pour l'usage du site",
+                "due": "J-4 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Obtenir les arrêtés de circulation et de stationnement de Revel et des communes traversées",
+                "due": "J-3 mois",
+                "links": "Parkings & circulation"
+              },
+              {
+                "phase": "A",
+                "text": "Demander l'autorisation de débit de boissons temporaire",
+                "due": "J-2 mois",
+                "links": "Buvette"
+              },
+              {
+                "phase": "P",
+                "text": "Diffuser les arrêtés et informer les riverains",
+                "due": "J-15",
+                "links": "Réseaux & presse, Parkings & circulation"
+              },
+              {
+                "phase": "P",
+                "text": "Rassembler toutes les autorisations dans un classeur déposé au PC",
+                "due": "J-3",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "O",
+                "text": "Répondre aux autorités (gendarmerie, mairie, préfecture)",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours"
+              }
+            ]
+          }
+        },
+        {
+          "name": "PC sécurité & secours",
+          "title": "Vigie du PC sécurité",
+          "pitch": "Tu veilles sur les coureurs, les bénévoles et le public pendant tout le week-end.",
+          "published": false,
+          "manualNames": "Eric",
+          "content": {
+            "missions": [
+              "Contracter le dispositif de secours et les motos ouvreuses",
+              "Rédiger le plan de sécurité et les procédures d'urgence",
+              "Tenir le PC et coordonner les interventions"
+            ],
+            "strengths": [
+              "Garder son sang-froid",
+              "Avoir une formation de secourisme est un plus",
+              "Être à l'aise avec la radio et les procédures"
+            ],
+            "eco": "Tu privilégies du matériel radio prêté ou loué plutôt qu'acheté.",
+            "facts": [
+              {
+                "value": "0",
+                "label": "malaise grave malgré la canicule 2026"
+              },
+              {
+                "value": "56",
+                "label": "bénévoles diplômés en secourisme en 2026"
+              }
+            ],
+            "gain": "La confiance de toute l'organisation",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Signer avec une association agréée pour le dispositif de secours",
+                "due": "J-4 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir un prestataire pour les motos ouvreuses",
+                "due": "J-4 mois",
+                "links": "Vélo par secteurs, Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Rédiger le plan de sécurité et les procédures d'urgence, épreuve S du samedi soir comprise (19h-21h)",
+                "due": "J-3 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir les radios et l'annuaire des postes",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les chefs de secteur et les signaleurs",
+                "due": "J-7",
+                "links": "Vélo par secteurs, Course à pied"
+              },
+              {
+                "phase": "P",
+                "text": "Installer le PC et tester les radios",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir le PC sécurité pendant toutes les épreuves",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Coordonner les interventions des secours et des forces de l'ordre",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Noter chaque incident dans la main courante",
+                "due": "Samedi et dimanche",
+                "links": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Natation",
+          "title": "Capitaine du plan d'eau",
+          "pitch": "Tu sécurises les départs et les nageurs sur le lac de Saint-Ferréol.",
+          "published": false,
+          "manualNames": "Hugo, Jean-Pierre",
+          "content": {
+            "missions": [
+              "Définir les parcours et les sas de départ",
+              "Organiser la flotte de sécurité et les bénévoles diplômés",
+              "Surveiller le plan d'eau et compter les nageurs"
+            ],
+            "strengths": [
+              "Être à l'aise sur l'eau",
+              "Avoir un diplôme de sauveteur est un plus",
+              "Être vigilant·e"
+            ],
+            "eco": "Tu veilles à ce qu'aucun déchet ne reste sur l'eau ni sur les berges.",
+            "facts": [
+              {
+                "value": "248 h",
+                "label": "de bénévolat en sécurité natation en 2026"
+              },
+              {
+                "value": "31",
+                "label": "sauveteurs parmi les bénévoles 2026"
+              }
+            ],
+            "gain": "Le plus beau lever de soleil du week-end, sur le lac",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Définir les parcours natation de chaque épreuve et du swimrun",
+                "due": "J-4 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser la sécurité sur l'eau (kayaks, paddles, bateaux, sauveteurs)",
+                "due": "J-3 mois",
+                "links": "PC sécurité & secours, Recrutement"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir le matériel : embarcations, bouées, rubalise",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Recruter des bénévoles diplômés pour la sécurité nautique",
+                "due": "J-2 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir la prise de température de l'eau (port de la combinaison)",
+                "due": "J-1 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les équipes nautiques",
+                "due": "Veille",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "P",
+                "text": "Poser les bouées et la ligne de départ",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "P",
+                "text": "Installer la sortie à l'australienne et les sas de départ",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Prendre la température de l'eau avant chaque épreuve",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Surveiller le plan d'eau et compter les nageurs à la sortie",
+                "due": "Samedi et dimanche",
+                "links": "Chronométrage"
+              },
+              {
+                "phase": "O",
+                "text": "Retirer les bouées après la dernière épreuve",
+                "due": "Dimanche",
+                "links": "Montage & Démontage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Vélo par secteurs",
+          "title": "Chef·fe des routes",
+          "pitch": "Tu sécurises les parcours vélo de la Montagne Noire, secteur par secteur.",
+          "published": false,
+          "manualNames": "Fred, Guillaume",
+          "content": {
+            "missions": [
+              "Découper les parcours en secteurs et nommer les chefs",
+              "Rédiger le road book et baliser les parcours",
+              "Placer les signaleurs et faire remonter les incidents"
+            ],
+            "strengths": [
+              "Connaître les routes du secteur",
+              "Aimer encadrer une équipe",
+              "Avoir le permis de conduire"
+            ],
+            "eco": "Tu récupères tout le balisage après la course, jusqu'au dernier bout de rubalise.",
+            "facts": [
+              {
+                "value": "816 h",
+                "label": "de bénévolat en sécurité vélo en 2026, le premier pôle"
+              },
+              {
+                "value": "Sorèze",
+                "label": "le rond-point à mieux baliser en 2027"
+              }
+            ],
+            "gain": "Les plus beaux paysages de la Montagne Noire",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Valider les parcours vélo et les découper en secteurs",
+                "due": "J-5 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Repérer les carrefours à sécuriser et compter les signaleurs nécessaires",
+                "due": "J-3 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "A",
+                "text": "Nommer un chef par secteur",
+                "due": "J-2 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "A",
+                "text": "Rédiger le road book des parcours",
+                "due": "J-2 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Recruter des signaleurs majeurs et titulaires du permis de conduire",
+                "due": "J-2 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "P",
+                "text": "Reconnaître les parcours avec les chefs de secteur",
+                "due": "J-15",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les kits signaleur (gilet, piquet K10, sifflet, fiche de poste)",
+                "due": "J-7",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Marquer les parcours au sol",
+                "due": "J-2",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "P",
+                "text": "Baliser les parcours (fléchage, cônes)",
+                "due": "Veille",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "O",
+                "text": "Mettre les signaleurs en place avant chaque départ",
+                "due": "Samedi et dimanche",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Signaler les incidents au PC",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "O",
+                "text": "Lever le dispositif derrière le véhicule balai",
+                "due": "Samedi et dimanche",
+                "links": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Course à pied",
+          "title": "Chef·fe du tour du lac",
+          "pitch": "Tu guides les coureurs autour du lac, de jour comme pour le S du samedi soir.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Valider et mesurer les parcours",
+              "Placer les signaleurs et les postes de comptage des tours",
+              "Encadrer le parcours avec un ouvreur et un serre-file"
+            ],
+            "strengths": [
+              "Aimer l'ambiance du bord de course",
+              "Être organisé·e",
+              "Bien connaître le site"
+            ],
+            "eco": "Tu fais débaliser le parcours le jour même et ramasser chaque déchet.",
+            "facts": [
+              {
+                "value": "138 h",
+                "label": "de bénévolat en sécurité course à pied en 2026"
+              },
+              {
+                "value": "2",
+                "label": "boucles à mieux flécher avant l'arrivée"
+              }
+            ],
+            "gain": "Encourager chaque coureur dans son dernier effort",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Valider et mesurer les parcours course à pied",
+                "due": "J-5 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Placer les signaleurs et les postes de comptage des tours",
+                "due": "J-3 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir l'éclairage du parcours pour l'épreuve S du samedi soir",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les signaleurs et les serre-files",
+                "due": "Veille",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "P",
+                "text": "Baliser et marquer les parcours",
+                "due": "Veille",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "O",
+                "text": "Encadrer les parcours avec un ouvreur et un serre-file",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Compter les tours",
+                "due": "Samedi et dimanche",
+                "links": "Chronométrage"
+              },
+              {
+                "phase": "O",
+                "text": "Débaliser après la dernière épreuve",
+                "due": "Dimanche",
+                "links": "Signalétique"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Ravitaillements",
+          "title": "Capitaine des ravitos",
+          "pitch": "Tu prépares les ravitaillements vélo, course à pied et arrivée pour que les coureurs ne finissent jamais à sec, même sous la chaleur de juin.",
+          "published": false,
+          "manualNames": "Lionel, Laure",
+          "content": {
+            "missions": [
+              "Placer les ravitos sur les parcours",
+              "Calculer les quantités et passer les commandes",
+              "Organiser le zéro déchet sur chaque ravito"
+            ],
+            "strengths": [
+              "Aimer anticiper et faire des listes",
+              "Être à l'aise avec un tableur",
+              "Avoir déjà pris un ravito en course"
+            ],
+            "eco": "Gobelets réutilisables, pas d'emballage individuel, tri sur chaque ravito.",
+            "facts": [
+              {
+                "value": "295 h",
+                "label": "de bénévolat sur les ravitos en 2026"
+              },
+              {
+                "value": "93 %",
+                "label": "des coureurs jugent les ravitos à la hauteur"
+              },
+              {
+                "value": "Arfons",
+                "label": "le ravito à l'ombre cité parmi les points forts"
+              }
+            ],
+            "gain": "Des « merci pour le ravito ! » toutes les 30 secondes",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Placer les ravitaillements (vélo, course à pied, arrivée)",
+                "due": "J-3 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir le zéro déchet (gobelets réutilisables, zones de propreté)",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Calculer les quantités à partir du nombre d'inscrits",
+                "due": "J-1 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Passer les commandes et demander des dons alimentaires",
+                "due": "J-1 mois",
+                "links": "Matériel & achats, Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les caisses de matériel par ravitaillement",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer les chefs de ravitaillement",
+                "due": "Veille",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Installer et tenir les ravitaillements selon les horaires",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Réapprovisionner pendant les épreuves",
+                "due": "Samedi et dimanche",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "O",
+                "text": "Ramasser et trier les déchets en fin d'épreuve",
+                "due": "Samedi et dimanche",
+                "links": ""
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": [
+        {
+          "name": "Chef·fe de secteur vélo",
+          "title": "Garde ton secteur",
+          "pitch": "Sur ton morceau de parcours, c'est toi qui fais en sorte que chaque coureur passe en sécurité, du premier à la voiture balai.",
+          "published": true,
+          "requiredCount": 5,
+          "manualNames": null,
+          "activity": "Vélo par secteurs",
+          "content": {
+            "reportsTo": "Référent·e Vélo par secteurs, et le PC sécurité pendant la course",
+            "location": "Un secteur du parcours vélo (découpage à définir)",
+            "countNote": "Un par secteur · 5 secteurs",
+            "team": "Les signaleurs de ton secteur",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing des chef·fes de secteur, remise du plan de ton secteur"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Repérage de ton secteur, vérification du balisage"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Avant le premier coureur jusqu'au passage de la voiture balai"
+              }
+            ],
+            "missions": [
+              "Placer et briefer les signaleurs de ton secteur",
+              "Vérifier barrières, panneaux et balisage avant l'ouverture",
+              "Assurer le lien radio avec le PC sécurité",
+              "Gérer les incidents (chute, véhicule, riverain) et les faire remonter",
+              "Lever le dispositif après la voiture balai"
+            ],
+            "rules": [
+              "Personne ne quitte son poste avant la voiture balai",
+              "On ne déplace jamais un blessé : on protège et on alerte le PC",
+              "Les signaleurs informent et protègent, ils n'ont pas de pouvoir de police"
+            ],
+            "equipment": [
+              "Radio",
+              "Gilet haute visibilité",
+              "Plan du secteur",
+              "Liste et téléphones des signaleurs"
+            ],
+            "prerequisites": [
+              "Majeur·e et titulaire du permis B (comme tout signaleur)",
+              "À l'aise avec la radio"
+            ]
+          }
+        },
+        {
+          "name": "Chef·fe de secteur course à pied",
+          "title": "Tiens le parcours à pied",
+          "pitch": "Tu veilles sur ton secteur de course à pied : un parcours clair, des signaleurs bien placés, des coureurs encouragés.",
+          "published": true,
+          "requiredCount": 5,
+          "manualNames": null,
+          "activity": "Course à pied",
+          "content": {
+            "reportsTo": "Référent·e Course à pied, et le PC sécurité pendant la course",
+            "location": "Un secteur du parcours course à pied (découpage à définir)",
+            "countNote": "Un par secteur · 5 secteurs",
+            "team": "Les signaleurs et serre-files de ton secteur",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing des chef·fes de secteur"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Repérage de ton secteur"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Pendant toute la course à pied, jusqu'au dernier coureur"
+              }
+            ],
+            "missions": [
+              "Placer et briefer les signaleurs",
+              "Vérifier le balisage et les points de croisement avec le public",
+              "Assurer le lien radio avec le PC sécurité",
+              "Signaler les coureurs en difficulté",
+              "Lever le dispositif après le dernier coureur"
+            ],
+            "rules": [
+              "Personne ne quitte son poste avant le serre-file",
+              "Un coureur en difficulté : on reste avec lui et on alerte le PC",
+              "Les croisements public et coureurs sont tenus en permanence"
+            ],
+            "equipment": [
+              "Radio",
+              "Gilet haute visibilité",
+              "Plan du secteur",
+              "Liste et téléphones des signaleurs"
+            ],
+            "prerequisites": [
+              "Majeur·e et titulaire du permis B (comme tout signaleur)"
+            ]
+          }
+        },
+        {
+          "name": "Responsable sécurité natation",
+          "title": "Veille sur le plan d'eau",
+          "pitch": "Pendant la natation, tu coordonnes les kayaks et paddles pour qu'aucun nageur ne soit jamais seul en difficulté.",
+          "published": false,
+          "requiredCount": 2,
+          "manualNames": "Hugo, Jean-Pierre, Jérôme",
+          "activity": "Natation",
+          "content": {
+            "reportsTo": "Référent·e Natation, en lien avec les secouristes et le PC sécurité",
+            "location": "Lac de Saint-Ferréol : départ, parcours et sortie d'eau",
+            "countNote": "Un par jour (samedi et dimanche)",
+            "team": "Kayakistes, paddles et bénévoles de la sortie d'eau",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing avec le référent Natation et les secouristes"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Pose des bouées et repérage des positions des kayaks"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "De la mise à l'eau jusqu'à la sortie du dernier nageur"
+              }
+            ],
+            "missions": [
+              "Positionner kayaks et paddles selon le plan",
+              "Coordonner l'équipe avec les secouristes et maîtres-nageurs",
+              "Organiser la sortie d'eau (tapis, aide à la sortie)",
+              "Compter les sorties d'eau avec le chronométrage",
+              "Déclencher l'alerte en cas de nageur en difficulté"
+            ],
+            "rules": [
+              "Aucun départ sans dispositif complet en place",
+              "Un nageur bras levé : le kayak le plus proche y va, on alerte le PC",
+              "On ne quitte pas l'eau avant le dernier nageur"
+            ],
+            "equipment": [
+              "Radio",
+              "Gilet et sifflet",
+              "Plan du plan d'eau",
+              "Liste de l'équipe"
+            ],
+            "prerequisites": [
+              "Majeur·e",
+              "À l'aise sur l'eau ; expérience kayak ou paddle appréciée"
+            ]
+          }
+        },
+        {
+          "name": "Responsable de ravitaillement",
+          "title": "Fais le plein d'énergie",
+          "pitch": "Ton ravito, c'est la bouffée d'air des coureurs : de l'eau, du sucre, des sourires, et une zone propre derrière eux.",
+          "published": true,
+          "requiredCount": 6,
+          "manualNames": null,
+          "activity": "Ravitaillements",
+          "content": {
+            "reportsTo": "Référent·e Ravitaillements",
+            "location": "Un point de ravitaillement des parcours (emplacements à définir)",
+            "countNote": "Un par ravitaillement · 6 ravitaillements",
+            "team": "Les bénévoles de ton ravito",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing, liste du matériel et des denrées"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Récupération du matériel"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Installation avant le premier passage, démontage après le dernier"
+              }
+            ],
+            "missions": [
+              "Récupérer et installer le matériel et les denrées",
+              "Organiser l'équipe : service eau, solide, déchets",
+              "Servir les coureurs pendant toute l'épreuve",
+              "Tenir la zone de déchets et la nettoyer",
+              "Démonter et rapporter le matériel restant"
+            ],
+            "rules": [
+              "L'eau ne manque jamais : rupture signalée tout de suite au référent",
+              "Les déchets restent dans la zone délimitée",
+              "Le parcours reste dégagé devant le ravito"
+            ],
+            "equipment": [
+              "Tables, bidons, gobelets, denrées",
+              "Sacs et bacs de tri",
+              "Téléphone du référent"
+            ],
+            "prerequisites": [
+              "Aucun : de l'énergie et de la bonne humeur"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Site & Logistique",
+      "managerNames": "PB & Lionel",
+      "color": "orange",
+      "activities": [
+        {
+          "name": "Implantation",
+          "title": "Architecte du site",
+          "pitch": "Tu dessines le plan du Breathman : village, parc à vélos, départ, arrivée et PC.",
+          "published": true,
+          "manualNames": "PB, Lionel",
+          "content": {
+            "missions": [
+              "Dessiner et faire valider le plan du site",
+              "Prévoir l'eau et l'électricité",
+              "Gérer les états des lieux avec la communauté de communes"
+            ],
+            "strengths": [
+              "Avoir le sens de l'espace",
+              "Aimer les plans et les cartes",
+              "Savoir arbitrer entre les pôles"
+            ],
+            "eco": "Tu places les points de tri et les zones d'ombre là où passent les coureurs et le public.",
+            "facts": [
+              {
+                "value": "19 %",
+                "label": "des coureurs voudraient revoir l'arrivée et le village"
+              },
+              {
+                "value": "Ombre",
+                "label": "la priorité 2027 pour l'aire d'arrivée"
+              }
+            ],
+            "gain": "Voir ton plan prendre vie le vendredi soir",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Dessiner le plan du site (village, parc à vélos, départ, arrivée, PC)",
+                "due": "J-4 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Faire valider le plan par les mairies et VNF",
+                "due": "J-3 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir les branchements en eau et en électricité",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Distribuer des flyers aux riverains",
+                "due": "J-15",
+                "links": "Parkings & circulation"
+              },
+              {
+                "phase": "P",
+                "text": "Envoyer le plan définitif à tous les pôles",
+                "due": "J-7",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "P",
+                "text": "Repérer le site et marquer les emplacements au sol",
+                "due": "J-3",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "P",
+                "text": "Faire l'état des lieux d'entrée avec la communauté de communes",
+                "due": "Veille",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "O",
+                "text": "Ajuster l'implantation et arbitrer les demandes d'espace",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Faire l'état des lieux de sortie et rendre le site à la communauté de communes",
+                "due": "J+1",
+                "links": "Montage & Démontage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Signalétique",
+          "title": "Chef·fe du fléchage",
+          "pitch": "Tu fais en sorte que coureurs, public et bénévoles trouvent toujours leur chemin.",
+          "published": true,
+          "manualNames": "PB, Lionel",
+          "content": {
+            "missions": [
+              "Concevoir les panneaux et le fléchage",
+              "Commander les impressions",
+              "Poser, vérifier et retirer la signalétique"
+            ],
+            "strengths": [
+              "Avoir l'œil pour les détails",
+              "Aimer le concret",
+              "Se mettre à la place de quelqu'un qui découvre le site"
+            ],
+            "eco": "Tu réutilises les panneaux d'une année sur l'autre : pas de date sur les supports durables.",
+            "facts": [
+              {
+                "value": "6",
+                "label": "pôles ont réclamé plus de signalétique en 2026"
+              },
+              {
+                "value": "34 %",
+                "label": "des coureurs ont eu un moment de doute en course"
+              }
+            ],
+            "gain": "Un travail visible de tous",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Faire l'inventaire de la signalétique existante",
+                "due": "J-4 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Concevoir les panneaux et le fléchage (site, parkings, parcours, partenaires)",
+                "due": "J-3 mois",
+                "links": "Réseaux & presse, Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Commander les impressions",
+                "due": "J-2 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "P",
+                "text": "Poser le fléchage routier d'accès",
+                "due": "J-2",
+                "links": "Parkings & circulation"
+              },
+              {
+                "phase": "P",
+                "text": "Installer la signalétique du site et les banderoles des partenaires",
+                "due": "Veille",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "O",
+                "text": "Vérifier et remettre en place la signalétique",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Retirer et ranger la signalétique",
+                "due": "Dimanche soir",
+                "links": "Montage & Démontage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Matériel & achats",
+          "title": "Chef·fe du magasin",
+          "pitch": "Tu trouves, prêtes et récupères tout le matériel dont les pôles ont besoin.",
+          "published": true,
+          "manualNames": "PB, Lionel",
+          "content": {
+            "missions": [
+              "Recenser les besoins de chaque pôle",
+              "Emprunter, louer ou acheter le matériel",
+              "Tenir le magasin central pendant le week-end"
+            ],
+            "strengths": [
+              "Être organisé·e",
+              "Aimer négocier",
+              "Avoir le sens pratique"
+            ],
+            "eco": "Tu empruntes avant de louer, et tu loues avant d'acheter.",
+            "facts": [
+              {
+                "value": "364 h",
+                "label": "de bénévolat matériel en 2026, le 2e pôle"
+              },
+              {
+                "value": "3 888 €",
+                "label": "de logistique et matériel en 2026"
+              }
+            ],
+            "gain": "Savoir où se trouve chaque objet du Breathman",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Faire l'inventaire du matériel du club",
+                "due": "J-5 mois",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Recenser les besoins en matériel de chaque pôle",
+                "due": "J-3 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Réserver les locations (barrières, tentes, toilettes, groupes électrogènes, remorque frigo, camion)",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Obtenir le matériel en prêt (ligue, mairie de Revel) avant de louer ou d'acheter",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "P",
+                "text": "Réceptionner les livraisons",
+                "due": "J-3 à la veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer un kit de matériel par pôle",
+                "due": "J-3",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir le magasin central (prêts, radios, consommables)",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Rendre les locations et faire l'inventaire de retour",
+                "due": "Dimanche soir",
+                "links": "Montage & Démontage"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Montage & Démontage",
+          "title": "Chef·fe de chantier",
+          "pitch": "Tu montes le site avant les courses et tu le rends propre après.",
+          "published": true,
+          "manualNames": "PB, Lionel",
+          "content": {
+            "missions": [
+              "Planifier le montage et le démontage",
+              "Organiser le transport du matériel",
+              "Diriger les équipes de montage et de démontage"
+            ],
+            "strengths": [
+              "Aimer le travail physique en équipe",
+              "Savoir organiser un chantier",
+              "Être endurant·e"
+            ],
+            "eco": "Tu fais trier les déchets du montage et rapporter le matériel intact.",
+            "facts": [
+              {
+                "value": "3",
+                "label": "retours de bénévoles demandent un démontage mieux cadré"
+              },
+              {
+                "value": "Dimanche soir",
+                "label": "le moment clé à organiser en 2027"
+              }
+            ],
+            "gain": "Voir le site se monter en quelques heures",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Planifier le montage et le démontage",
+                "due": "J-2 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Estimer le nombre de bénévoles par créneau de montage et de démontage",
+                "due": "J-2 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser le transport du matériel",
+                "due": "J-1 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Monter les barrières, tentes, arches, podium et sono",
+                "due": "Veille",
+                "links": "Implantation"
+              },
+              {
+                "phase": "P",
+                "text": "Monter le parc à vélos",
+                "due": "Veille",
+                "links": "Parc à vélos"
+              },
+              {
+                "phase": "O",
+                "text": "Reconfigurer le site entre samedi et dimanche",
+                "due": "Samedi soir",
+                "links": "Parc à vélos"
+              },
+              {
+                "phase": "O",
+                "text": "Démonter et charger le matériel",
+                "due": "Dimanche soir",
+                "links": "Matériel & achats"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Parc à vélos",
+          "title": "Chef·fe du parc à vélos",
+          "pitch": "Tu repenses le parc à vélos, point noir de 2026, pour des transitions fluides et sûres.",
+          "published": true,
+          "manualNames": "PB, Lionel",
+          "content": {
+            "missions": [
+              "Dessiner un parc plus large, avec entrées et sorties distinctes",
+              "Prévoir la consigne, le vestiaire féminin et la penalty box",
+              "Contrôler les entrées et sorties et surveiller le parc la nuit"
+            ],
+            "strengths": [
+              "Aimer résoudre des problèmes concrets",
+              "Être ferme et souriant·e",
+              "Connaître les transitions en triathlon"
+            ],
+            "eco": "Tu prévois des tapis réutilisables sur tout le cheminement.",
+            "facts": [
+              {
+                "value": "25 %",
+                "label": "des coureurs changeraient le parc en priorité"
+              },
+              {
+                "value": "3,2/5",
+                "label": "la note des transitions en 2026"
+              },
+              {
+                "value": "176 h",
+                "label": "de bénévolat au parc en 2026"
+              }
+            ],
+            "gain": "Le chantier le plus attendu par les coureurs",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Dimensionner le parc selon le nombre d'inscrits par épreuve",
+                "due": "J-2 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Définir le plan du parc et les entrées et sorties propres à chaque course",
+                "due": "J-2 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir la consigne, le vestiaire féminin et la penalty box",
+                "due": "J-2 mois",
+                "links": "Implantation, Coordination courses"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser le regroupement des clubs dans le parc (offre clubs)",
+                "due": "J-1 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser la surveillance du parc dans la nuit de samedi à dimanche",
+                "due": "J-1 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "P",
+                "text": "Numéroter les emplacements",
+                "due": "Veille",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Briefer l'équipe de contrôle",
+                "due": "Veille",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Contrôler les entrées et sorties (dossard, casque, vélo)",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Gérer les rotations du parc entre les épreuves",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "O",
+                "text": "Surveiller le parc pendant la nuit",
+                "due": "Nuit de samedi",
+                "links": ""
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": [
+        {
+          "name": "Responsable du parc à vélos",
+          "title": "Garde le parc",
+          "pitch": "Le parc à vélos, c'est le coffre-fort des coureurs : tu t'assures que chaque vélo entre et ressort avec son propriétaire.",
+          "published": true,
+          "requiredCount": 2,
+          "manualNames": null,
+          "activity": "Parc à vélos",
+          "content": {
+            "reportsTo": "Référent·e Parc à vélos, en lien avec les arbitres",
+            "location": "Parc à vélos (zone de transition)",
+            "countNote": "Un par jour (samedi et dimanche)",
+            "team": "Les contrôleurs d'entrée et de sortie du parc",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing avec le référent Parc à vélos"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Installation des racks et de la numérotation"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "De l'ouverture du parc jusqu'au retrait du dernier vélo"
+              }
+            ],
+            "missions": [
+              "Ouvrir et fermer le parc aux horaires annoncés",
+              "Contrôler les entrées : dossard, puce, casque",
+              "Contrôler les sorties : numéro du vélo = numéro du dossard",
+              "Réserver l'accès du parc aux seuls concurrents pendant la course",
+              "Gérer les affaires oubliées en fin de journée"
+            ],
+            "rules": [
+              "Aucun vélo ne sort sans le dossard correspondant",
+              "Pas de public dans le parc pendant la course",
+              "L'arbitrage reste aux arbitres : on signale, on ne sanctionne pas"
+            ],
+            "equipment": [
+              "Radio",
+              "Gilet",
+              "Plan du parc",
+              "Liste des dossards"
+            ],
+            "prerequisites": [
+              "Majeur·e",
+              "Rigueur et calme"
+            ]
+          }
+        },
+        {
+          "name": "Chef·fe d'équipe montage & démontage",
+          "title": "Monte le village",
+          "pitch": "Avant et après la course, tu mènes une équipe qui transforme le parc en site de course, puis le rend comme neuf.",
+          "published": true,
+          "requiredCount": 2,
+          "manualNames": "Lionel, PB",
+          "activity": "Montage & Démontage",
+          "content": {
+            "reportsTo": "Référent·e Montage & Démontage",
+            "location": "Site du lac de Saint-Ferréol",
+            "countNote": "Un au montage, un au démontage",
+            "team": "L'équipe de montage ou de démontage",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing sur le plan d'implantation"
+              },
+              {
+                "when": "J-2 et veille",
+                "what": "Montage des barnums, barrières et zones"
+              },
+              {
+                "when": "Dimanche soir",
+                "what": "Démontage, inventaire et nettoyage"
+              }
+            ],
+            "missions": [
+              "Suivre le plan d'implantation",
+              "Répartir les tâches dans l'équipe",
+              "Vérifier la sécurité des installations (barnums lestés, câbles protégés)",
+              "Faire l'inventaire du matériel au démontage",
+              "Rendre le site propre"
+            ],
+            "rules": [
+              "Barnums toujours lestés",
+              "Gants et chaussures fermées pour toute l'équipe",
+              "Le matériel loué est compté avant d'être rendu"
+            ],
+            "equipment": [
+              "Plan d'implantation",
+              "Liste du matériel",
+              "Gants, outillage"
+            ],
+            "prerequisites": [
+              "Majeur·e",
+              "Permis B apprécié (camion)"
+            ]
+          }
+        },
+        {
+          "name": "Responsable balisage",
+          "title": "Trace la route",
+          "pitch": "Grâce à toi, aucun coureur ne se trompe de chemin, et aucune flèche ne reste après la course.",
+          "published": true,
+          "requiredCount": 1,
+          "manualNames": null,
+          "activity": "Signalétique",
+          "content": {
+            "reportsTo": "Référent·e Signalétique",
+            "location": "Parcours vélo et course à pied",
+            "countNote": "Un seul, pour le vélo et la course à pied",
+            "team": "L'équipe de balisage",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Récupération du plan de balisage"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Pose du balisage, contrôle tôt le matin des jours J"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Débalisage après la dernière épreuve"
+              }
+            ],
+            "missions": [
+              "Poser flèches, rubalise et panneaux selon le plan",
+              "Vérifier tout le balisage tôt le matin",
+              "Réparer le balisage abîmé pendant la course",
+              "Débaliser intégralement après la course"
+            ],
+            "rules": [
+              "Débalisage complet le jour même",
+              "Pas de marquage au sol sans autorisation",
+              "Un doute sur le tracé : on appelle le référent avant de poser"
+            ],
+            "equipment": [
+              "Plan de balisage",
+              "Flèches, rubalise, panneaux",
+              "Gilet"
+            ],
+            "prerequisites": [
+              "Majeur·e, permis B et voiture"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expérience participant et spectateur",
+      "managerNames": "Pauline & Anne",
+      "color": "teal",
+      "activities": [
+        {
+          "name": "Aire d'arrivée",
+          "title": "Chef·fe de l'aire d'arrivée",
+          "pitch": "Tu prépares la ligne d'arrivée, le moment que chaque coureur attend : arche, médailles et public autour du podium.",
+          "published": true,
+          "manualNames": "Monika",
+          "content": {
+            "missions": [
+              "Choisir l'arche et préparer l'arrivée : barrières, ligne dégagée",
+              "Faire réaliser les médailles et organiser leur distribution",
+              "Agrandir la zone du public autour du podium"
+            ],
+            "strengths": [
+              "Avoir le sens du détail",
+              "Aimer l'émotion des arrivées",
+              "Savoir organiser une petite équipe"
+            ],
+            "eco": "Tu fais récupérer les puces à l'arrivée et tu privilégies du matériel qui resservira l'an prochain.",
+            "facts": [
+              {
+                "value": "19 %",
+                "label": "des coureurs voulaient revoir l'arrivée en 2026"
+              },
+              {
+                "value": "Bois",
+                "label": "les médailles 2026, « les plus belles jamais vues »"
+              },
+              {
+                "value": "Ombre",
+                "label": "la priorité 2027 pour l'arrivée"
+              }
+            ],
+            "gain": "Voir chaque coureur franchir la ligne",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Faire réaliser les médailles (format en long ?)",
+                "due": "J-4 mois",
+                "links": "Lots & podiums"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir l'arche d'arrivée (LED ou métal) et y prévoir le branding des partenaires",
+                "due": "J-3 mois",
+                "links": "Partenaires, Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir des barrières penchées et une plaque dure sur l'arrivée (arrivée en montée ?)",
+                "due": "J-3 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Agrandir la zone du public autour du podium",
+                "due": "J-3 mois",
+                "links": "Implantation, Lots & podiums"
+              },
+              {
+                "phase": "P",
+                "text": "Installer l'arche, les barrières et la ligne d'arrivée : côté gauche fermé, espace dégagé sur la ligne sans accès au public",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Distribuer les médailles et récupérer les puces à l'arrivée",
+                "due": "Samedi et dimanche",
+                "links": "Chronométrage, Lots & podiums"
+              },
+              {
+                "phase": "O",
+                "text": "Distribuer le cadeau d'arrivée (reste de gin ginger beer)",
+                "due": "Samedi et dimanche",
+                "links": "Partenaires"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Village",
+          "title": "Chef·fe du village",
+          "pitch": "Tu fais du village le lieu où le public vit la course : à l'ombre, avec écran géant, transats et partenaires.",
+          "published": false,
+          "manualNames": "Pauline",
+          "content": {
+            "missions": [
+              "Dessiner le nouveau village, déplacé au niveau du parc",
+              "Installer le camion village, l'écran géant et les transats",
+              "Accueillir les partenaires et la zone challenge entreprises"
+            ],
+            "strengths": [
+              "Avoir le sens de l'accueil et de l'espace",
+              "Aimer l'événementiel",
+              "Savoir coordonner plusieurs équipes"
+            ],
+            "eco": "De l'ombre, des transats et des oriflammes qui servent d'une année sur l'autre, plutôt que du jetable.",
+            "facts": [
+              {
+                "value": "19 %",
+                "label": "des coureurs trouvaient le village et l'arrivée trop au soleil"
+              },
+              {
+                "value": "Ekiden",
+                "label": "l'écran géant qui inspire le village 2027"
+              }
+            ],
+            "gain": "Voir le public rester au village tout le week-end",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Dessiner le nouveau plan du village, déplacé au niveau du parc, pour voir l'arrivée de partout",
+                "due": "J-4 mois",
+                "links": "Implantation, Parc à vélos"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser le camion spécial village, avec sono et écran",
+                "due": "J-3 mois",
+                "links": "Matériel & achats, Animations & speakers"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir un écran géant et des transats pour suivre le départ natation filmé, comme à l'Ekiden",
+                "due": "J-3 mois",
+                "links": "Photo & vidéo, Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Demander plus d'oriflammes Breathman à la mairie et à la Région Occitanie",
+                "due": "J-3 mois",
+                "links": "Tissu local, Signalétique"
+              },
+              {
+                "phase": "A",
+                "text": "Créer une zone challenge entreprises",
+                "due": "J-3 mois",
+                "links": "Tissu local, Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Installer les stands des partenaires et les oriflammes",
+                "due": "Veille",
+                "links": "Partenaires, Signalétique"
+              },
+              {
+                "phase": "O",
+                "text": "Faire vivre le village pendant le week-end : écran géant, transats, zone challenge entreprises",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Buvette",
+          "title": "Chef·fe de la buvette",
+          "pitch": "Tu fais de la buvette le lieu où coureurs, familles et bénévoles se retrouvent.",
+          "published": true,
+          "manualNames": "Laure & Seb",
+          "content": {
+            "missions": [
+              "Définir la carte et organiser le camion buvette",
+              "Installer une buvette et une aire de pique-nique à l'ombre",
+              "Tenir la buvette tout le week-end, propre et triée"
+            ],
+            "strengths": [
+              "Aimer l'accueil et le service",
+              "Être à l'aise avec une caisse",
+              "Avoir le sens de l'organisation"
+            ],
+            "eco": "Gobelets consignés, produits locaux, gâteaux faits maison, et tri en continu autour de la buvette.",
+            "facts": [
+              {
+                "value": "8 286 €",
+                "label": "de chiffre d'affaires buvette en 2026"
+              },
+              {
+                "value": "192 h",
+                "label": "de bénévolat en 2026"
+              },
+              {
+                "value": "2",
+                "label": "équipes buvette « au top » en 2026"
+              }
+            ],
+            "gain": "Le lieu le plus convivial du week-end",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Définir la carte et les prix",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Placer le frigo, la buvette et l'aire de pique-nique à l'ombre",
+                "due": "J-3 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Réserver le camion spécial buvette de Thierry (garage Delas) : friteuse, tireuse, plancha",
+                "due": "J-3 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir les fournisseurs (produits locaux, gobelets consignés)",
+                "due": "J-2 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Faire la demande de débit de boissons temporaire",
+                "due": "J-2 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Commander le matériel de la buvette",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Acheter des parasols et des transats Breathman",
+                "due": "J-2 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Demander des gâteaux aux parents de l'école de triathlon",
+                "due": "J-1 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "P",
+                "text": "Réceptionner et stocker les produits au froid",
+                "due": "J-2",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Installer la buvette",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "P",
+                "text": "Installer les poubelles et les points de tri autour de la buvette",
+                "due": "Veille",
+                "links": "Éco-responsabilité"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir la buvette pendant tout le programme, soirée du samedi comprise",
+                "due": "Samedi et dimanche",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir la caisse et faire les remises à la caisse centrale",
+                "due": "Samedi et dimanche",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "O",
+                "text": "Garder le site propre et trier les déchets en continu",
+                "due": "Samedi et dimanche",
+                "links": "Éco-responsabilité"
+              },
+              {
+                "phase": "O",
+                "text": "Centraliser les objets trouvés à la buvette",
+                "due": "Samedi et dimanche",
+                "links": "Animations & speakers"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Repas samedi soir",
+          "title": "Chef·fe du repas du samedi soir",
+          "pitch": "Tu organises le repas qui rassemble coureurs, familles et bénévoles le samedi soir.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Construire la feuille de route : food truck, buvette, salle de repli",
+              "Fixer le prix et suivre les réservations",
+              "Organiser le service de 18h30 à 20h et le contrôle à l'entrée"
+            ],
+            "strengths": [
+              "Aimer recevoir",
+              "Savoir travailler avec un prestataire",
+              "Être organisé·e"
+            ],
+            "eco": "Tu évites le gaspillage : quantités ajustées et une association pour récupérer les restes.",
+            "facts": [
+              {
+                "value": "Riz froid",
+                "label": "pour les derniers arrivés en 2026 : à ne pas revivre"
+              },
+              {
+                "value": "18h30-20h",
+                "label": "le créneau du repas 2027"
+              }
+            ],
+            "gain": "La soirée la plus conviviale du week-end",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Fixer le prix et l'ajouter au formulaire d'inscription",
+                "due": "J-4 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Étudier les réservations par HelloAsso",
+                "due": "J-4 mois",
+                "links": "Inscriptions, Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Établir la feuille de route avec le prestataire (horaires, menu, nombre de participants, nombre de stands)",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir un food truck de pâtes et une buvette pour les boissons",
+                "due": "J-3 mois",
+                "links": "Buvette"
+              },
+              {
+                "phase": "A",
+                "text": "Réserver une salle de repli en cas de pluie",
+                "due": "J-3 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Réserver les tables et la vaisselle",
+                "due": "J-2 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Arrêter le nombre de repas et passer commande",
+                "due": "J-7",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Mettre en place le contrôle à l'entrée (ticket ou tampon)",
+                "due": "J-7",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Prévoir la prévention contre les moustiques",
+                "due": "J-7",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Installer la salle",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Servir le repas du samedi soir, de 18h30 à 20h",
+                "due": "Samedi soir",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Ranger et nettoyer, bénévoles libérés à 22h au plus tard",
+                "due": "Samedi soir",
+                "links": "Planning & rotations"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Boutique",
+          "title": "Chef·fe de la boutique",
+          "pitch": "Tu crées les souvenirs que les coureurs emportent du Breathman.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Choisir les produits, les nouveaux articles et les fournisseurs",
+              "Faire vivre la boutique en ligne toute l'année : précommandes et envois",
+              "Tenir la boutique au village, avec miroir et mannequin"
+            ],
+            "strengths": [
+              "Avoir du goût pour les produits dérivés",
+              "Être à l'aise avec une caisse",
+              "Avoir le sens commercial"
+            ],
+            "eco": "Tu choisis des textiles durables et tu commandes au plus juste.",
+            "facts": [
+              {
+                "value": "10 326 €",
+                "label": "de ventes boutique en 2026"
+              },
+              {
+                "value": "7 071 €",
+                "label": "en options à l'inscription"
+              }
+            ],
+            "gain": "Voir des coureurs porter tes t-shirts toute l'année",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Choisir les produits (t-shirts, goodies)",
+                "due": "J-4 mois",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "A",
+                "text": "Ajouter de nouveaux articles : casquette, serviette, affiche, chaussettes",
+                "due": "J-4 mois",
+                "links": "Dotation coureur"
+              },
+              {
+                "phase": "A",
+                "text": "Calculer les frais d'envoi de la boutique en ligne",
+                "due": "J-4 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir les fournisseurs et fixer les prix de vente",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Ouvrir les précommandes en ligne",
+                "due": "J-2 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Commander le stock et répartir les tailles",
+                "due": "J-2 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Préparer le panneau des prix, un miroir pour les essayages et un mannequin pour le maillot de vélo",
+                "due": "J-1 mois",
+                "links": "Matériel & achats"
+              },
+              {
+                "phase": "A",
+                "text": "Vendre toute l'année en ligne, et aider à préparer et envoyer les commandes",
+                "due": "En continu",
+                "links": "Budget & Achats, Matériel & achats"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer le stand, le stock et les précommandes",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir la boutique et remettre les précommandes",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Faire l'inventaire et le comptage de caisse",
+                "due": "Dimanche soir",
+                "links": "Budget & Achats"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Animations & speakers",
+          "title": "Ambianceur·se du Breathman",
+          "pitch": "Tu donnes le rythme du week-end, des départs jusqu'aux podiums.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Choisir et briefer les speakers",
+              "Construire le programme d'animations : bandas, fumigènes au départ, vélo sono",
+              "Gérer la sono et les messages de service"
+            ],
+            "strengths": [
+              "Aimer l'ambiance et la musique",
+              "Être à l'aise en public",
+              "Être réactif·ve"
+            ],
+            "eco": "Tu fais passer au micro les messages sur le tri et le covoiturage.",
+            "facts": [
+              {
+                "value": "Duo",
+                "label": "de speakers en 2026, à refaire absolument"
+              },
+              {
+                "value": "< 1 h",
+                "label": "pour les podiums 2027, à heure annoncée"
+              }
+            ],
+            "gain": "Faire vibrer le public à chaque arrivée",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Contacter les bandas",
+                "due": "J-4 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Confirmer les speakers (Philippe et Will) et réserver la sonorisation",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Demander des devis de fumigènes de couleur ou de feu d'artifice pour le départ des courses",
+                "due": "J-3 mois",
+                "links": "Budget & Achats, Coordination courses, Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Demander un devis de vélo sono pour le parcours course à pied",
+                "due": "J-3 mois",
+                "links": "Budget & Achats, Course à pied"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser une sortie vélo sur les parcours S, M et L, et étudier un social run",
+                "due": "Date à fixer",
+                "links": "Vélo par secteurs, Réseaux & presse"
+              },
+              {
+                "phase": "A",
+                "text": "Construire le programme d'animations (village, enfants, musique)",
+                "due": "J-2 mois",
+                "links": "Triathlon des écoles, Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Créer une fan zone, avec de la musique au départ de la natation",
+                "due": "J-2 mois",
+                "links": "Natation"
+              },
+              {
+                "phase": "A",
+                "text": "Préparer la playlist",
+                "due": "J-1 mois",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les fiches speaker (athlètes à suivre, partenaires à citer)",
+                "due": "J-7",
+                "links": "Inscriptions, Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Installer et tester la sono",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Animer les départs, les arrivées et les podiums",
+                "due": "Samedi et dimanche",
+                "links": "Coordination courses, Lots & podiums"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir des podiums courts, moins d'une heure, à heure annoncée",
+                "due": "Samedi et dimanche",
+                "links": "Lots & podiums"
+              },
+              {
+                "phase": "O",
+                "text": "Diffuser les messages de service (sécurité, consignes)",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours"
+              },
+              {
+                "phase": "O",
+                "text": "Aider à la distribution des récompenses sur le podium",
+                "due": "Samedi et dimanche",
+                "links": "Lots & podiums"
+              },
+              {
+                "phase": "O",
+                "text": "Recueillir le ressenti des coureurs à chaud, avec deux tablettes tenues par des bénévoles",
+                "due": "Samedi et dimanche",
+                "links": "Planning & rotations"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Parkings & circulation",
+          "title": "Chef·fe des parkings",
+          "pitch": "Tu fais arriver et repartir coureurs et public sans bouchon ni danger.",
+          "published": true,
+          "manualNames": null,
+          "content": {
+            "missions": [
+              "Définir les parkings et le plan de circulation",
+              "Prévoir navettes et covoiturage",
+              "Placer les véhicules et contrôler les accès"
+            ],
+            "strengths": [
+              "Avoir le sens de l'organisation",
+              "Être ferme et courtois·e",
+              "Connaître les routes autour du lac"
+            ],
+            "eco": "Tu encourages le covoiturage, pour les coureurs comme pour les bénévoles.",
+            "facts": [
+              {
+                "value": "74 %",
+                "label": "des coureurs trouvent l'accès et le parking faciles"
+              },
+              {
+                "value": "25 %",
+                "label": "sont venus en covoiturage en 2026"
+              }
+            ],
+            "gain": "Être le premier accueil des visiteurs",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Définir les parkings athlètes, public, bénévoles et partenaires, et en faire le plan",
+                "due": "J-3 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Établir le plan de circulation",
+                "due": "J-3 mois",
+                "links": "Autorisation Admin."
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir des navettes ou du covoiturage",
+                "due": "J-2 mois",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser le covoiturage des bénévoles",
+                "due": "J-1 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "P",
+                "text": "Informer les athlètes et les riverains des accès et des fermetures de routes",
+                "due": "J-7",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "P",
+                "text": "Poser les barrières et le fléchage des parkings",
+                "due": "Veille",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "O",
+                "text": "Placer les véhicules sur les parkings",
+                "due": "Samedi et dimanche",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Contrôler l'accès des véhicules aux zones fermées",
+                "due": "Samedi et dimanche",
+                "links": "PC sécurité & secours"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": [
+        {
+          "name": "Responsable aire d'arrivée & puces",
+          "title": "Accueille les finishers",
+          "pitch": "Tu es là au moment le plus fort : la ligne d'arrivée. Médaille, cadeau, puce récupérée, et un coureur qui repart heureux.",
+          "published": true,
+          "requiredCount": 1,
+          "manualNames": "Monika",
+          "activity": "Aire d'arrivée",
+          "content": {
+            "reportsTo": "Référent·e Aire d'arrivée, en lien avec le chronométrage",
+            "location": "Aire d'arrivée",
+            "countNote": "Un seul, pour les deux jours",
+            "team": "Les bénévoles de l'aire d'arrivée",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing avec le référent Aire d'arrivée et le chronométrage"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Installation de l'arche et des barrières"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Du premier au dernier arrivant"
+              }
+            ],
+            "missions": [
+              "Tenir la zone d'arrivée sans public",
+              "Remettre médailles et cadeaux d'arrivée",
+              "Récupérer et compter les puces",
+              "Orienter les coureurs vers le ravito d'arrivée ou les secours"
+            ],
+            "rules": [
+              "La ligne d'arrivée reste dégagée",
+              "Toutes les puces sont récupérées et comptées",
+              "Un coureur qui ne va pas bien : direction les secours"
+            ],
+            "equipment": [
+              "Radio",
+              "Médailles et cadeaux",
+              "Bacs à puces"
+            ],
+            "prerequisites": [
+              "Aucun"
+            ]
+          }
+        },
+        {
+          "name": "Responsable parkings",
+          "title": "Fluidifie l'arrivée",
+          "pitch": "Tout le monde arrive en voiture au même moment : avec toi, chacun trouve sa place et les secours passent toujours.",
+          "published": true,
+          "requiredCount": 1,
+          "manualNames": null,
+          "activity": "Parkings & circulation",
+          "content": {
+            "reportsTo": "Référent·e Parkings & circulation, et le PC sécurité",
+            "location": "Parkings athlètes, public, bénévoles et partenaires",
+            "countNote": "Un seul, pour les deux jours",
+            "team": "Les bénévoles des parkings",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing sur le plan des parkings"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Pose des barrières et du fléchage"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Dès l'arrivée des premiers véhicules"
+              }
+            ],
+            "missions": [
+              "Placer l'équipe aux entrées des parkings",
+              "Orienter athlètes, public, bénévoles et partenaires",
+              "Garder l'accès des secours libre en permanence",
+              "Contrôler l'accès des véhicules aux zones fermées"
+            ],
+            "rules": [
+              "L'accès secours n'est jamais bloqué",
+              "Un parking plein : on oriente vers le suivant, on ne laisse pas stationner ailleurs",
+              "Courtoisie en toutes circonstances"
+            ],
+            "equipment": [
+              "Radio",
+              "Gilet",
+              "Plan des parkings"
+            ],
+            "prerequisites": [
+              "Majeur·e"
+            ]
+          }
+        },
+        {
+          "name": "Responsable de créneau buvette",
+          "title": "Fais tourner la buvette",
+          "pitch": "Pendant ton créneau, la buvette, c'est toi : une équipe qui sert vite, une caisse juste et un coin propre.",
+          "published": true,
+          "requiredCount": 2,
+          "manualNames": "Laure, Seb",
+          "activity": "Buvette",
+          "content": {
+            "reportsTo": "Référents Buvette",
+            "location": "Buvette du village",
+            "countNote": "Un par créneau · 2 créneaux",
+            "team": "Les bénévoles de ton créneau",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing avec les référents Buvette"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Installation de la buvette"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Ton créneau, soirée du samedi comprise"
+              }
+            ],
+            "missions": [
+              "Ouvrir ou reprendre le créneau",
+              "Répartir caisse, service et cuisine",
+              "Tenir la caisse et faire la remise à la caisse centrale",
+              "Veiller à l'hygiène, au froid et au tri"
+            ],
+            "rules": [
+              "Pas d'alcool aux mineurs",
+              "Fond de caisse compté à chaque passation",
+              "La chaîne du froid n'est jamais rompue"
+            ],
+            "equipment": [
+              "Caisse et fond de caisse",
+              "Carte et prix",
+              "Tablier"
+            ],
+            "prerequisites": [
+              "Majeur·e (caisse et boissons alcoolisées)"
+            ]
+          }
+        },
+        {
+          "name": "Responsable du service repas samedi soir",
+          "title": "Régale les coureurs",
+          "pitch": "Le samedi soir, tu fais du repas un moment de fête : salle prête, service fluide, et tout le monde repart rassasié.",
+          "published": true,
+          "requiredCount": 1,
+          "manualNames": null,
+          "activity": "Repas samedi soir",
+          "content": {
+            "reportsTo": "Référent·e Repas samedi soir",
+            "location": "Salle ou espace du repas (repli prévu en cas de pluie)",
+            "countNote": "Un seul",
+            "team": "Les bénévoles du service",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Briefing sur le nombre de repas et le déroulé"
+              },
+              {
+                "when": "Samedi après-midi",
+                "what": "Installation de la salle"
+              },
+              {
+                "when": "Samedi soir",
+                "what": "Service de 18h30 à 20h, rangement, équipe libérée à 22h au plus tard"
+              }
+            ],
+            "missions": [
+              "Installer la salle avec l'équipe",
+              "Contrôler les entrées (ticket ou tampon)",
+              "Organiser le service avec le prestataire",
+              "Ranger et nettoyer"
+            ],
+            "rules": [
+              "Contrôle à l'entrée pour chaque convive",
+              "Plan de repli prêt en cas de pluie",
+              "Équipe libérée à 22h au plus tard"
+            ],
+            "equipment": [
+              "Liste des repas",
+              "Tickets ou tampon",
+              "Tables et vaisselle"
+            ],
+            "prerequisites": [
+              "Aucun"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bénévoles",
+      "managerNames": "Romain & Raphaël",
+      "color": "sun",
+      "activities": [
+        {
+          "name": "Recrutement",
+          "title": "Recruteur·se en chef",
+          "pitch": "Tu réunis les quelque 260 bénévoles dont le Breathman a besoin.",
+          "published": true,
+          "manualNames": "Romain, Raphaël",
+          "content": {
+            "missions": [
+              "Recenser les besoins par pôle et par créneau",
+              "Lancer et suivre la campagne de recrutement",
+              "Recruter les référents puis les chefs de poste"
+            ],
+            "strengths": [
+              "Avoir un bon réseau au club",
+              "Aimer convaincre",
+              "Être persévérant·e"
+            ],
+            "eco": "Tu proposes le covoiturage dès l'inscription des bénévoles.",
+            "facts": [
+              {
+                "value": "265",
+                "label": "bénévoles inscrits en 2026"
+              },
+              {
+                "value": "95 %",
+                "label": "sont membres du TTM"
+              },
+              {
+                "value": "19 %",
+                "label": "se sont inscrits en juin, à la dernière minute"
+              }
+            ],
+            "gain": "Rencontrer tout le club",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Recenser les besoins en bénévoles par pôle et par créneau",
+                "due": "J-4 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Saisir les postes, les créneaux et les effectifs de chaque pôle sur la plateforme d'inscription des bénévoles",
+                "due": "J-4 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "A",
+                "text": "Lancer la campagne de recrutement (club, associations, réseaux sociaux)",
+                "due": "J-3 mois",
+                "links": "Réseaux & presse, Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Recruter les référents d'activité puis les chefs de poste",
+                "due": "J-3 à J-2 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Relancer les adhérents qui ne se sont pas positionnés",
+                "due": "J-2 mois",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Suivre les inscriptions des bénévoles",
+                "due": "En continu",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Pourvoir les postes encore vacants",
+                "due": "J-15",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "P",
+                "text": "Envoyer à chaque bénévole sa fiche de poste",
+                "due": "J-7",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les bénévoles",
+                "due": "Samedi et dimanche",
+                "links": "Accueil & bien-être"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Planning & rotations",
+          "title": "Maître·sse du planning",
+          "pitch": "Tu places chaque bénévole au bon endroit, au bon moment, sans épuiser personne.",
+          "published": true,
+          "manualNames": "Romain, Raphaël",
+          "content": {
+            "missions": [
+              "Construire le planning par créneau",
+              "Prévoir des volants et des remplaçants",
+              "Tenir le PC bénévoles pendant le week-end"
+            ],
+            "strengths": [
+              "Aimer les puzzles et les tableurs",
+              "Être réactif·ve",
+              "Avoir le sens du service"
+            ],
+            "eco": "Tu regroupes les créneaux pour limiter les allers-retours des bénévoles.",
+            "facts": [
+              {
+                "value": "97 %",
+                "label": "des postes pourvus en 2026"
+              },
+              {
+                "value": "18",
+                "label": "bénévoles à plus de 24 h : à éviter"
+              },
+              {
+                "value": "12 h",
+                "label": "par bénévole en moyenne"
+              }
+            ],
+            "gain": "Une vue sur toute l'organisation",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Construire le planning des bénévoles par créneau",
+                "due": "J-2 mois",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir des bénévoles volants et des remplaçants",
+                "due": "J-1 mois",
+                "links": ""
+              },
+              {
+                "phase": "P",
+                "text": "Affecter les bénévoles à leur poste et à leur créneau, puis envoyer les convocations individuelles (l'un des plus gros chantiers de l'organisation)",
+                "due": "J-1 mois à J-7",
+                "links": "Tous les pôles, Accueil & bien-être"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les briefings avec chaque pôle",
+                "due": "J-3",
+                "links": "Tous les pôles"
+              },
+              {
+                "phase": "O",
+                "text": "Tenir le PC bénévoles (présences, remplacements)",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Envoyer les volants vers les postes où il manque du monde",
+                "due": "Samedi et dimanche",
+                "links": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Repas & hébergement",
+          "title": "Chef·fe de l'intendance",
+          "pitch": "Tu nourris et tu loges les bénévoles, les arbitres et les prestataires du week-end.",
+          "published": true,
+          "manualNames": "Romain, Raphaël",
+          "content": {
+            "missions": [
+              "Estimer les repas et choisir le prestataire",
+              "Organiser l'hébergement",
+              "Servir les repas et livrer les postes isolés"
+            ],
+            "strengths": [
+              "Avoir le sens de l'accueil",
+              "Être organisé·e",
+              "Savoir gérer des quantités"
+            ],
+            "eco": "Tu évites le gaspillage : sandwichs préparés au fil de l'eau, glacières, restes récupérés.",
+            "facts": [
+              {
+                "value": "89 %",
+                "label": "des bénévoles ont apprécié le logement en 2026"
+              },
+              {
+                "value": "21",
+                "label": "retours sur les repas et l'hébergement en 2026"
+              }
+            ],
+            "gain": "La reconnaissance de bénévoles bien nourris",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Choisir le ou les lieux d'hébergement",
+                "due": "J-3 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Estimer le nombre de repas des bénévoles, des prestataires et des arbitres",
+                "due": "J-2 mois",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "A",
+                "text": "Choisir entre traiteur et repas préparés par des bénévoles",
+                "due": "J-2 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser l'hébergement des arbitres, des prestataires et des bénévoles",
+                "due": "J-2 mois",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "P",
+                "text": "Confirmer le nombre de repas",
+                "due": "J-7",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les tickets repas",
+                "due": "J-3",
+                "links": "Accueil & bien-être"
+              },
+              {
+                "phase": "O",
+                "text": "Servir les repas et les collations",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Apporter des collations aux postes isolés",
+                "due": "Samedi et dimanche",
+                "links": "Vélo par secteurs, Course à pied"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Accueil & bien-être",
+          "title": "Ange gardien des bénévoles",
+          "pitch": "Tu accueilles chaque bénévole et tu veilles sur lui pendant tout le week-end.",
+          "published": true,
+          "manualNames": "Romain, Raphaël",
+          "content": {
+            "missions": [
+              "Préparer les t-shirts, les kits et le livret du bénévole",
+              "Accueillir et équiper les bénévoles",
+              "Veiller aux pauses et organiser les remerciements"
+            ],
+            "strengths": [
+              "Aimer prendre soin des autres",
+              "Avoir le sourire",
+              "Être attentif·ve"
+            ],
+            "eco": "Gourdes plutôt que bouteilles, t-shirts sans date pour qu'ils durent.",
+            "facts": [
+              {
+                "value": "100 %",
+                "label": "des bénévoles ont aimé contribuer en 2026"
+              },
+              {
+                "value": "245",
+                "label": "bénévoles affectés en 2026"
+              }
+            ],
+            "gain": "Le merci de 245 bénévoles",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Commander les t-shirts des bénévoles",
+                "due": "J-2 mois",
+                "links": "Budget & Achats, Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir un espace de repos pour les bénévoles",
+                "due": "J-2 mois",
+                "links": "Implantation"
+              },
+              {
+                "phase": "A",
+                "text": "Rédiger le livret du bénévole",
+                "due": "J-1 mois",
+                "links": "Réseaux & presse"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer les kits d'accueil (t-shirt, badge, ticket repas, fiche de poste)",
+                "due": "J-3",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "P",
+                "text": "Installer l'accueil des bénévoles",
+                "due": "Veille",
+                "links": "Montage & Démontage"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir, faire émarger et équiper les bénévoles",
+                "due": "Samedi et dimanche",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Veiller au bien-être des bénévoles (eau, crème solaire, pauses)",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Organiser le moment de remerciement des bénévoles",
+                "due": "J+3",
+                "links": ""
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": [
+        {
+          "name": "Responsable accueil des bénévoles",
+          "title": "Accueille ceux qui font la course",
+          "pitch": "Chaque bénévole commence sa journée par toi : un café, un tee-shirt, son poste, et le sentiment d'être attendu.",
+          "published": true,
+          "requiredCount": 2,
+          "manualNames": "Romain, Raphaël",
+          "activity": "Accueil & bien-être",
+          "content": {
+            "reportsTo": "Référent·e Accueil & bien-être",
+            "location": "Point accueil bénévoles, au village",
+            "countNote": "Deux, en relais sur les deux jours",
+            "team": "Les bénévoles du point accueil",
+            "schedule": [
+              {
+                "when": "Vers J-7",
+                "what": "Préparation des listes, badges et tee-shirts"
+              },
+              {
+                "when": "Veille · vendredi 18 juin",
+                "what": "Installation du point accueil"
+              },
+              {
+                "when": "Samedi et dimanche",
+                "what": "Dès l'arrivée des premiers bénévoles, tôt le matin"
+              }
+            ],
+            "missions": [
+              "Accueillir et émarger chaque bénévole",
+              "Remettre tee-shirt, badge et ticket repas",
+              "Orienter chacun vers son responsable de poste",
+              "Tenir le point info bénévoles",
+              "Suivre les absences et prévenir le planning"
+            ],
+            "rules": [
+              "Chaque bénévole est émargé",
+              "Un absent : on prévient tout de suite Planning & rotations",
+              "Le café est toujours chaud"
+            ],
+            "equipment": [
+              "Listes d'émargement",
+              "Tee-shirts, badges, tickets repas",
+              "Téléphone du planning"
+            ],
+            "prerequisites": [
+              "Aucun : le sens de l'accueil"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comm & Partenaires",
+      "managerNames": "Alix & Manon",
+      "color": "coral",
+      "activities": [
+        {
+          "name": "Réseaux & presse",
+          "title": "Community manager du Breathman",
+          "pitch": "Tu fais connaître le Breathman et tu remplis les lignes de départ.",
+          "published": true,
+          "manualNames": "Alix, Manon, Fabien, Seb",
+          "content": {
+            "missions": [
+              "Créer l'affiche, les visuels et le plan de communication",
+              "Animer les réseaux sociaux et les campagnes",
+              "Couvrir le week-end en direct et accueillir la presse"
+            ],
+            "strengths": [
+              "Aimer écrire et créer des visuels",
+              "Connaître les réseaux sociaux",
+              "Être curieux·se"
+            ],
+            "eco": "Tu mets en avant les actions de la charte durable dans la communication.",
+            "facts": [
+              {
+                "value": "52 %",
+                "label": "des nouveaux coureurs viennent du bouche-à-oreille"
+              },
+              {
+                "value": "54 %",
+                "label": "suivent déjà nos réseaux"
+              },
+              {
+                "value": "≈ 65",
+                "label": "inscriptions à aller chercher chaque semaine"
+              }
+            ],
+            "gain": "Voir tes publications remplir les lignes de départ",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Établir le plan de communication jusqu'au week-end de course",
+                "due": "J-6 mois",
+                "links": "Programme"
+              },
+              {
+                "phase": "A",
+                "text": "Créer l'affiche de l'événement",
+                "due": "J-6 mois",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Trouver des ambassadeurs pour l'événement",
+                "due": "J-5 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Lancer des campagnes de publicité (radio, journaux, réseaux sociaux)",
+                "due": "J-4 à J-1 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Rédiger le dossier de presse",
+                "due": "J-2 mois",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "A",
+                "text": "Envoyer des campagnes d'e-mails aux clubs et aux anciens participants",
+                "due": "À chaque palier",
+                "links": "Inscriptions, Tissu local"
+              },
+              {
+                "phase": "A",
+                "text": "Animer les réseaux sociaux (ouverture des inscriptions, paliers tarifaires, portraits)",
+                "due": "En continu",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Créer les visuels et les contenus pour les réseaux sociaux",
+                "due": "En continu",
+                "links": ""
+              },
+              {
+                "phase": "A",
+                "text": "Tenir le site web à jour",
+                "due": "En continu",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "P",
+                "text": "Envoyer le communiqué et inviter la presse",
+                "due": "J-15",
+                "links": "Partenaires"
+              },
+              {
+                "phase": "P",
+                "text": "Envoyer le guide de course aux participants",
+                "due": "J-15",
+                "links": "Coordination courses"
+              },
+              {
+                "phase": "P",
+                "text": "Publier les infos pratiques (accès, horaires, parkings)",
+                "due": "J-7",
+                "links": "Parkings & circulation"
+              },
+              {
+                "phase": "O",
+                "text": "Couvrir le week-end en direct sur les réseaux sociaux",
+                "due": "Samedi et dimanche",
+                "links": "Photo & vidéo"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les journalistes",
+                "due": "Samedi et dimanche",
+                "links": "Partenaires"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Photo & vidéo",
+          "title": "Chasseur·se d'images",
+          "pitch": "Tu captes les émotions du Breathman, pour les coureurs et pour la communication.",
+          "published": false,
+          "manualNames": "Alix, Fabien, Seb",
+          "content": {
+            "missions": [
+              "Recruter et organiser les photographes et vidéastes",
+              "Préparer la feuille de route par zone",
+              "Fournir des images en direct pour les réseaux"
+            ],
+            "strengths": [
+              "Aimer la photo ou la vidéo",
+              "Avoir l'œil",
+              "Savoir coordonner une équipe"
+            ],
+            "eco": "Tu partages les photos en ligne plutôt qu'en tirages papier.",
+            "facts": [
+              {
+                "value": "+ de photos",
+                "label": "par participant : une demande des coureurs en 2026"
+              },
+              {
+                "value": "183 h",
+                "label": "de bénévolat communication en 2026"
+              }
+            ],
+            "gain": "Des images qui restent",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Recruter les photographes et les vidéastes",
+                "due": "J-3 mois",
+                "links": "Recrutement"
+              },
+              {
+                "phase": "A",
+                "text": "Prévoir le droit à l'image dans le formulaire d'inscription",
+                "due": "J-3 mois",
+                "links": "Inscriptions"
+              },
+              {
+                "phase": "A",
+                "text": "Organiser la photo officielle des clubs (offre clubs)",
+                "due": "J-1 mois",
+                "links": "Tissu local"
+              },
+              {
+                "phase": "P",
+                "text": "Préparer la feuille de route des photographes et vidéastes (zones, horaires)",
+                "due": "J-7",
+                "links": "Planning & rotations"
+              },
+              {
+                "phase": "O",
+                "text": "Couvrir les épreuves, les podiums et le village",
+                "due": "Samedi et dimanche",
+                "links": ""
+              },
+              {
+                "phase": "O",
+                "text": "Fournir des images en direct pour les réseaux sociaux",
+                "due": "Samedi et dimanche",
+                "links": "Réseaux & presse"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Partenaires",
+          "title": "Chasseur·se de partenaires",
+          "pitch": "Tu trouves les partenaires qui font grandir le Breathman.",
+          "published": false,
+          "manualNames": "Alix, Fabien, Seb",
+          "content": {
+            "missions": [
+              "Mettre à jour le dossier de partenariat",
+              "Démarcher et signer les partenaires",
+              "Suivre les contreparties et accueillir les partenaires sur site"
+            ],
+            "strengths": [
+              "Aimer convaincre",
+              "Avoir un réseau professionnel",
+              "Être fiable dans le suivi"
+            ],
+            "eco": "Tu favorises les partenaires locaux et engagés.",
+            "facts": [
+              {
+                "value": "66 %",
+                "label": "des coureurs ont retiré le produit Isostar offert"
+              },
+              {
+                "value": "Intermarché",
+                "label": "partenaire salué pour sa réactivité en 2026"
+              }
+            ],
+            "gain": "Un réseau professionnel enrichi",
+            "tasks": [
+              {
+                "phase": "A",
+                "text": "Mettre à jour le dossier de partenariat",
+                "due": "J-6 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Démarcher et signer les partenaires (stand, réductions, apport financier, dotation, participation de collaborateurs aux épreuves)",
+                "due": "J-6 à J-2 mois",
+                "links": "Budget & Achats"
+              },
+              {
+                "phase": "A",
+                "text": "Suivre les contreparties promises (logos, stands, lots)",
+                "due": "J-2 mois",
+                "links": "Signalétique, Lots & podiums"
+              },
+              {
+                "phase": "P",
+                "text": "Organiser l'accueil des partenaires sur le site",
+                "due": "J-7",
+                "links": "Implantation"
+              },
+              {
+                "phase": "P",
+                "text": "Installer les stands et les banderoles des partenaires",
+                "due": "Veille",
+                "links": "Signalétique"
+              },
+              {
+                "phase": "O",
+                "text": "Accueillir les partenaires et les inviter aux podiums",
+                "due": "Samedi et dimanche",
+                "links": "Lots & podiums"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldRoles": []
+    }
+  ]
+}

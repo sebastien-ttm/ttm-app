@@ -32,6 +32,10 @@ use App\Entity\InvoiceSettings;
 use App\Entity\MembershipFee;
 use App\Entity\User;
 use App\Entity\UserMessage;
+use App\Entity\VolunteerApplication;
+use App\Entity\VolunteerCampaign;
+use App\Entity\VolunteerPole;
+use App\Entity\VolunteerRole;
 use App\Entity\WelcomeEmailTemplate;
 use App\Security\CapDistributionVoter;
 use App\Security\StaffScheduleSupervisionVoter;
@@ -214,6 +218,12 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_RH',         fn () => AdminMenuItem::linkToRoute('Présence entraînements', 'fa fa-people-group', 'admin_staff_presence_trainings')],
                 [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Semaines types entraîneurs', 'fa fa-table-cells', 'admin_staff_templates')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
+            ],
+            'Bénévolat événements' => [
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Événements', 'fa fa-flag', VolunteerCampaign::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Pôles et responsables', 'fa fa-sitemap', VolunteerPole::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Fiches', 'fa fa-id-badge', VolunteerRole::class)],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Candidatures', 'fa fa-hand-holding-heart', VolunteerApplication::class)],
             ],
             'Configuration' => [
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Pages statiques', 'fa fa-file-lines', StaticPage::class)],

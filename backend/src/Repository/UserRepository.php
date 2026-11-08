@@ -494,6 +494,29 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Recherche d'adhérents actifs par nom ou prénom (affectation à une fiche de bénévolat), 20 au plus.
+     *
+     * @return list<User>
+     */
+    public function searchActiveAdherents(string $query, int $limit = 20): array
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->andWhere("u.type = 'adherent'")
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->setMaxResults($limit);
+        foreach (preg_split('/\s+/', trim($query)) ?: [] as $i => $word) {
+            if ($word === '') {
+                continue;
+            }
+            $qb->andWhere(sprintf('(u.nom LIKE :w%1$d OR u.prenom LIKE :w%1$d)', $i))
+                ->setParameter('w'.$i, '%'.addcslashes($word, '%_').'%');
+        }
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Annuaire des adhérents actifs pour le staff (appli mobile) : triés par
      * nom puis prénom, avec leurs parents chargés en même temps (le numéro
      * d'un parent sert d'appel d'urgence pour un enfant sans téléphone).
