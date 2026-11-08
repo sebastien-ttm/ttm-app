@@ -250,6 +250,13 @@ export default function StaffCheckInScreen() {
           </Text>
           <LiveStatus online={online} />
         </View>
+        {sheet.paymentsChecked ? (
+          <Text style={styles.eventSub}>
+            💳 Paiements HelloAsso vérifiés : {sheet.data.filter((r) => r.paid === true).length} payé(s)
+          </Text>
+        ) : sheet.paymentsError ? (
+          <Text style={styles.eventSub}>💳 {sheet.paymentsError}</Text>
+        ) : null}
       </View>
 
       <View style={styles.searchWrap}>
@@ -329,6 +336,8 @@ export default function StaffCheckInScreen() {
               <Text style={styles.name} numberOfLines={1}>
                 <Text style={styles.nom}>{item.nom.toUpperCase()}</Text> {item.prenom}
               </Text>
+              {item.paid === true && <Text style={[styles.payBadge, styles.payBadgeOk]}>✓ Payé (HelloAsso)</Text>}
+              {item.paid === false && item.vote === 'yes' && <Text style={[styles.payBadge, styles.payBadgeKo]}>Paiement non trouvé</Text>}
               {item.checked && (item.checkedAt || item.checkedBy) && (
                 <Text style={styles.checkedInfo}>
                   Émargé{item.checkedAt ? ` à ${item.checkedAt}` : ''}{item.checkedBy ? ` par ${item.checkedBy}` : ''}
@@ -404,4 +413,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, color: COLORS.text },
   nom: { fontWeight: '700' },
   checkedInfo: { fontSize: 12, color: '#166534', marginTop: 2 },
+  payBadge: { alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', paddingHorizontal: 7, paddingVertical: 1, borderRadius: 10, marginTop: 3, overflow: 'hidden' },
+  payBadgeOk: { backgroundColor: '#dcfce7', color: '#166534' },
+  payBadgeKo: { backgroundColor: '#fef3c7', color: '#92400e' },
 });

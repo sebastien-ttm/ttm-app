@@ -497,12 +497,18 @@ export type CheckInRow = CheckInState & {
   /** URL publique de la photo de l'adhérent ; null s'il n'en a pas. */
   avatarUrl: string | null;
   vote: CheckInVote;
+  /** Paiement HelloAsso trouvé (true) ou non (false) ; null / absent = pas de vérification pour cet événement. */
+  paid?: boolean | null;
 };
 
 export type CheckInSheet = {
   event: Omit<StaffCheckInEvent, 'votes' | 'checkedCount'>;
   checkedCount: number;
   data: CheckInRow[];
+  /** Un formulaire HelloAsso est lié à l'événement et ses paiements ont pu être lus. */
+  paymentsChecked?: boolean;
+  /** Message si la lecture des paiements HelloAsso a échoué. */
+  paymentsError?: string | null;
 };
 
 /** Remises de bonnet d'un adhérent (la dernière en date). */
