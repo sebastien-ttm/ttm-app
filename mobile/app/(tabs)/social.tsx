@@ -21,6 +21,7 @@ import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { confirmAction } from '@/utils/confirm';
+import { isAdminUser, isBoardMember } from '@/utils/profile';
 import { useSocialNews } from '@/lib/useSocialNews';
 import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
@@ -316,6 +317,25 @@ export default function ContactScreen() {
                   </View>
                 );
               })}
+            </View>
+          )}
+
+          {(isBoardMember(user) || isAdminUser(user)) && (
+            <View style={styles.surveysSection}>
+              <Text style={styles.surveysSectionTitle}>🏛️ Comité directeur</Text>
+              <Pressable
+                onPress={() => router.push('/board' as never)}
+                style={({ pressed }) => [styles.marketCard, styles.boardCard, pressed && { opacity: 0.75 }]}
+              >
+                <View style={[styles.marketIconWrap, styles.boardIconWrap]}>
+                  <Ionicons name="list" size={20} color="#0d2148" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.surveyCardTitle}>Ordre du jour des réunions</Text>
+                  <Text style={styles.surveyCardMeta}>Ajouter un point à la prochaine réunion · comptes rendus</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
             </View>
           )}
 
@@ -803,6 +823,8 @@ const styles = StyleSheet.create({
   bibIconWrap: { backgroundColor: '#dbeafe' },
   raceIconWrap: { backgroundColor: '#ffedd5' },
   volunteerCard: { borderLeftColor: '#EE7468' },
+  boardCard: { borderLeftColor: '#0d2148' },
+  boardIconWrap: { backgroundColor: '#e0e7ff' },
   volunteerIconWrap: { backgroundColor: '#FFF8EC' },
   surveyIconWrap: {
     width: 36, height: 36, borderRadius: 8,

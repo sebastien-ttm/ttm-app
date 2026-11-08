@@ -2,6 +2,10 @@ import type { LiveState } from '@/hooks/useLiveSync';
 
 import { api } from './client';
 import type {
+  BoardItemInput,
+  BoardMeetingDetail,
+  BoardMeetingSummary,
+  BoardOption,
   VolunteerApplication,
   VolunteerApplicationStatus,
   VolunteerCampaign,
@@ -642,6 +646,18 @@ export const stages = {
   /** Mes stages publiés : à venir, en cours ou terminés depuis moins de 30 jours. */
   mine: () => api.get<{ data: StageSummary[] }>('/api/stages/mine'),
   get: (id: number) => api.get<StageDetail>(`/api/stages/${id}`),
+};
+
+/** Comité directeur : réunions et ordre du jour (membres du CoDir et administrateurs). */
+export const board = {
+  /** Toutes les réunions (à venir puis passées) + listes des pôles et des types de point. */
+  meetings: () =>
+    api.get<{ data: BoardMeetingSummary[]; nextId: number | null; poles: BoardOption[]; types: BoardOption[] }>('/api/board/meetings'),
+  meeting: (id: number) => api.get<BoardMeetingDetail>(`/api/board/meetings/${id}`),
+  addItem: (meetingId: number, input: BoardItemInput) =>
+    api.post<BoardMeetingDetail>(`/api/board/meetings/${meetingId}/items`, input),
+  updateItem: (itemId: number, input: BoardItemInput) => api.patch<BoardMeetingDetail>(`/api/board/items/${itemId}`, input),
+  removeItem: (itemId: number) => api.delete<BoardMeetingDetail>(`/api/board/items/${itemId}`),
 };
 
 /** Bénévolat d'événement (Breathman…) : fiches, candidatures, espace des responsables de pôle. */

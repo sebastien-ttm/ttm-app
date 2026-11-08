@@ -1759,3 +1759,49 @@ export type VolunteerManageResponse = {
   roles: VolunteerRoleSummary[];
   applications: VolunteerApplication[];
 };
+
+/* ---------- Comité directeur : ordre du jour ---------- */
+
+export type BoardItemType = 'information' | 'sujet' | 'question';
+
+export type BoardMeetingSummary = {
+  id: number;
+  /** « CoDir du 23/09/2026 » */
+  label: string;
+  scheduledAt: string;
+  location: string | null;
+  closed: boolean;
+  /** Prochaine réunion (celle où l'on ajoute ses points). */
+  isNext: boolean;
+  itemCount: number;
+  answeredCount: number;
+};
+
+export type BoardAgendaItem = {
+  id: number;
+  pole: string;
+  poleLabel: string;
+  type: BoardItemType;
+  typeLabel: string;
+  text: string;
+  /** « Qui s'exprime ? » */
+  speaker: string | null;
+  isMine: boolean;
+  canEdit: boolean;
+  /** Saisis en séance : Qui répond ? / Réponse-Décision / Porteur action. */
+  respondent: string | null;
+  answer: string | null;
+  actionOwner: string | null;
+  answered: boolean;
+  createdAt: string;
+};
+
+export type BoardMeetingDetail = BoardMeetingSummary & {
+  notes: string | null;
+  canAddItems: boolean;
+  items: BoardAgendaItem[];
+};
+
+export type BoardOption = { value: string; label: string };
+
+export type BoardItemInput = { pole: string; type: BoardItemType; text: string };
