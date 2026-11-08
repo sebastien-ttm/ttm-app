@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 
 import { ApiError, auth } from '@/api/client';
-import { surveys as surveysApi } from '@/api/resources';
-import type { InboxMessage, MessageScope, SurveySummary, UserMessage } from '@/api/types';
+import { surveys as surveysApi, volunteer as volunteerApi } from '@/api/resources';
+import type { InboxMessage, MessageScope, SurveySummary, UserMessage, VolunteerCampaign } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
@@ -95,6 +95,7 @@ export default function ContactScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [volunteerCampaign, setVolunteerCampaign] = useState<VolunteerCampaign | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +105,8 @@ export default function ContactScreen() {
         auth.listMessages(false).then((r) => setSent(r.data)),
         auth.listMessages(true).then((r) => setArchivedSent(r.data)),
         surveysApi.list().then((r) => setOpenSurveys(r.data)).catch(() => setOpenSurveys([])),
+        // Appel à bénévoles en cours (Breathman…) : la carte n'apparaît que s'il y en a un.
+        volunteerApi.current().then((r) => setVolunteerCampaign(r.campaign)).catch(() => setVolunteerCampaign(null)),
       ];
       if (hasInbox) {
         jobs.push(auth.listInbox(false).then((r) => setInbox(r.data)));
@@ -313,6 +316,30 @@ export default function ContactScreen() {
                   </View>
                 );
               })}
+            </View>
+          )}
+
+          {volunteerCampaign && (
+            <View style={styles.surveysSection}>
+              <Text style={styles.surveysSectionTitle}>🙌 Bénévolat · {volunteerCampaign.name}</Text>
+              <Pressable
+                onPress={() => router.push('/volunteer' as never)}
+                style={({ pressed }) => [styles.marketCard, styles.volunteerCard, pressed && { opacity: 0.75 }]}
+              >
+                <View style={[styles.marketIconWrap, styles.volunteerIconWrap]}>
+                  <Ionicons name="hand-left" size={20} color="#15304B" />
+                  <NewBadge count={volunteerCampaign.pendingToReview} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.surveyCardTitle}>Rejoins l'équipe d'organisation</Text>
+                  <Text style={styles.surveyCardMeta}>
+                    {volunteerCampaign.stats.activities} activités · {volunteerCampaign.stats.fieldRoles} responsables terrain
+                    {volunteerCampaign.myApplicationCount > 0 ? ` · ${volunteerCampaign.myApplicationCount} candidature${volunteerCampaign.myApplicationCount > 1 ? 's' : ''}` : ' · Je me positionne'}
+                    {volunteerCampaign.isManager && volunteerCampaign.pendingToReview > 0 ? ` · ${volunteerCampaign.pendingToReview} à traiter` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
             </View>
           )}
 
@@ -775,6 +802,8 @@ const styles = StyleSheet.create({
   bibCard: { borderLeftColor: '#1d4ed8' },
   bibIconWrap: { backgroundColor: '#dbeafe' },
   raceIconWrap: { backgroundColor: '#ffedd5' },
+  volunteerCard: { borderLeftColor: '#EE7468' },
+  volunteerIconWrap: { backgroundColor: '#FFF8EC' },
   surveyIconWrap: {
     width: 36, height: 36, borderRadius: 8,
     backgroundColor: '#ede9fe',

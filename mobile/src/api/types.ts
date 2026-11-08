@@ -1647,3 +1647,115 @@ export type StageDetail = StageSummary & {
   articles: Article[];
   participants: TripParticipant[];
 };
+
+/* ---------- Bénévolat d'événement (Breathman…) ---------- */
+
+export type VolunteerRoleKind = 'activity' | 'field';
+export type VolunteerApplicationStatus = 'pending' | 'accepted' | 'declined';
+/** Couleur d'accent d'un pôle (charte de l'événement). */
+export type VolunteerPoleColor = 'teal' | 'sun' | 'coral' | 'orange' | 'navy';
+
+export type VolunteerPoleInfo = {
+  id: number;
+  name: string;
+  /** Affichage libre des responsables, ex. « Pauline & Anne ». */
+  managerNames: string | null;
+  color: VolunteerPoleColor;
+};
+
+/** Fiche (activité ou poste terrain) telle qu'affichée dans les listes. */
+export type VolunteerRoleSummary = {
+  id: number;
+  kind: VolunteerRoleKind;
+  name: string;
+  title: string | null;
+  poleId: number;
+  poleName: string;
+  /** Poste terrain : activité de rattachement. */
+  activityName: string | null;
+  taskCount: number;
+  requiredCount: number | null;
+  /** Personnes en place (candidatures validées + noms saisis à la main). */
+  holders: string[];
+  /** « Référente », « Référents », « Référent·e », « Responsables »… accordé selon les personnes en place. */
+  holderLabel: string;
+  filled: number;
+  /** Postes encore à pourvoir (null si le nombre requis n'est pas précisé). */
+  missing: number | null;
+  /** Activité : une seule personne en place, un binôme est recherché. */
+  needsPartner: boolean;
+  myStatus: VolunteerApplicationStatus | null;
+  /** Écran responsables uniquement. */
+  published?: boolean;
+};
+
+export type VolunteerCampaign = {
+  id: number;
+  name: string;
+  startsOn: string;
+  endsOn: string | null;
+  location: string | null;
+  applicationsDeadline: string | null;
+  intro: string | null;
+  applicationsOpen: boolean;
+  poles: (VolunteerPoleInfo & { activities: VolunteerRoleSummary[] })[];
+  fieldRoles: VolunteerRoleSummary[];
+  stats: { poles: number; activities: number; fieldRoles: number; tasks: number };
+  myApplicationCount: number;
+  isManager: boolean;
+  pendingToReview: number;
+};
+
+export type VolunteerTask = { phase: 'A' | 'P' | 'O'; text: string; due: string; links: string };
+
+/** Contenu rédactionnel d'une fiche (champs selon le type). */
+export type VolunteerRoleContent = {
+  // Activité
+  missions?: string[];
+  strengths?: string[];
+  eco?: string;
+  facts?: { value: string; label: string }[];
+  gain?: string;
+  tasks?: VolunteerTask[];
+  phaseDates?: string[];
+  // Poste terrain
+  reportsTo?: string;
+  location?: string;
+  countNote?: string;
+  team?: string;
+  schedule?: { when: string; what: string }[];
+  rules?: string[];
+  equipment?: string[];
+  prerequisites?: string[];
+};
+
+export type VolunteerRoleDetail = VolunteerRoleSummary & {
+  pitch: string | null;
+  content: VolunteerRoleContent;
+  pole: VolunteerPoleInfo;
+  activity: { id: number | null; name: string; holders: string[]; holderLabel: string } | null;
+  myMessage: string | null;
+  applicationsOpen: boolean;
+  campaignName: string;
+};
+
+export type VolunteerApplication = {
+  id: number;
+  status: VolunteerApplicationStatus;
+  statusLabel: string;
+  message: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  /** Affecté directement par un responsable. */
+  assigned: boolean;
+  role: { id: number; kind: VolunteerRoleKind; name: string; title: string | null; poleName: string; published: boolean };
+  /** Écran responsables uniquement. */
+  user?: { id: number; fullName: string; telephone: string | null; email: string };
+  decidedBy?: string | null;
+};
+
+export type VolunteerManageResponse = {
+  poles: VolunteerPoleInfo[];
+  roles: VolunteerRoleSummary[];
+  applications: VolunteerApplication[];
+};

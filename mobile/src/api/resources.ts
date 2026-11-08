@@ -2,6 +2,11 @@ import type { LiveState } from '@/hooks/useLiveSync';
 
 import { api } from './client';
 import type {
+  VolunteerApplication,
+  VolunteerApplicationStatus,
+  VolunteerCampaign,
+  VolunteerManageResponse,
+  VolunteerRoleDetail,
   AdminNotice,
   StaffYouth,
   YouthDocument,
@@ -637,4 +642,26 @@ export const stages = {
   /** Mes stages publiés : à venir, en cours ou terminés depuis moins de 30 jours. */
   mine: () => api.get<{ data: StageSummary[] }>('/api/stages/mine'),
   get: (id: number) => api.get<StageDetail>(`/api/stages/${id}`),
+};
+
+/** Bénévolat d'événement (Breathman…) : fiches, candidatures, espace des responsables de pôle. */
+export const volunteer = {
+  /** Campagne en cours, ou null s'il n'y en a pas. */
+  current: () => api.get<{ campaign: VolunteerCampaign | null }>('/api/volunteer/current'),
+  role: (id: number) => api.get<VolunteerRoleDetail>(`/api/volunteer/roles/${id}`),
+  apply: (id: number, message: string | null) =>
+    api.post<VolunteerRoleDetail>(`/api/volunteer/roles/${id}/application`, { message }),
+  /** Retire sa candidature (seulement si elle est en attente). */
+  withdraw: (id: number) => api.delete<VolunteerRoleDetail>(`/api/volunteer/roles/${id}/application`),
+  mine: (campaignId: number) => api.get<{ data: VolunteerApplication[] }>(`/api/volunteer/campaigns/${campaignId}/mine`),
+  /** Responsables de pôle : fiches et candidatures de leurs pôles. */
+  manage: (campaignId: number) => api.get<VolunteerManageResponse>(`/api/volunteer/campaigns/${campaignId}/manage`),
+  decide: (applicationId: number, status: VolunteerApplicationStatus) =>
+    api.post<VolunteerApplication>(`/api/volunteer/applications/${applicationId}/decision`, { status }),
+  assign: (roleId: number, userId: number) =>
+    api.post<VolunteerApplication>(`/api/volunteer/roles/${roleId}/assign`, { userId }),
+  members: (campaignId: number, q: string) =>
+    api.get<{ data: { id: number; fullName: string }[] }>(
+      `/api/volunteer/campaigns/${campaignId}/members?q=${encodeURIComponent(q)}`,
+    ),
 };
