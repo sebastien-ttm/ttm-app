@@ -1,0 +1,117 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Comité directeur · En séance{% endblock %}
+{% block content_title %}🏛️ Comité directeur · En séance{% endblock %}
+
+{% block main %}
+    {% set card = 'background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);' %}
+    {% set label = 'display:block; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;' %}
+    {% set input = 'width:100%; padding:6px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:14px;' %}
+
+    {# Choix de la réunion #}
+    <form method="get" action="{{ path('admin_board_session') }}" style="{{ card }} display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:16px; padding:12px 16px;">
+        <div style="min-width:260px;">
+            <label style="{{ label }}">Réunion</label>
+            <select name="meeting" style="{{ input }}" onchange="this.form.submit()">
+                {% for m in meetings %}
+                    <option value="{{ m.id }}" {{ meeting and m.id == meeting.id ? 'selected' : '' }}>
+                        {{ m.label }}{{ m.closed ? ' · close' : '' }} ({{ m.itemCount }} point{{ m.itemCount > 1 ? 's' : '' }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <noscript><button type="submit" class="btn btn-primary">Afficher</button></noscript>
+        {% if is_granted('ROLE_ADMIN') %}
+            <a class="btn btn-link" href="{{ ea_url().setController('App\\Controller\\Admin\\BoardMeetingCrudController').setAction('new') }}">+ Programmer une réunion</a>
+        {% endif %}
+    </form>
+
+    {% if meeting is null %}
+        <div style="{{ card }} padding:24px; color:#64748b;">Aucune réunion programmée.{% if is_granted('ROLE_ADMIN') %} Utilisez « Programmer une réunion ».{% else %} Un administrateur doit d'abord la programmer.{% endif %}</div>
+    {% else %}
+        <div style="{{ card }} padding:14px 16px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            <div style="flex:1; min-width:240px;">
+                <div style="font-size:18px; font-weight:700;">{{ meeting.label }} · {{ meeting.scheduledAt|date('H\\hi') }}{{ meeting.location ? ' · ' ~ meeting.location : '' }}</div>
+                <div style="font-size:13px; color:#64748b;">
+                    {{ meeting.itemCount }} point{{ meeting.itemCount > 1 ? 's' : '' }} · {{ meeting.answeredCount }} traité{{ meeting.answeredCount > 1 ? 's' : '' }}
+                    {% if meeting.closed %} · <strong style="color:#166534;">Réunion close</strong>{% endif %}
+                </div>
+                {% if meeting.notes %}<div style="font-size:13px; margin-top:6px; white-space:pre-line;">{{ meeting.notes }}</div>{% endif %}
+            </div>
+            <a class="btn btn-secondary" href="{{ path('admin_board_export', {id: meeting.id}) }}"><i class="fa fa-file-csv"></i> Export CSV</a>
+            <form method="post" action="{{ path('admin_board_meeting_close', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.closed ? 'Rouvrir cette réunion ?' : 'Clore la réunion ? Plus aucun point ne pourra être ajouté depuis l\\\'appli.' }}');">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                {% if meeting.closed %}<input type="hidden" name="reopen" value="1">{% endif %}
+                <button type="submit" class="btn {{ meeting.closed ? 'btn-link' : 'btn-success' }}">{{ meeting.closed ? 'Rouvrir la réunion' : 'Clore la réunion' }}</button>
+            </form>
+        </div>
+
+        {% if groups is empty %}
+            <div style="{{ card }} padding:20px; color:#64748b; margin-bottom:16px;">Aucun point à l'ordre du jour pour l'instant.</div>
+        {% endif %}
+
+        {% for poleLabel, items in groups %}
+            <h3 style="font-size:15px; text-transform:uppercase; letter-spacing:0.6px; color:#0d2148; margin:18px 0 8px;">{{ poleLabel }}</h3>
+            {% for item in items %}
+                <div id="item-{{ item.id }}" style="{{ card }} padding:12px 16px; margin-bottom:10px; border-left:4px solid {{ item.answered ? '#16a34a' : '#f59e0b' }};">
+                    <div style="display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;">
+                        <span style="font-size:11px; font-weight:700; background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:3px;">{{ item.type.label }}</span>
+                        <strong>{{ item.speaker ?: '—' }}</strong>
+                        <span style="font-size:12px; color:#94a3b8;">ajouté le {{ item.createdAt|date('d/m à H\\hi') }}</span>
+                        <form method="post" action="{{ path('admin_board_item_delete', {id: item.id}) }}" style="margin-left:auto;" onsubmit="return confirm('Supprimer ce point ?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                            <button type="submit" class="btn btn-link btn-sm" style="color:#b91c1c; padding:0;">Supprimer</button>
+                        </form>
+                    </div>
+                    <div style="font-size:15px; margin:6px 0 10px; white-space:pre-line;">{{ item.text }}</div>
+                    <form method="post" action="{{ path('admin_board_item_answer', {id: item.id}) }}" style="display:grid; grid-template-columns: 1fr 3fr 1fr auto; gap:10px; align-items:end;">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                        <div>
+                            <label style="{{ label }}">Qui répond ?</label>
+                            <input type="text" name="respondent" value="{{ item.respondent }}" maxlength="120" style="{{ input }}">
+                        </div>
+                        <div>
+                            <label style="{{ label }}">Réponse / Décision</label>
+                            <textarea name="answer" rows="2" maxlength="2000" style="{{ input }}">{{ item.answer }}</textarea>
+                        </div>
+                        <div>
+                            <label style="{{ label }}">Porteur action</label>
+                            <input type="text" name="actionOwner" value="{{ item.actionOwner }}" maxlength="120" style="{{ input }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {# Point soulevé en séance #}
+        <div style="{{ card }} padding:14px 16px; margin-top:20px;">
+            <div style="font-weight:700; margin-bottom:10px;">Ajouter un point soulevé en séance</div>
+            <form method="post" action="{{ path('admin_board_item_add', {id: meeting.id}) }}" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                <div>
+                    <label style="{{ label }}">Pôle</label>
+                    <select name="pole" required style="{{ input }}">
+                        <option value="">—</option>
+                        {% for p in poles %}<option value="{{ p.value }}">{{ p.label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="{{ label }}">Type</label>
+                    <select name="type" required style="{{ input }}">
+                        {% for t in types %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="{{ label }}">Qui s'exprime ?</label>
+                    <input type="text" name="speaker" maxlength="120" placeholder="Prénom" style="{{ input }}">
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label style="{{ label }}">Information / Sujet / Question</label>
+                    <textarea name="text" rows="2" required maxlength="2000" style="{{ input }}"></textarea>
+                </div>
+                <div><button type="submit" class="btn btn-primary">Ajouter le point</button></div>
+            </form>
+        </div>
+    {% endif %}
+{% endblock %}

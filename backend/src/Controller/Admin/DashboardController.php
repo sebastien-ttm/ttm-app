@@ -37,6 +37,8 @@ use App\Entity\VolunteerCampaign;
 use App\Entity\VolunteerPole;
 use App\Entity\VolunteerRole;
 use App\Entity\WelcomeEmailTemplate;
+use App\Entity\BoardMeeting;
+use App\Security\BoardSessionVoter;
 use App\Security\CapDistributionVoter;
 use App\Security\StaffScheduleSupervisionVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Asset;
@@ -218,6 +220,10 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_RH',         fn () => AdminMenuItem::linkToRoute('Présence entraînements', 'fa fa-people-group', 'admin_staff_presence_trainings')],
                 [StaffScheduleSupervisionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('Semaines types entraîneurs', 'fa fa-table-cells', 'admin_staff_templates')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Goûters du mercredi', 'fa fa-cookie-bite', 'admin_gouters')],
+            ],
+            'Comité directeur' => [
+                [BoardSessionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('En séance', 'fa fa-gavel', 'admin_board_session')],
+                ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Réunions', 'fa fa-calendar-check', BoardMeeting::class)],
             ],
             'Bénévolat événements' => [
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Événements', 'fa fa-flag', VolunteerCampaign::class)],
