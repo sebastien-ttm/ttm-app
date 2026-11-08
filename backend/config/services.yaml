@@ -31,6 +31,9 @@ parameters:
     # généré avant leur ajout) → notifications push web désactivées.
     app.vapid_empty_fallback: ''
     app.vapid_subject_fallback: 'mailto:noreply@ttm-toulouse.fr'
+    # HelloAsso (vérification des paiements) : replis si les variables manquent → vérification désactivée.
+    app.helloasso_empty_fallback: ''
+    app.helloasso_api_fallback: 'https://api.helloasso.com'
     # Mailings groupés (voir SendMailingBatchMessageHandler) : taille d'un lot, pause entre
     # deux lots, et plafond d'envois de mailing sur 24 h glissantes. Google Workspace
     # (smtp.gmail.com) accepte 2000 mails par jour pour TOUT ce qui part du compte (liens
@@ -121,6 +124,12 @@ services:
     App\Service\Marketplace\MarketplaceAccess:
         arguments:
             $envTesterEmails: '%env(default:app.marketplace_testers_fallback:MARKETPLACE_TESTER_EMAILS)%'
+
+    App\Service\HelloAsso\HelloAssoClient:
+        arguments:
+            $clientId: '%env(default:app.helloasso_empty_fallback:HELLOASSO_CLIENT_ID)%'
+            $clientSecret: '%env(default:app.helloasso_empty_fallback:HELLOASSO_CLIENT_SECRET)%'
+            $apiBaseUrl: '%env(default:app.helloasso_api_fallback:HELLOASSO_API_URL)%'
 
     App\Service\Piwigo\PiwigoClient:
         arguments:

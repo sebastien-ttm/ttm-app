@@ -97,6 +97,15 @@ class Event implements OwnedContentInterface
     private ?string $externalRegistrationUrl = null;
 
     /**
+     * Lien public du formulaire HelloAsso (boutique, adhésion, billetterie…) dont les paiements valent paiement
+     * pour cet événement : la page « Votes de présence » et l'émargement indiquent qui a payé.
+     * Ex : https://www.helloasso.com/associations/{association}/evenements/{formulaire}
+     */
+    #[ORM\Column(name: 'helloasso_form_url', length: 500, nullable: true)]
+    #[Assert\Length(max: 500)]
+    private ?string $helloassoFormUrl = null;
+
+    /**
      * Entraînement lié (optionnel) : UN créneau OCCASIONNEL (hors semaine type) — l'appli l'affiche sur la page de
      * l'événement, cliquable vers son détail (et son inscription éventuelle). Un créneau de la semaine type ne se lie
      * pas à un événement.
@@ -184,6 +193,24 @@ class Event implements OwnedContentInterface
             $context->buildViolation('Seul un créneau occasionnel peut être lié à un événement.')
                 ->atPath('trainingSlot')->addViolation();
         }
+    }
+
+    /** Le lien HelloAsso doit être celui d'un formulaire (boutique, adhésion, billetterie…), pas d'une page quelconque. */
+    #[Assert\Callback]
+    public function validateHelloassoLink(ExecutionContextInterface $context): void
+    {
+        if ($this->helloassoFormUrl !== null && \App\Service\HelloAsso\HelloAssoClient::parseFormUrl($this->helloassoFormUrl) === null) {
+            $context->buildViolation('Lien HelloAsso non reconnu. Collez le lien public du formulaire, ex : https://www.helloasso.com/associations/mon-asso/evenements/mon-evenement')
+                ->atPath('helloassoFormUrl')->addViolation();
+        }
+    }
+
+    public function getHelloassoFormUrl(): ?string { return $this->helloassoFormUrl; }
+    public function setHelloassoFormUrl(?string $u): self
+    {
+        $t = $u !== null ? trim($u) : null;
+        $this->helloassoFormUrl = ($t === '' ? null : $t);
+        return $this;
     }
 
     public function getExternalRegistrationUrl(): ?string { return $this->externalRegistrationUrl; }

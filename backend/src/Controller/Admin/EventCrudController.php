@@ -51,9 +51,10 @@ class EventCrudController extends AbstractCrudController
     {
         // Bouton « Voir les votes » disponible sur les événements
         // soumis au vote uniquement (sinon aucun sens).
-        $viewVotes = Action::new('viewVotes', 'Voir les votes', 'fa fa-list-check')
+        // … ou liés à un formulaire HelloAsso (la même page indique alors qui a payé).
+        $viewVotes = Action::new('viewVotes', 'Votes et paiements', 'fa fa-list-check')
             ->linkToRoute('admin_event_attendance_detail', fn (Event $e) => ['id' => $e->getId()])
-            ->displayIf(fn (Event $e) => $e->getId() !== null && $e->isVoteEnabled());
+            ->displayIf(fn (Event $e) => $e->getId() !== null && ($e->isVoteEnabled() || $e->getHelloassoFormUrl() !== null));
 
         return parent::configureActions($actions)
             ->add(Crud::PAGE_INDEX, $viewVotes)
@@ -110,6 +111,12 @@ class EventCrudController extends AbstractCrudController
                 .'Ex : lien Njuko / klikego / HelloAsso pour une compétition. '
                 .'Renseignée, le bouton « J\'y serai » est remplacé par « Je m\'inscris » '
                 .'qui ouvre cette URL dans le navigateur ET compte le vote.');
+        yield TextField::new('helloassoFormUrl', 'Formulaire HelloAsso (vérification des paiements)')
+            ->setRequired(false)
+            ->hideOnIndex()
+            ->setHelp('Optionnel — lien public de la boutique, de l\'adhésion ou de la billetterie HelloAsso. '
+                .'Renseigné, « Votes de présence » et l\'émargement indiquent quels adhérents ont payé '
+                .'(rapprochement par email, puis par nom et prénom).');
         yield BooleanField::new('carpoolingEnabled', 'Covoiturage activé')
             ->setHelp('Cocher pour ouvrir une page de covoiturage sur l\'événement : les adhérents peuvent proposer des places (voiture + vélos) ou demander à en réserver. Mise en relation via WhatsApp.');
         yield DateTimeField::new('startsAt', 'Début')

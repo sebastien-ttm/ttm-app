@@ -10,6 +10,7 @@ use App\Repository\EventCheckInRepository;
 use App\Repository\EventRepository;
 use App\Repository\UserRepository;
 use App\Service\AvatarService;
+use App\Service\HelloAsso\HelloAssoPaymentChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -44,6 +45,7 @@ class StaffCheckInController extends AbstractController
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
         private readonly AvatarService $avatars,
+        private readonly HelloAssoPaymentChecker $helloasso,
     ) {
     }
 
@@ -120,6 +122,15 @@ class StaffCheckInController extends AbstractController
             $people[$userId] ??= ['user' => $c->getUser(), 'vote' => 'none'];
         }
 
+        // Paiements HelloAsso du formulaire lié à l'événement (cache de 5 minutes) : null = pas de vérification.
+        $paid = null;
+        $paymentsError = null;
+        if ($event->getHelloassoFormUrl() !== null) {
+            $check = $this->helloasso->check($event, array_map(static fn (array $p) => $p['user'], array_values($people)));
+            $paymentsError = $check['error'];
+            $paid = $check['error'] === null ? $check['paidByUser'] : null;
+        }
+
         $rows = [];
         foreach ($people as $userId => $p) {
             $rows[] = [
@@ -129,6 +140,8 @@ class StaffCheckInController extends AbstractController
                 // URL publique de la photo (carrée), null si l'adhérent n'en a pas : sert à le reconnaître.
                 'avatarUrl' => $this->avatars->urlFor($p['user']),
                 'vote' => $p['vote'],
+                // true = paiement HelloAsso trouvé, false = non trouvé, null = pas de vérification.
+                'paid' => $paid === null ? null : isset($paid[$userId]),
             ] + self::state($checkIns[$userId] ?? null);
         }
         usort($rows, static fn (array $a, array $b) => [self::VOTE_ORDER[$a['vote']], mb_strtolower($a['nom']), mb_strtolower($a['prenom'])]
@@ -138,6 +151,9 @@ class StaffCheckInController extends AbstractController
             'event' => self::eventPayload($event),
             'checkedCount' => count($checkIns),
             'data' => $rows,
+            // Vérification des paiements : active si un formulaire HelloAsso est lié et lisible.
+            'paymentsChecked' => $paid !== null,
+            'paymentsError' => $paymentsError,
         ]);
     }
 

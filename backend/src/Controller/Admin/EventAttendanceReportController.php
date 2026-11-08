@@ -10,6 +10,7 @@ use App\Repository\EventCheckInRepository;
 use App\Repository\EventRepository;
 use App\Repository\UserRepository;
 use App\Service\Event\EventAttendanceService;
+use App\Service\HelloAsso\HelloAssoPaymentChecker;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -46,6 +47,7 @@ class EventAttendanceReportController extends AbstractController
         private readonly UserRepository $users,
         private readonly EventAttendanceService $attendanceService,
         private readonly AdminUrlGenerator $adminUrlGenerator,
+        private readonly HelloAssoPaymentChecker $helloasso,
     ) {
     }
 
@@ -97,13 +99,14 @@ class EventAttendanceReportController extends AbstractController
     }
 
     #[Route('/admin/event-attendance/{id}', name: 'admin_event_attendance_detail', requirements: ['id' => '\d+'])]
-    public function detail(int $id): Response
+    public function detail(int $id, Request $request): Response
     {
         $event = $this->events->find($id);
         if ($event === null) {
             throw $this->createNotFoundException('Événement introuvable.');
         }
-        if (!$event->isVoteEnabled()) {
+        // Sans vote, la page reste utile si un formulaire HelloAsso est lié (vérification des paiements).
+        if (!$event->isVoteEnabled() && $event->getHelloassoFormUrl() === null) {
             $this->addFlash('warning', 'Cet événement n\'est pas soumis au vote.');
             return $this->redirect($this->adminRoute('admin_event_attendance_index'));
         }
@@ -129,7 +132,28 @@ class EventAttendanceReportController extends AbstractController
             }
         }
 
+        // Paiements HelloAsso du formulaire lié (rapprochés de tous les adhérents actifs : un adhérent peut avoir
+        // payé sans avoir voté). Actualisation forcée avec ?refresh=1.
+        $voters = array_map(static fn (EventAttendance $a) => $a->getUser(), $all);
+        $helloasso = null;
+        $paidNotVoted = [];
+        if ($event->getHelloassoFormUrl() !== null) {
+            $refresh = ($request->query->all('routeParams')['refresh'] ?? $request->query->get('refresh')) === '1';
+            $adherents = $this->users->findActiveAdherentsForRecap();
+            $helloasso = $this->helloasso->check($event, $adherents, $refresh);
+            $voterIds = array_map(static fn ($u) => $u->getId(), $voters);
+            foreach ($adherents as $u) {
+                if (isset($helloasso['paidByUser'][$u->getId()]) && !in_array($u->getId(), $voterIds, true)) {
+                    $paidNotVoted[] = $u;
+                }
+            }
+        }
+
         return $this->render('admin/event_attendance_detail.html.twig', [
+            'helloasso' => $helloasso,
+            'paid' => $helloasso['paidByUser'] ?? [],
+            'paidNotVoted' => $paidNotVoted,
+            'refreshUrl' => $this->adminRoute('admin_event_attendance_detail', ['id' => $event->getId(), 'refresh' => '1']),
             'event' => $event,
             'yes' => $lists['yes'],
             'maybe' => $lists['maybe'],
@@ -201,14 +225,26 @@ class EventAttendanceReportController extends AbstractController
         }
         $all = $this->attendances->findByEventWithUser($event);
         $checkIns = $this->checkIns->findByEventIndexedByUser($event);
+        // Colonne « Payé HelloAsso » si un formulaire est lié et lisible (sinon colonne vide).
+        $paid = null;
+        if ($event->getHelloassoFormUrl() !== null) {
+            $check = $this->helloasso->check($event, $this->users->findActiveAdherentsForRecap());
+            $paid = $check['error'] === null ? $check['paidByUser'] : null;
+        }
+        $paidLabel = static function (int $userId) use ($paid): string {
+            if ($paid === null) {
+                return '';
+            }
+            return isset($paid[$userId]) ? 'oui' : 'non trouvé';
+        };
 
-        $response = new StreamedResponse(function () use ($event, $all, $checkIns): void {
+        $response = new StreamedResponse(function () use ($event, $all, $checkIns, $paidLabel): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Événement', $event->getTitle()], ';');
             fputcsv($out, ['Date', $event->getStartsAt()->format('d/m/Y H:i')], ';');
             fputcsv($out, [], ';');
-            fputcsv($out, ['Statut', 'Nom', 'Prénom', 'N° licence', 'Email', 'Voté le', 'Émargé'], ';');
+            fputcsv($out, ['Statut', 'Nom', 'Prénom', 'N° licence', 'Email', 'Voté le', 'Émargé', 'Payé HelloAsso'], ';');
             $order = [
                 AttendanceStatus::Yes->value => 'Présent',
                 AttendanceStatus::Maybe->value => 'Peut-être',
@@ -231,13 +267,14 @@ class EventAttendanceReportController extends AbstractController
                     $u->getEmail(),
                     $a->getUpdatedAt()->format('d/m/Y H:i'),
                     isset($checkIns[$u->getId()]) ? 'oui' : '',
+                    $paidLabel((int) $u->getId()),
                 ], ';');
                 unset($checkIns[$u->getId()]);
             }
             // Émargés sans avoir voté.
             foreach ($checkIns as $c) {
                 $u = $c->getUser();
-                fputcsv($out, ['Sans vote', $u->getNom(), $u->getPrenom(), $u->getNumLicence(), $u->getEmail(), '', 'oui'], ';');
+                fputcsv($out, ['Sans vote', $u->getNom(), $u->getPrenom(), $u->getNumLicence(), $u->getEmail(), '', 'oui', $paidLabel((int) $u->getId())], ';');
             }
             fclose($out);
         });
