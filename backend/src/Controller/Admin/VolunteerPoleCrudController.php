@@ -3,6 +3,9 @@
 namespace App\Controller\Admin;
 
 use App\Entity\VolunteerPole;
+use App\Repository\TrainingSeasonRepository;
+use App\Repository\UserRepository;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -20,6 +23,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
  */
 class VolunteerPoleCrudController extends AbstractCrudController
 {
+    public function __construct(private readonly TrainingSeasonRepository $seasons)
+    {
+    }
+
     public static function getEntityFqcn(): string
     {
         return VolunteerPole::class;
@@ -41,8 +48,13 @@ class VolunteerPoleCrudController extends AbstractCrudController
         yield TextField::new('managerNames', 'Responsables (affichage)')
             ->setRequired(false)
             ->setHelp('Texte affiché sur les fiches, ex. « Pauline & Anne ».');
+        $season = $this->seasons->findCurrent();
         yield AssociationField::new('managers', 'Comptes des responsables')
             ->setFormTypeOption('by_reference', false)
+            // Liste de choix : uniquement les adhérents de la saison en cours (tous les actifs à défaut de saison).
+            ->setQueryBuilder(fn (QueryBuilder $qb) => $season !== null
+                ? UserRepository::restrictToSeasonMembers($qb, 'entity', $season)
+                : $qb->andWhere('entity.isActive = true')->andWhere("entity.type = 'adherent'"))
             ->autocomplete()
             ->setRequired(false)
             ->setHelp('Ils valident les candidatures du pôle dans l\'appli et sont notifiés à chaque candidature.');

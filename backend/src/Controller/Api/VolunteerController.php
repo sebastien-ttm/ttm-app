@@ -7,6 +7,7 @@ use App\Entity\VolunteerApplication;
 use App\Entity\VolunteerCampaign;
 use App\Entity\VolunteerPole;
 use App\Entity\VolunteerRole;
+use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use App\Repository\VolunteerApplicationRepository;
 use App\Repository\VolunteerCampaignRepository;
@@ -40,6 +41,7 @@ class VolunteerController extends AbstractController
         private readonly VolunteerRoleRepository $roles,
         private readonly VolunteerApplicationRepository $applications,
         private readonly UserRepository $users,
+        private readonly TrainingSeasonRepository $seasons,
         private readonly VolunteerPresenter $presenter,
         private readonly WebPushNotifier $webPush,
         private readonly EntityManagerInterface $em,
@@ -280,7 +282,8 @@ class VolunteerController extends AbstractController
         }
         return new JsonResponse(['data' => array_map(
             static fn (User $u) => ['id' => $u->getId(), 'fullName' => $u->getFullName()],
-            $this->users->searchActiveAdherents($q),
+            // Uniquement les adhérents de la saison en cours (tous les actifs à défaut de saison définie).
+            $this->users->searchActiveAdherents($q, $this->seasons->findCurrent()),
         )]);
     }
 

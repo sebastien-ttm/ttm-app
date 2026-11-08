@@ -495,10 +495,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
 
     /**
      * Recherche d'adhérents actifs par nom ou prénom (affectation à une fiche de bénévolat), 20 au plus.
+     * Avec une saison : uniquement les adhérents de cette saison.
      *
      * @return list<User>
      */
-    public function searchActiveAdherents(string $query, int $limit = 20): array
+    public function searchActiveAdherents(string $query, ?\App\Entity\TrainingSeason $season = null, int $limit = 20): array
     {
         $qb = $this->createQueryBuilder('u')
             ->where('u.isActive = true')
@@ -506,6 +507,9 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->orderBy('u.nom', 'ASC')
             ->addOrderBy('u.prenom', 'ASC')
             ->setMaxResults($limit);
+        if ($season !== null) {
+            self::restrictToSeasonMembers($qb, 'u', $season);
+        }
         foreach (preg_split('/\s+/', trim($query)) ?: [] as $i => $word) {
             if ($word === '') {
                 continue;
@@ -514,6 +518,20 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
                 ->setParameter('w'.$i, '%'.addcslashes($word, '%_').'%');
         }
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Restreint une requête sur User (alias donné) aux adhérents actifs inscrits sur la saison donnée
+     * (une ligne UserSeasonMembership). Sert aussi aux listes de choix de l'admin (AssociationField).
+     */
+    public static function restrictToSeasonMembers(\Doctrine\ORM\QueryBuilder $qb, string $alias, \App\Entity\TrainingSeason $season): \Doctrine\ORM\QueryBuilder
+    {
+        return $qb
+            ->andWhere($alias.'.isActive = true')
+            ->andWhere($alias.".type = 'adherent'")
+            ->andWhere('EXISTS (SELECT seasonMembership.id FROM '.\App\Entity\UserSeasonMembership::class
+                .' seasonMembership WHERE seasonMembership.user = '.$alias.' AND seasonMembership.season = :restrictSeason)')
+            ->setParameter('restrictSeason', $season);
     }
 
     /**
