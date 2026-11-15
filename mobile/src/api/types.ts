@@ -402,6 +402,8 @@ export type PerfTestResultRow = {
   time: string;
   /** True = c'est mon temps. */
   mine: boolean;
+  /** Allure du club (1 à 5) de ce temps d'après les intervalles de la saison ; absent sur un backend antérieur. */
+  level?: number | null;
 };
 
 export type PerfTestSessionView = {

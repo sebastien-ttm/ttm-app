@@ -9,13 +9,16 @@ import { perfTests as perfTestsApi } from '@/api/resources';
 import type {
   PerfTestDeclaration,
   PerfTestGroup,
+  PerfTestInterval,
   PerfTestMineGroup,
+  PerfTestResultRow,
   PerfTestSessionView,
   PerfTestsResponse,
 } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
-import { DateField, todayIso } from '@/components/DateField';
+import { PaceBadge } from '@/components/groups/GroupFields';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
+import { DeclareTimeBox } from '@/components/perf/DeclareTimeBox';
 import { SeasonRecap } from '@/components/perf/SeasonRecap';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/config';
 import { canSeeTraining } from '@/utils/profile';
@@ -33,9 +36,13 @@ export default function PerfTestsScreen() {
   const canSee = canSeeTraining(user);
 
   const [season, setSeason] = useState<number | undefined>(undefined);
-  // Sous-onglet (épreuve) choisi : clé de groupe ; retombe sur le premier disponible.
+  // Onglet principal : mes temps, ou ceux du club.
+  const [view, setView] = useState<'mine' | 'club'>('mine');
+  // « Temps du club › Par séance » : épreuve choisie (clé de groupe) ; retombe sur la première disponible.
   const [tab, setTab] = useState<string | null>(null);
-  // Vue : récap de la saison par épreuve (allures du club) ou détail séance par séance.
+  // « Mes temps » : épreuve choisie (clé de groupe) ; retombe sur la première disponible.
+  const [mineTab, setMineTab] = useState<string | null>(null);
+  // « Temps du club » : récap de la saison par épreuve (allures du club) ou détail séance par séance.
   const [mode, setMode] = useState<'season' | 'session'>('season');
   const [data, setData] = useState<PerfTestsResponse | null>(null);
   // « Mon évolution » : mes temps sur toutes les saisons (indépendant de la saison affichée).
@@ -105,7 +112,7 @@ export default function PerfTestsScreen() {
   if (!canSee) {
     return (
       <SafeAreaView style={styles.root}>
-        <Stack.Screen options={{ title: 'Tests chronométrés' }} />
+        <Stack.Screen options={{ title: 'Mes temps et ceux du club' }} />
         <EmptyState
           icon="🔒"
           title="Accès réservé"
@@ -118,14 +125,20 @@ export default function PerfTestsScreen() {
   const tabs = data ? buildTabs(data.groups) : [];
   const activeTab = tabs.find((t) => t.key === tab) ?? tabs[0];
   const activeGroup = data && activeTab ? data.groups.find((g) => g.key === activeTab.key) : undefined;
-  const activeMine = activeTab ? mine.find((g) => g.key === activeTab.key) : undefined;
+  // « Mes temps » : une épreuve (et un bassin en natation) par onglet, toutes saisons confondues.
+  const mineTabs = buildMineTabs(mine);
+  const activeMineTab = mineTabs.find((t) => t.key === mineTab) ?? mineTabs[0];
+  const activeMine = activeMineTab ? mine.find((g) => g.key === activeMineTab.key) : undefined;
   // Récap : seulement les épreuves qui ont au moins un temps sur la saison affichée.
   const recaps = (data?.recaps ?? []).filter((r) => r.rows.length > 0);
   const showRecap = mode === 'season' && recaps.length > 0;
+  // Allure du club de l'épreuve affichée (intervalles) et la mienne : sert à regrouper les temps d'une séance par allure
+  // et à ouvrir mon allure. Sans temps de ma part, aucune allure n'est ouverte.
+  const activeRecap = activeGroup ? recaps.find((r) => r.test === activeGroup.test) : undefined;
 
   return (
     <SafeAreaView style={styles.root} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'Tests chronométrés' }} />
+      <Stack.Screen options={{ title: 'Mes temps et ceux du club' }} />
       {loading ? (
         <FullScreenLoading />
       ) : error && !data ? (
@@ -157,73 +170,75 @@ export default function PerfTestsScreen() {
                 </ScrollView>
               )}
 
-              {recaps.length > 0 && (
-                <View style={styles.modeSwitch} accessibilityRole="tablist">
-                  {([['season', '🏅 Récap de la saison'], ['session', '📋 Par séance']] as const).map(([key, label]) => {
-                    const active = mode === key;
-                    return (
-                      <Pressable
-                        key={key}
-                        onPress={() => setMode(key)}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: active }}
-                        style={[styles.modeBtn, active && styles.modeBtnActive]}
-                      >
-                        <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
+              <ModeSwitch
+                options={[['mine', '👤 Mes temps'], ['club', '👥 Temps du club']]}
+                value={view}
+                onChange={setView}
+              />
 
-              {showRecap ? (
-                <SeasonRecap recaps={recaps} seasonLabel={seasonLabel(data)} />
-              ) : tabs.length === 0 || !activeTab || !activeGroup ? (
-                <EmptyState
-                  icon="⏱️"
-                  title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
-                  message="Les temps saisis par les entraîneurs apparaîtront ici."
-                />
+              {view === 'mine' ? (
+                !activeMineTab || !activeMine ? (
+                  <>
+                    <EmptyState
+                      icon="⏱️"
+                      title="Aucun temps enregistré"
+                      message="Vos temps apparaîtront ici après une prise de temps des entraîneurs, ou une fois un temps déclaré accepté."
+                    />
+                    <DeclareTimeBox declarations={declarations} onChanged={reloadDeclarations} currentSeasonOnly />
+                  </>
+                ) : (
+                  <>
+                    {mineTabs.length > 1 && <EpreuveTabs tabs={mineTabs} activeKey={activeMineTab.key} onSelect={setMineTab} />}
+
+                    <SeasonTimesCard group={activeMine} season={data.season} label={seasonLabel(data)} />
+
+                    <Text style={styles.sectionTitle}>📈 Mon évolution</Text>
+                    <EvolutionCard group={activeMine} />
+
+                    <CorrectionBox
+                      key={`${activeMineTab.key}:${data.season}`}
+                      label={activeMineTab.label}
+                      season={seasonLabel(data)}
+                    />
+
+                    <DeclareTimeBox
+                      key={`declare:${activeMineTab.key}`}
+                      target={{ test: activeMineTab.test, label: activeMineTab.label, pool: activeMineTab.pool }}
+                      declarations={declarations.filter((d) => d.test === activeMineTab.test && d.poolLength === activeMineTab.pool)}
+                      onChanged={reloadDeclarations}
+                    />
+                  </>
+                )
               ) : (
                 <>
-                  {tabs.length > 1 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-                      {tabs.map((t) => {
-                        const active = t.key === activeTab.key;
-                        return (
-                          <Pressable
-                            key={t.key}
-                            onPress={() => setTab(t.key)}
-                            style={[styles.tabChip, active && styles.tabChipActive]}
-                            accessibilityRole="tab"
-                            accessibilityState={{ selected: active }}
-                          >
-                            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.icon} {t.short}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
+                  {recaps.length > 0 && (
+                    <ModeSwitch
+                      options={[['season', '🏅 Récap de la saison'], ['session', '📋 Par séance']]}
+                      value={mode}
+                      onChange={setMode}
+                    />
                   )}
 
-                  <GroupCard key={activeGroup.key} group={activeGroup} open={open} onToggle={toggle} />
-
-                  <CorrectionBox
-                    key={`${activeTab.key}:${data.season}`}
-                    label={activeTab.label}
-                    season={seasonLabel(data)}
-                  />
-
-                  <DeclareBox
-                    key={`declare:${activeTab.key}`}
-                    tab={activeTab}
-                    declarations={declarations.filter((d) => d.test === activeTab.test && d.poolLength === activeTab.pool)}
-                    onChanged={reloadDeclarations}
-                  />
-
-                  {activeMine && (
+                  {showRecap ? (
+                    <SeasonRecap recaps={recaps} seasonLabel={seasonLabel(data)} />
+                  ) : tabs.length === 0 || !activeTab || !activeGroup ? (
+                    <EmptyState
+                      icon="⏱️"
+                      title={`Aucun test chronométré sur la saison ${seasonLabel(data)}`}
+                      message="Les temps saisis par les entraîneurs apparaîtront ici."
+                    />
+                  ) : (
                     <>
-                      <Text style={styles.sectionTitle}>📈 Mon évolution</Text>
-                      <EvolutionCard group={activeMine} />
+                      {tabs.length > 1 && <EpreuveTabs tabs={tabs} activeKey={activeTab.key} onSelect={setTab} />}
+
+                      <GroupCard
+                        key={activeGroup.key}
+                        group={activeGroup}
+                        open={open}
+                        onToggle={toggle}
+                        intervals={activeRecap?.intervals ?? null}
+                        myLevel={activeRecap?.mine?.level ?? null}
+                      />
                     </>
                   )}
                 </>
@@ -233,6 +248,100 @@ export default function PerfTestsScreen() {
         </ScrollView>
       )}
     </SafeAreaView>
+  );
+}
+
+/** Deux boutons (ou plus) exclusifs en haut d'un écran : « Mes temps / Temps du club », « Récap / Par séance ». */
+function ModeSwitch<T extends string>({ options, value, onChange }: {
+  options: readonly (readonly [T, string])[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <View style={styles.modeSwitch} accessibilityRole="tablist">
+      {options.map(([key, label]) => {
+        const active = value === key;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onChange(key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            style={[styles.modeBtn, active && styles.modeBtnActive]}
+          >
+            <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Onglets d'épreuves (course / nage / vélo ; en natation un onglet par bassin). */
+function EpreuveTabs({ tabs, activeKey, onSelect }: { tabs: PerfTab[]; activeKey: string; onSelect: (key: string) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+      {tabs.map((t) => {
+        const active = t.key === activeKey;
+        return (
+          <Pressable
+            key={t.key}
+            onPress={() => onSelect(t.key)}
+            style={[styles.tabChip, active && styles.tabChipActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+          >
+            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.icon} {t.short}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+/** Mes temps de la saison affichée sur une épreuve : meilleur temps, puis chaque prise de temps (rang et écart). */
+function SeasonTimesCard({ group, season, label }: { group: PerfTestMineGroup; season: number; label: string }) {
+  const results = group.results.filter((r) => r.season === season).reverse(); // du plus récent au plus ancien
+  const best = results.length > 0 ? results.reduce((a, b) => (b.timeSeconds < a.timeSeconds ? b : a)) : null;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{group.icon} {group.label}</Text>
+      <Text style={styles.sectionTitle}>Saison {label}</Text>
+
+      {best === null ? (
+        <Text style={styles.noMine}>Vous n'avez pas de temps enregistré sur cette épreuve cette saison.</Text>
+      ) : (
+        <>
+          <View style={styles.mineBox}>
+            <Text style={styles.mineLabel}>Mon meilleur temps de la saison</Text>
+            <Text style={styles.mineTime}>{best.time}</Text>
+            <Text style={styles.mineMeta}>
+              prise de temps {best.endDate ? '' : 'du '}{formatPeriod(best.date, best.endDate)} · {results.length} test{results.length > 1 ? 's' : ''} cette saison
+            </Text>
+          </View>
+
+          {results.map((r) => (
+            <View key={r.sessionId} style={styles.evoRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.evoDate}>{formatPeriod(r.date, r.endDate)}</Text>
+                <Text style={styles.evoMeta}>{rankLabel(r.rank)} sur {r.participants}</Text>
+              </View>
+              <Text style={[styles.evoTime, r.isBest && styles.evoTimeBest]}>{r.time}</Text>
+              <Text
+                style={[
+                  styles.evoDelta,
+                  r.deltaSeconds !== null && r.deltaSeconds < 0 && styles.evoDeltaBetter,
+                  r.deltaSeconds !== null && r.deltaSeconds > 0 && styles.evoDeltaWorse,
+                ]}
+              >
+                {formatDelta(r.deltaSeconds)}
+              </Text>
+            </View>
+          ))}
+        </>
+      )}
+    </View>
   );
 }
 
@@ -259,11 +368,25 @@ function buildTabs(groups: PerfTestGroup[]): PerfTab[] {
       });
     }
   }
+  return sortTabs(Array.from(byKey.values()));
+}
+
+/** Ordre course / nage / vélo, puis bassin croissant. */
+function sortTabs(tabs: PerfTab[]): PerfTab[] {
   const rank = (t: PerfTab) => {
     const i = TEST_ORDER.indexOf(t.test);
     return i === -1 ? TEST_ORDER.length : i;
   };
-  return Array.from(byKey.values()).sort((a, b) => rank(a) - rank(b) || (a.pool ?? 0) - (b.pool ?? 0));
+  return [...tabs].sort((a, b) => rank(a) - rank(b) || (a.pool ?? 0) - (b.pool ?? 0));
+}
+
+/** Onglets de « Mes temps » : les épreuves où j'ai au moins un temps (toutes saisons), dans le même ordre. */
+function buildMineTabs(groups: PerfTestMineGroup[]): PerfTab[] {
+  return sortTabs(
+    groups
+      .filter((g) => g.results.length > 0)
+      .map((g) => ({ key: g.key, label: g.label, short: g.shortLabel ?? g.label, icon: g.icon, test: g.test, pool: g.poolLength })),
+  );
 }
 
 /**
@@ -364,177 +487,6 @@ function CorrectionBox({ label, season }: { label: string; season: string }) {
   );
 }
 
-/**
- * Déclaration d'un temps pris individuellement : l'adhérent indique la date et
- * son temps ; les entraîneurs l'acceptent (il rejoint alors les classements)
- * ou le refusent depuis le backend. Sous le formulaire, mes demandes sur cette
- * épreuve avec leur état.
- */
-function DeclareBox({
-  tab, declarations, onChanged,
-}: {
-  tab: PerfTab;
-  declarations: PerfTestDeclaration[];
-  onChanged: () => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<string | null>(todayIso());
-  const [time, setTime] = useState('');
-  const [comment, setComment] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
-
-  const canSend = !sending && date !== null && time.trim() !== '';
-
-  async function send() {
-    if (!canSend || date === null) return;
-    setSending(true);
-    setError(null);
-    try {
-      await perfTestsApi.declare({
-        test: tab.test,
-        poolLength: tab.pool,
-        date,
-        time: time.trim(),
-        comment: comment.trim() || undefined,
-      });
-      setSent(true);
-      setOpen(false);
-      setTime('');
-      setComment('');
-      await onChanged();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Envoi impossible. Réessayez plus tard.');
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function cancel(id: number) {
-    setCancellingId(id);
-    try {
-      await perfTestsApi.cancelDeclaration(id);
-      await onChanged();
-    } catch {
-      // Déjà traitée entre-temps : le rechargement affichera son état réel.
-      await onChanged();
-    } finally {
-      setCancellingId(null);
-    }
-  }
-
-  return (
-    <View style={styles.declareWrap}>
-      {open ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>⏱️ Déclarer mon temps — {tab.label}</Text>
-          <Text style={styles.correctionHint}>
-            Vous avez chronométré votre temps vous-même ? Indiquez-le : les entraîneurs le valident avant
-            qu'il n'apparaisse dans les classements.
-          </Text>
-
-          <Text style={styles.fieldLabel}>Date de la prise de temps</Text>
-          <DateField initialIso={todayIso()} onChange={setDate} disabled={sending} />
-
-          <Text style={styles.fieldLabel}>Mon temps</Text>
-          <TextInput
-            value={time}
-            onChangeText={setTime}
-            placeholder="5:42  (min:s)  ou  1:02:15  (h:min:s)"
-            placeholderTextColor={COLORS.textSubtle}
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={12}
-            editable={!sending}
-            style={styles.declareInput}
-          />
-
-          <Text style={styles.fieldLabel}>Précisions (facultatif)</Text>
-          <TextInput
-            value={comment}
-            onChangeText={setComment}
-            placeholder="Lieu, chronométreur, conditions…"
-            placeholderTextColor={COLORS.textSubtle}
-            multiline
-            maxLength={500}
-            editable={!sending}
-            style={[styles.declareInput, { minHeight: 70, textAlignVertical: 'top' }]}
-          />
-
-          {error && <Text style={styles.correctionError}>{error}</Text>}
-          <View style={styles.correctionActions}>
-            <Pressable
-              onPress={() => { setOpen(false); setError(null); }}
-              disabled={sending}
-              style={({ pressed }) => [styles.cancelBtn, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.cancelBtnLabel}>Annuler</Text>
-            </Pressable>
-            <Pressable
-              onPress={send}
-              disabled={!canSend}
-              style={({ pressed }) => [styles.sendBtn, !canSend && { opacity: 0.5 }, pressed && { opacity: 0.8 }]}
-            >
-              {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnLabel}>Envoyer la demande</Text>}
-            </Pressable>
-          </View>
-        </View>
-      ) : (
-        <Pressable
-          onPress={() => { setOpen(true); setSent(false); setDate(todayIso()); }}
-          style={({ pressed }) => [styles.correctionLinkBox, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="timer-outline" size={18} color={COLORS.secondaryDark} />
-          <Text style={[styles.correctionLink, { flex: 1 }]}>Prise de temps individuelle ? Déclarer mon temps</Text>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.secondaryDark} />
-        </Pressable>
-      )}
-
-      {sent && !open && (
-        <View style={styles.sentBox}>
-          <Text style={styles.sentLabel}>✅ Demande envoyée aux entraîneurs : elle apparaîtra dans les classements une fois acceptée.</Text>
-        </View>
-      )}
-
-      {declarations.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Mes demandes de temps</Text>
-          {declarations.slice(0, 5).map((d) => (
-            <View key={d.id} style={styles.declRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.evoDate}>{formatPeriod(d.date, null)} · {d.time}</Text>
-                <Text
-                  style={[
-                    styles.evoMeta,
-                    d.status === 'accepted' && { color: COLORS.success },
-                    d.status === 'rejected' && { color: COLORS.error },
-                  ]}
-                >
-                  {d.status === 'pending' && '⏳ En attente de validation'}
-                  {d.status === 'accepted' && '✅ Acceptée — visible dans les classements'}
-                  {d.status === 'rejected' && `❌ Refusée${d.decisionNote ? ` — ${d.decisionNote}` : ''}`}
-                </Text>
-              </View>
-              {d.status === 'pending' && (
-                <Pressable
-                  onPress={() => cancel(d.id)}
-                  disabled={cancellingId === d.id}
-                  hitSlop={8}
-                  style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-                >
-                  <Text style={styles.declCancel}>{cancellingId === d.id ? '…' : 'Annuler'}</Text>
-                </Pressable>
-              )}
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
 /** Mes temps sur une épreuve, saison après saison : record, mini-graphique, liste avec écarts. */
 function EvolutionCard({ group }: { group: PerfTestMineGroup }) {
   const [showAll, setShowAll] = useState(false);
@@ -610,11 +562,14 @@ function EvolutionCard({ group }: { group: PerfTestMineGroup }) {
 }
 
 function GroupCard({
-  group, open, onToggle,
+  group, open, onToggle, intervals, myLevel,
 }: {
   group: PerfTestGroup;
   open: Set<string>;
   onToggle: (key: string) => void;
+  /** Allures de l'épreuve (null = indisponibles : liste à plat) et la mienne (null = pas d'allure : tout reste fermé). */
+  intervals: PerfTestInterval[] | null;
+  myLevel: number | null;
 }) {
   return (
     <View style={styles.card}>
@@ -634,18 +589,20 @@ function GroupCard({
 
       {group.sessions.map((s) => {
         const key = `${group.key}:${s.id}`;
-        return <SessionBlock key={key} session={s} isOpen={open.has(key)} onToggle={() => onToggle(key)} />;
+        return <SessionBlock key={key} session={s} isOpen={open.has(key)} onToggle={() => onToggle(key)} intervals={intervals} myLevel={myLevel} />;
       })}
     </View>
   );
 }
 
 function SessionBlock({
-  session, isOpen, onToggle,
+  session, isOpen, onToggle, intervals, myLevel,
 }: {
   session: PerfTestSessionView;
   isOpen: boolean;
   onToggle: () => void;
+  intervals: PerfTestInterval[] | null;
+  myLevel: number | null;
 }) {
   const mine = session.results.find((r) => r.mine);
   return (
@@ -666,19 +623,81 @@ function SessionBlock({
         <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textMuted} />
       </Pressable>
 
-      {isOpen && (
-        <View>
-          {session.results.map((r, i) => (
-            <View key={r.userId ?? `ancien-${i}`} style={[styles.row, r.mine && styles.rowMine]}>
-              <Text style={[styles.rank, r.mine && styles.rowMineText]}>{r.rank}</Text>
-              <Text style={[styles.name, r.mine && styles.rowMineText]} numberOfLines={1}>
-                {r.fullName}{r.mine ? ' (moi)' : ''}
-              </Text>
-              <Text style={[styles.time, r.mine && styles.rowMineText]}>{r.time}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {isOpen && <SessionResults session={session} intervals={intervals} myLevel={myLevel} />}
+    </View>
+  );
+}
+
+/** Une ligne de classement d'une séance. */
+function ResultLine({ r }: { r: PerfTestResultRow }) {
+  return (
+    <View style={[styles.row, r.mine && styles.rowMine]}>
+      <Text style={[styles.rank, r.mine && styles.rowMineText]}>{r.rank}</Text>
+      <Text style={[styles.name, r.mine && styles.rowMineText]} numberOfLines={1}>
+        {r.fullName}{r.mine ? ' (moi)' : ''}
+      </Text>
+      <Text style={[styles.time, r.mine && styles.rowMineText]}>{r.time}</Text>
+    </View>
+  );
+}
+
+/**
+ * Temps d'une séance regroupés par allure du club (1 à 5), un accordéon par allure : celui de MON allure est ouvert, avec
+ * les autres adhérents de la même allure (et celui où je me trouve dans cette séance, s'il diffère). Sans allure de ma
+ * part, tout reste fermé. Si le serveur ne fournit pas les allures, liste à plat classée par temps.
+ */
+function SessionResults({ session, intervals, myLevel }: {
+  session: PerfTestSessionView;
+  intervals: PerfTestInterval[] | null;
+  myLevel: number | null;
+}) {
+  const grouped = intervals !== null && session.results.some((r) => typeof r.level === 'number');
+  const myRowLevel = session.results.find((r) => r.mine)?.level ?? null;
+  const [openLevels, setOpenLevels] = useState<Set<number>>(
+    () => new Set([myLevel, myRowLevel].filter((l): l is number => typeof l === 'number')),
+  );
+
+  if (!grouped || intervals === null) {
+    return (
+      <View>
+        {session.results.map((r, i) => <ResultLine key={r.userId ?? `ancien-${i}`} r={r} />)}
+      </View>
+    );
+  }
+
+  function toggleLevel(level: number) {
+    setOpenLevels((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }
+
+  return (
+    <View>
+      {intervals.map((iv) => {
+        const rows = session.results.filter((r) => r.level === iv.level);
+        if (rows.length === 0) return null;
+        const expanded = openLevels.has(iv.level);
+        const mineHere = rows.some((r) => r.mine) || myLevel === iv.level;
+        return (
+          <View key={iv.level} style={styles.levelBlock}>
+            <Pressable
+              onPress={() => toggleLevel(iv.level)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              style={({ pressed }) => [styles.levelHead, mineHere && styles.levelHeadMine, pressed && { opacity: 0.8 }]}
+            >
+              <PaceBadge level={iv.level} speed={null} />
+              <Text style={styles.levelInterval}>{iv.label}</Text>
+              <Text style={styles.levelCount}>{rows.length} adhérent{rows.length > 1 ? 's' : ''}</Text>
+              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textMuted} />
+            </Pressable>
+            {expanded && rows.map((r, i) => <ResultLine key={r.userId ?? `ancien-${i}`} r={r} />)}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -786,22 +805,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary, minWidth: 150, alignItems: 'center',
   },
   sendBtnLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  declareWrap: { gap: SPACING.md },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginTop: 2 },
-  declareInput: {
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
-    padding: SPACING.md, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.surfaceAlt,
-  },
-  declRow: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border,
-  },
-  declCancel: { fontSize: 13, fontWeight: '600', color: COLORS.error },
   sentBox: {
     padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: '#d1fae5',
     gap: SPACING.xs,
   },
   sentLabel: { fontSize: 14, fontWeight: '600', color: '#065f46' },
+  levelBlock: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border },
+  levelHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: SPACING.md, paddingVertical: 10 },
+  levelHeadMine: { backgroundColor: COLORS.secondarySoft },
+  levelInterval: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text },
+  levelCount: { fontSize: 12, color: COLORS.textMuted },
   modeSwitch: { flexDirection: 'row', gap: 6, backgroundColor: COLORS.border, borderRadius: RADIUS.md, padding: 3 },
   modeBtn: { flex: 1, paddingVertical: 9, borderRadius: RADIUS.md - 2, alignItems: 'center' },
   modeBtnActive: { backgroundColor: COLORS.surface },

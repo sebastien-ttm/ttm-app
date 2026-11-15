@@ -16,6 +16,7 @@ import type { TrainingPlan, TrainingRegistration, TrainingSlot, WeeklySchedule }
 import { useAuth } from '@/auth/AuthContext';
 import { EmptyState, ErrorState, FullScreenLoading } from '@/components/Loading';
 import { MyGroupsCard } from '@/components/groups/MyGroupsCard';
+import { DeclareTimeSection } from '@/components/perf/DeclareTimeSection';
 import { MyAllureCard } from '@/components/perf/MyAllureCard';
 import { SportBadge } from '@/components/SportBadge';
 import { TrainingRegistrationBar } from '@/components/TrainingRegistrationBar';
@@ -258,9 +259,11 @@ function TrainingScreenInner() {
               </View>
               )}
 
-              {/* Tests chronométrés : mon temps et ceux de tous les adhérents, par saison. */}
+              {/* Mes allures (allure du club 1 à 5 par épreuve, sans les temps), puis l'accès à mes temps et à ceux du club,
+                  puis la déclaration d'un temps pour la saison en cours. */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>⏱️ Tests chronométrés</Text>
+                <Text style={styles.sectionTitle}>🏅 Mes allures</Text>
+                <MyAllureCard />
                 <Pressable
                   onPress={() => router.push('/perf-tests' as never)}
                   style={({ pressed }) => [stylesPerf.card, pressed && { opacity: 0.7 }]}
@@ -270,12 +273,11 @@ function TrainingScreenInner() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={stylesPerf.title}>Mes temps et ceux du club</Text>
-                    <Text style={stylesPerf.sub}>1500 m ou 2000 m course à pied · 400 m natation · montée vélo — par saison</Text>
+                    <Text style={stylesPerf.sub}>Mes temps par saison et mon évolution · récap et séances du club</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
                 </Pressable>
-                {/* Mon allure du club (1 à 5) par épreuve, d'après mes temps. */}
-                <MyAllureCard />
+                <DeclareTimeSection />
               </View>
 
               {(() => {

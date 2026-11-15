@@ -27,13 +27,12 @@ export function sessionLabel(session: PerfTestRecapSession): string {
 export function SeasonRecap({ recaps, seasonLabel }: { recaps: PerfTestRecap[]; seasonLabel: string }) {
   const [test, setTest] = useState<string>(recaps[0]?.test ?? '');
   const recap = recaps.find((r) => r.test === test) ?? recaps[0];
-  // Allures dépliées : la mienne, à défaut la première qui a du monde.
+  // Allures dépliées : la mienne seulement. Sans temps sur l'épreuve, tous les accordéons restent fermés.
   const [open, setOpen] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!recap) return;
-    const first = recap.mine?.level ?? recap.intervals.find((iv) => recap.rows.some((r) => r.level === iv.level))?.level;
-    setOpen(new Set(first !== undefined ? [first] : []));
+    setOpen(new Set(recap.mine ? [recap.mine.level] : []));
   }, [recap?.test, recap?.mine?.level]);
 
   if (!recap) return null;
