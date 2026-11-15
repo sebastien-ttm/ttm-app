@@ -89,9 +89,6 @@ class AuthSuccessListener
             'hasPassword' => $user->getPassword() !== null,
             'avatarUrl' => $avatarUrl,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
-            'notifyArticleEmail' => $user->isNotifyArticleEmail(),
-            // Mailings groupés du club : désactivés par défaut sur un nouveau compte, l'adhérent peut les activer.
-            'notifyMailing' => !$user->isMailingOptedOut(),
             // Adresse e-mail partagée : profil lié à un compte principal, ou compte principal avec des profils rattachés.
             // Sert à expliquer ce que le changement d'adresse fera (écran « Modifier mon adresse e-mail »).
             'emailLink' => self::emailLink($user),

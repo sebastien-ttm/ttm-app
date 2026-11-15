@@ -254,7 +254,7 @@ class ArticleCrudController extends AbstractCrudController
         if ($republish) {
             $entityInstance->setRepublishAsNew(false);
             $entityInstance->setPublishedAt(new \DateTimeImmutable());
-            // Nouvelle parution : la notification (e-mail + push) peut repartir.
+            // Nouvelle parution : la notification push peut repartir.
             $entityInstance->setEmailsSentAt(null);
         }
         $this->defaultPublishedAtToNow($entityInstance);

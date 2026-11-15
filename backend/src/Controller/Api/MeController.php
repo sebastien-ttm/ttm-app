@@ -148,7 +148,7 @@ class MeController extends AbstractController
 
     /**
      * Mise à jour des préférences de notification.
-     * Body JSON : { "notifyTrainingPlanEmail": bool, ... }
+     * Body JSON : { "notifyTrainingPlanEmail": bool } — le seul réglage e-mail (plus d'e-mail d'article ni de réglage mailing).
      *
      * On accepte les champs un par un (PATCH-like) — seuls ceux présents
      * dans le payload sont mis à jour, les autres restent inchangés.
@@ -166,20 +166,11 @@ class MeController extends AbstractController
         if (array_key_exists('notifyTrainingPlanEmail', $payload)) {
             $user->setNotifyTrainingPlanEmail((bool) $payload['notifyTrainingPlanEmail']);
         }
-        if (array_key_exists('notifyArticleEmail', $payload)) {
-            $user->setNotifyArticleEmail((bool) $payload['notifyArticleEmail']);
-        }
-        if (array_key_exists('notifyMailing', $payload)) {
-            // notifyMailing = « je veux recevoir les mailings » ; stocké à l'envers (désinscription).
-            $user->setMailingOptOut(!(bool) $payload['notifyMailing']);
-        }
         $this->em->flush();
 
         return new JsonResponse([
             'ok' => true,
             'notifyTrainingPlanEmail' => $user->isNotifyTrainingPlanEmail(),
-            'notifyArticleEmail' => $user->isNotifyArticleEmail(),
-            'notifyMailing' => !$user->isMailingOptedOut(),
         ]);
     }
 

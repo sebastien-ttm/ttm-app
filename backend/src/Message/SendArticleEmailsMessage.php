@@ -3,9 +3,8 @@
 namespace App\Message;
 
 /**
- * Message asynchrone : envoyer un email à tous les destinataires
- * éligibles (UserRepository::findArticleEmailRecipients) pour annoncer
- * la publication d'un nouvel article. Miroir de SendTrainingPlanEmails.
+ * Message asynchrone : notifier (push web) la publication d'un nouvel article. Le nom est un héritage : il n'y a
+ * plus d'e-mail d'article, seuls les plans d'entraînement partent par e-mail.
  */
 final readonly class SendArticleEmailsMessage
 {

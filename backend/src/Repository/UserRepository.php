@@ -367,62 +367,6 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
-     * Destinataires éligibles à la notification email d'un nouvel article.
-     * Miroir de findTrainingPlanEmailRecipients() — même sémantique :
-     *  - opt-in obligatoire (u.notifyArticleEmail = true)
-     *  - actif, email présent
-     *  - filtre d'audience de l'article (Article utilise AudienceAwareTrait)
-     *  - dédup par email pour éviter les doublons parent/enfant
-     *
-     * Différence avec les plans : PAS d'exclusion Jeune / typeLicence
-     * Dirigeant / licence obligatoire. Les articles s'adressent à tout
-     * le club — l'audience de l'article est la seule restriction.
-     *
-     * @return list<User>
-     */
-    public function findArticleEmailRecipients(\App\Entity\Article $article): array
-    {
-        $qb = $this->createQueryBuilder('u')
-            ->where('u.isActive = true')
-            ->andWhere('u.email IS NOT NULL')
-            ->andWhere('u.notifyArticleEmail = true');
-
-        $audience = $article->getAudience();
-        $trip = $article->getTrip();
-        if ($trip !== null) {
-            // Article dédié à un déplacement : seuls ses participants sont prévenus (pas de ciblage par profil).
-            $qb->andWhere('u.id IN (SELECT tpu.id FROM App\Entity\Trip tt JOIN tt.participants tpu WHERE tt.id = :tripId)')
-                ->setParameter('tripId', $trip->getId());
-        } elseif ($article->getStage() !== null) {
-            // Article dédié à un stage : seuls ses participants sont prévenus.
-            $qb->andWhere('u.id IN (SELECT spu.id FROM App\Entity\Stage st JOIN st.participants spu WHERE st.id = :stageId)')
-                ->setParameter('stageId', $article->getStage()->getId());
-        } elseif ($audience !== []) {
-            $orParts = [];
-            foreach ($audience as $i => $p) {
-                $key = "aud_{$i}";
-                $orParts[] = "JSON_CONTAINS(u.profiles, :{$key}) = 1";
-                $qb->setParameter($key, json_encode($p));
-            }
-            $qb->andWhere('('.implode(' OR ', $orParts).')');
-        }
-
-        $users = $qb->getQuery()->getResult();
-
-        // Dédup par email — même parent/enfant qui partagent une adresse.
-        $byEmail = [];
-        foreach ($users as $u) {
-            $email = mb_strtolower((string) $u->getEmail(), 'UTF-8');
-            if ($email === '' || isset($byEmail[$email])) {
-                continue;
-            }
-            $byEmail[$email] = $u;
-        }
-
-        return array_values($byEmail);
-    }
-
-    /**
      * Comptes ciblés par un mailing : actifs, avec une adresse e-mail, ni adhérents
      * externes (sauf si le mailing les inclut) ni hors de l'audience par profil
      * (audience vide = tous). Les désinscrits sont INCLUS ici : c'est à l'appelant

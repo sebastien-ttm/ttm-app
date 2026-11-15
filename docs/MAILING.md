@@ -34,7 +34,8 @@ Réglages dans `backend/config/services.yaml` : `app.mailing.batch_size`, `app.m
   (signature HMAC de l'identifiant avec `APP_SECRET` : impossible à deviner). Un simple GET ne désinscrit jamais
   (les antivirus ouvrent les liens) ; il faut valider. La désinscription « en un clic » de Gmail/Yahoo envoie un POST à
   la même adresse. La page propose aussi de se **réinscrire**.
-- Réglage « Mailings du club » dans le **profil de l'appli** (Notifications par e-mail), activé par défaut.
+- Il n'y a **plus de réglage dans le profil de l'appli** : seuls les plans d'entraînement se règlent par e-mail. Tous les
+  adhérents reçoivent les mailings, sauf ceux qui se sont désinscrits par le lien (réinscription possible depuis la même page).
 - Seuls les mailings sont concernés : les messages de compte (lien de connexion, messages reçus…) continuent.
 - Stockage : `user.mailing_opt_out_at` (date de désinscription, `NULL` = reçoit les mailings).
 

@@ -12,11 +12,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
- * Dispatche les emails de notification aux adhérents opt-in quand un
- * nouvel article est créé, si notifyOnPublish est coché. Le message est
- * traité à la date de publication par SendArticleEmailsMessageHandler, qui
- * envoie aussi la notification push (sujet « article », indépendant de
- * l'opt-in e-mail).
+ * Dispatche la notification push d'un nouvel article quand il est créé, si notifyOnPublish est coché. Le message
+ * est traité à la date de publication par SendArticleEmailsMessageHandler (sujet push « article »).
  */
 #[AsDoctrineListener(event: Events::postPersist)]
 class ArticleListener

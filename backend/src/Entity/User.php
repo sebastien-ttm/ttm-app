@@ -216,26 +216,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private int $loginCount = 0;
 
     /**
-     * Préférence : recevoir un email à chaque publication de plan d'entraînement.
-     * Seule notification e-mail activée par défaut sur un nouveau compte ; l'adhérent
-     * peut la décocher dans son profil mobile. (Les comptes existants gardent leur choix.)
+     * Préférence : recevoir un email à chaque publication de plan d'entraînement. C'est la SEULE notification
+     * e-mail réglable (plus d'e-mail d'article, plus de réglage de mailing dans le profil) ; activée par défaut
+     * sur un nouveau compte, l'adhérent peut la décocher dans son profil mobile.
      */
     #[ORM\Column(name: 'notify_training_plan_email', options: ['default' => true])]
     private bool $notifyTrainingPlanEmail = true;
 
     /**
-     * Préférence opt-in : recevoir un email à chaque publication d'un
-     * nouvel article. Même sémantique que notifyTrainingPlanEmail — case
-     * à cocher dans le profil mobile, défaut FALSE.
+     * OBSOLÈTE — plus lu ni écrit : les e-mails de nouvel article n'existent plus (push uniquement). La colonne est
+     * conservée pour éviter une migration destructive au déploiement ; elle pourra être supprimée plus tard.
      */
     #[ORM\Column(name: 'notify_article_email', options: ['default' => false])]
     private bool $notifyArticleEmail = false;
 
     /**
-     * Désinscription des mailings groupés du club (Mailing). Null = reçoit les
-     * mailings ; sinon, date de la désinscription (lien dans chaque mail, ou réglage du
-     * profil). Un NOUVEAU compte est désinscrit d'office (voir le constructeur) : le
-     * mailing est une option à cocher dans le profil. Les comptes existants gardent leur état.
+     * Désinscription des mailings groupés du club (Mailing). Null = reçoit les mailings (cas par défaut) ;
+     * sinon, date de la désinscription, faite par le lien présent dans chaque mail (plus de réglage dans le profil).
      */
     #[ORM\Column(name: 'mailing_opt_out_at', nullable: true)]
     private ?\DateTimeImmutable $mailingOptOutAt = null;
@@ -265,9 +262,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
-        // Mailings du club : désactivés par défaut (opt-in depuis le profil). Le constructeur n'est
-        // pas appelé à l'hydratation Doctrine : les comptes déjà en base ne sont pas touchés.
-        $this->mailingOptOutAt = $this->createdAt;
         $this->deviceTokens = new ArrayCollection();
         $this->dependents = new ArrayCollection();
         $this->children = new ArrayCollection();
@@ -880,13 +874,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isNotifyTrainingPlanEmail(): bool { return $this->notifyTrainingPlanEmail; }
     public function setNotifyTrainingPlanEmail(bool $v): self { $this->notifyTrainingPlanEmail = $v; return $this; }
 
-    public function isNotifyArticleEmail(): bool { return $this->notifyArticleEmail; }
-    public function setNotifyArticleEmail(bool $v): self { $this->notifyArticleEmail = $v; return $this; }
-
     public function getMailingOptOutAt(): ?\DateTimeImmutable { return $this->mailingOptOutAt; }
     public function isMailingOptedOut(): bool { return $this->mailingOptOutAt !== null; }
 
-    /** Désinscrit (true) ou réinscrit (false) l'adhérent des mailings groupés. */
+    /** Désinscrit (true) ou réinscrit (false) l'adhérent des mailings groupés (lien de désinscription des mails). */
     public function setMailingOptOut(bool $optOut): self
     {
         $this->mailingOptOutAt = $optOut ? ($this->mailingOptOutAt ?? new \DateTimeImmutable()) : null;
