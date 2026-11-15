@@ -98,7 +98,9 @@ import type {
 } from './types';
 
 export const articles = {
-  list: (page = 1) => api.get<Paginated<Article>>(`/api/articles?page=${page}`),
+  /** `limit` : articles par page (le serveur accepte 1 à 50, 20 par défaut). */
+  list: (page = 1, limit?: number) =>
+    api.get<Paginated<Article>>(`/api/articles?page=${page}${limit ? `&limit=${limit}` : ''}`),
   get: (id: number) => api.get<Article>(`/api/articles/${id}`),
   comments: (id: number, page = 1) =>
     api.get<Paginated<Comment>>(`/api/articles/${id}/comments?page=${page}`),
