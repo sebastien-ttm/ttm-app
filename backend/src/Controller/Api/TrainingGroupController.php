@@ -87,7 +87,8 @@ class TrainingGroupController extends AbstractController
     /**
      * Mes groupes actifs (comme encadrant ou comme adhérent). Pour un encadrant / entraîneur : `canCreate` et les
      * séances (vélo, course à pied, à venir) auxquelles il peut adosser un nouveau groupe — celles où il n'a pas déjà le
-     * sien.
+     * sien — et `others`, les groupes des autres encadrants sur les séances qu'il encadre (lecture seule : l'espace Staff
+     * les montre à côté des siens, qui y sont distingués).
      */
     #[Route('/api/training-groups/mine', methods: ['GET'])]
     public function mine(): JsonResponse
@@ -100,9 +101,42 @@ class TrainingGroupController extends AbstractController
 
         return new JsonResponse([
             'data' => array_map(fn (TrainingGroup $g) => $this->summary($g, $viewer), $mine),
+            'others' => array_map(fn (TrainingGroup $g) => $this->summary($g, $viewer), $this->otherCoachesGroups($mine, $viewer)),
             'canCreate' => $canCreate,
             'sessions' => $canCreate ? $this->creatableSessions($viewer, $now) : [],
         ]);
+    }
+
+    /**
+     * Les groupes actifs des AUTRES encadrants sur les séances où le viewer encadre un groupe (ceux qu'il peut ouvrir en
+     * lecture seule, voir `siblingGroupFor`), du plus proche au plus lointain. Les groupes dont il est lui-même adhérent
+     * n'en font pas partie : ils figurent déjà dans `data`.
+     *
+     * @param list<TrainingGroup> $mine groupes du viewer (encadrant ou adhérent)
+     *
+     * @return list<TrainingGroup>
+     */
+    private function otherCoachesGroups(array $mine, User $viewer): array
+    {
+        $others = [];
+        foreach ($mine as $g) {
+            if (!$g->hasCoach($viewer) || !$g->isAttached()) {
+                continue;
+            }
+            foreach ($this->service->groupsOnSameSession($g) as $other) {
+                if (!$other->hasCoach($viewer) && !$other->hasMember($viewer)) {
+                    $others[(int) $other->getId()] = $other;
+                }
+            }
+        }
+        $others = array_values($others);
+        usort($others, static function (TrainingGroup $a, TrainingGroup $b): int {
+            $byStart = ($a->getSessionStartsAt()?->getTimestamp() ?? 0) <=> ($b->getSessionStartsAt()?->getTimestamp() ?? 0);
+
+            return $byStart !== 0 ? $byStart : strcmp($a->displayName(), $b->displayName());
+        });
+
+        return $others;
     }
 
     /**
