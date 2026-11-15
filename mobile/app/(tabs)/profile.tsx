@@ -24,8 +24,6 @@ export default function ProfileScreen() {
   // switch masquait l'autre derrière un ActivityIndicator, donnant
   // l'impression que les deux préférences étaient liées.
   const [togglingPlan, setTogglingPlan] = useState(false);
-  const [togglingArticle, setTogglingArticle] = useState(false);
-  const [togglingMailing, setTogglingMailing] = useState(false);
   const [charterVersion, setCharterVersion] = useState<string | null>(null);
   // Reste-t-il des comptes liés non encore attribués (ni enfant ni parent
   // déclaré) ? Détermine le libellé de la ligne « Ma famille » : on ne
@@ -79,30 +77,6 @@ export default function ProfileScreen() {
       Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
     } finally {
       setTogglingPlan(false);
-    }
-  }
-
-  async function toggleArticleEmail(next: boolean) {
-    setTogglingArticle(true);
-    try {
-      await authApi.updateNotificationPreferences({ notifyArticleEmail: next });
-      await refreshMe();
-    } catch (e) {
-      Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
-    } finally {
-      setTogglingArticle(false);
-    }
-  }
-
-  async function toggleMailing(next: boolean) {
-    setTogglingMailing(true);
-    try {
-      await authApi.updateNotificationPreferences({ notifyMailing: next });
-      await refreshMe();
-    } catch (e) {
-      Alert.alert('Erreur', e instanceof ApiError ? e.message : 'Mise à jour impossible.');
-    } finally {
-      setTogglingMailing(false);
     }
   }
 
@@ -340,49 +314,8 @@ export default function ProfileScreen() {
               trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
               thumbColor="#fff"
               ios_backgroundColor="#d4d4d8"
-              activeThumbColor="#fff"
-            />
-          )}
-        </View>
-        <View style={[styles.switchRow, { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: 12 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Nouveaux articles</Text>
-            <Text style={styles.actionHint}>
-              Recevoir un email à chaque nouvel article publié dans les actualités du club.
-            </Text>
-          </View>
-          {togglingArticle ? (
-            <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
-          ) : (
-            <Switch
-              value={user.notifyArticleEmail === true}
-              onValueChange={toggleArticleEmail}
-              trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
-              thumbColor="#fff"
-              ios_backgroundColor="#d4d4d8"
-              activeThumbColor="#fff"
-            />
-          )}
-        </View>
-        <View style={[styles.switchRow, { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: 12 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Mailings du club</Text>
-            <Text style={styles.actionHint}>
-              Recevoir les e-mails d'information envoyés à tous les adhérents (assemblée générale, événements…).
-            </Text>
-          </View>
-          {togglingMailing ? (
-            <ActivityIndicator color={COLORS.secondary} style={{ marginLeft: 12 }} />
-          ) : (
-            <Switch
-              value={user.notifyMailing !== false}
-              onValueChange={toggleMailing}
-              trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
-              thumbColor="#fff"
-              ios_backgroundColor="#d4d4d8"
-              // Boule blanche aussi une fois activé (comme les deux autres interrupteurs) : propriété
-              // propre à react-native-web, absente des types de Switch, d'où le contournement.
-              {...({ activeThumbColor: '#fff' } as object)}
+              // Boule blanche aussi une fois activé : propriété propre à react-native-web, absente des types de Switch.
+              {...({ activeThumbColor: "#fff" } as object)}
             />
           )}
         </View>

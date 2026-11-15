@@ -239,12 +239,8 @@ export type AuthenticatedUser = {
   hasPassword: boolean;
   /** URL publique de l'avatar carré 400×400. Null si pas d'avatar. */
   avatarUrl: string | null;
-  /** Préférence opt-in : recevoir un email à chaque nouveau plan d'entraînement. */
+  /** Seule notification e-mail réglable : recevoir un email à chaque nouveau plan d'entraînement. */
   notifyTrainingPlanEmail: boolean;
-  /** Préférence opt-in : recevoir un email à chaque nouvel article publié. */
-  notifyArticleEmail: boolean;
-  /** Recevoir les mailings groupés du club (activé par défaut). Absent des anciennes réponses : on le tient pour activé. */
-  notifyMailing?: boolean;
   /**
    * Adresse e-mail partagée : `dependent` = profil lié à un compte principal (avec son nom) ; `primary` = compte
    * principal dont des profils rattachés ont la même adresse (avec leurs noms) ; null = adresse personnelle. Absent des
@@ -354,8 +350,8 @@ export const auth = {
     api.post<{ ok: boolean; newEmail: string; detachedFrom?: string | null; familyLink?: boolean | null }>('/api/auth/email-change/confirm', { token }, { public: true }),
 
   /** Mise à jour partielle des préférences de notification. */
-  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean; notifyArticleEmail?: boolean; notifyMailing?: boolean }) =>
-    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean; notifyArticleEmail: boolean; notifyMailing: boolean }>(
+  updateNotificationPreferences: (prefs: { notifyTrainingPlanEmail?: boolean }) =>
+    api.post<{ ok: boolean; notifyTrainingPlanEmail: boolean }>(
       '/api/me/notification-preferences',
       prefs,
     ),
