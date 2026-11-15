@@ -47,12 +47,20 @@ class SurveyController extends AbstractController
      * Filet audience pour les endpoints unitaires (get / submit) :
      * un deep-link direct ne doit pas contourner le filtrage appliqué
      * à la liste. Retourne le sondage s'il est publié ET visible pour
-     * le viewer, sinon 404 (on ne révèle pas l'existence).
+     * le viewer, sinon 404 (on ne révèle pas l'existence). Exception : un
+     * sondage pas encore publié est rendu à ses TESTEURS, qui l'essaient
+     * avant la publication (voir isTest()).
      */
     private function findVisibleOr404(int $id, ?User $viewer): Survey
     {
         $survey = $this->surveys->find($id);
-        if ($survey === null || !$survey->isPublished()) {
+        if ($survey === null) {
+            throw $this->createNotFoundException();
+        }
+        if (!$survey->isPublished()) {
+            if ($survey->isTestFor($viewer)) {
+                return $survey;
+            }
             throw $this->createNotFoundException();
         }
         // Sondage dédié à un stage : accessible uniquement aux participants d'un stage publié (la liste des
@@ -62,6 +70,15 @@ class SurveyController extends AbstractController
             throw $this->createNotFoundException();
         }
         return $survey;
+    }
+
+    /**
+     * Le viewer essaie-t-il ce sondage (testeur d'un sondage pas encore publié) ? Dans ce cas rien n'est enregistré :
+     * ni réponse, ni « pas concerné », ni rattachement à un groupe.
+     */
+    private function isTest(Survey $survey, User $viewer): bool
+    {
+        return $survey->isTestFor($viewer);
     }
 
     #[Route('/api/me/surveys', methods: ['GET'])]
@@ -75,17 +92,20 @@ class SurveyController extends AbstractController
         $dismissed = $this->dismissals->findDismissedSurveyIds($user, $ids);
         $counts = $this->responses->countBySurveyIds(array_keys($answered));
 
-        return new JsonResponse([
-            'data' => array_map(
-                fn (Survey $s) => $this->serializeSummary(
-                    $s,
-                    isset($answered[$s->getId()]),
-                    isset($dismissed[$s->getId()]),
-                    $counts[$s->getId()] ?? null,
-                ),
-                $rows,
+        $data = array_map(
+            fn (Survey $s) => $this->serializeSummary(
+                $s,
+                isset($answered[$s->getId()]),
+                isset($dismissed[$s->getId()]),
+                $counts[$s->getId()] ?? null,
             ),
-        ]);
+            $rows,
+        );
+
+        // Sondages que le viewer essaie avant leur publication : en tête de liste, signalés `test`.
+        $tests = array_map(fn (Survey $s) => $this->serializeSummary($s, false, false, null, true), $this->surveys->findTestFor($user));
+
+        return new JsonResponse(['data' => [...$tests, ...$data]]);
     }
 
     /**
@@ -121,6 +141,9 @@ class SurveyController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $survey = $this->findVisibleOr404($id, $user);
+        if ($this->isTest($survey, $user)) {
+            return new JsonResponse(['dismissed' => true]); // essai : rien n'est enregistré
+        }
 
         if ($this->responses->findOneByUserAndSurvey($user, $survey) !== null) {
             return new JsonResponse(['error' => 'Vous avez déjà répondu à ce sondage.'], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -145,6 +168,9 @@ class SurveyController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $survey = $this->findVisibleOr404($id, $user);
+        if ($this->isTest($survey, $user)) {
+            return new JsonResponse(['dismissed' => false]); // essai : rien n'est enregistré
+        }
 
         $existing = $this->dismissals->findOneByUserAndSurvey($user, $survey);
         if ($existing !== null) {
@@ -161,6 +187,9 @@ class SurveyController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $survey = $this->findVisibleOr404($id, $user);
+        if ($this->isTest($survey, $user)) {
+            return new JsonResponse($this->serializeFull($survey, null, true));
+        }
         $mine = $this->responses->findOneByUserAndSurvey($user, $survey);
         return new JsonResponse($this->serializeFull($survey, $mine));
     }
@@ -171,7 +200,8 @@ class SurveyController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $survey = $this->findVisibleOr404($id, $user);
-        if ($survey->isClosed()) {
+        $test = $this->isTest($survey, $user);
+        if ($survey->isClosed() && !$test) {
             return new JsonResponse(['error' => 'Ce sondage est fermé.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -183,6 +213,12 @@ class SurveyController extends AbstractController
             return new JsonResponse(['error' => 'Formulaire invalide.', 'details' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
         $clean = $this->validator->normalize($survey->getSections(), is_array($rawAnswers) ? $rawAnswers : []);
+
+        // Essai avant publication : la réponse est validée comme une vraie (mêmes erreurs) puis renvoyée telle quelle,
+        // SANS rien enregistrer — pas de résultat faussé, pas de « pas concerné », pas de rattachement à un groupe.
+        if ($test) {
+            return new JsonResponse($this->serializeFull($survey, null, true, $clean));
+        }
 
         $existing = $this->responses->findOneByUserAndSurvey($user, $survey);
         if ($existing !== null) {
@@ -213,9 +249,11 @@ class SurveyController extends AbstractController
     /**
      * @return array<string, mixed>
      */
-    private function serializeSummary(Survey $s, bool $answered, bool $dismissed, ?int $responseCount = null): array
+    private function serializeSummary(Survey $s, bool $answered, bool $dismissed, ?int $responseCount = null, bool $test = false): array
     {
         return [
+            // Sondage pas encore publié, que le viewer essaie en tant que testeur (réponses non enregistrées).
+            'test' => $test,
             'id' => $s->getId(),
             'title' => $s->getTitle(),
             'description' => $s->getDescription(),
@@ -231,25 +269,40 @@ class SurveyController extends AbstractController
     }
 
     /**
+     * @param array<string, mixed>|null $testAnswers réponse d'essai (non enregistrée), renvoyée telle quelle au testeur
+     *
      * @return array<string, mixed>
      */
-    private function serializeFull(Survey $s, ?SurveyResponse $mine): array
+    private function serializeFull(Survey $s, ?SurveyResponse $mine, bool $test = false, ?array $testAnswers = null): array
     {
+        if ($test) {
+            $myResponse = $testAnswers === null ? null : [
+                'answers' => $testAnswers,
+                'submittedAt' => (new \DateTimeImmutable())->format(\DATE_ATOM),
+                'updatedAt' => null,
+            ];
+        } else {
+            $myResponse = $mine === null ? null : [
+                'answers' => $mine->getAnswers(),
+                'submittedAt' => $mine->getSubmittedAt()->format(\DATE_ATOM),
+                'updatedAt' => $mine->getUpdatedAt()?->format(\DATE_ATOM),
+            ];
+        }
+
         return [
             'id' => $s->getId(),
             'title' => $s->getTitle(),
             'description' => $s->getDescription(),
             'publishedAt' => $s->getPublishedAt()?->format(\DATE_ATOM),
             'closesAt' => $s->getClosesAt()?->format(\DATE_ATOM),
-            'isClosed' => $s->isClosed(),
+            // Essai : toujours ouvert, pour pouvoir tester l'envoi même si la date de fermeture est déjà passée.
+            'isClosed' => !$test && $s->isClosed(),
+            // Essai : un sondage pas encore publié que le viewer teste — rien n'y est enregistré.
+            'test' => $test,
             // Nombre total de réponses : visible uniquement par ceux qui ont répondu.
-            'responseCount' => $mine === null ? null : $this->responses->countForSurvey($s),
+            'responseCount' => ($test || $mine === null) ? null : $this->responses->countForSurvey($s),
             'sections' => $s->getSections() ?? [],
-            'myResponse' => $mine === null ? null : [
-                'answers' => $mine->getAnswers(),
-                'submittedAt' => $mine->getSubmittedAt()->format(\DATE_ATOM),
-                'updatedAt' => $mine->getUpdatedAt()?->format(\DATE_ATOM),
-            ],
+            'myResponse' => $myResponse,
         ];
     }
 }

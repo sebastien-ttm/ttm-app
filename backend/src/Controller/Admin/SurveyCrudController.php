@@ -9,7 +9,9 @@ use App\Repository\SurveyResponseRepository;
 use App\Security\ContentDeleteVoter;
 use App\Service\MemberGroup\MemberGroupService;
 use App\Service\Survey\SurveySchemaValidator;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\PersistentCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -76,6 +78,7 @@ JSON;
         private readonly SurveySchemaValidator $validator,
         private readonly SurveyResponseRepository $responses,
         private readonly MemberGroupService $memberGroups,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -154,7 +157,17 @@ JSON;
 
         yield DateTimeField::new('publishedAt', 'Publier à partir de')
             ->setRequired(false)
-            ->setHelp('Vide = brouillon (invisible). Date passée = actif immédiatement.');
+            ->setHelp('Vide = brouillon (invisible, sauf pour les testeurs ci-dessous). Date passée = actif immédiatement.');
+
+        yield AssociationField::new('testers', '🧪 Testeurs (avant publication)')
+            ->setRequired(false)
+            ->setFormTypeOption('by_reference', false)
+            ->setQueryBuilder(fn ($qb) => $qb
+                ->andWhere('entity.isActive = true')
+                ->orderBy('entity.nom', 'ASC')
+                ->addOrderBy('entity.prenom', 'ASC'))
+            ->onlyOnForms()
+            ->setHelp('Pour essayer le sondage avant de le publier : choisissez un adhérent cible, ou vous-même. Tant que le sondage n\'est pas publié, il apparaît dans l\'appli de ces seuls testeurs (carte « 🧪 Test », ouverte aussi par une notification) et leurs réponses ne sont PAS enregistrées. Enregistrez pour prévenir les testeurs ajoutés ; une fois le sondage publié, cette liste n\'a plus d\'effet.');
 
         yield DateTimeField::new('closesAt', 'Fermer le')
             ->setRequired(false)
@@ -187,20 +200,53 @@ JSON;
             $entityInstance->setCreatedBy($author);
             $this->validateSchemaOrThrow($entityInstance);
         }
+        // Nouveau sondage : tous ses testeurs sont « ajoutés » (collection non encore persistée).
+        $added = $entityInstance instanceof Survey ? $entityInstance->getTesters()->toArray() : [];
         parent::persistEntity($em, $entityInstance);
+
+        if ($entityInstance instanceof Survey) {
+            $this->notifyTesters($entityInstance, $added);
+        }
     }
 
     public function updateEntity(EntityManagerInterface $em, $entityInstance): void
     {
+        $added = [];
         if ($entityInstance instanceof Survey) {
             $entityInstance->touchUpdatedAt();
             $this->validateSchemaOrThrow($entityInstance);
+            // Testeurs ajoutés par ce formulaire (à relever AVANT le flush, qui remet le suivi à zéro).
+            $testers = $entityInstance->getTesters();
+            $added = $testers instanceof PersistentCollection ? $testers->getInsertDiff() : [];
         }
         parent::updateEntity($em, $entityInstance);
 
         if ($entityInstance instanceof Survey) {
             $this->backfillGroupTargets($em, $entityInstance);
+            $this->notifyTesters($entityInstance, $added);
         }
+    }
+
+    /**
+     * Prévient par notification push les testeurs qui viennent d'être ajoutés, tant que le sondage n'est pas publié :
+     * la notification ouvre directement le sondage dans l'appli. Sans effet si le push n'est pas configuré.
+     *
+     * @param list<User> $added
+     */
+    private function notifyTesters(Survey $survey, array $added): void
+    {
+        if ($added === [] || $survey->getId() === null || $survey->isPublished()) {
+            return;
+        }
+        $ids = array_map(static fn (User $u) => (int) $u->getId(), $added);
+        $this->webPush->notifyUsers(
+            $ids,
+            'Sondage à tester',
+            sprintf('« %s » n\'est pas encore publié : vous seul le voyez, vos réponses ne seront pas enregistrées.', $survey->getTitle()),
+            '/survey/'.$survey->getId(),
+            'survey-test-'.$survey->getId(),
+        );
+        $this->addFlash('success', sprintf('%d testeur(s) ajouté(s) : le sondage apparaît dans leur appli (carte « 🧪 Test ») et une notification leur est envoyée s\'ils ont activé le push.', count($ids)));
     }
 
     /**

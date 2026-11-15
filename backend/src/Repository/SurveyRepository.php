@@ -43,6 +43,25 @@ class SurveyRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Sondages que ce user essaie avant leur publication : il en est testeur et ils ne sont pas (encore) publiés
+     * (brouillon ou publication programmée). Tous types confondus, y compris dédiés à un stage. Plus récent d'abord.
+     *
+     * @return list<Survey>
+     */
+    public function findTestFor(User $user): array
+    {
+        return $this->createQueryBuilder('s')
+            ->innerJoin('s.testers', 't')
+            ->andWhere('t = :user')
+            ->andWhere('s.publishedAt IS NULL OR s.publishedAt > :now')
+            ->setParameter('user', $user)
+            ->setParameter('now', (new \DateTimeImmutable())->format('Y-m-d H:i:s'))
+            ->orderBy('s.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /** Total des sondages publiés (tous statuts confondus, pour l'admin). */
     public function findAllForAdmin(): array
     {

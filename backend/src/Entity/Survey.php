@@ -4,6 +4,8 @@ namespace App\Entity;
 
 use App\Entity\Trait\AudienceAwareTrait;
 use App\Repository\SurveyRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -18,7 +20,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  *      required?: bool, help?: string, options?: string[] }]
  *
  * Statut :
- *  - publishedAt null              → brouillon (invisible)
+ *  - publishedAt null              → brouillon (invisible, sauf pour ses testeurs : voir $testers)
  *  - publishedAt <= now            → actif (visible aux users ciblés)
  *  - closesAt < now (si défini)    → fermé (lecture seule, historique conservé)
  */
@@ -78,9 +80,51 @@ class Survey implements OwnedContentInterface
     public function getStage(): ?Stage { return $this->stage; }
     public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
 
+    /**
+     * Testeurs : adhérents (l'administrateur lui-même compris) qui voient et peuvent essayer le sondage dans l'appli
+     * AVANT sa publication, sans que personne d'autre le voie. Leurs réponses d'essai ne sont jamais enregistrées
+     * (pas de résultat faussé, pas de rattachement à un groupe).
+     *
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class)]
+    #[ORM\JoinTable(name: 'survey_tester')]
+    #[ORM\JoinColumn(name: 'survey_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $testers;
+
+    /** @return Collection<int, User> */
+    public function getTesters(): Collection { return $this->testers; }
+
+    public function addTester(User $user): self
+    {
+        if (!$this->testers->contains($user)) {
+            $this->testers->add($user);
+        }
+        return $this;
+    }
+
+    public function removeTester(User $user): self
+    {
+        $this->testers->removeElement($user);
+        return $this;
+    }
+
+    public function hasTester(?User $user): bool
+    {
+        return $user !== null && $this->testers->contains($user);
+    }
+
+    /** Le viewer essaie ce sondage avant sa publication (brouillon ou publication programmée, et il est testeur). */
+    public function isTestFor(?User $user, ?\DateTimeImmutable $now = null): bool
+    {
+        return !$this->isPublished($now) && $this->hasTester($user);
+    }
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
+        $this->testers = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
