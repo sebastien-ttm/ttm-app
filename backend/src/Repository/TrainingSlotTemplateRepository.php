@@ -17,6 +17,23 @@ class TrainingSlotTemplateRepository extends ServiceEntityRepository
     }
 
     /**
+     * Identifiants des créneaux de la semaine type cochés « Groupes d'entraînement » : les seules séances sur
+     * lesquelles un encadrant peut créer un groupe.
+     *
+     * @return list<int>
+     */
+    public function findGroupEnabledIds(): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('t.id')
+            ->where('t.groupsEnabled = true')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $r) => (int) $r['id'], $rows);
+    }
+
+    /**
      * @return list<TrainingSlotTemplate>
      */
     public function findActiveOrdered(): array

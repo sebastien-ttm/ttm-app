@@ -7,6 +7,7 @@ use App\Entity\TrainingSlot;
 use App\Entity\TrainingSlotTemplate;
 use App\Entity\User;
 use App\Repository\TrainingGroupRepository;
+use App\Repository\TrainingSlotTemplateRepository;
 use App\Service\Training\WeeklyScheduleService;
 use App\Service\WebPush\WebPushNotifier;
 use Doctrine\DBAL\LockMode;
@@ -34,6 +35,7 @@ class TrainingGroupService
     public function __construct(
         private readonly WeeklyScheduleService $schedule,
         private readonly TrainingGroupRepository $groups,
+        private readonly TrainingSlotTemplateRepository $templates,
         private readonly TrainingGroupFileService $files,
         private readonly EntityManagerInterface $em,
         private readonly WebPushNotifier $push,
@@ -78,18 +80,26 @@ class TrainingGroupService
     }
 
     /**
-     * Séances auxquelles on peut adosser un nouveau groupe : tous sports (natation, vélo, course, multi…), en cours ou à
-     * venir dans les 14 prochains jours.
+     * Séances auxquelles on peut adosser un nouveau groupe : uniquement celles des créneaux de la semaine type cochés
+     * « Groupes d'entraînement » dans le back-office (tous sports), en cours ou à venir dans les 14 prochains jours.
+     * Les créneaux occasionnels (hors semaine type) ne sont pas proposés.
      *
      * @return list<array{row: array<string, mixed>, title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, monday: \DateTimeImmutable, occ: string}>
      */
     public function eligibleSessions(\DateTimeImmutable $now): array
     {
         $limit = $now->modify(self::SESSION_HORIZON);
+        $enabled = array_flip($this->templates->findGroupEnabledIds());
+        if ($enabled === []) {
+            return [];
+        }
 
         return array_values(array_filter(
             $this->sessions($now),
-            static fn (array $s) => self::isEligible($s, $now) && $s['startsAt'] <= $limit,
+            static fn (array $s) => self::isEligible($s, $now)
+                && $s['startsAt'] <= $limit
+                && $s['row']['templateId'] !== null
+                && isset($enabled[$s['row']['templateId']]),
         ));
     }
 
@@ -135,7 +145,7 @@ class TrainingGroupService
     /**
      * Crée et enregistre un groupe adossé à `$session` (voir eligibleSessions). L'appelant a déjà vérifié que le créateur
      * n'a pas de groupe sur cette séance, que les encadrants et adhérents sont éligibles et que les adhérents tiennent
-     * dans `$capacity`.
+     * dans `$capacity` (null : pas de limite).
      *
      * @param array{row: array<string, mixed>, title: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, monday: \DateTimeImmutable, occ: string} $session
      * @param list<User> $coaches autres encadrants (le créateur est ajouté d'office)
@@ -148,7 +158,7 @@ class TrainingGroupService
         array $coaches,
         array $members,
         array $session,
-        int $capacity,
+        ?int $capacity,
         ?int $paceLevel,
         ?string $speed,
     ): TrainingGroup {

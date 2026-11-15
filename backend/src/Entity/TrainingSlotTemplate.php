@@ -98,6 +98,13 @@ class TrainingSlotTemplate
     #[Assert\Range(min: 1, max: 500)]
     private ?int $capacity = null;
 
+    /**
+     * Séance proposée aux encadrants pour créer un groupe d'entraînement depuis l'appli. Décoché par défaut : seuls
+     * les créneaux cochés dans la semaine type sont présentés (sinon la liste serait trop longue).
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $groupsEnabled = false;
+
     public function __construct()
     {
         $this->startTime = new \DateTimeImmutable('18:30:00');
@@ -128,6 +135,7 @@ class TrainingSlotTemplate
         $copy->setAudience($this->getAudience());
         $copy->setRegistrationRequired($this->registrationRequired);
         $copy->setCapacity($this->capacity);
+        $copy->setGroupsEnabled($this->groupsEnabled);
         $copy->setStartsAt($startsAt);
         $copy->setEndsAt($endsAt);
         $copy->setSeason($season);
@@ -183,6 +191,9 @@ class TrainingSlotTemplate
 
     public function getCapacity(): ?int { return $this->capacity; }
     public function setCapacity(?int $c): self { $this->capacity = $c; return $this; }
+
+    public function isGroupsEnabled(): bool { return $this->groupsEnabled; }
+    public function setGroupsEnabled(bool $b): self { $this->groupsEnabled = $b; return $this; }
 
     /** Un créneau sur inscription doit dire combien de places il offre. */
     #[Assert\Callback]

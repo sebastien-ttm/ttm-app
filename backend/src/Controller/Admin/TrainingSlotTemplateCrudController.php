@@ -289,6 +289,12 @@ class TrainingSlotTemplateCrudController extends AbstractCrudController
             ->setRequired(false)
             ->setHelp('Nombre maximum d\'inscrits par semaine — obligatoire quand le créneau est sur inscription.');
 
+        yield BooleanField::new('groupsEnabled', 'Groupes d\'entraînement')
+            ->setHelp(
+                'Coché : les encadrants peuvent créer un groupe d\'entraînement sur cette séance depuis l\'appli '
+                .'(onglet Groupe de l\'espace Staff). Aucun créneau n\'est coché par défaut : cochez ceux à proposer.'
+            );
+
         yield IntegerField::new('position', 'Position')
             ->hideOnIndex()
             ->setHelp('Optionnel : ordre d\'affichage à heure égale (0 par défaut).');

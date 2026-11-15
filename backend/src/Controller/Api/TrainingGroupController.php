@@ -271,10 +271,12 @@ class TrainingGroupController extends AbstractController
     // ============================================================
 
     /**
-     * Crée le groupe de l'encadrant, adossé à une séance de vélo ou de course à pied à venir.
+     * Crée le groupe de l'encadrant, adossé à l'une des séances proposées : celles des créneaux de la semaine type
+     * cochés « Groupes d'entraînement » dans le back-office.
      *
-     * Body : { slot: { week, templateId? | slotId? }, capacity, paceLevel?, speed?, name?, info?, memberIds: int[],
-     * coachIds?: int[] }. Un encadrant n'a qu'un groupe par séance ; un adhérent n'est que dans un groupe par séance.
+     * Body : { slot: { week, templateId }, capacity?, paceLevel?, speed?, name?, info?, memberIds: int[],
+     * coachIds?: int[] } (capacity absent = pas de limite). Un encadrant n'a qu'un groupe par séance ; un adhérent
+     * n'est que dans un groupe par séance.
      */
     #[Route('/api/training-groups', methods: ['POST'])]
     public function create(Request $request): JsonResponse
@@ -303,12 +305,14 @@ class TrainingGroupController extends AbstractController
         [$monday, $templateId, $slotId] = $target;
         $session = $this->service->findEligibleSession($monday, $templateId, $slotId, $now);
         if ($session === null) {
-            return $this->invalid('Choisissez une séance de vélo ou de course à pied à venir (non annulée).');
+            return $this->invalid('Choisissez une des séances proposées pour les groupes (à venir, non annulée).');
         }
 
-        $capacity = $this->capacityFrom($p['capacity'] ?? null);
-        if ($capacity === null) {
-            return $this->invalid(sprintf('Indiquez le nombre maximal d\'adhérents (1 à %d).', TrainingGroup::MAX_MEMBERS));
+        // Nombre maximal d'adhérents : facultatif (absent, null ou vide = pas de limite).
+        $rawCapacity = $p['capacity'] ?? null;
+        $capacity = ($rawCapacity === null || $rawCapacity === '') ? null : $this->capacityFrom($rawCapacity);
+        if ($rawCapacity !== null && $rawCapacity !== '' && $capacity === null) {
+            return $this->invalid(sprintf('Le nombre maximal d\'adhérents doit être compris entre 1 et %d (ou laissé vide : pas de limite).', TrainingGroup::MAX_MEMBERS));
         }
         $paceLevel = $this->paceLevelFrom($p['paceLevel'] ?? null);
         if ($paceLevel === false) {
@@ -331,7 +335,7 @@ class TrainingGroupController extends AbstractController
             return new JsonResponse(['error' => $error], Response::HTTP_CONFLICT);
         }
         $members = $this->eligibleMembers($this->intList($p['memberIds'] ?? []), $viewer, $coaches);
-        if (count($members) > $capacity) {
+        if ($capacity !== null && count($members) > $capacity) {
             return $this->invalid(sprintf('Le groupe est limité à %d adhérent%s : retirez-en ou augmentez le nombre de places.', $capacity, $capacity > 1 ? 's' : ''));
         }
         $conflict = $this->conflictMessage($this->service->memberConflicts($members, $templateId, $slotId, $monday, null));
