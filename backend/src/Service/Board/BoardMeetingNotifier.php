@@ -8,8 +8,8 @@ use App\Repository\UserRepository;
 use App\Service\WebPush\WebPushNotifier;
 
 /**
- * Notification push aux membres du comité directeur quand une réunion est programmée, pour qu'ils ajoutent leurs
- * points à l'ordre du jour.
+ * Notification push aux membres du comité directeur et aux entraîneurs quand une réunion est programmée, pour qu'ils
+ * ajoutent leurs points à l'ordre du jour.
  */
 class BoardMeetingNotifier
 {
@@ -21,12 +21,15 @@ class BoardMeetingNotifier
 
     public function notifyScheduled(BoardMeeting $meeting, ?User $except = null): void
     {
+        // Membres du CoDir + entraîneurs (invités aux réunions, ils peuvent ajouter des points) ; un compte qui est
+        // les deux n'est notifié qu'une fois (WebPushNotifier::notifyUsers() dédoublonne aussi).
         $ids = [];
-        foreach ($this->users->findCommitteeMembers() as $member) {
+        foreach ([...$this->users->findCommitteeMembers(), ...$this->users->findCoaches()] as $member) {
             if ($member->isActive() && ($except === null || $member->getId() !== $except->getId())) {
-                $ids[] = (int) $member->getId();
+                $ids[(int) $member->getId()] = (int) $member->getId();
             }
         }
+        $ids = array_values($ids);
         $fmt = new \IntlDateFormatter('fr_FR', \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT, 'Europe/Paris', null, "EEEE d MMMM 'à' HH'h'mm");
         $this->webPush->notifyUsers(
             $ids,
