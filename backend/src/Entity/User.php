@@ -206,12 +206,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private int $loginCount = 0;
 
     /**
-     * Préférence opt-in : recevoir un email à chaque publication de plan
-     * d'entraînement. Défaut FALSE — l'adhérent doit cocher la case dans
-     * son profil mobile pour s'abonner.
+     * Préférence : recevoir un email à chaque publication de plan d'entraînement.
+     * Seule notification e-mail activée par défaut sur un nouveau compte ; l'adhérent
+     * peut la décocher dans son profil mobile. (Les comptes existants gardent leur choix.)
      */
-    #[ORM\Column(name: 'notify_training_plan_email', options: ['default' => false])]
-    private bool $notifyTrainingPlanEmail = false;
+    #[ORM\Column(name: 'notify_training_plan_email', options: ['default' => true])]
+    private bool $notifyTrainingPlanEmail = true;
 
     /**
      * Préférence opt-in : recevoir un email à chaque publication d'un
@@ -223,8 +223,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     /**
      * Désinscription des mailings groupés du club (Mailing). Null = reçoit les
-     * mailings (c'est l'inscription par défaut d'un adhérent) ; sinon, date de la
-     * désinscription (lien dans chaque mail, ou réglage du profil).
+     * mailings ; sinon, date de la désinscription (lien dans chaque mail, ou réglage du
+     * profil). Un NOUVEAU compte est désinscrit d'office (voir le constructeur) : le
+     * mailing est une option à cocher dans le profil. Les comptes existants gardent leur état.
      */
     #[ORM\Column(name: 'mailing_opt_out_at', nullable: true)]
     private ?\DateTimeImmutable $mailingOptOutAt = null;
@@ -245,6 +246,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
+        // Mailings du club : désactivés par défaut (opt-in depuis le profil). Le constructeur n'est
+        // pas appelé à l'hydratation Doctrine : les comptes déjà en base ne sont pas touchés.
+        $this->mailingOptOutAt = $this->createdAt;
         $this->deviceTokens = new ArrayCollection();
         $this->dependents = new ArrayCollection();
         $this->children = new ArrayCollection();
