@@ -259,6 +259,8 @@ export type SurveySummary = {
   dismissed: boolean;
   /** Nombre total de réponses — renseigné uniquement si le viewer a répondu, sinon null. */
   responseCount: number | null;
+  /** Sondage pas encore publié, visible de ses seuls testeurs : réponses non enregistrées. Absent des anciennes réponses. */
+  test?: boolean;
 };
 
 /** Détail complet + éventuelle réponse existante du viewer. */
@@ -269,6 +271,8 @@ export type Survey = {
   publishedAt: string | null;
   closesAt: string | null;
   isClosed: boolean;
+  /** Essai avant publication (viewer = testeur) : la réponse est validée mais jamais enregistrée. */
+  test?: boolean;
   /** Nombre total de réponses — renseigné uniquement si le viewer a répondu, sinon null. */
   responseCount: number | null;
   sections: SurveyQuestion[];

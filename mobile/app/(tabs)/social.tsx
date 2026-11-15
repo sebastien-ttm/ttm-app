@@ -68,7 +68,7 @@ export default function ContactScreen() {
   // Les sondages cochés « pas concerné » ne comptent pas, pas plus que
   // ceux auxquels on a répondu (même règle que le compteur serveur).
   const unansweredSurveysCount = useMemo(
-    () => openSurveys.filter((s) => !s.answered && !s.dismissed).length,
+    () => openSurveys.filter((s) => !s.test && !s.answered && !s.dismissed).length,
     [openSurveys],
   );
 
@@ -279,14 +279,14 @@ export default function ContactScreen() {
                     style={[styles.surveyCard, s.answered && styles.surveyCardDone, s.dismissed && styles.surveyCardDismissed]}
                   >
                     <Pressable
-                      onPress={s.answered ? openSurvey : () => void toggleSurveyDismissed(s)}
+                      onPress={s.answered || s.test ? openSurvey : () => void toggleSurveyDismissed(s)}
                       disabled={togglingSurveyId === s.id}
                       hitSlop={8}
                       style={({ pressed }) => [styles.surveyIconWrap, s.dismissed && styles.surveyIconWrapDismissed, pressed && { opacity: 0.6 }]}
-                      accessibilityRole={s.answered ? 'button' : 'checkbox'}
-                      accessibilityState={s.answered ? undefined : { checked: s.dismissed }}
+                      accessibilityRole={s.answered || s.test ? 'button' : 'checkbox'}
+                      accessibilityState={s.answered || s.test ? undefined : { checked: s.dismissed }}
                       accessibilityLabel={
-                        s.answered
+                        s.answered || s.test
                           ? 'Ouvrir le sondage'
                           : s.dismissed
                             ? 'Non concerné(e) — décocher pour remettre le sondage à traiter'
@@ -296,7 +296,7 @@ export default function ContactScreen() {
                       {s.dismissed ? (
                         <Ionicons name="checkmark-circle" size={24} color={COLORS.textMuted} />
                       ) : (
-                        <Text style={{ fontSize: 20 }}>{s.answered ? '✅' : '📝'}</Text>
+                        <Text style={{ fontSize: 20 }}>{s.test ? '🧪' : s.answered ? '✅' : '📝'}</Text>
                       )}
                     </Pressable>
                     <Pressable onPress={openSurvey} style={({ pressed }) => [styles.surveyCardBody, pressed && { opacity: 0.75 }]}>
@@ -304,7 +304,9 @@ export default function ContactScreen() {
                         <Text style={styles.surveyCardTitle}>{s.title}</Text>
                         <Text style={styles.surveyCardMeta}>
                           {s.sectionCount} question{s.sectionCount > 1 ? 's' : ''}
-                          {s.answered
+                          {s.test
+                            ? ' · 🧪 Test : pas encore publié, visible de vous seul — vos réponses ne sont pas enregistrées'
+                            : s.answered
                             ? ` · Répondu${s.responseCount != null ? ` · ${s.responseCount} réponse${s.responseCount > 1 ? 's' : ''}` : ''} — modifiez si besoin`
                             : s.dismissed
                               ? ' · Non concerné(e) — touchez la coche pour annuler'

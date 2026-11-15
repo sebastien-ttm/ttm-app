@@ -131,9 +131,19 @@ export default function SurveyScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>{survey.title}</Text>
 
-          <View style={{ flexDirection: 'row', marginBottom: SPACING.md }}>
-            <ShareButton path={`/survey/${survey.id}`} title={survey.title} />
-          </View>
+          {survey.test ? (
+            <View style={styles.testBanner}>
+              <Text style={styles.testBannerTitle}>🧪 Mode test</Text>
+              <Text style={styles.testBannerLabel}>
+                Ce sondage n'est pas encore publié : vous seul le voyez. Vos réponses sont vérifiées comme de vraies
+                réponses, mais elles ne sont pas enregistrées et n'apparaissent dans aucun résultat.
+              </Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', marginBottom: SPACING.md }}>
+              <ShareButton path={`/survey/${survey.id}`} title={survey.title} />
+            </View>
+          )}
 
           {survey.isClosed && (
             <View style={styles.closedBanner}>
@@ -148,7 +158,9 @@ export default function SurveyScreen() {
             <View style={styles.savedBanner}>
               <Ionicons name="checkmark-circle" size={16} color="#065f46" />
               <Text style={styles.savedLabel}>
-                Réponse enregistrée le {new Date(submittedAt).toLocaleString('fr-FR')}. Vous pouvez la modifier.
+                {survey.test
+                  ? 'Test réussi : votre réponse est valide mais n\'a PAS été enregistrée. Vous pouvez la modifier et refaire un essai.'
+                  : `Réponse enregistrée le ${new Date(submittedAt).toLocaleString('fr-FR')}. Vous pouvez la modifier.`}
               </Text>
             </View>
           )}
@@ -192,7 +204,9 @@ export default function SurveyScreen() {
                 <>
                   <Ionicons name="send" size={18} color="#fff" />
                   <Text style={styles.submitBtnLabel}>
-                    {submittedAt ? 'Mettre à jour ma réponse' : 'Envoyer ma réponse'}
+                    {survey.test
+                      ? (submittedAt ? 'Refaire un essai d\'envoi' : 'Tester l\'envoi')
+                      : (submittedAt ? 'Mettre à jour ma réponse' : 'Envoyer ma réponse')}
                   </Text>
                 </>
               )}
@@ -311,6 +325,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl, maxWidth: 640, width: '100%', alignSelf: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md, lineHeight: 28 },
+  testBanner: {
+    gap: 4, backgroundColor: '#fef3c7', borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.warning,
+    padding: 10, marginBottom: SPACING.md,
+  },
+  testBannerTitle: { color: '#92400e', fontSize: 14, fontWeight: '800' },
+  testBannerLabel: { color: '#92400e', fontSize: 13 },
   closedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#fee2e2', borderRadius: RADIUS.sm,
