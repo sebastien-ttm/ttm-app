@@ -2,8 +2,8 @@
 
 namespace App\Repository;
 
+use App\Entity\User;
 use App\Entity\WebPushSubscription;
-use App\Enum\Profile;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -42,25 +42,19 @@ class WebPushSubscriptionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Ids des adhérents actifs abonnés et autorisés à voir les plans
-     * d'entraînement : tous sauf les comptes Jeune (sauf s'ils sont aussi
-     * Entraîneur / Encadrant) — même règle que DeviceTokenRepository.
+     * Adhérents actifs ayant au moins un appareil abonné aux notifications push (candidats à une
+     * notification : le filtrage par sujet et par audience se fait ensuite en mémoire).
      *
-     * @return list<int>
+     * @return list<User>
      */
-    public function findUserIdsForTrainingPlans(): array
+    public function findSubscribedUsers(): array
     {
-        $rows = $this->createQueryBuilder('s')
-            ->select('DISTINCT IDENTITY(s.user) AS uid')
-            ->innerJoin('s.user', 'u')
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
             ->where('u.isActive = true')
-            ->andWhere('JSON_CONTAINS(u.profiles, :jeune) = 0 OR JSON_CONTAINS(u.profiles, :entraineur) = 1 OR JSON_CONTAINS(u.profiles, :encadrant) = 1')
-            ->setParameter('jeune', json_encode(Profile::Jeune->value))
-            ->setParameter('entraineur', json_encode(Profile::Entraineur->value))
-            ->setParameter('encadrant', json_encode(Profile::Encadrant->value))
+            ->andWhere('EXISTS (SELECT 1 FROM '.WebPushSubscription::class.' s WHERE s.user = u)')
             ->getQuery()
-            ->getScalarResult();
-
-        return array_map(static fn (array $r) => (int) $r['uid'], $rows);
+            ->getResult();
     }
 }

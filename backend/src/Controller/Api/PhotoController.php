@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\PhotoAlbumCover;
 use App\Entity\PhotoUpload;
 use App\Entity\User;
+use App\Enum\PushTopic;
 use App\Repository\PhotoAlbumCoverRepository;
 use App\Repository\PhotoUploadRepository;
 use App\Repository\UserRepository;
@@ -12,6 +13,7 @@ use App\Service\AvatarService;
 use App\Service\ImageResizer;
 use App\Service\Piwigo\PiwigoClient;
 use App\Service\Piwigo\PiwigoException;
+use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +22,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -52,6 +55,7 @@ class PhotoController extends AbstractController
         private readonly ImageResizer $resizer,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly WebPushNotifier $webPush,
     ) {
     }
 
@@ -100,6 +104,22 @@ class PhotoController extends AbstractController
             $albumId = $this->piwigo->createAlbum($name, $comment);
         } catch (PiwigoException $e) {
             return $this->unavailable($e);
+        }
+
+        // Notification push « nouvel album photo », différée de 10 minutes : l'album est créé vide, ses photos
+        // sont ajoutées juste après. Une panne du push ne doit pas faire échouer la création de l'album.
+        try {
+            $this->webPush->notifyTopic(
+                PushTopic::PhotoAlbum,
+                'Nouvel album photo',
+                $name,
+                '/photos/'.$albumId,
+                'photo-album-'.$albumId,
+                exclude: $user,
+                stamps: [new DelayStamp(10 * 60 * 1000)],
+            );
+        } catch (\Throwable $e) {
+            $this->logger->warning('Échec de la notification push (nouvel album photo)', ['albumId' => $albumId, 'error' => $e->getMessage()]);
         }
 
         return new JsonResponse([

@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Entity\WebPushSubscription;
+use App\Enum\PushTopic;
 use App\Repository\WebPushSubscriptionRepository;
 use App\Service\WebPush\WebPushClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,61 @@ class WebPushController extends AbstractController
             'enabled' => $this->client->isConfigured(),
             'publicKey' => $this->client->isConfigured() ? $this->client->getPublicKey() : null,
         ]);
+    }
+
+    /**
+     * Sujets de notification push (nouvel événement, nouvel article…) et leur état pour l'adhérent
+     * connecté. Le réglage est PAR ADHÉRENT (il vaut pour tous ses appareils) ; tout est activé par défaut.
+     */
+    #[Route('/api/me/push/topics', methods: ['GET'])]
+    public function topics(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        return new JsonResponse(['data' => $this->serializeTopics($user)]);
+    }
+
+    /**
+     * Body : { topics: { "event": false, "article": true, … } } — seuls les sujets cités changent, les
+     * clés inconnues sont ignorées. Renvoie la liste complète à jour.
+     */
+    #[Route('/api/me/push/topics', methods: ['PUT'])]
+    public function updateTopics(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload) || !isset($payload['topics']) || !is_array($payload['topics'])) {
+            return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $disabled = array_fill_keys($user->getPushDisabledTopics(), true);
+        foreach ($payload['topics'] as $key => $enabled) {
+            if (PushTopic::tryFrom((string) $key) === null) {
+                continue;
+            }
+            if ($enabled) {
+                unset($disabled[(string) $key]);
+            } else {
+                $disabled[(string) $key] = true;
+            }
+        }
+        $user->setPushDisabledTopics(array_map('strval', array_keys($disabled)));
+        $this->em->flush();
+
+        return new JsonResponse(['data' => $this->serializeTopics($user)]);
+    }
+
+    /** @return list<array{key: string, label: string, description: string, enabled: bool}> */
+    private function serializeTopics(User $user): array
+    {
+        return array_map(static fn (PushTopic $topic) => [
+            'key' => $topic->value,
+            'label' => $topic->label(),
+            'description' => $topic->description(),
+            'enabled' => $user->isPushTopicEnabled($topic),
+        ], PushTopic::cases());
     }
 
     /**

@@ -3,10 +3,11 @@
 namespace App\EventListener;
 
 use App\Entity\TrainingPlan;
+use App\Entity\User;
+use App\Enum\PushTopic;
 use App\Message\SendPushNotificationsMessage;
 use App\Message\SendTrainingPlanEmailsMessage;
 use App\Repository\DeviceTokenRepository;
-use App\Repository\WebPushSubscriptionRepository;
 use App\Service\WebPush\WebPushNotifier;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostPersistEventArgs;
@@ -22,7 +23,6 @@ class TrainingPlanListener
         private readonly MessageBusInterface $bus,
         private readonly DeviceTokenRepository $deviceTokens,
         private readonly WebPushNotifier $webPush,
-        private readonly WebPushSubscriptionRepository $webPushSubscriptions,
     ) {
     }
 
@@ -46,7 +46,8 @@ class TrainingPlanListener
         $stamps = $delayMs > 0 ? [new DelayStamp($delayMs)] : [];
 
         // 1) Push notification (devices mobiles enregistrés), sauf comptes
-        //    Jeune qui n'ont pas accès aux plans (User::canSeeTrainingPlans).
+        //    Jeune qui n'ont pas accès aux plans (User::canSeeTrainingPlans) et adhérents
+        //    qui ont désactivé le sujet « plans d'entraînement ».
         $tokens = $this->deviceTokens->findActiveExpoTokensForTrainingPlans();
         if ($tokens !== []) {
             $this->bus->dispatch(new Envelope(new SendPushNotificationsMessage(
@@ -61,13 +62,14 @@ class TrainingPlanListener
         }
 
         // 1 bis) Push web (appli installée / navigateur) aux mêmes destinataires.
-        $this->webPush->notifyUsers(
-            $this->webPushSubscriptions->findUserIdsForTrainingPlans(),
+        $this->webPush->notifyTopic(
+            PushTopic::TrainingPlan,
             'Nouveau plan d\'entraînement',
             $entity->getTitle(),
             '/training-plan/'.$entity->getId(),
             'training-plan-'.$entity->getId(),
-            $stamps,
+            recipientFilter: static fn (User $user): bool => $user->canSeeTrainingPlans(),
+            stamps: $stamps,
         );
 
         // 2) Email aux destinataires éligibles (handler s'occupe du filtrage

@@ -5,7 +5,8 @@ namespace App\Message;
 /**
  * Notification push web à envoyer à tous les appareils abonnés de ces
  * adhérents. `url` est le chemin ouvert au clic (ex : « /event/12 ») ;
- * `tag` regroupe/remplace les notifications d'un même sujet.
+ * `tag` regroupe/remplace les notifications d'un même sujet. `topic` (valeur de
+ * PushTopic) : le handler écarte, à l'envoi, les adhérents qui ont désactivé ce sujet.
  */
 final readonly class SendWebPushMessage
 {
@@ -18,6 +19,7 @@ final readonly class SendWebPushMessage
         public string $body,
         public string $url = '/',
         public ?string $tag = null,
+        public ?string $topic = null,
     ) {
     }
 }

@@ -13,9 +13,10 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Dispatche les emails de notification aux adhérents opt-in quand un
- * nouvel article est créé, si notifyOnPublish est coché. Miroir de
- * TrainingPlanListener côté emails — pas de push notif article pour
- * l'instant.
+ * nouvel article est créé, si notifyOnPublish est coché. Le message est
+ * traité à la date de publication par SendArticleEmailsMessageHandler, qui
+ * envoie aussi la notification push (sujet « article », indépendant de
+ * l'opt-in e-mail).
  */
 #[AsDoctrineListener(event: Events::postPersist)]
 class ArticleListener

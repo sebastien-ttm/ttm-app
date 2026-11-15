@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\DeviceToken;
 use App\Entity\User;
 use App\Enum\Profile;
+use App\Enum\PushTopic;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -51,7 +52,10 @@ class DeviceTokenRepository extends ServiceEntityRepository
             ->select('d.expoPushToken')
             ->leftJoin('d.user', 'u')
             ->where('u.isActive = true')
-            ->andWhere('JSON_CONTAINS(u.profiles, :jeune) = 0 OR JSON_CONTAINS(u.profiles, :entraineur) = 1 OR JSON_CONTAINS(u.profiles, :encadrant) = 1')
+            ->andWhere('(JSON_CONTAINS(u.profiles, :jeune) = 0 OR JSON_CONTAINS(u.profiles, :entraineur) = 1 OR JSON_CONTAINS(u.profiles, :encadrant) = 1)')
+            // Sujet « plans d'entraînement » non désactivé par l'adhérent (null = tout activé).
+            ->andWhere('(u.pushDisabledTopics IS NULL OR JSON_CONTAINS(u.pushDisabledTopics, :topic) = 0)')
+            ->setParameter('topic', json_encode(PushTopic::TrainingPlan->value))
             ->setParameter('jeune', json_encode(Profile::Jeune->value))
             ->setParameter('entraineur', json_encode(Profile::Entraineur->value))
             ->setParameter('encadrant', json_encode(Profile::Encadrant->value))

@@ -24,6 +24,15 @@ class SendWebPushMessageHandler
             return;
         }
         $subscriptions = $this->subscriptions->findByUserIds($message->userIds);
+        // Sujet désactivé par l'adhérent (y compris entre la mise en file et l'envoi, ex : publication différée).
+        // « ?? » : un message mis en file avant l'ajout de ce champ n'a pas de sujet.
+        $topic = $message->topic ?? null;
+        if ($topic !== null) {
+            $subscriptions = array_values(array_filter(
+                $subscriptions,
+                static fn ($subscription) => $subscription->getUser()->isPushTopicEnabled($topic),
+            ));
+        }
         if ($subscriptions === []) {
             return;
         }

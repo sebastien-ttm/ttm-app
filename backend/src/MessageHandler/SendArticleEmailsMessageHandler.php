@@ -2,6 +2,7 @@
 
 namespace App\MessageHandler;
 
+use App\Enum\PushTopic;
 use App\Message\SendArticleEmailsMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\UserRepository;
@@ -60,22 +61,31 @@ class SendArticleEmailsMessageHandler
 
         // Claim du verrou AVANT envoi (même stratégie que
         // SendTrainingPlanEmailsMessageHandler) : évite les doublons si
-        // le worker est tué mid-loop.
+        // le worker est tué mid-loop. Il couvre aussi le push ci-dessous.
         $article->setEmailsSentAt(new \DateTimeImmutable());
         $this->em->flush();
 
-        if ($recipients === []) {
-            return;
-        }
-
-        // Push web (appli installée / navigateur) aux mêmes destinataires que le mail.
-        $this->webPush->notifyUsers(
-            array_map(static fn ($user) => (int) $user->getId(), $recipients),
+        // Push web (appli installée / navigateur) : indépendant de l'opt-in e-mail — chaque adhérent abonné
+        // le reçoit sauf s'il a désactivé le sujet « articles ». Mêmes règles de visibilité que le mail :
+        // article dédié à un déplacement / un stage = participants seulement, sinon audience de l'article.
+        $trip = $article->getTrip();
+        $stage = $article->getStage();
+        $participants = $trip?->getParticipants() ?? $stage?->getParticipants();
+        $this->webPush->notifyTopic(
+            PushTopic::Article,
             'Nouvel article',
             $article->getTitle(),
             '/article/'.$article->getId(),
             'article-'.$article->getId(),
+            audience: $participants === null ? $article->getAudience() : [],
+            contentAudience: $article->getContentAudience(),
+            exclude: $article->getAuthor(),
+            recipientFilter: $participants === null ? null : WebPushNotifier::onlyThese($participants),
         );
+
+        if ($recipients === []) {
+            return;
+        }
 
         // Lien vers la page détail de l'article dans la SPA.
         $articleUrl = rtrim($this->publicUrl, '/').'/article/'.$article->getId();

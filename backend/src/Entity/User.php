@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Enum\Profile;
+use App\Enum\PushTopic;
 use App\Enum\UserType;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -229,6 +230,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\Column(name: 'mailing_opt_out_at', nullable: true)]
     private ?\DateTimeImmutable $mailingOptOutAt = null;
+
+    /**
+     * Sujets de notification push que l'adhérent a DÉSACTIVÉS (valeurs de PushTopic). Null / vide = tout
+     * est activé (c'est le réglage par défaut) ; un sujet ajouté plus tard est donc actif d'office.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(name: 'push_disabled_topics', type: 'json', nullable: true)]
+    private ?array $pushDisabledTopics = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -852,6 +862,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setMailingOptOut(bool $optOut): self
     {
         $this->mailingOptOutAt = $optOut ? ($this->mailingOptOutAt ?? new \DateTimeImmutable()) : null;
+        return $this;
+    }
+
+    /** @return list<string> sujets push désactivés (valeurs de PushTopic) */
+    public function getPushDisabledTopics(): array
+    {
+        return array_values($this->pushDisabledTopics ?? []);
+    }
+
+    public function isPushTopicEnabled(PushTopic|string $topic): bool
+    {
+        $value = $topic instanceof PushTopic ? $topic->value : $topic;
+        return !in_array($value, $this->pushDisabledTopics ?? [], true);
+    }
+
+    /**
+     * Remplace la liste des sujets push désactivés. Les valeurs inconnues sont ignorées.
+     *
+     * @param list<string> $topics
+     */
+    public function setPushDisabledTopics(array $topics): self
+    {
+        $valid = array_values(array_intersect(PushTopic::values(), array_map('strval', $topics)));
+        $this->pushDisabledTopics = $valid === [] ? null : $valid;
         return $this;
     }
 
