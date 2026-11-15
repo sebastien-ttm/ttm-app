@@ -10,6 +10,7 @@ enum RaceType: string
     case Triathlon = 'triathlon';
     case Trail = 'trail';
     case Route = 'route';
+    case Cross = 'cross';
     case Cyclosportive = 'cyclosportive';
     case EauLibre = 'eau_libre';
     case Autre = 'autre';
@@ -20,6 +21,7 @@ enum RaceType: string
             self::Triathlon => 'Triathlon',
             self::Trail => 'Trail',
             self::Route => 'Course à pied sur route',
+            self::Cross => 'Cross',
             self::Cyclosportive => 'Cyclosportive',
             self::EauLibre => 'Eau libre',
             self::Autre => 'Autre',
