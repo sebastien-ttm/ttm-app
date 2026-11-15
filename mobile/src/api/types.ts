@@ -1783,6 +1783,24 @@ export type BoardMeetingSummary = {
   answeredCount: number;
 };
 
+/** Commentaire (Information / Sujet) ou réponse (Question) d'un membre sur le point d'un autre. */
+export type BoardComment = {
+  id: number;
+  authorName: string;
+  text: string;
+  isMine: boolean;
+  canDelete: boolean;
+  createdAt: string;
+};
+
+/** Action décidée en séance, confiée à un ou plusieurs porteurs (saisie dans le back-office). */
+export type BoardAction = {
+  id: number;
+  text: string;
+  /** Noms des porteurs (membres du CoDir ou autres adhérents). */
+  assignees: string[];
+};
+
 export type BoardAgendaItem = {
   id: number;
   pole: string;
@@ -1794,12 +1812,16 @@ export type BoardAgendaItem = {
   speaker: string | null;
   isMine: boolean;
   canEdit: boolean;
-  /** Saisis en séance : Qui répond ? / Réponse-Décision / Porteur action. */
+  /** Saisis en séance : Qui répond ? / Réponse-Décision / Porteur action (ancien texte libre). */
   respondent: string | null;
   answer: string | null;
   actionOwner: string | null;
   answered: boolean;
   createdAt: string;
+  /** Réunion ouverte et point d'un autre membre : on peut le commenter (ou y répondre, pour une Question). */
+  canComment: boolean;
+  comments: BoardComment[];
+  actions: BoardAction[];
 };
 
 export type BoardMeetingDetail = BoardMeetingSummary & {

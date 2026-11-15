@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollVi
 
 import { ApiError } from '@/api/client';
 import { board as boardApi } from '@/api/resources';
-import type { BoardAgendaItem, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
+import type { BoardAgendaItem, BoardComment, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatMeetingDate } from '@/utils/boardDate';
@@ -18,7 +18,9 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
 /**
  * Réunion du CoDir : ordre du jour classé par pôle. Tant que la réunion n'est pas close, chaque membre ajoute
  * ses points (pôle, Information / Sujet / Question, texte) et peut modifier ou supprimer les siens tant qu'ils
- * n'ont pas été traités. Les réponses, décisions et porteurs d'action saisis en séance s'affichent sous chaque point.
+ * n'ont pas été traités. Sur le point d'un autre membre, on peut ajouter un commentaire (Information, Sujet) ou une
+ * réponse (Question). Les réponses, décisions et actions (avec leurs porteurs) saisies en séance s'affichent sous
+ * chaque point.
  */
 export default function BoardMeetingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +35,9 @@ export default function BoardMeetingScreen() {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Commentaire / réponse en cours de saisie sous un point.
+  const [commentingId, setCommentingId] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -93,12 +98,41 @@ export default function BoardMeetingScreen() {
     }
   }
 
+  async function sendComment(item: BoardAgendaItem) {
+    const message = commentText.trim();
+    if (message === '') return showMessage(item.type === 'question' ? 'Écrivez votre réponse.' : 'Écrivez votre commentaire.');
+    setBusy(true);
+    try {
+      setMeeting(await boardApi.addComment(item.id, message));
+      setCommentingId(null);
+      setCommentText('');
+    } catch (e) {
+      showMessage(e instanceof ApiError ? e.message : 'Erreur inattendue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeComment(comment: BoardComment) {
+    if (!(await confirmAsync('Supprimer ce message ?', comment.text))) return;
+    setBusy(true);
+    try {
+      setMeeting(await boardApi.removeComment(comment.id));
+    } catch (e) {
+      showMessage(e instanceof ApiError ? e.message : 'Erreur inattendue.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!meeting) return <FullScreenLoading />;
 
   // Regroupement par pôle (les points arrivent déjà triés dans l'ordre du compte rendu).
   const groups: { label: string; items: BoardAgendaItem[] }[] = [];
-  for (const item of meeting.items) {
+  for (const raw of meeting.items) {
+    // Tolère un serveur pas encore à jour (champs commentaires / actions absents).
+    const item: BoardAgendaItem = { ...raw, canComment: raw.canComment ?? false, comments: raw.comments ?? [], actions: raw.actions ?? [] };
     const last = groups[groups.length - 1];
     if (last && last.label === item.poleLabel) last.items.push(item);
     else groups.push({ label: item.poleLabel, items: [item] });
@@ -180,11 +214,76 @@ export default function BoardMeetingScreen() {
                   <Text style={styles.speaker}>{item.speaker ?? '—'}{item.isMine ? ' (moi)' : ''}</Text>
                 </View>
                 <Text style={styles.itemText}>{item.text}</Text>
+
+                {item.comments.length > 0 && (
+                  <View style={styles.comments}>
+                    <Text style={styles.commentsTitle}>
+                      {item.type === 'question' ? 'Réponses' : 'Commentaires'} ({item.comments.length})
+                    </Text>
+                    {item.comments.map((c) => (
+                      <View key={c.id} style={styles.comment}>
+                        <Text style={styles.commentText}>
+                          <Text style={styles.commentAuthor}>{c.authorName}{c.isMine ? ' (moi)' : ''} : </Text>
+                          {c.text}
+                        </Text>
+                        {c.canDelete && (
+                          <Pressable onPress={() => void removeComment(c)} disabled={busy}>
+                            <Text style={[styles.link, { color: COLORS.error }]}>Supprimer</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {item.canComment && (
+                  commentingId === item.id ? (
+                    <View style={styles.composer}>
+                      <TextInput
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        placeholder={item.type === 'question' ? 'Votre réponse…' : 'Votre commentaire…'}
+                        placeholderTextColor={COLORS.textSubtle}
+                        multiline
+                        autoFocus
+                        maxLength={1000}
+                        style={styles.composerInput}
+                      />
+                      <View style={styles.formActions}>
+                        <Pressable onPress={() => void sendComment(item)} disabled={busy} style={[styles.submit, styles.submitSmall, busy && { opacity: 0.6 }]}>
+                          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLabel}>Envoyer</Text>}
+                        </Pressable>
+                        <Pressable onPress={() => { setCommentingId(null); setCommentText(''); }}>
+                          <Text style={styles.cancel}>Annuler</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
+                    <Pressable onPress={() => { setCommentingId(item.id); setCommentText(''); }}>
+                      <Text style={styles.link}>{item.type === 'question' ? 'Répondre' : 'Commenter'}</Text>
+                    </Pressable>
+                  )
+                )}
+
                 {item.answered && (
                   <View style={styles.answer}>
                     {item.respondent ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Qui répond : </Text>{item.respondent}</Text> : null}
                     {item.answer ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Réponse / décision : </Text>{item.answer}</Text> : null}
                     {item.actionOwner ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Porteur action : </Text>{item.actionOwner}</Text> : null}
+                  </View>
+                )}
+
+                {item.actions.length > 0 && (
+                  <View style={styles.actions}>
+                    <Text style={styles.actionsTitle}>Action{item.actions.length > 1 ? 's' : ''}</Text>
+                    {item.actions.map((a) => (
+                      <View key={a.id} style={styles.action}>
+                        <Text style={styles.answerLine}>• {a.text}</Text>
+                        <Text style={styles.actionOwners}>
+                          {a.assignees.length > 0 ? '→ ' + a.assignees.join(', ') : 'Porteur à désigner'}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 )}
                 {item.canEdit && (
@@ -258,6 +357,18 @@ const styles = StyleSheet.create({
   answer: { backgroundColor: '#f0fdf4', borderRadius: RADIUS.sm, padding: 10, gap: 3, borderLeftWidth: 3, borderLeftColor: COLORS.success },
   answerLine: { fontSize: 13.5, color: COLORS.text },
   answerKey: { fontWeight: '700' },
+  comments: { backgroundColor: COLORS.surfaceAlt, borderRadius: RADIUS.sm, padding: 10, gap: 6 },
+  commentsTitle: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  comment: { gap: 2 },
+  commentText: { fontSize: 13.5, color: COLORS.text, lineHeight: 19 },
+  commentAuthor: { fontWeight: '700' },
+  composer: { gap: 8 },
+  composerInput: { minHeight: 64, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10, fontSize: 14, color: COLORS.text, textAlignVertical: 'top' },
+  submitSmall: { paddingVertical: 8, paddingHorizontal: 18 },
+  actions: { backgroundColor: '#fffbeb', borderRadius: RADIUS.sm, padding: 10, gap: 6, borderLeftWidth: 3, borderLeftColor: '#f59e0b' },
+  actionsTitle: { fontSize: 11, fontWeight: '700', color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.4 },
+  action: { gap: 1 },
+  actionOwners: { fontSize: 13, fontWeight: '700', color: COLORS.text, paddingLeft: 10 },
   itemActions: { flexDirection: 'row', gap: 16 },
   link: { color: COLORS.secondary, fontWeight: '700', fontSize: 13 },
 });

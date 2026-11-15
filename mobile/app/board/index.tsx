@@ -12,7 +12,8 @@ import { formatMeetingDate } from '@/utils/boardDate';
 
 /**
  * Comité directeur (membres du CoDir et administrateurs) : toutes les réunions, la prochaine en tête.
- * On y ajoute ses points à l'ordre du jour ; une réunion close affiche le compte rendu (réponses, décisions).
+ * Une réunion s'ouvre d'un toucher : son détail permet d'ajouter ses points, de commenter ceux des autres et,
+ * une fois la réunion close, de lire le compte rendu (réponses, décisions, actions).
  */
 export default function BoardMeetingsScreen() {
   const router = useRouter();
@@ -58,12 +59,6 @@ export default function BoardMeetingsScreen() {
                 {item.itemCount} point{item.itemCount > 1 ? 's' : ''} à l'ordre du jour
                 {item.closed ? ` · compte rendu (${item.answeredCount} traité${item.answeredCount > 1 ? 's' : ''})` : ''}
               </Text>
-              {item.isNext && !item.closed && (
-                <View style={styles.cta}>
-                  <Ionicons name="add-circle" size={16} color="#fff" />
-                  <Text style={styles.ctaLabel}>Ajouter un point</Text>
-                </View>
-              )}
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
           </Pressable>
@@ -84,6 +79,4 @@ const styles = StyleSheet.create({
   nextTag: { alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', color: COLORS.secondary, backgroundColor: COLORS.secondarySoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, overflow: 'hidden' },
   title: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   meta: { fontSize: 13, color: COLORS.textMuted },
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: COLORS.secondary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.md, marginTop: 6 },
-  ctaLabel: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });
