@@ -47,8 +47,8 @@ class RaceProposalCourse
     private \DateTimeImmutable $createdAt;
 
     /**
-     * Adhérents qui font cette course. Y participer vaut présence à la compétition (vote « Intéressé(e) / Je suis
-     * inscrit(e) ») ; retirer sa présence à la compétition retire aussi ses courses.
+     * Adhérents qui font cette course. Y participer vaut présence à la compétition (vote « Je suis
+     * inscrit(e) » / « Partant(e) ») ; retirer sa présence à la compétition retire aussi ses courses.
      *
      * @var Collection<int, User>
      */

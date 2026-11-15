@@ -242,7 +242,7 @@ class RaceProposalController extends AbstractController
         }
 
         $this->setVote($proposal, $user, $status);
-        // Plus présent (« Peut-être » ou réponse retirée) : il ne fait plus aucune course de la compétition.
+        // Plus présent (« Intéressé(e) » seulement, ou réponse retirée) : il ne fait plus aucune course de la compétition.
         if ($status !== RaceProposalVote::INTERESTED) {
             foreach ($proposal->getCourses() as $course) {
                 $course->removeParticipant($user);
@@ -255,7 +255,7 @@ class RaceProposalController extends AbstractController
 
     /**
      * Je fais (ou ne fais plus) cette course. Body : { "join": true|false }. Faire une course vaut présence à la
-     * compétition : la réponse passe à « Intéressé(e) / Je suis inscrit(e) ».
+     * compétition : la réponse passe à « Je suis inscrit(e) / Partant(e) ».
      */
     #[Route('/api/races/{id}/courses/{courseId}/participation', methods: ['POST'], requirements: ['id' => '\d+', 'courseId' => '\d+'])]
     public function courseParticipation(int $id, int $courseId, Request $request): JsonResponse

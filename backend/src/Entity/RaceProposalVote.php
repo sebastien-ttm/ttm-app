@@ -6,8 +6,9 @@ use App\Repository\RaceProposalVoteRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Intérêt d'un adhérent pour une course proposée : « Intéressé(e) » ou
- * « Peut-être ». Pas de ligne = pas d'avis. Un seul vote par adhérent.
+ * Réponse d'un adhérent à une course proposée : INTERESTED = « Je suis inscrit(e) » (« Partant(e) » quand un capitaine
+ * organise l'inscription groupée), MAYBE = « Intéressé(e) » (libellé de l'appli ; la valeur technique « maybe » est
+ * conservée). Pas de ligne = pas d'avis. Un seul vote par adhérent.
  */
 #[ORM\Entity(repositoryClass: RaceProposalVoteRepository::class)]
 #[ORM\Table(name: 'race_proposal_vote')]
