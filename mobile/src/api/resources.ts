@@ -74,6 +74,7 @@ import type {
   PhotoAuthor,
   PhotoImage,
   PoolBadge,
+  PushTopicSetting,
   RaceCourseInput,
   RaceProposal,
   RaceProposalInput,
@@ -267,6 +268,10 @@ export const webPush = {
   unsubscribe: (endpoint: string) => api.delete<void>('/api/me/push/subscriptions', { body: { endpoint } }),
   /** Envoie tout de suite une notification de test à mes appareils abonnés. */
   test: () => api.post<{ sent: number; failed: number }>('/api/me/push/test', {}),
+  /** Sujets de notification (par adhérent, valables pour tous ses appareils) et leur état. */
+  topics: () => api.get<{ data: PushTopicSetting[] }>('/api/me/push/topics'),
+  /** Active / désactive des sujets : { event: false, article: true… }. Renvoie la liste à jour. */
+  setTopics: (topics: Record<string, boolean>) => api.put<{ data: PushTopicSetting[] }>('/api/me/push/topics', { topics }),
 };
 
 export const trainingSchedule = {

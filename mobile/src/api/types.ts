@@ -93,6 +93,9 @@ export type TrainingPlan = {
 
 export type StaticPageSummary = { slug: string; title: string };
 
+/** Un sujet de notification push que l'adhérent peut activer / désactiver (nouvel événement, nouvel article…). */
+export type PushTopicSetting = { key: string; label: string; description: string; enabled: boolean };
+
 export type GouterSignupSummary = {
   id: number;
   userId: number;

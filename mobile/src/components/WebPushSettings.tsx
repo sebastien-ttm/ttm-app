@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
+import { webPush as webPushApi } from '@/api/resources';
+import type { PushTopicSetting } from '@/api/types';
 import { COLORS, RADIUS } from '@/config';
 import {
   disableWebPush,
@@ -10,6 +12,63 @@ import {
   sendTestWebPush,
   type WebPushState,
 } from '@/notifications/webPush';
+
+/**
+ * Choix des sujets de notification (nouvel événement, nouvel article…). Réglage par adhérent, tout est activé
+ * par défaut ; chaque interrupteur est enregistré tout de suite.
+ */
+function PushTopicList() {
+  const [topics, setTopics] = useState<PushTopicSetting[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    webPushApi.topics()
+      .then((r) => { if (!cancelled) setTopics(r.data); })
+      .catch(() => { if (!cancelled) setError('Impossible de charger vos choix de notifications.'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function toggle(key: string, enabled: boolean) {
+    setError(null);
+    const apply = (value: boolean) => setTopics((cur) => cur && cur.map((t) => (t.key === key ? { ...t, enabled: value } : t)));
+    apply(enabled); // optimiste : l'interrupteur bouge tout de suite
+    try {
+      await webPushApi.setTopics({ [key]: enabled });
+    } catch {
+      apply(!enabled);
+      setError('Enregistrement impossible, réessayez.');
+    }
+  }
+
+  if (topics === null) {
+    return error ? <Text style={styles.message}>{error}</Text> : <ActivityIndicator color={COLORS.secondary} />;
+  }
+
+  return (
+    <View style={styles.topics}>
+      <Text style={styles.topicsTitle}>Me prévenir pour :</Text>
+      {topics.map((t, i) => (
+        <View key={t.key} style={[styles.topicRow, i > 0 && styles.topicRowBorder]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.topicLabel}>{t.label}</Text>
+            <Text style={styles.topicHint}>{t.description}</Text>
+          </View>
+          <Switch
+            value={t.enabled}
+            onValueChange={(v) => toggle(t.key, v)}
+            trackColor={{ false: '#d4d4d8', true: COLORS.brandNavy }}
+            thumbColor="#fff"
+            ios_backgroundColor="#d4d4d8"
+            // Boule blanche aussi une fois activé : propriété propre à react-native-web, absente des types de Switch.
+            {...({ activeThumbColor: '#fff' } as object)}
+          />
+        </View>
+      ))}
+      {error && <Text style={styles.message}>{error}</Text>}
+    </View>
+  );
+}
 
 /**
  * Carte « Notifications push » du profil, pour l'appli web / installée (PWA).
@@ -87,8 +146,9 @@ export function WebPushSettings() {
       {state === 'off' && (
         <>
           <Text style={styles.hint}>
-            Recevez une alerte sur cet appareil pour les nouveaux plans d'entraînement, les nouveaux articles et
-            les messages qui vous sont adressés.
+            Recevez une alerte sur cet appareil pour les nouveautés du club (événements, articles, plans
+            d'entraînement, sondages…) et les messages qui vous sont adressés. Vous choisirez ensuite les sujets qui
+            vous intéressent.
           </Text>
           <Pressable
             onPress={enable}
@@ -103,6 +163,7 @@ export function WebPushSettings() {
       {state === 'on' && (
         <>
           <Text style={styles.on}>✅ Notifications activées sur cet appareil.</Text>
+          <PushTopicList />
           <View style={styles.actions}>
             <Pressable
               onPress={test}
@@ -158,4 +219,10 @@ const styles = StyleSheet.create({
   linkBtn: { paddingVertical: 10 },
   linkLabel: { fontSize: 13, fontWeight: '600', color: COLORS.error },
   message: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
+  topics: { gap: 0 },
+  topicsTitle: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
+  topicRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  topicRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border },
+  topicLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  topicHint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17, marginTop: 1 },
 });
