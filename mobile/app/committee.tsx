@@ -64,7 +64,7 @@ export default function CommitteeScreen() {
           <EmptyState
             icon="👥"
             title="Comité Directeur à venir"
-            message="Aucun rôle CoDir n'est actuellement renseigné."
+            message="Aucun rôle CODIR n'est actuellement renseigné."
           />
         ) : (
           <ScrollView

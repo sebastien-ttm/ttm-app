@@ -95,7 +95,7 @@ export default function BoardMeetingsScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
-        ListEmptyComponent={<EmptyState icon="🏛️" title="Aucune réunion programmée" message="Les réunions du CoDir apparaîtront ici." />}
+        ListEmptyComponent={<EmptyState icon="🏛️" title="Aucune réunion programmée" message="Les réunions du CODIR apparaîtront ici." />}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push(('/board/' + item.id) as never)}

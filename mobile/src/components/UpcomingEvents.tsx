@@ -78,10 +78,10 @@ export function UpcomingEvents() {
 
       <Pressable
         onPress={() => router.push('/calendar' as never)}
-        style={({ pressed }) => [styles.allLink, pressed && { opacity: 0.6 }]}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.allLink, pressed && { opacity: 0.7 }]}
       >
         <Text style={styles.allLinkLabel}>Voir tout le calendrier</Text>
-        <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
       </Pressable>
     </View>
   );
@@ -252,16 +252,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
+  // Même rendu que le bouton « Voir les … articles suivants » de l'accueil (bouton encadré pleine largeur).
   allLink: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: SPACING.sm,
+    minHeight: 44,
     marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
-  allLinkLabel: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
+  allLinkLabel: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
   // Wrapper qui englobe la row + les boutons de vote pour que ces derniers
   // se retrouvent hors du Pressable (donc pas cliqués par accident).
   rowContainer: {
