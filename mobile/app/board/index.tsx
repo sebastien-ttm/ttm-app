@@ -15,10 +15,11 @@ import { formatMeetingDate } from '@/utils/boardDate';
 const OTHERS_PREVIEW = 4;
 
 /**
- * Comité directeur (membres du CoDir et administrateurs) : en tête, les actions en cours — celles dont le membre
- * connecté est porteur d'abord et bien en évidence —, puis toutes les réunions, la prochaine en tête.
- * Une réunion s'ouvre d'un toucher : son détail permet d'ajouter ses points, de commenter ceux des autres et,
- * une fois la réunion close, de lire le compte rendu (réponses, décisions, actions).
+ * Comité directeur (membres du CoDir, administrateurs, et entraîneurs en consultation) : en tête, les actions en
+ * cours — celles dont le membre connecté est porteur d'abord et bien en évidence —, puis toutes les réunions, la
+ * prochaine en tête. Une réunion s'ouvre d'un toucher : son détail permet d'ajouter ses points et de commenter ceux
+ * des autres (hors entraîneurs, qui consultent seulement) et, une fois la réunion close, de lire le compte rendu
+ * (réponses, décisions, actions).
  */
 export default function BoardMeetingsScreen() {
   const router = useRouter();

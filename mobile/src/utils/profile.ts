@@ -150,6 +150,15 @@ export function isBoardMember(user: AuthenticatedUser | null | undefined): boole
   return !!user && user.isBoardMember === true;
 }
 
+/**
+ * Consulter la partie « Comité directeur » de l'onglet Social (ordre du jour, comptes rendus, actions) : membres du
+ * CoDir, administrateurs et entraîneurs, invités aux réunions. Les entraîneurs consultent seulement : ajouter un
+ * point et commenter restent réservés aux membres du CoDir et aux administrateurs (BoardMeetingController).
+ */
+export function canViewBoard(user: AuthenticatedUser | null | undefined): boolean {
+  return isBoardMember(user) || isAdminUser(user) || isEntraineur(user);
+}
+
 /** Administrateur (niveau d'accès du compte, pas un profil). */
 export function isAdminUser(user: AuthenticatedUser | null | undefined): boolean {
   return !!user && user.role === 'admin';
