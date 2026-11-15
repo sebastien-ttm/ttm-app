@@ -9,8 +9,9 @@ import { PaceBadge } from '@/components/groups/GroupFields';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
- * Onglet Entraînement : dans quelle allure du club (1 à 5) je me situe, par épreuve, d'après mes temps des tests
- * chronométrés (meilleur temps de la saison la plus récente où je l'ai passée). Rien n'est affiché sans temps. Un appui
+ * Onglet Entraînement : dans quelle allure du club (1 à 5) je me situe, par sport, d'après mes temps des tests
+ * chronométrés : le serveur ne renvoie que la dernière épreuve passée de chaque sport (pas un 1500 m et un 2000 m),
+ * avec mon meilleur temps de la saison la plus récente où je l'ai passée. Rien n'est affiché sans temps. Un appui
  * ouvre le récap de la saison.
  */
 export function MyAllureCard() {

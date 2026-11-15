@@ -671,7 +671,7 @@ export type PerfTestRecap = {
   mine: { level: number; time: string; effectiveTime: string; adjusted: boolean } | null;
 };
 
-/** Mon allure sur une épreuve (saison la plus récente où j'ai un temps). */
+/** Mon allure sur l'épreuve que j'ai passée en dernier dans un sport (saison la plus récente où j'ai un temps). */
 export type PerfTestAllure = {
   test: string;
   label: string;

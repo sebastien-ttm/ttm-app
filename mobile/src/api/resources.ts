@@ -138,7 +138,7 @@ export const perfTests = {
   cancelDeclaration: (id: number) => api.delete<{ ok: boolean }>(`/api/perf-tests/declarations/${id}`),
   /** « Mon évolution » : tous mes temps, toutes saisons, par épreuve. */
   mine: () => api.get<PerfTestsMineResponse>('/api/perf-tests/mine'),
-  /** Mes allures du club (1 à 5) par épreuve, d'après mes temps ; vide sans temps. */
+  /** Mes allures du club (1 à 5), une épreuve par sport (la dernière passée), d'après mes temps ; vide sans temps. */
   allures: () => api.get<{ data: PerfTestAllure[] }>('/api/perf-tests/allures'),
   /** season = année de début de la saison (2025 → saison 2025-2026) ; défaut : la plus récente avec des temps. */
   list: (season?: number) => api.get<PerfTestsResponse>(`/api/perf-tests${season ? `?season=${season}` : ''}`),
