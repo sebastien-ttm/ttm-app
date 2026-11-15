@@ -167,7 +167,7 @@ class PerfTestController extends AbstractController
             $mineCount = 0;
             $sessions = [];
             foreach ($g['sessions'] as $session) {
-                $serialized = $this->serializeSession($session, $viewer);
+                $serialized = $this->serializeSession($session, $viewer, $season);
                 $sessions[] = $serialized;
                 foreach ($serialized['results'] as $row) {
                     if ($row['mine']) {
@@ -255,7 +255,7 @@ class PerfTestController extends AbstractController
      *
      * @return array<string, mixed>
      */
-    private function serializeSession(PerfTestSession $session, User $viewer): array
+    private function serializeSession(PerfTestSession $session, User $viewer, ?int $season = null): array
     {
         $results = $session->getResults()->toArray();
         usort($results, static fn (PerfTestResult $a, PerfTestResult $b) => $a->getTimeSeconds() <=> $b->getTimeSeconds()
@@ -271,6 +271,9 @@ class PerfTestController extends AbstractController
             }
             $rows[] = [
                 'rank' => $rank,
+                // Allure du club (1 à 5) de CE temps, d'après les intervalles de la saison (bassin de 50 m corrigé) :
+                // l'appli regroupe les temps d'une séance par allure. null si l'échelle est indisponible.
+                'level' => $this->levelOf($session, $r, $season),
                 // null pour un ancien adhérent sans compte (nom conservé tel quel).
                 'userId' => $r->getUser()?->getId(),
                 'fullName' => $r->getDisplayName(),
@@ -289,5 +292,26 @@ class PerfTestController extends AbstractController
             'participants' => count($rows),
             'results' => $rows,
         ];
+    }
+
+    /**
+     * Allure (1 à 5) d'un temps de la séance pour la saison affichée, ou null si l'échelle des allures est
+     * indisponible (information annexe : un échec ne doit pas empêcher d'afficher les séances).
+     */
+    private function levelOf(PerfTestSession $session, PerfTestResult $result, ?int $season): ?int
+    {
+        if ($season === null) {
+            return null;
+        }
+        try {
+            $test = $session->getTest();
+            $effective = $this->allures->effectiveSeconds($test, $session->getPoolLength(), $result->getTimeSeconds());
+
+            return $this->allures->levelFor($test, $season, $effective);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Allure d\'un temps indisponible', ['error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 }
