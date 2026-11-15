@@ -14,14 +14,18 @@ import type { RaceCourseInput, RaceProposalInput, RaceType } from '@/api/types';
 import { DateField, formatIsoDate, todayIso } from '@/components/DateField';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
-/** Types de course : libellé, emoji et couleur (liste, détail, formulaire). */
-export const RACE_TYPES: { value: RaceType; label: string; emoji: string; color: string }[] = [
-  { value: 'triathlon', label: 'Triathlon', emoji: '🏊', color: '#1d4ed8' },
-  { value: 'trail', label: 'Trail', emoji: '⛰️', color: '#15803d' },
-  { value: 'route', label: 'Course à pied sur route', emoji: '🏃', color: '#c2410c' },
-  { value: 'cyclosportive', label: 'Cyclosportive', emoji: '🚴', color: '#b91c1c' },
-  { value: 'eau_libre', label: 'Eau libre', emoji: '🌊', color: '#0e7490' },
-  { value: 'autre', label: 'Autre', emoji: '🏅', color: '#6b21a8' },
+/**
+ * Types de course : libellé, libellé court (filtres de la liste), emoji et couleur (liste, détail, formulaire).
+ * « Autre » reste en dernier : c'est le type de repli (raceTypeMeta).
+ */
+export const RACE_TYPES: { value: RaceType; label: string; short: string; emoji: string; color: string }[] = [
+  { value: 'triathlon', label: 'Triathlon', short: 'Triathlon', emoji: '🏊', color: '#1d4ed8' },
+  { value: 'trail', label: 'Trail', short: 'Trail', emoji: '⛰️', color: '#15803d' },
+  { value: 'route', label: 'Course à pied sur route', short: 'Route', emoji: '🏃', color: '#c2410c' },
+  { value: 'cross', label: 'Cross', short: 'Cross', emoji: '🌲', color: '#854d0e' },
+  { value: 'cyclosportive', label: 'Cyclosportive', short: 'Cyclosportive', emoji: '🚴', color: '#b91c1c' },
+  { value: 'eau_libre', label: 'Eau libre', short: 'Eau libre', emoji: '🌊', color: '#0e7490' },
+  { value: 'autre', label: 'Autre', short: 'Autre', emoji: '🏅', color: '#6b21a8' },
 ];
 
 export function raceTypeMeta(type: RaceType) {

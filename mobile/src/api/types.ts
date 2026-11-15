@@ -1108,7 +1108,7 @@ export type MarketplaceConversation = {
 
 // ---- Compétitions proposées (onglet Social) : un ou plusieurs jours, une ou plusieurs épreuves ----
 
-export type RaceType = 'triathlon' | 'trail' | 'route' | 'cyclosportive' | 'eau_libre' | 'autre';
+export type RaceType = 'triathlon' | 'trail' | 'route' | 'cross' | 'cyclosportive' | 'eau_libre' | 'autre';
 export type RaceTypeOption = { value: RaceType; label: string };
 /** Intérêt d'un adhérent pour une course proposée (pas de vote = null). */
 export type RaceVote = 'interested' | 'maybe';

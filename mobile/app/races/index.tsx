@@ -1,25 +1,34 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { races as racesApi } from '@/api/resources';
-import type { RaceProposal, RaceVote } from '@/api/types';
+import type { RaceProposal, RaceType, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
-import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
+import { formatRaceDate, formatRaceDates, RACE_TYPES, raceTypeMeta } from '@/components/RaceForm';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen } from '@/lib/seenListings';
 
 type Tab = 'browse' | 'mine';
 
+/** Une proposition reste « Nouveau » pendant une semaine après sa création. */
+const NEW_FOR_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isNewProposal(createdAt: string): boolean {
+  const age = Date.now() - new Date(createdAt).getTime();
+  return age >= 0 && age < NEW_FOR_MS;
+}
+
 /**
  * Compétitions proposées par les adhérents (onglet Social) : onglet « À venir »
  * (toutes les propositions, la plus proche d'abord, vote d'intérêt
  * directement depuis la carte) + « Mes propositions » (modifier /
- * supprimer). Même organisation que la bourse aux équipements.
+ * supprimer), filtrables par type (Tous, Triathlon, Trail, Cross…) ; label
+ * « Nouveau » pendant une semaine. Même organisation que la bourse aux équipements.
  */
 export default function RacesScreen() {
   const router = useRouter();
@@ -30,6 +39,7 @@ export default function RacesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [typeFilter, setTypeFilter] = useState<RaceType | 'all'>('all');
 
   const load = useCallback(async () => {
     try {
@@ -81,7 +91,19 @@ export default function RacesScreen() {
     }
   }
 
-  const data = tab === 'browse' ? items : mine;
+  const tabItems = tab === 'browse' ? items : mine;
+
+  // Filtres : les types présents dans l'onglet affiché (dans l'ordre de RACE_TYPES), avec leur nombre. Un type inconnu de
+  // cette version de l'appli est rangé sous « Autre », comme sur sa carte.
+  const typeChips = useMemo(
+    () => RACE_TYPES
+      .map((t) => ({ ...t, count: tabItems.filter((r) => raceTypeMeta(r.type).value === t.value).length }))
+      .filter((t) => t.count > 0),
+    [tabItems],
+  );
+  // Le type choisi peut disparaître (suppression, rechargement, autre onglet) : retour sur « Tous ».
+  const activeFilter = typeFilter !== 'all' && typeChips.some((t) => t.value === typeFilter) ? typeFilter : 'all';
+  const data = activeFilter === 'all' ? tabItems : tabItems.filter((r) => raceTypeMeta(r.type).value === activeFilter);
 
   return (
     <View style={styles.container}>
@@ -113,6 +135,22 @@ export default function RacesScreen() {
           keyExtractor={(item) => tab + '-' + item.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+          ListHeaderComponent={
+            tabItems.length > 0 ? (
+              <View style={styles.chips}>
+                <FilterChip label="Tous" count={tabItems.length} active={activeFilter === 'all'} onPress={() => setTypeFilter('all')} />
+                {typeChips.map((t) => (
+                  <FilterChip
+                    key={t.value}
+                    label={`${t.emoji} ${t.short}`}
+                    count={t.count}
+                    active={activeFilter === t.value}
+                    onPress={() => setTypeFilter(t.value)}
+                  />
+                ))}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <RaceCard
               item={item}
@@ -195,6 +233,11 @@ function RaceCard({ item, busy, onOpen, footer }: {
             <View style={[styles.typeBadge, { backgroundColor: meta.color }]}>
               <Text style={styles.typeBadgeLabel}>{item.typeLabel}</Text>
             </View>
+            {isNewProposal(item.createdAt) && (
+              <View style={styles.newBadge} accessibilityLabel="Nouvelle proposition">
+                <Text style={styles.newBadgeLabel}>Nouveau</Text>
+              </View>
+            )}
             {item.captain && (
               <View style={styles.captainBadge}>
                 <Text style={styles.captainBadgeLabel}>🧢 Capitaine : {item.authorFirstName}</Text>
@@ -217,6 +260,19 @@ function RaceCard({ item, busy, onOpen, footer }: {
       </Pressable>
       <View style={styles.cardActions}>{footer}</View>
     </View>
+  );
+}
+
+function FilterChip({ label, count, active, onPress }: { label: string; count: number; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && { opacity: 0.7 }]}
+    >
+      <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{label} · {count}</Text>
+    </Pressable>
   );
 }
 
@@ -283,6 +339,16 @@ const styles = StyleSheet.create({
   },
   newButtonLabel: { color: '#fff', fontWeight: '700', fontSize: 14 },
   list: { padding: SPACING.md, gap: SPACING.sm, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: SPACING.sm },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+  },
+  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  chipLabelActive: { color: '#fff' },
+  newBadge: { backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  newBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#166534' },
   card: {
     backgroundColor: COLORS.surface, borderRadius: RADIUS.md,
     borderWidth: 1, borderColor: COLORS.border,
