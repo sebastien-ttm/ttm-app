@@ -1499,8 +1499,8 @@ export type TrainingGroupInput = {
   coachIds: number[];
   /** Séance du groupe : semaine + créneau de la semaine type ou occasionnel. */
   slot: { week: string; templateId?: number; slotId?: number };
-  /** Nombre maximal d'adhérents. */
-  capacity: number;
+  /** Nombre maximal d'adhérents ; null = pas de limite. */
+  capacity: number | null;
   /** Allure du club (1 à 5), null si non précisée. */
   paceLevel: number | null;
   speed: string;
