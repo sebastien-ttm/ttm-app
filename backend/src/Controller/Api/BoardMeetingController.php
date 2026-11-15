@@ -22,9 +22,9 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Ordre du jour du comité directeur. Consultation (BOARD_VIEW) : membres du CoDir, administrateurs et entraîneurs
- * (invités aux réunions). Participation (BOARD_SESSION) : membres du CoDir et administrateurs seulement — les
- * entraîneurs ne peuvent ni ajouter de point ni commenter, et l'appli masque alors ces boutons (flags `can…`).
+ * Ordre du jour du comité directeur (BOARD_AGENDA) : membres du CoDir, administrateurs et entraîneurs (invités aux
+ * réunions), tous avec les mêmes droits en lecture ET en écriture. La page « En séance » du back-office
+ * (BOARD_SESSION) reste réservée aux membres du CoDir et aux administrateurs.
  *  - liste de toutes les réunions (à venir puis passées) ;
  *  - détail d'une réunion : points classés par pôle, avec les réponses / décisions saisies en séance ;
  *  - ajout d'un point (pôle, Information / Sujet / Question, texte) tant que la réunion n'est pas close ;
@@ -33,7 +33,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - lecture des actions confiées en séance (saisies dans le back-office), avec échéance et état : la liste des
  *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`).
  */
-#[IsGranted(BoardSessionVoter::VIEW)]
+#[IsGranted(BoardSessionVoter::AGENDA)]
 #[Route('/api/board')]
 class BoardMeetingController extends AbstractController
 {
@@ -76,7 +76,6 @@ class BoardMeetingController extends AbstractController
 
     /** Ajout d'un point. JSON : { pole, type, text }. */
     #[Route('/meetings/{id}/items', methods: ['POST'], requirements: ['id' => '\d+'])]
-    #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
     public function addItem(int $id, Request $request): JsonResponse
     {
         /** @var User $viewer */
@@ -100,7 +99,6 @@ class BoardMeetingController extends AbstractController
 
     /** Modification de son propre point (non traité, réunion ouverte). JSON : { pole, type, text }. */
     #[Route('/items/{id}', methods: ['PATCH'], requirements: ['id' => '\d+'])]
-    #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
     public function updateItem(int $id, Request $request): JsonResponse
     {
         /** @var User $viewer */
@@ -117,7 +115,6 @@ class BoardMeetingController extends AbstractController
     }
 
     #[Route('/items/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
     public function deleteItem(int $id): JsonResponse
     {
         /** @var User $viewer */
@@ -133,7 +130,6 @@ class BoardMeetingController extends AbstractController
 
     /** Commentaire (ou réponse, pour une Question) sur le point d'un autre membre. JSON : { text }. */
     #[Route('/items/{id}/comments', methods: ['POST'], requirements: ['id' => '\d+'])]
-    #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
     public function addComment(int $id, Request $request): JsonResponse
     {
         /** @var User $viewer */
@@ -168,7 +164,6 @@ class BoardMeetingController extends AbstractController
 
     /** Suppression de son propre commentaire tant que la réunion est ouverte. */
     #[Route('/comments/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
     public function deleteComment(int $id): JsonResponse
     {
         /** @var User $viewer */
@@ -235,12 +230,9 @@ class BoardMeetingController extends AbstractController
     private function detailPayload(BoardMeeting $m, User $viewer): array
     {
         $next = $this->meetings->findNext();
-        // Les entraîneurs consultent seulement : pas d'ajout de point ni de commentaire (les routes d'écriture le
-        // refusent aussi, ces drapeaux servent à masquer les boutons dans l'appli).
-        $canParticipate = $this->isGranted(BoardSessionVoter::ATTRIBUTE);
         return $this->summary($m, $next) + [
             'notes' => $m->getNotes(),
-            'canAddItems' => $canParticipate && !$m->isClosed(),
+            'canAddItems' => !$m->isClosed(),
             'items' => array_map(fn (BoardAgendaItem $i) => [
                 'id' => $i->getId(),
                 'pole' => $i->getPole()->value,
@@ -250,13 +242,13 @@ class BoardMeetingController extends AbstractController
                 'text' => $i->getText(),
                 'speaker' => $i->getSpeaker(),
                 'isMine' => $i->getAuthor() !== null && $i->getAuthor()->getId() === $viewer->getId(),
-                'canEdit' => $canParticipate && $i->isEditableBy($viewer),
+                'canEdit' => $i->isEditableBy($viewer),
                 'respondent' => $i->getRespondent(),
                 'answer' => $i->getAnswer(),
                 'actionOwner' => $i->getActionOwner(),
                 'answered' => $i->isAnswered(),
                 'createdAt' => $i->getCreatedAt()->format(\DATE_ATOM),
-                'canComment' => $canParticipate && $i->isCommentableBy($viewer),
+                'canComment' => $i->isCommentableBy($viewer),
                 'comments' => array_map(static fn (BoardItemComment $c) => [
                     'id' => $c->getId(),
                     'authorName' => $c->getAuthorName(),
