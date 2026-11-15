@@ -1468,6 +1468,11 @@ export type TrainingGroupSessionOption = {
 
 export type TrainingGroupsMine = {
   data: TrainingGroupSummary[];
+  /**
+   * Groupes des autres encadrants sur les séances que j'encadre (lecture seule), pour l'espace Staff où le mien est
+   * distingué. Absent d'un serveur qui n'a pas encore cette version.
+   */
+  others?: TrainingGroupSummary[];
   /** Encadrant / entraîneur : peut créer un groupe (un par séance). */
   canCreate: boolean;
   /** Séances proposées pour un nouveau groupe (hors celles où j'ai déjà le mien). */

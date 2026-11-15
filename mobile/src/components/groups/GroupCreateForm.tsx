@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { trainingGroups } from '@/api/resources';
@@ -10,6 +10,7 @@ import { MemberAvatar } from '@/components/MemberAvatar';
 import { CapacityStepper, PaceLevelPicker, speedPlaceholder } from '@/components/groups/GroupFields';
 import { MemberPicker } from '@/components/groups/MemberPicker';
 import { COLORS, RADIUS, SPACING } from '@/config';
+import { canPickFile, pickFile } from '@/lib/pickFile';
 
 function whenLabel(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -17,10 +18,22 @@ function whenLabel(iso: string): string {
 
 type StepKey = 'name' | 'session' | 'capacity' | 'pace' | 'coaches' | 'members';
 
+/** Taille maximale d'une trace GPX (la même qu'au serveur). */
+const GPX_MAX_BYTES = 5_000_000;
+
+function notify(message: string): void {
+  if (Platform.OS === 'web') window.alert(message);
+  else Alert.alert('Groupe', message);
+}
+
+function sizeLabel(bytes: number): string {
+  return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(bytes / 1000))} Ko`;
+}
+
 /** Les écrans du tunnel, dans l'ordre. `skippable` : l'écran peut être ignoré (valeurs laissées vides). */
 const STEPS: { key: StepKey; title: string; hint: string; skippable: boolean }[] = [
-  { key: 'name', title: 'Votre groupe', hint: 'Donnez-lui un nom et, si vous le souhaitez, des informations pour les adhérents.', skippable: false },
   { key: 'session', title: 'Séance', hint: 'Le groupe est adossé à une séance : les adhérents le choisissent depuis le créneau.', skippable: false },
+  { key: 'name', title: 'Votre groupe', hint: 'Donnez-lui un nom, des informations pour les adhérents et, si vous le souhaitez, la trace GPX du parcours.', skippable: false },
   { key: 'capacity', title: 'Nombre maximal d\'adhérents', hint: 'Au-delà, le groupe est complet. Vous pouvez ignorer cette étape : pas de limite.', skippable: true },
   { key: 'pace', title: 'Allure du groupe', hint: 'Allure du club et vitesse, tous deux facultatifs.', skippable: true },
   { key: 'coaches', title: 'Autres encadrants', hint: 'Encadrants qui animent le groupe avec vous.', skippable: true },
@@ -28,10 +41,10 @@ const STEPS: { key: StepKey; title: string; hint: string; skippable: boolean }[]
 ];
 
 /**
- * Création d'un groupe d'entraînement, en tunnel d'écrans successifs : nom et informations, séance (parmi celles cochées
- * « Groupes d'entraînement » dans la semaine type), nombre maximal (ignorable), allure et vitesse (facultatives), autres
- * encadrants, adhérents. Les adhérents choisissent ensuite un groupe depuis le créneau, jusqu'au début de la séance. Un
- * encadrant a un groupe par séance.
+ * Création d'un groupe d'entraînement, en tunnel d'écrans successifs : séance (parmi celles cochées « Groupes
+ * d'entraînement » dans la semaine type), puis nom, informations et trace GPX (facultative, envoyée une fois le groupe
+ * créé), nombre maximal (ignorable), allure et vitesse (facultatives), autres encadrants, adhérents. Les adhérents
+ * choisissent ensuite un groupe depuis le créneau, jusqu'au début de la séance. Un encadrant a un groupe par séance.
  */
 export function GroupCreateForm({ sessions, onCreated, onCancel }: {
   sessions: TrainingGroupSessionOption[];
@@ -43,6 +56,8 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
   const [step, setStep] = useState(0);
   const [name, setName] = useState(user?.prenom ?? '');
   const [info, setInfo] = useState('');
+  // Trace GPX choisie à l'écran du nom : elle part vers le serveur dès que le groupe existe.
+  const [gpx, setGpx] = useState<File | null>(null);
   const [occ, setOcc] = useState<string | null>(sessions.length === 1 ? sessions[0].occ : null);
   // null = pas de limite (écran ignoré).
   const [capacity, setCapacity] = useState<number | null>(null);
@@ -96,6 +111,21 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
     goTo(step + 1);
   }
 
+  async function chooseGpx() {
+    const file = await pickFile('.gpx,application/gpx+xml');
+    if (file === null) return;
+    if (!/\.gpx$/i.test(file.name)) {
+      setError('Choisissez un fichier au format .gpx.');
+      return;
+    }
+    if (file.size > GPX_MAX_BYTES) {
+      setError(`Cette trace est trop volumineuse (${sizeLabel(GPX_MAX_BYTES)} maximum).`);
+      return;
+    }
+    setError(null);
+    setGpx(file);
+  }
+
   /** « Ignorer » : on vide l'écran et on passe au suivant. */
   function skip() {
     if (current.key === 'capacity') setCapacity(null);
@@ -130,6 +160,14 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
         paceLevel,
         speed: speed.trim(),
       });
+      // Le groupe existe : si la trace ne part pas, on le dit sans le défaire (elle se rajoute depuis le groupe).
+      if (gpx !== null) {
+        try {
+          await trainingGroups.addAttachment(group.id, gpx, gpx.name);
+        } catch (e) {
+          notify(`Le groupe est créé, mais la trace GPX n'a pas pu être envoyée${e instanceof ApiError ? ` : ${e.message}` : ''}. Vous pourrez l'ajouter depuis le groupe.`);
+        }
+      }
       onCreated(group);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Création impossible. Réessayez.');
@@ -193,6 +231,32 @@ export function GroupCreateForm({ sessions, onCreated, onCancel }: {
               style={[styles.input, styles.textarea]}
               editable={!busy}
             />
+            <Text style={styles.label}>Trace GPX (facultatif)</Text>
+            {!canPickFile ? (
+              <Text style={styles.small}>L'ajout d'une trace GPX se fait depuis l'appli web (navigateur du téléphone) : vous pourrez l'ajouter depuis le groupe.</Text>
+            ) : gpx !== null ? (
+              <View style={styles.personRow}>
+                <Ionicons name="map" size={22} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.personName} numberOfLines={1}>{gpx.name}</Text>
+                  <Text style={styles.small}>{sizeLabel(gpx.size)} · envoyée à la création du groupe</Text>
+                </View>
+                <Pressable
+                  onPress={() => setGpx(null)}
+                  disabled={busy}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Retirer la trace ${gpx.name}`}
+                >
+                  <Ionicons name="close-circle" size={22} color={COLORS.textSubtle} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => void chooseGpx()} disabled={busy} style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}>
+                <Ionicons name="cloud-upload" size={18} color={COLORS.primary} />
+                <Text style={styles.addBtnLabel}>Ajouter une trace GPX</Text>
+              </Pressable>
+            )}
           </>
         )}
 

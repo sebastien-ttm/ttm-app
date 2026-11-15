@@ -17,15 +17,17 @@ function chipDate(g: TrainingGroupSummary): string {
 }
 
 /**
- * Onglet « Groupe » de l'espace Staff : mes groupes d'entraînement. Chaque groupe est adossé à une séance de vélo ou de
- * course à pied ; un encadrant en a un par séance. Sans groupe, le formulaire de création ; avec un ou plusieurs, une
- * puce par groupe (et « Nouveau » pour en créer un autre sur une autre séance) puis la gestion complète du groupe choisi
- * — adhérents, encadrants, allure, places, informations, trace GPX, commentaires, position en direct.
+ * Onglet « Groupes » de l'espace Staff : les groupes d'entraînement que j'encadre, seuls à y figurer (l'onglet
+ * Entraînements ne montre que ceux où je suis adhérent). Chaque groupe est adossé à une séance ; un encadrant en a un par
+ * séance. Une puce par groupe : les miens d'abord, en couleur et marqués « Mon groupe » ; les groupes des autres
+ * encadrants sur mes séances ensuite, en retrait et en lecture seule (« Groupe de … »). « Nouveau » crée le mien sur une
+ * autre séance ; sans groupe, le formulaire de création s'ouvre directement. Le groupe choisi s'ouvre dessous : adhérents,
+ * encadrants, allure, places, informations, trace GPX, commentaires, position en direct.
  */
 export function GroupTab() {
   const [mine, setMine] = useState<TrainingGroupsMine | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Groupe affiché : son id, ou « new » (formulaire de création) ; null = le premier groupe.
+  // Groupe affiché : son id, ou « new » (formulaire de création) ; null = le premier de mes groupes.
   const [selected, setSelected] = useState<number | 'new' | null>(null);
 
   const load = useCallback(async () => {
@@ -44,30 +46,41 @@ export function GroupTab() {
   }
 
   const coached = mine.data.filter((g) => g.isCoach);
+  const others = mine.others ?? [];
   const current: number | 'new' = selected === 'new' || coached.length === 0
     ? 'new'
-    : (coached.find((g) => g.id === selected)?.id ?? coached[0].id);
+    : ([...coached, ...others].find((g) => g.id === selected)?.id ?? coached[0].id);
+
+  function chip(g: TrainingGroupSummary, isMine: boolean) {
+    const on = current === g.id;
+    const date = chipDate(g);
+    const owner = isMine ? 'Mon groupe' : `Groupe de ${g.coaches.map((c) => c.fullName).join(', ')}`;
+    return (
+      <Pressable
+        key={g.id}
+        onPress={() => setSelected(g.id)}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={`${g.name}, ${owner}`}
+        style={[styles.chip, isMine ? styles.chipMine : styles.chipOther, on && (isMine ? styles.chipOn : styles.chipOtherOn)]}
+      >
+        <Text style={[styles.chipTitle, !isMine && styles.chipTitleOther, on && styles.chipTitleOn]} numberOfLines={1}>
+          {g.sportIcon ?? '👥'} {g.name}
+        </Text>
+        <Text style={[styles.chipSub, isMine && styles.chipSubMine, on && styles.chipTitleOn]} numberOfLines={1}>
+          {date !== '' ? `${owner} · ${date}` : owner}
+        </Text>
+      </Pressable>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
       {coached.length > 0 && (
         <View style={styles.chipsBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {coached.map((g) => {
-              const on = current === g.id;
-              return (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setSelected(g.id)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: on }}
-                  style={[styles.chip, on && styles.chipOn]}
-                >
-                  <Text style={[styles.chipTitle, on && styles.chipTitleOn]} numberOfLines={1}>{g.sportIcon ?? '👥'} {g.name}</Text>
-                  {chipDate(g) !== '' && <Text style={[styles.chipSub, on && styles.chipTitleOn]}>{chipDate(g)}</Text>}
-                </Pressable>
-              );
-            })}
+            {coached.map((g) => chip(g, true))}
+            {others.map((g) => chip(g, false))}
             {mine.canCreate && (
               <Pressable
                 onPress={() => setSelected('new')}
@@ -100,12 +113,19 @@ const styles = StyleSheet.create({
   chipsBar: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface },
   chips: { gap: 8, paddingHorizontal: SPACING.md, paddingVertical: 8 },
   chip: {
-    maxWidth: 220, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14,
+    maxWidth: 240, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14,
     backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border,
   },
+  // Mon groupe : cadre et fond de la couleur du club, plein une fois choisi.
+  chipMine: { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary, borderWidth: 1.5 },
   chipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  // Groupe d'un autre encadrant : neutre, en pointillés, d'une autre couleur une fois choisi.
+  chipOther: { borderStyle: 'dashed' },
+  chipOtherOn: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
   chipNew: { borderStyle: 'dashed', justifyContent: 'center' },
   chipTitle: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  chipTitleOther: { fontWeight: '600', color: COLORS.textMuted },
   chipTitleOn: { color: '#fff' },
   chipSub: { fontSize: 11, color: COLORS.textMuted },
+  chipSubMine: { fontWeight: '700', color: COLORS.primary },
 });

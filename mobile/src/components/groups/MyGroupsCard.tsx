@@ -14,9 +14,10 @@ function whenLabel(iso: string): string {
 }
 
 /**
- * Onglet Entraînement : mes groupes d'entraînement actifs (ceux que j'ai choisis depuis un créneau, où un encadrant m'a
- * ajouté, ou que j'encadre). Rien n'est affiché sans groupe. Un appui ouvre le groupe : informations, trace GPX,
- * commentaires, position des encadrants.
+ * Onglet Entraînement : mes groupes d'entraînement actifs en tant qu'adhérent (ceux que j'ai choisis depuis un créneau, ou
+ * où un encadrant m'a ajouté). Les groupes que j'encadre n'y figurent pas : ils sont dans l'espace Staff, onglet
+ * « Groupes ». Rien n'est affiché sans groupe. Un appui ouvre le groupe : informations, trace GPX, commentaires,
+ * position des encadrants.
  */
 export function MyGroupsCard() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export function MyGroupsCard() {
 
   const load = useCallback(() => {
     trainingGroups.mine()
-      .then((r) => setGroups(r.data))
+      .then((r) => setGroups(r.data.filter((g) => !g.isCoach)))
       .catch(() => { /* pas de groupe affiché si on ne peut pas vérifier */ });
   }, []);
 
@@ -50,7 +51,7 @@ export function MyGroupsCard() {
             <Text style={styles.title} numberOfLines={1}>{g.name}</Text>
             <PaceBadge level={g.paceLevel} speed={g.speed} />
             <Text style={styles.sub} numberOfLines={2}>
-              {g.isCoach ? 'Vous encadrez ce groupe' : `Encadré par ${g.coaches.map((c) => c.fullName).join(', ')}`}
+              {`Encadré par ${g.coaches.map((c) => c.fullName).join(', ')}`}
               {` · ${g.memberCount}${g.capacity !== null ? `/${g.capacity}` : ''} adhérent${g.memberCount > 1 ? 's' : ''}`}
             </Text>
             <Text style={styles.until}>
