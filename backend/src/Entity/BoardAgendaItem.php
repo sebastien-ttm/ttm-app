@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
 use App\Repository\BoardAgendaItemRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -14,6 +16,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * `author` = le compte qui a ajouté le point (dans l'appli, ou le secrétaire en séance) ; `speaker` = « Qui
  * s'exprime ? », par défaut le prénom de l'auteur. Les trois derniers champs sont saisis en séance.
+ *
+ * Les autres membres du CoDir peuvent commenter un point (réponse s'il s'agit d'une Question) tant que la réunion
+ * est ouverte : `comments`. En séance, des actions (`actions`) sont confiées à un ou plusieurs porteurs ;
+ * `actionOwner` (texte libre) ne sert plus que pour les points saisis avant l'introduction des actions.
  */
 #[ORM\Entity(repositoryClass: BoardAgendaItemRepository::class)]
 #[ORM\Table(name: 'board_agenda_item')]
@@ -71,6 +77,16 @@ class BoardAgendaItem
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $answeredAt = null;
 
+    /** @var Collection<int, BoardItemComment> */
+    #[ORM\OneToMany(targetEntity: BoardItemComment::class, mappedBy: 'item', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
+    private Collection $comments;
+
+    /** @var Collection<int, BoardAction> */
+    #[ORM\OneToMany(targetEntity: BoardAction::class, mappedBy: 'item', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
+    private Collection $actions;
+
     public function __construct(BoardMeeting $meeting, BoardPole $pole, BoardItemType $type, string $text, ?User $author)
     {
         $this->meeting = $meeting;
@@ -80,6 +96,8 @@ class BoardAgendaItem
         $this->author = $author;
         $this->speaker = $author?->getPrenom();
         $this->createdAt = new \DateTimeImmutable();
+        $this->comments = new ArrayCollection();
+        $this->actions = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -120,6 +138,56 @@ class BoardAgendaItem
     }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+
+    /** @return Collection<int, BoardItemComment> */
+    public function getComments(): Collection { return $this->comments; }
+
+    public function addComment(BoardItemComment $comment): self
+    {
+        if (!$this->comments->contains($comment)) {
+            $this->comments->add($comment);
+        }
+        return $this;
+    }
+
+    public function removeComment(BoardItemComment $comment): self
+    {
+        $this->comments->removeElement($comment);
+        return $this;
+    }
+
+    /** @return Collection<int, BoardAction> */
+    public function getActions(): Collection { return $this->actions; }
+
+    public function addAction(BoardAction $action): self
+    {
+        if (!$this->actions->contains($action)) {
+            $this->actions->add($action);
+        }
+        return $this;
+    }
+
+    public function removeAction(BoardAction $action): self
+    {
+        $this->actions->removeElement($action);
+        return $this;
+    }
+
+    /**
+     * Un membre du CoDir peut commenter (ou répondre à) le point d'un autre tant que la réunion est ouverte.
+     * Le libellé « commentaire » / « réponse » se déduit du type du point.
+     */
+    public function isCommentableBy(User $user): bool
+    {
+        return !$this->meeting->isClosed()
+            && ($this->author === null || $this->author->getId() !== $user->getId());
+    }
+
+    /** « Commentaires » pour une Information ou un Sujet, « Réponses » pour une Question. */
+    public function getCommentsLabel(): string
+    {
+        return $this->type === BoardItemType::Question ? 'Réponses' : 'Commentaires';
+    }
 
     /** L'auteur peut modifier / supprimer son point tant que la réunion est ouverte et qu'il n'a pas été traité. */
     public function isEditableBy(User $user): bool

@@ -8,6 +8,8 @@
     {% set label = 'display:block; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;' %}
     {% set input = 'width:100%; padding:6px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:14px;' %}
 
+    <div id="board-session" data-adherents-url="{{ path('admin_board_adherents') }}">
+
     {# Choix de la réunion #}
     <form method="get" action="{{ path('admin_board_session') }}" style="{{ card }} display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:16px; padding:12px 16px;">
         <div style="min-width:260px;">
@@ -38,6 +40,7 @@
                 </div>
                 {% if meeting.notes %}<div style="font-size:13px; margin-top:6px; white-space:pre-line;">{{ meeting.notes }}</div>{% endif %}
             </div>
+            <a class="btn btn-primary" href="{{ path('admin_board_minutes', {id: meeting.id}) }}" target="_blank" rel="noopener"><i class="fa fa-file-lines"></i> Générer le compte rendu</a>
             <a class="btn btn-secondary" href="{{ path('admin_board_export', {id: meeting.id}) }}"><i class="fa fa-file-csv"></i> Export CSV</a>
             <form method="post" action="{{ path('admin_board_meeting_close', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.closed ? 'Rouvrir cette réunion ?' : 'Clore la réunion ? Plus aucun point ne pourra être ajouté depuis l\\\'appli.' }}');">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
@@ -64,7 +67,28 @@
                         </form>
                     </div>
                     <div style="font-size:15px; margin:6px 0 10px; white-space:pre-line;">{{ item.text }}</div>
-                    <form method="post" action="{{ path('admin_board_item_answer', {id: item.id}) }}" style="display:grid; grid-template-columns: 1fr 3fr 1fr auto; gap:10px; align-items:end;">
+
+                    {# Commentaires (Information / Sujet) ou réponses (Question) déposés par les membres depuis l'appli #}
+                    {% if item.comments|length > 0 %}
+                        <div style="background:#f8fafc; border-radius:6px; padding:8px 12px; margin-bottom:10px;">
+                            <div style="{{ label }}">{{ item.commentsLabel }} des membres ({{ item.comments|length }})</div>
+                            {% for c in item.comments %}
+                                <div style="display:flex; gap:10px; align-items:flex-start; font-size:14px; margin-top:6px;">
+                                    <div style="flex:1;">
+                                        <strong>{{ c.authorName }}</strong>
+                                        <span style="font-size:12px; color:#94a3b8;">{{ c.createdAt|date('d/m à H\\hi') }}</span>
+                                        <div style="white-space:pre-line;">{{ c.text }}</div>
+                                    </div>
+                                    <form method="post" action="{{ path('admin_board_comment_delete', {id: c.id}) }}" onsubmit="return confirm('Supprimer ce message ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                                        <button type="submit" class="btn btn-link btn-sm" style="color:#b91c1c; padding:0;">Supprimer</button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('admin_board_item_answer', {id: item.id}) }}" style="display:grid; grid-template-columns: {{ item.actionOwner ? '1fr 3fr 1fr auto' : '1fr 3fr auto' }}; gap:10px; align-items:end;">
                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                         <div>
                             <label style="{{ label }}">Qui répond ?</label>
@@ -74,12 +98,45 @@
                             <label style="{{ label }}">Réponse / Décision</label>
                             <textarea name="answer" rows="2" maxlength="2000" style="{{ input }}">{{ item.answer }}</textarea>
                         </div>
-                        <div>
-                            <label style="{{ label }}">Porteur action</label>
-                            <input type="text" name="actionOwner" value="{{ item.actionOwner }}" maxlength="120" style="{{ input }}">
-                        </div>
+                        {% if item.actionOwner %}
+                            {# Ancien « Porteur action » en texte libre : conservé tant qu'il n'est pas effacé ; utiliser les actions ci-dessous #}
+                            <div>
+                                <label style="{{ label }}">Porteur action (ancien)</label>
+                                <input type="text" name="actionOwner" value="{{ item.actionOwner }}" maxlength="120" style="{{ input }}">
+                            </div>
+                        {% endif %}
                         <button type="submit" class="btn btn-primary">Enregistrer</button>
                     </form>
+
+                    {# Actions décidées en séance, confiées à un ou plusieurs porteurs #}
+                    <div style="margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                        <div style="{{ label }}">Actions ({{ item.actions|length }})</div>
+                        {% for a in item.actions %}
+                            <div style="margin-top:8px; padding:8px 12px; background:#f0fdf4; border-radius:6px;">
+                                <div style="display:flex; gap:10px; align-items:flex-start;">
+                                    <div style="flex:1; font-size:14px;">
+                                        <div style="white-space:pre-line;">{{ a.text }}</div>
+                                        <div style="font-size:13px; color:#475569; margin-top:2px;">
+                                            Porteur{{ a.assignees|length > 1 ? 's' : '' }} :
+                                            {% if a.assignees|length > 0 %}<strong>{{ a.assigneeNames|join(', ') }}</strong>{% else %}<em>non affectée</em>{% endif %}
+                                        </div>
+                                    </div>
+                                    <form method="post" action="{{ path('admin_board_action_delete', {id: a.id}) }}" onsubmit="return confirm('Supprimer cette action ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                                        <button type="submit" class="btn btn-link btn-sm" style="color:#b91c1c; padding:0;">Supprimer</button>
+                                    </form>
+                                </div>
+                                <details style="margin-top:6px;">
+                                    <summary style="cursor:pointer; font-size:13px; color:#2563eb;">Modifier l'action / les porteurs</summary>
+                                    {% include 'admin/_board_action_form.html.twig' with {action: a, item: item, codir: codir, csrf: csrf, label: label, input: input} only %}
+                                </details>
+                            </div>
+                        {% endfor %}
+                        <details style="margin-top:8px;">
+                            <summary style="cursor:pointer; font-size:13px; font-weight:700; color:#2563eb;">+ Ajouter une action</summary>
+                            {% include 'admin/_board_action_form.html.twig' with {action: null, item: item, codir: codir, csrf: csrf, label: label, input: input} only %}
+                        </details>
+                    </div>
                 </div>
             {% endfor %}
         {% endfor %}
@@ -114,4 +171,96 @@
             </form>
         </div>
     {% endif %}
+
+    </div>
+
+    {# Porteurs d'action « autres adhérents » : recherche par nom, chaque choix devient une pastille + un champ assignees[] #}
+    <script>
+    (function () {
+        var root = document.getElementById('board-session');
+        if (!root) { return; }
+        var url = root.getAttribute('data-adherents-url');
+        var timer = null;
+        var chipStyle = 'display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3; border-radius:12px; padding:2px 4px 2px 10px; font-size:13px;';
+        var removeStyle = 'border:0; background:transparent; color:#3730a3; font-size:16px; line-height:1; cursor:pointer; padding:0 4px;';
+
+        function addChip(picker, id, name) {
+            var form = picker.closest('form');
+            var existing = form.querySelector('input[name="assignees[]"][value="' + id + '"]');
+            if (existing) {
+                if (existing.type === 'checkbox') { existing.checked = true; }
+                return;
+            }
+            var chip = document.createElement('span');
+            chip.className = 'adh-chip';
+            chip.setAttribute('style', chipStyle);
+            chip.appendChild(document.createTextNode(name));
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'adh-remove';
+            remove.title = 'Retirer';
+            remove.setAttribute('style', removeStyle);
+            remove.textContent = '×';
+            var hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'assignees[]';
+            hidden.value = id;
+            chip.appendChild(remove);
+            chip.appendChild(hidden);
+            picker.querySelector('.adh-chips').appendChild(chip);
+        }
+
+        function showResults(picker, rows) {
+            var box = picker.querySelector('.adh-results');
+            box.innerHTML = '';
+            if (!rows.length) { box.style.display = 'none'; return; }
+            rows.forEach(function (row) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'adh-result';
+                b.setAttribute('data-id', row.id);
+                b.setAttribute('style', 'display:block; width:100%; text-align:left; border:0; background:transparent; padding:6px 10px; cursor:pointer; font-size:14px;');
+                b.textContent = row.name;
+                box.appendChild(b);
+            });
+            box.style.display = 'block';
+        }
+
+        root.addEventListener('input', function (e) {
+            if (!e.target.classList.contains('adh-search')) { return; }
+            var field = e.target;
+            var picker = field.closest('.adh-picker');
+            clearTimeout(timer);
+            var q = field.value.trim();
+            if (q.length < 2) { showResults(picker, []); return; }
+            timer = setTimeout(function () {
+                fetch(url + '?q=' + encodeURIComponent(q), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : { data: [] }; })
+                    .then(function (json) { if (field.value.trim() === q) { showResults(picker, json.data || []); } })
+                    .catch(function () { showResults(picker, []); });
+            }, 250);
+        });
+
+        root.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && e.target.classList.contains('adh-search')) {
+                e.preventDefault();
+                var first = e.target.closest('.adh-picker').querySelector('.adh-result');
+                if (first) { first.click(); }
+            }
+        });
+
+        root.addEventListener('click', function (e) {
+            var result = e.target.closest('.adh-result');
+            if (result) {
+                var picker = result.closest('.adh-picker');
+                addChip(picker, result.getAttribute('data-id'), result.textContent);
+                picker.querySelector('.adh-search').value = '';
+                showResults(picker, []);
+                return;
+            }
+            var remove = e.target.closest('.adh-remove');
+            if (remove) { remove.closest('.adh-chip').remove(); }
+        });
+    })();
+    </script>
 {% endblock %}

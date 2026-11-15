@@ -62,11 +62,15 @@ class BoardMeetingCrudController extends AbstractCrudController
             ->linkToRoute('admin_board_session', static fn (BoardMeeting $m) => ['meeting' => $m->getId()]);
         $export = Action::new('exportCsv', 'Export CSV', 'fa fa-file-csv')
             ->linkToRoute('admin_board_export', static fn (BoardMeeting $m) => ['id' => $m->getId()]);
+        $minutes = Action::new('minutes', 'Compte rendu', 'fa fa-file-lines')
+            ->linkToRoute('admin_board_minutes', static fn (BoardMeeting $m) => ['id' => $m->getId()]);
 
         return $actions
             ->add(Crud::PAGE_INDEX, $session)
+            ->add(Crud::PAGE_INDEX, $minutes)
             ->add(Crud::PAGE_INDEX, $export)
             ->add(Crud::PAGE_DETAIL, $session)
+            ->add(Crud::PAGE_DETAIL, $minutes)
             ->add(Crud::PAGE_INDEX, Action::DETAIL);
     }
 

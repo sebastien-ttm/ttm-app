@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Compte rendu · {{ meeting.label }}</title>
+    <style>
+        :root { --navy:#0d2148; --muted:#64748b; --line:#e2e8f0; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:#f1f5f9; color:#0f172a; font:15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .toolbar { position:sticky; top:0; z-index:2; display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:10px 16px; background:#fff; border-bottom:1px solid var(--line); }
+        .toolbar a, .toolbar button { font:inherit; font-size:14px; padding:6px 14px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; text-decoration:none; cursor:pointer; }
+        .toolbar .primary { background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600; }
+        .toolbar .hint { font-size:13px; color:var(--muted); }
+        .page { max-width:860px; margin:20px auto; padding:36px 44px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+        h1 { margin:0 0 2px; font-size:26px; color:var(--navy); }
+        .sub { color:var(--muted); font-size:14px; }
+        .summary { margin:14px 0 4px; padding:10px 14px; background:#f8fafc; border-left:4px solid var(--navy); font-size:14px; }
+        .notes { margin:10px 0 0; font-size:14px; white-space:pre-line; }
+        h2 { margin:28px 0 8px; padding-bottom:4px; border-bottom:2px solid var(--navy); font-size:16px; letter-spacing:.6px; text-transform:uppercase; color:var(--navy); }
+        .point { margin:0 0 16px; padding-left:12px; border-left:3px solid var(--line); break-inside:avoid; }
+        .head { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+        .tag { font-size:11px; font-weight:700; padding:1px 8px; border-radius:3px; background:#e0e7ff; color:#3730a3; }
+        .tag.sujet { background:#fef3c7; color:#92400e; }
+        .tag.question { background:#fce7f3; color:#9d174d; }
+        .who { font-weight:700; }
+        .text { margin:3px 0 6px; white-space:pre-line; }
+        .block { margin:6px 0 0; font-size:14px; }
+        .block .k { display:block; font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); }
+        .block ul { margin:2px 0 0; padding-left:18px; }
+        .block li { margin:1px 0; white-space:pre-line; }
+        .decision { padding:6px 10px; background:#f0fdf4; border-radius:4px; }
+        .pending { color:var(--muted); font-style:italic; font-size:14px; margin-top:6px; }
+        table { width:100%; border-collapse:collapse; margin-top:6px; font-size:14px; }
+        th, td { text-align:left; vertical-align:top; padding:6px 8px; border:1px solid var(--line); }
+        th { background:#f1f5f9; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+        .foot { margin-top:30px; font-size:12px; color:var(--muted); }
+        @media print {
+            body { background:#fff; }
+            .toolbar { display:none; }
+            .page { margin:0; max-width:none; padding:0; box-shadow:none; }
+            h2 { break-after:avoid; }
+            tr { break-inside:avoid; }
+            @page { margin:16mm; }
+        }
+        @media (max-width:640px) { .page { margin:0; padding:20px 16px; } }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button type="button" class="primary" onclick="window.print()">Imprimer / enregistrer en PDF</button>
+        <a href="{{ path('admin_board_session', {meeting: meeting.id}) }}">← Retour à la séance</a>
+        <a href="{{ path('admin_board_export', {id: meeting.id}) }}">Export CSV</a>
+        <span class="hint">Le compte rendu se met à jour à chaque rechargement de la page.</span>
+    </div>
+
+    <main class="page">
+        <h1>Compte rendu du Comité directeur</h1>
+        <div class="sub">
+            {{ meeting.label }} · {{ meeting.scheduledAt|date('H\\hi') }}{{ meeting.location ? ' · ' ~ meeting.location : '' }}
+        </div>
+        <div class="summary">
+            {{ meeting.itemCount }} point{{ meeting.itemCount > 1 ? 's' : '' }} à l'ordre du jour
+            · {{ meeting.answeredCount }} traité{{ meeting.answeredCount > 1 ? 's' : '' }}
+            · {{ commentCount }} commentaire{{ commentCount > 1 ? 's' : '' }} ou réponse{{ commentCount > 1 ? 's' : '' }} des membres
+            · {{ actionRows|length }} action{{ actionRows|length > 1 ? 's' : '' }}
+        </div>
+        {% if meeting.notes %}<div class="notes">{{ meeting.notes }}</div>{% endif %}
+
+        {% if groups is empty %}
+            <p class="pending">Aucun point n'a été inscrit à l'ordre du jour.</p>
+        {% endif %}
+
+        {% for poleLabel, items in groups %}
+            <h2>{{ poleLabel }}</h2>
+            {% for item in items %}
+                <section class="point">
+                    <div class="head">
+                        <span class="tag {{ item.type.value }}">{{ item.type.label }}</span>
+                        <span class="who">{{ item.speaker ?: '—' }}</span>
+                    </div>
+                    <div class="text">{{ item.text }}</div>
+
+                    {% if item.comments|length > 0 %}
+                        <div class="block">
+                            <span class="k">{{ item.commentsLabel }} des membres</span>
+                            <ul>
+                                {% for c in item.comments %}
+                                    <li><strong>{{ c.authorName }}</strong> : {{ c.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if item.respondent or item.answer %}
+                        <div class="block decision">
+                            <span class="k">{{ item.type.value == 'question' ? 'Réponse' : 'Décision / réponse' }}{{ item.respondent ? ' · ' ~ item.respondent : '' }}</span>
+                            {% if item.answer %}<div style="white-space:pre-line;">{{ item.answer }}</div>{% endif %}
+                        </div>
+                    {% elseif item.actions|length == 0 and not item.actionOwner %}
+                        <div class="pending">Point non traité en séance.</div>
+                    {% endif %}
+
+                    {% if item.actions|length > 0 or item.actionOwner %}
+                        <div class="block">
+                            <span class="k">Action{{ item.actions|length + (item.actionOwner ? 1 : 0) > 1 ? 's' : '' }}</span>
+                            <ul>
+                                {% for a in item.actions %}
+                                    <li>{{ a.text }}{% if a.assignees|length > 0 %} — <strong>{{ a.assigneeNames|join(', ') }}</strong>{% endif %}</li>
+                                {% endfor %}
+                                {% if item.actionOwner %}<li>Porteur : <strong>{{ item.actionOwner }}</strong></li>{% endif %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </section>
+            {% endfor %}
+        {% endfor %}
+
+        {% if actionRows|length > 0 %}
+            <h2>Tableau des actions</h2>
+            <table>
+                <thead><tr><th>Action</th><th>Point concerné</th><th>Porteur(s)</th></tr></thead>
+                <tbody>
+                    {% for row in actionRows %}
+                        <tr>
+                            <td style="white-space:pre-line;">{{ row.text }}</td>
+                            <td><span style="color:#64748b; font-size:12px;">{{ row.pole }}</span><br>{{ row.point|length > 110 ? row.point|slice(0, 110) ~ '…' : row.point }}</td>
+                            <td>{{ row.owners ?: '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <div class="foot">Document généré le {{ 'now'|date('d/m/Y à H\\hi') }} depuis l'application du club.</div>
+    </main>
+</body>
+</html>

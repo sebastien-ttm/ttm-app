@@ -2,7 +2,9 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\BoardAction;
 use App\Entity\BoardAgendaItem;
+use App\Entity\BoardItemComment;
 use App\Entity\BoardMeeting;
 use App\Entity\User;
 use App\Enum\BoardItemType;
@@ -23,7 +25,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - liste de toutes les réunions (à venir puis passées) ;
  *  - détail d'une réunion : points classés par pôle, avec les réponses / décisions saisies en séance ;
  *  - ajout d'un point (pôle, Information / Sujet / Question, texte) tant que la réunion n'est pas close ;
- *  - modification / suppression de ses propres points tant qu'ils n'ont pas été traités.
+ *  - modification / suppression de ses propres points tant qu'ils n'ont pas été traités ;
+ *  - commentaire (réponse, pour une Question) sur le point d'un autre membre tant que la réunion est ouverte ;
+ *  - lecture des actions confiées en séance (saisies dans le back-office).
  */
 #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
 #[Route('/api/board')]
@@ -110,6 +114,62 @@ class BoardMeetingController extends AbstractController
         return new JsonResponse($this->detailPayload($meeting, $viewer));
     }
 
+    /** Commentaire (ou réponse, pour une Question) sur le point d'un autre membre. JSON : { text }. */
+    #[Route('/items/{id}/comments', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function addComment(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $item = $this->items->find($id);
+        if ($item === null) {
+            throw $this->createNotFoundException('Point introuvable.');
+        }
+        $meeting = $item->getMeeting();
+        if ($meeting->isClosed()) {
+            return new JsonResponse(['error' => 'Cette réunion est close : les commentaires ne sont plus ouverts.'], Response::HTTP_CONFLICT);
+        }
+        if (!$item->isCommentableBy($viewer)) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas commenter votre propre point.'], Response::HTTP_FORBIDDEN);
+        }
+        $payload = json_decode($request->getContent(), true);
+        $text = is_array($payload) ? trim((string) ($payload['text'] ?? '')) : '';
+        if ($text === '') {
+            return new JsonResponse(['error' => 'Écrivez votre message.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($text) > BoardItemComment::TEXT_MAX) {
+            return new JsonResponse(['error' => sprintf('Message trop long (%d caractères max).', BoardItemComment::TEXT_MAX)], Response::HTTP_BAD_REQUEST);
+        }
+
+        $comment = new BoardItemComment($item, $viewer, $text);
+        $item->addComment($comment);
+        $this->em->persist($comment);
+        $this->em->flush();
+
+        return new JsonResponse($this->detailPayload($meeting, $viewer), Response::HTTP_CREATED);
+    }
+
+    /** Suppression de son propre commentaire tant que la réunion est ouverte. */
+    #[Route('/comments/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function deleteComment(int $id): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $comment = $this->em->getRepository(BoardItemComment::class)->find($id);
+        if ($comment === null) {
+            throw $this->createNotFoundException('Commentaire introuvable.');
+        }
+        $item = $comment->getItem();
+        $meeting = $item->getMeeting();
+        if ($meeting->isClosed() || !$comment->isAuthoredBy($viewer)) {
+            throw $this->createAccessDeniedException('Seul l\'auteur peut supprimer son commentaire, tant que la réunion est ouverte.');
+        }
+        $item->removeComment($comment);
+        $this->em->remove($comment);
+        $this->em->flush();
+
+        return new JsonResponse($this->detailPayload($meeting, $viewer));
+    }
+
     /**
      * @return array{pole: BoardPole, type: BoardItemType, text: string}|string  message d'erreur si invalide
      */
@@ -174,6 +234,20 @@ class BoardMeetingController extends AbstractController
                 'actionOwner' => $i->getActionOwner(),
                 'answered' => $i->isAnswered(),
                 'createdAt' => $i->getCreatedAt()->format(\DATE_ATOM),
+                'canComment' => $i->isCommentableBy($viewer),
+                'comments' => array_map(static fn (BoardItemComment $c) => [
+                    'id' => $c->getId(),
+                    'authorName' => $c->getAuthorName(),
+                    'text' => $c->getText(),
+                    'isMine' => $c->isAuthoredBy($viewer),
+                    'canDelete' => !$i->getMeeting()->isClosed() && $c->isAuthoredBy($viewer),
+                    'createdAt' => $c->getCreatedAt()->format(\DATE_ATOM),
+                ], $i->getComments()->toArray()),
+                'actions' => array_map(static fn (BoardAction $a) => [
+                    'id' => $a->getId(),
+                    'text' => $a->getText(),
+                    'assignees' => $a->getAssigneeNames(),
+                ], $i->getActions()->toArray()),
             ], $m->getSortedItems()),
         ];
     }

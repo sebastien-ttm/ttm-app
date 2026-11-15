@@ -1,0 +1,38 @@
+{# Formulaire d'action (ajout ou modification) — inclus avec `only` par board_session.html.twig.
+   Variables : action (null pour un ajout), item, codir (membres du CoDir actifs), csrf, label, input (styles). #}
+{% set codirIds = codir|map(u => u.id) %}
+{% set picked = action ? action.assignees|map(u => u.id) : [] %}
+<form method="post" action="{{ action ? path('admin_board_action_update', {id: action.id}) : path('admin_board_action_add', {id: item.id}) }}" style="display:grid; gap:10px; margin-top:8px;">
+    <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+    <div>
+        <label style="{{ label }}">Action à mener</label>
+        <textarea name="text" rows="2" required maxlength="1000" style="{{ input }}">{{ action ? action.text : '' }}</textarea>
+    </div>
+    <div>
+        <label style="{{ label }}">Porteurs · membres du CoDir</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
+            {% for u in codir %}
+                <label style="font-size:13px; display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0;">
+                    <input type="checkbox" name="assignees[]" value="{{ u.id }}" {{ u.id in picked ? 'checked' : '' }}> {{ u.fullName }}
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="adh-picker">
+        <label style="{{ label }}">Porteurs · autres adhérents</label>
+        <div class="adh-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+            {% if action %}
+                {% for u in action.assignees %}
+                    {% if u.id not in codirIds %}
+                        <span class="adh-chip" style="display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3; border-radius:12px; padding:2px 4px 2px 10px; font-size:13px;">{{ u.fullName }}<button type="button" class="adh-remove" title="Retirer" style="border:0; background:transparent; color:#3730a3; font-size:16px; line-height:1; cursor:pointer; padding:0 4px;">×</button><input type="hidden" name="assignees[]" value="{{ u.id }}"></span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        <input type="search" class="adh-search" placeholder="Rechercher un adhérent (nom ou prénom)…" autocomplete="off" style="{{ input }}">
+        <div class="adh-results" style="display:none; margin-top:4px; max-width:360px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.1);"></div>
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary btn-sm">{{ action ? 'Enregistrer l\'action' : 'Ajouter l\'action' }}</button>
+    </div>
+</form>
