@@ -3,13 +3,16 @@
 namespace App\Controller\Api;
 
 use App\Entity\MarketplaceListing;
+use App\Entity\MarketplaceListingLike;
 use App\Entity\MarketplaceListingPhoto;
 use App\Entity\User;
 use App\Repository\MarketplaceConversationRepository;
+use App\Repository\MarketplaceListingLikeRepository;
 use App\Repository\MarketplaceListingPhotoRepository;
 use App\Repository\MarketplaceListingRepository;
 use App\Security\MarketplaceAccessVoter;
 use App\Service\Marketplace\MarketplaceListingPhotoService;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -34,19 +37,37 @@ class MarketplaceController extends AbstractController
         private readonly MarketplaceListingRepository $listings,
         private readonly MarketplaceListingPhotoRepository $photosRepo,
         private readonly MarketplaceConversationRepository $conversations,
+        private readonly MarketplaceListingLikeRepository $likes,
         private readonly MarketplaceListingPhotoService $photoService,
         private readonly EntityManagerInterface $em,
     ) {
     }
 
     /**
-     * Annonces publiées, plus récentes d'abord — visible de tout le club.
+     * Annonces publiées, plus récentes d'abord — visible de tout le club. S'y ajoutent, à la suite, les annonces que
+     * le viewer aime et qui ne sont plus proposées au club (expirées ou en pause) : il les garde tant que leur auteur
+     * ne les a pas supprimées (`liked`, `expired`, `paused` permettent à l'appli de les présenter à part).
      */
     #[Route('/api/marketplace/listings', methods: ['GET'])]
     public function list(): JsonResponse
     {
+        /** @var User $user */
+        $user = $this->getUser();
+        $likedIds = array_flip($this->likes->findListingIdsByUser($user));
+
+        $rows = $this->listings->findPublished();
+        $listed = [];
+        foreach ($rows as $l) {
+            $listed[$l->getId()] = true;
+        }
+        foreach ($this->listings->findLikedBy($user) as $l) {
+            if (!isset($listed[$l->getId()])) {
+                $rows[] = $l;
+            }
+        }
+
         return new JsonResponse([
-            'data' => array_map(fn (MarketplaceListing $l) => $this->serializeSummary($l), $this->listings->findPublished()),
+            'data' => array_map(fn (MarketplaceListing $l) => $this->serializeSummary($l, isset($likedIds[$l->getId()])), $rows),
         ]);
     }
 
@@ -65,7 +86,8 @@ class MarketplaceController extends AbstractController
 
     /**
      * Détail d'une annonce. Une annonce en pause ou expirée (plus de 10 jours sans réactivation) n'est visible que
-     * par son auteur (pour prévisualiser/gérer/réactiver) — 404 sinon, pas de 403 qui laisserait deviner l'existence.
+     * par son auteur (pour prévisualiser/gérer/réactiver) et par ceux qui l'ont aimée (ils la gardent tant qu'elle n'est
+     * pas supprimée) — 404 sinon, pas de 403 qui laisserait deviner l'existence.
      */
     #[Route('/api/marketplace/listings/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function detail(int $id): JsonResponse
@@ -76,11 +98,15 @@ class MarketplaceController extends AbstractController
         if ($listing === null) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
-        if (!$listing->isActive() && $listing->getAuthor()->getId() !== $user->getId()) {
+        $isAuthor = $listing->getAuthor()->getId() === $user->getId();
+        $liked = !$isAuthor && $this->likes->findOneByListingAndUser($listing, $user) !== null;
+        if (!$listing->isActive() && !$isAuthor && !$liked) {
             throw $this->createNotFoundException('Annonce introuvable.');
         }
 
         $data = $this->serializeDetail($listing);
+        // « J'aime » du viewer (toujours false pour l'auteur).
+        $data['liked'] = $liked;
         // Discussion déjà ouverte par le viewer avec le vendeur (null pour
         // l'auteur lui-même, qui passe par sa liste de discussions).
         $data['myConversationId'] = $listing->getAuthor()->getId() === $user->getId()
@@ -287,6 +313,59 @@ class MarketplaceController extends AbstractController
         return new JsonResponse($this->serializeDetail($listing));
     }
 
+    /**
+     * « J'aime » : garde l'annonce dans la liste du viewer tant que son auteur ne l'a pas supprimée, même quand elle
+     * expire ou passe en pause. On n'aime que ce qui est proposé au club (annonce active) ; le faire deux fois est sans
+     * effet. L'auteur ne peut pas aimer sa propre annonce.
+     */
+    #[Route('/api/marketplace/listings/{id}/like', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function like(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $listing = $this->listings->find($id);
+        if ($listing === null) {
+            throw $this->createNotFoundException('Annonce introuvable.');
+        }
+        if ($this->likes->findOneByListingAndUser($listing, $user) !== null) {
+            return new JsonResponse(['liked' => true]);
+        }
+        if (!$listing->isActive()) {
+            throw $this->createNotFoundException('Annonce introuvable.');
+        }
+        if ($listing->getAuthor()->getId() === $user->getId()) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas aimer votre propre annonce.'], Response::HTTP_CONFLICT);
+        }
+
+        try {
+            $this->em->persist(new MarketplaceListingLike($listing, $user));
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException) {
+            // Deux appuis simultanés : l'annonce est déjà aimée.
+        }
+
+        return new JsonResponse(['liked' => true]);
+    }
+
+    /** Retire son « J'aime » (sans effet s'il n'y en a pas). Une annonce expirée ou en pause disparaît alors de sa liste. */
+    #[Route('/api/marketplace/listings/{id}/like', methods: ['DELETE'], requirements: ['id' => '\d+'])]
+    public function unlike(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $listing = $this->listings->find($id);
+        if ($listing === null) {
+            throw $this->createNotFoundException('Annonce introuvable.');
+        }
+        $like = $this->likes->findOneByListingAndUser($listing, $user);
+        if ($like !== null) {
+            $this->em->remove($like);
+            $this->em->flush();
+        }
+
+        return new JsonResponse(['liked' => false]);
+    }
+
     #[Route('/api/marketplace/listings/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
@@ -315,10 +394,14 @@ class MarketplaceController extends AbstractController
     /**
      * @return array<string, mixed>
      */
-    private function serializeSummary(MarketplaceListing $l): array
+    private function serializeSummary(MarketplaceListing $l, bool $liked = false): array
     {
         $first = $l->getPhotos()->isEmpty() ? null : $l->getPhotos()->first();
         return [
+            // J'aime du viewer ; une annonce aimée reste dans sa liste même expirée ou en pause (voir list()).
+            'liked' => $liked,
+            'paused' => $l->isPaused(),
+            'expired' => $l->isExpired(),
             'id' => $l->getId(),
             'title' => $l->getTitle(),
             'authorId' => $l->getAuthor()->getId(),

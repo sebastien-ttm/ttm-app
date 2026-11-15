@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\MarketplaceListing;
+use App\Entity\MarketplaceListingLike;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -33,6 +34,25 @@ class MarketplaceListingRepository extends ServiceEntityRepository
             ->where('l.pausedAt IS NULL')
             ->andWhere('l.publishedAt > :cutoff')
             ->setParameter('cutoff', $cutoff)
+            ->orderBy('l.publishedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Annonces que cet adhérent aime, quel que soit leur état (publiées, expirées ou en pause), plus récentes d'abord :
+     * il les garde dans sa liste tant que leur auteur ne les a pas supprimées.
+     *
+     * @return list<MarketplaceListing>
+     */
+    public function findLikedBy(User $user): array
+    {
+        return $this->createQueryBuilder('l')
+            ->innerJoin(MarketplaceListingLike::class, 'k', 'WITH', 'k.listing = l')
+            ->leftJoin('l.author', 'a')->addSelect('a')
+            ->leftJoin('l.photos', 'p')->addSelect('p')
+            ->where('k.user = :user')
+            ->setParameter('user', $user)
             ->orderBy('l.publishedAt', 'DESC')
             ->getQuery()
             ->getResult();
