@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Repository\TrainingSeasonRepository;
 use App\Service\Csv\CsvImportService;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -26,15 +27,19 @@ class CsvImportController extends AbstractController
     public function index(Request $request): Response
     {
         // Le template étend @EasyAdmin/page/content.html.twig qui appelle
-        // `ea()` — celui-ci retourne null quand la requête n'a pas les
-        // query params du dashboard. Sur un GET direct (bookmark, F5 après
-        // redirect) ou un POST « brut », on redirige vers l'URL enrichie
-        // par AdminUrlGenerator, qui embarque les params attendus.
+        // `ea()` — celui-ci retourne null quand la requête ne passe pas par
+        // le dashboard (accès direct à /admin/csv-import : bookmark, F5…).
+        // Dans ce cas on redirige vers l'URL générée par AdminUrlGenerator
+        // (/admin?routeName=admin_csv_import), qui passe par le dashboard.
+        //
+        // On teste la présence du CONTEXTE EasyAdmin, pas un paramètre d'URL : avec les URLs « pretty » d'EasyAdmin 4,
+        // l'URL générée ne contient pas dashboardControllerFqcn — tester ce paramètre faisait rediriger la page vers
+        // elle-même sans fin (le menu « Importer un CSV » n'affichait rien).
         $adminUrl = $this->adminUrlGenerator
             ->unsetAll()
             ->setRoute('admin_csv_import')
             ->generateUrl();
-        if ($request->query->get('dashboardControllerFqcn') === null && $request->isMethod('GET')) {
+        if (!$request->attributes->has(EA::CONTEXT_REQUEST_ATTRIBUTE) && $request->isMethod('GET')) {
             return $this->redirect($adminUrl);
         }
 
