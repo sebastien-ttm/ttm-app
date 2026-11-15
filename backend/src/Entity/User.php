@@ -153,6 +153,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private bool $isActive = true;
 
+    /**
+     * Jeune d'une association sportive externe (ex : association sportive scolaire) licencié via le club mais
+     * qui n'a PAS accès à l'application. Marqué à la main par l'admin lors de l'import CSV des adhérents (seul
+     * moyen de les repérer : mineur, part club à 0 € — payé via HelloAsso — et association sportive).
+     * Un compte marqué est toujours inactif : jamais réactivé par un import, aucun e-mail de bienvenue.
+     */
+    #[ORM\Column(name: 'external_association', options: ['default' => false])]
+    private bool $externalAssociation = false;
+
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastCsvSyncAt = null;
 
@@ -813,14 +822,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /** Un jeune d'association sportive externe n'est jamais actif, même si la colonne dit le contraire. */
     public function isActive(): bool
     {
-        return $this->isActive;
+        return $this->isActive && !$this->externalAssociation;
     }
 
     public function setIsActive(bool $isActive): self
     {
-        $this->isActive = $isActive;
+        $this->isActive = $isActive && !$this->externalAssociation;
+        return $this;
+    }
+
+    public function isExternalAssociation(): bool
+    {
+        return $this->externalAssociation;
+    }
+
+    /**
+     * Marquer un compte « association sportive externe » le désactive. Le démarquer ne le réactive pas :
+     * c'est un choix à faire ensuite (case « Actif »), le compte pouvant être inactif pour une autre raison.
+     */
+    public function setExternalAssociation(bool $externalAssociation): self
+    {
+        $this->externalAssociation = $externalAssociation;
+        if ($externalAssociation) {
+            $this->isActive = false;
+        }
         return $this;
     }
 

@@ -74,6 +74,7 @@ class UserCrudController extends AbstractCrudController
     {
         return $filters
             ->add(BooleanFilter::new('isActive', 'Actif'))
+            ->add(BooleanFilter::new('externalAssociation', 'Association sportive externe'))
             ->add(ChoiceFilter::new('type', 'Type')
                 ->setChoices(['Adhérent' => UserType::Adherent, 'Externe' => UserType::Externe]))
             ->add(ChoiceFilter::new('subType', 'Sous-type')
@@ -229,6 +230,9 @@ class UserCrudController extends AbstractCrudController
             ->setNumOfRows(4);
         yield TextField::new('statutLicence', 'Statut licence')->hideOnIndex();
         yield BooleanField::new('isActive', 'Actif');
+        yield BooleanField::new('externalAssociation', 'Association sportive externe')
+            ->setHelp('Jeune d\'une association sportive externe : aucun accès à l\'application. Cocher désactive le compte ; décocher ne le réactive pas (cocher « Actif » ensuite, en enregistrant une première fois).')
+            ->hideOnIndex();
         // Ancienneté : nombre de saisons d'adhésion (imports courants et historiques), avec la première saison.
         yield TextField::new('seniority', 'Ancienneté')
             ->hideOnForm()

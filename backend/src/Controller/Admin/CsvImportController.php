@@ -74,9 +74,14 @@ class CsvImportController extends AbstractController
                 // Défaut : dry-run, pour éviter tout import accidentel.
                 $action = (string) $request->request->get('action', 'dry_run');
                 $dryRun = $action !== 'commit';
+                // Licences cochées dans l'aperçu : jeunes d'associations sportives externes (sans accès à l'appli).
+                $externalLicences = array_values(array_filter(
+                    array_map('strval', $request->request->all('external_association')),
+                    static fn (string $l) => trim($l) !== '',
+                ));
 
                 try {
-                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season, $dryRun, $historicalOnly);
+                    $result = $this->importer->import($tmpPath, $sendWelcome, $delimiter, $season, $dryRun, $historicalOnly, $externalLicences);
                 } catch (\Throwable $e) {
                     $error = 'Erreur lors de l\'import : '.$e->getMessage();
                 }

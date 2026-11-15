@@ -50,12 +50,67 @@ class CsvImportResult
      * @var list<string>
      */
     public array $duplicates = [];
+    /**
+     * Adhérents NOUVEAUX POUR LA SAISON de l'import (première adhésion enregistrée pour cette saison : nouveaux
+     * comptes et anciens adhérents qui reviennent), présentés à l'admin pour repérer les jeunes d'associations
+     * sportives externes. `eligible` = cochable : mineur ET part club à 0 € (payé via HelloAsso, pas sur le site
+     * de la FFTri). `alreadyTagged` = déjà marqué avant cet import ; `tagged` = marqué à l'issue de l'import.
+     *
+     * @var list<array{
+     *     licence: string, name: string, email: string, birthDate: ?string, age: ?int, category: ?string,
+     *     licenceType: ?string, partClubCents: ?int, totalCents: ?int, isNewAccount: bool, eligible: bool,
+     *     reason: string, alreadyTagged: bool, tagged: bool
+     * }>
+     */
+    public array $newForSeason = [];
+    /**
+     * Jeunes marqués « association sportive externe » par CET import (cases cochées par l'admin) :
+     * « Prénom Nom (licence X) ». Leur compte est désactivé, sans e-mail de bienvenue.
+     *
+     * @var list<string>
+     */
+    public array $externalTagged = [];
+    /**
+     * Licences cochées mais refusées (pas mineur ou part club ≠ 0 €) : « Prénom Nom (licence X) — motif ».
+     *
+     * @var list<string>
+     */
+    public array $externalRefused = [];
     /** @var list<array{line: int, error: string, raw?: array<string, string>}> */
     public array $errors = [];
 
     public function addError(int $line, string $error, array $raw = []): void
     {
         $this->errors[] = ['line' => $line, 'error' => $error, 'raw' => $raw];
+    }
+
+    /**
+     * Nouveaux pour la saison que l'admin peut cocher (mineurs, part club à 0 €), par ordre alphabétique.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function newForSeasonEligible(): array
+    {
+        return $this->sortedNewForSeason(true);
+    }
+
+    /**
+     * Nouveaux pour la saison qui ne sont PAS cochables (majeurs ou part club ≠ 0 €), par ordre alphabétique.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function newForSeasonOthers(): array
+    {
+        return $this->sortedNewForSeason(false);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function sortedNewForSeason(bool $eligible): array
+    {
+        $rows = array_values(array_filter($this->newForSeason, static fn (array $r) => $r['eligible'] === $eligible));
+        usort($rows, static fn (array $a, array $b) => strcmp(mb_strtolower($a['name'], 'UTF-8'), mb_strtolower($b['name'], 'UTF-8')));
+
+        return $rows;
     }
 
     public function totalProcessed(): int
@@ -79,6 +134,8 @@ class CsvImportResult
             'historicalOnly' => $this->historicalOnly,
             'welcomeEmailsSent' => $this->welcomeEmailsSent,
             'pendingMatched' => $this->pendingMatched,
+            'newForSeason' => count($this->newForSeason),
+            'externalTagged' => $this->externalTagged,
             'externalParentsDeactivated' => $this->externalParentsDeactivated,
             'externalParentsReactivated' => $this->externalParentsReactivated,
             'skipped' => $this->skipped,

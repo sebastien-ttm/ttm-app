@@ -129,6 +129,10 @@ class CsvImportService
      *      réconciliation parents externes. Ces mécanismes supposent que
      *      le fichier importé reflète l'état ACTUEL du club — faux par
      *      définition pour un import historique.
+     * @param list<string> $externalAssociationLicences Licences que l'admin a cochées comme « jeune d'association
+     *   sportive externe » (aperçu de l'import). Seuls les MINEURS dont la part club est à 0 € sont retenus ; leur
+     *   compte est marqué (donc désactivé, jamais réactivé par un import) et ils ne reçoivent aucun e-mail de
+     *   bienvenue. Ignoré par un import historique.
      */
     public function import(
         string $filePath,
@@ -137,9 +141,19 @@ class CsvImportService
         ?TrainingSeason $season = null,
         bool $dryRun = false,
         bool $historicalOnly = false,
+        array $externalAssociationLicences = [],
     ): CsvImportResult {
         if ($historicalOnly) {
             $sendWelcomeEmails = false;
+        }
+
+        /** @var array<string, true> $ticked licences cochées (clé normalisée) */
+        $ticked = [];
+        foreach ($externalAssociationLicences as $licence) {
+            $key = User::normalizeLicence(trim((string) $licence));
+            if ($key !== null) {
+                $ticked[$key] = true;
+            }
         }
 
         $result = new CsvImportResult();
@@ -406,12 +420,62 @@ class CsvImportService
                 // l'user est candidat à un email de bienvenue (nouveau OU
                 // adhérent existant renouvelant après une saison manquée).
                 $freshMembership = false;
+                $membership = null;
                 if ($season !== null) {
-                    $freshMembership = $this->upsertMembership($user, $season, $importedAt, $record);
+                    [$membership, $freshMembership] = $this->upsertMembership($user, $season, $importedAt, $record);
                 }
+
+                // Jeunes d'associations sportives externes : l'admin les repère à la main parmi les adhérents
+                // nouveaux pour la saison. Cochable = mineur ET part club à 0 € (payé via HelloAsso).
+                if ($season !== null && !$historicalOnly && $membership !== null) {
+                    $partClub = $membership->getPartClubCents();
+                    $age = $dateNaissance?->diff($importedAt)->y;
+                    $reasons = [];
+                    if ($partClub !== 0) {
+                        $reasons[] = $partClub === null ? 'part club non renseignée' : 'part club ≠ 0 €';
+                    }
+                    if ($age === null) {
+                        $reasons[] = 'date de naissance inconnue';
+                    } elseif ($age >= 18) {
+                        $reasons[] = 'majeur(e)';
+                    }
+                    $eligible = $reasons === [];
+                    $alreadyTagged = $user->isExternalAssociation();
+                    $isTicked = isset($ticked[(string) User::normalizeLicence($numLicence)]);
+
+                    if ($isTicked && !$alreadyTagged) {
+                        if ($eligible) {
+                            $user->setExternalAssociation(true);
+                            $result->externalTagged[] = sprintf('%s (licence %s)', $user->getFullName(), $numLicence);
+                        } else {
+                            $result->externalRefused[] = sprintf('%s (licence %s) — %s', $user->getFullName(), $numLicence, implode(', ', $reasons));
+                        }
+                    }
+
+                    if ($freshMembership) {
+                        $result->newForSeason[] = [
+                            'licence' => $numLicence,
+                            'name' => $user->getFullName(),
+                            'email' => $user->getEmail(),
+                            'birthDate' => $dateNaissance?->format('d/m/Y'),
+                            'age' => $age,
+                            'category' => $membership->getCategorieAge(),
+                            'licenceType' => $membership->getTypeLicence(),
+                            'partClubCents' => $partClub,
+                            'totalCents' => $membership->getTotalCents(),
+                            'isNewAccount' => $isNew,
+                            'eligible' => $eligible,
+                            'reason' => implode(', ', $reasons),
+                            'alreadyTagged' => $alreadyTagged,
+                            'tagged' => $user->isExternalAssociation(),
+                        ];
+                    }
+                }
+
                 // Compte temporaire tout juste rapproché : l'adhérent a déjà
-                // son accès, pas de second email de bienvenue.
-                if (!$historicalOnly && !$promoted && ($isNew || $freshMembership)) {
+                // son accès, pas de second email de bienvenue. Un jeune d'association
+                // sportive externe n'a pas accès à l'appli : pas d'email non plus.
+                if (!$historicalOnly && !$promoted && !$user->isExternalAssociation() && ($isNew || $freshMembership)) {
                     // isRenewal = compte existant ET nouveau membership pour la saison
                     // (donc adhérent connu qui revient). Un compte fraîchement créé
                     // reste « new » même s'il a une membership à sa création.
@@ -548,10 +612,10 @@ class CsvImportService
      * mais ne dupliquent pas la ligne.
      *
      * @param  array<string, mixed> $record  ligne CSV brute (pour snapshots)
-     * @return bool  true si une NOUVELLE membership vient d'être créée
+     * @return array{UserSeasonMembership, bool}  l'adhésion, et true si elle vient d'être CRÉÉE
      *               (permet au caller de déclencher l'email de bienvenue)
      */
-    private function upsertMembership(User $user, TrainingSeason $season, \DateTimeImmutable $importedAt, array $record): bool
+    private function upsertMembership(User $user, TrainingSeason $season, \DateTimeImmutable $importedAt, array $record): array
     {
         // Un user tout juste créé (getId === null avant flush) ne peut pas
         // encore avoir de membership existant. Sinon on cherche en base.
@@ -591,9 +655,9 @@ class CsvImportService
 
         if ($existing === null) {
             $this->em->persist($membership);
-            return true;
+            return [$membership, true];
         }
-        return false;
+        return [$membership, false];
     }
 
     private function cleanEmail(string $email): string

@@ -21,6 +21,10 @@
             <em>sauf</em> si une « période de grâce » est définie dans la saison
             d'entraînement (les anciens restent actifs jusqu'à la date limite).
         </p>
+        <p style="font-size:14px; color:#555;">
+            <strong>Jeunes d'associations sportives externes :</strong> la simulation présente les adhérents nouveaux
+            pour la saison ; vous y cochez ceux (mineurs, part club à 0 €) qui n'ont pas accès à l'application.
+        </p>
 
         {% if error %}
             <div style="background:#FEE; color:#C62828; padding:12px 16px; border-radius:6px; margin:16px 0;">
@@ -90,15 +94,13 @@
                     🔍 Simuler d'abord
                 </button>
                 <button type="submit" name="action" value="commit" class="btn btn-primary"
-                        onclick="return confirm('Import réel — les comptes seront créés/mis à jour et les emails de bienvenue partiront. Confirmer ?');">
+                        onclick="return confirmImport();">
                     ✅ Importer réellement
                 </button>
             </div>
             <div style="margin-top:8px; font-size:12px; color:#64748b;">
                 💡 Toujours simuler d'abord pour vérifier l'aperçu avant l'import réel.
             </div>
-        </form>
-
         {% if result %}
             <hr style="margin:30px 0;">
             <h3>{{ result.dryRun ? 'Aperçu (simulation)' : 'Résultat' }}</h3>
@@ -150,6 +152,19 @@
                 {% if result.externalParentsReactivated > 0 %}
                     <li>👨‍👧 <strong>{{ result.externalParentsReactivated }}</strong> parent(s) externe(s){{ willBe }} réactivé(s) (un enfant a repris sa licence)</li>
                 {% endif %}
+                {% if result.externalTagged|length > 0 %}
+                    <li style="color:#9a3412;">
+                        🚫 <strong>{{ result.externalTagged|length }}</strong> jeune(s){{ willBe }} marqué(s) « association sportive externe » —
+                        compte désactivé, aucun accès à l'appli, aucun e-mail de bienvenue :
+                        {{ result.externalTagged|join(' ; ') }}
+                    </li>
+                {% endif %}
+                {% if result.externalRefused|length > 0 %}
+                    <li style="color:#C62828;">
+                        ⚠️ <strong>{{ result.externalRefused|length }}</strong> case(s) cochée(s) refusée(s) (seuls les mineurs dont la part club est à 0 € sont cochables) :
+                        {{ result.externalRefused|join(' ; ') }}
+                    </li>
+                {% endif %}
                 {% if result.welcomeEmailsSent > 0 %}
                     <li>📧 <strong>{{ result.welcomeEmailsSent }}</strong> email(s) de bienvenue
                         {{ result.dryRun ? 'seraient envoyés' : 'dispatché(s)' }} (nouveaux + renouvellements)
@@ -164,6 +179,110 @@
                 {% endif %}
                 <li><strong>{{ result.errors|length }}</strong> erreur(s)</li>
             </ul>
+
+            {% if not result.historicalOnly and result.seasonLabel %}
+                {% set eligibleRows = result.newForSeasonEligible %}
+                {% set otherRows = result.newForSeasonOthers %}
+                <h3 style="margin-top:28px;">🧒 Nouveaux adhérents de la saison {{ result.seasonLabel }}</h3>
+                <p style="font-size:14px; color:#475569;">
+                    <strong>{{ result.newForSeason|length }}</strong> adhérent(s) enregistré(s) pour la première fois cette saison
+                    (nouveaux comptes et anciens adhérents qui reviennent).
+                </p>
+
+                {% if result.newForSeason|length > 0 %}
+                    <div style="font-size:13px; background:#fff7ed; border-left:4px solid #f97316; padding:10px 14px; border-radius:4px; margin-bottom:12px;">
+                        <strong>Jeunes d'associations sportives externes</strong> : cochez ceux qui n'ont pas accès à l'application.
+                        Leur compte est désactivé (jamais réactivé par un import) et ils ne reçoivent pas d'e-mail de bienvenue.
+                        Seuls les <strong>mineurs dont la part club est à 0 €</strong> (payé via HelloAsso, pas sur le site de la FFTri)
+                        sont cochables. Le marquage reste d'une saison à l'autre ; pour le retirer : fiche de l'adhérent.
+                    </div>
+
+                    {% if eligibleRows|length > 0 %}
+                        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                            <thead>
+                                <tr style="background:#f5f5f5;">
+                                    <th style="padding:8px; text-align:center; border-bottom:1px solid #ddd;" title="Association sportive externe">AS externe</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Adhérent</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Licence</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Naissance</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Catégorie</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">Type de licence</th>
+                                    <th style="padding:8px; text-align:right; border-bottom:1px solid #ddd;">Total</th>
+                                    <th style="padding:8px; text-align:left; border-bottom:1px solid #ddd;">E-mail</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in eligibleRows %}
+                                    <tr>
+                                        <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;">
+                                            <input type="checkbox" name="external_association[]" value="{{ r.licence }}"
+                                                   {% if r.tagged %}checked{% endif %}
+                                                   {% if r.alreadyTagged %}disabled title="Déjà marqué lors d'un import précédent"{% elseif not result.dryRun %}disabled{% endif %}>
+                                        </td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">
+                                            <strong>{{ r.name }}</strong>
+                                            <span style="color:#64748b;">· {{ r.isNewAccount ? 'nouveau compte' : 'réadhésion' }}</span>
+                                            {% if r.alreadyTagged %}<span style="color:#9a3412;"> · déjà marqué</span>{% endif %}
+                                        </td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">{{ r.licence }}</td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">{{ r.birthDate }}{% if r.age is not null %} ({{ r.age }} ans){% endif %}</td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">{{ r.category ?: '—' }}</td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">{{ r.licenceType ?: '—' }}</td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;">{{ r.totalCents is not null ? ((r.totalCents / 100)|number_format(2, ',', ' ') ~ ' €') : '—' }}</td>
+                                        <td style="padding:8px; border-bottom:1px solid #eee;">{{ r.email }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p style="font-size:14px; color:#64748b;">Aucun nouvel adhérent n'est cochable (mineur avec une part club à 0 €).</p>
+                    {% endif %}
+
+                    {% if otherRows|length > 0 %}
+                        <details style="margin-top:14px;">
+                            <summary style="cursor:pointer; font-size:13px; color:#475569;">
+                                {{ otherRows|length }} autre(s) nouvel(s) adhérent(s) — non cochables (majeurs ou part club ≠ 0 €)
+                            </summary>
+                            <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
+                                <thead>
+                                    <tr style="background:#f5f5f5;">
+                                        <th style="padding:6px 8px; text-align:left; border-bottom:1px solid #ddd;">Adhérent</th>
+                                        <th style="padding:6px 8px; text-align:left; border-bottom:1px solid #ddd;">Licence</th>
+                                        <th style="padding:6px 8px; text-align:left; border-bottom:1px solid #ddd;">Âge</th>
+                                        <th style="padding:6px 8px; text-align:right; border-bottom:1px solid #ddd;">Part club</th>
+                                        <th style="padding:6px 8px; text-align:left; border-bottom:1px solid #ddd;">Motif</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in otherRows %}
+                                        <tr>
+                                            <td style="padding:6px 8px; border-bottom:1px solid #eee;">
+                                                {{ r.name }}{% if r.alreadyTagged %}<span style="color:#9a3412;"> · marqué AS externe</span>{% endif %}
+                                            </td>
+                                            <td style="padding:6px 8px; border-bottom:1px solid #eee;">{{ r.licence }}</td>
+                                            <td style="padding:6px 8px; border-bottom:1px solid #eee;">{{ r.age is not null ? r.age ~ ' ans' : '—' }}</td>
+                                            <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">{{ r.partClubCents is not null ? ((r.partClubCents / 100)|number_format(2, ',', ' ') ~ ' €') : '—' }}</td>
+                                            <td style="padding:6px 8px; border-bottom:1px solid #eee; color:#64748b;">{{ r.reason }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </details>
+                    {% endif %}
+
+                    {% if result.dryRun %}
+                        <div style="margin-top:16px; padding:12px 14px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px;">
+                            <div style="font-size:13px; color:#475569; margin-bottom:10px;">
+                                📎 Une fois les cases cochées, <strong>re-sélectionnez le fichier CSV</strong> en haut de la page
+                                (le navigateur ne le conserve pas) puis lancez l'import réel : les cases cochées seront appliquées.
+                            </div>
+                            <button type="submit" name="action" value="commit" class="btn btn-primary" onclick="return confirmImport();">
+                                ✅ Importer réellement
+                            </button>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
 
             {% if result.errors %}
                 <h4 style="margin-top:20px;">Erreurs détaillées</h4>
@@ -185,5 +304,18 @@
                 </table>
             {% endif %}
         {% endif %}
+        </form>
     </div>
+
+    <script>
+        // Confirmation de l'import réel : rappelle combien de jeunes seront marqués « association sportive externe ».
+        function confirmImport() {
+            var n = document.querySelectorAll('input[name="external_association[]"]:checked:not(:disabled)').length;
+            var msg = 'Import réel — les comptes seront créés/mis à jour et les emails de bienvenue partiront.';
+            if (n > 0) {
+                msg += '\n\n' + n + ' jeune(s) marqué(s) « association sportive externe » : compte désactivé, pas d\'accès à l\'appli, pas d\'e-mail de bienvenue.';
+            }
+            return confirm(msg);
+        }
+    </script>
 {% endblock %}
