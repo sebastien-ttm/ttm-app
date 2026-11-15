@@ -1799,6 +1799,24 @@ export type BoardAction = {
   text: string;
   /** Noms des porteurs (membres du CoDir ou autres adhérents). */
   assignees: string[];
+  /** Échéance, AAAA-MM-JJ (facultative). */
+  dueDate: string | null;
+  /** Clôturée : n'est plus « en cours ». */
+  closed: boolean;
+  closedAt: string | null;
+  /** En cours et échéance dépassée. */
+  overdue: boolean;
+  /** Le membre connecté en est l'un des porteurs. */
+  isMine: boolean;
+};
+
+/** Action en cours, avec le contexte de sa réunion (liste de la vue Comité directeur). */
+export type BoardOpenAction = BoardAction & {
+  meetingId: number;
+  meetingLabel: string;
+  poleLabel: string;
+  /** Point d'ordre du jour concerné (tronqué). */
+  pointText: string;
 };
 
 export type BoardAgendaItem = {

@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollVi
 import { ApiError } from '@/api/client';
 import { board as boardApi } from '@/api/resources';
 import type { BoardAgendaItem, BoardComment, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
+import { BoardActionRow } from '@/components/BoardActionRow';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatMeetingDate } from '@/utils/boardDate';
@@ -19,8 +20,8 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
  * Réunion du CoDir : ordre du jour classé par pôle. Tant que la réunion n'est pas close, chaque membre ajoute
  * ses points (pôle, Information / Sujet / Question, texte) et peut modifier ou supprimer les siens tant qu'ils
  * n'ont pas été traités. Sur le point d'un autre membre, on peut ajouter un commentaire (Information, Sujet) ou une
- * réponse (Question). Les réponses, décisions et actions (avec leurs porteurs) saisies en séance s'affichent sous
- * chaque point.
+ * réponse (Question). Les réponses, décisions et actions (porteurs, échéance, état — en évidence quand c'est le
+ * membre connecté qui les porte) saisies en séance s'affichent sous chaque point.
  */
 export default function BoardMeetingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -276,14 +277,7 @@ export default function BoardMeetingScreen() {
                 {item.actions.length > 0 && (
                   <View style={styles.actions}>
                     <Text style={styles.actionsTitle}>Action{item.actions.length > 1 ? 's' : ''}</Text>
-                    {item.actions.map((a) => (
-                      <View key={a.id} style={styles.action}>
-                        <Text style={styles.answerLine}>• {a.text}</Text>
-                        <Text style={styles.actionOwners}>
-                          {a.assignees.length > 0 ? '→ ' + a.assignees.join(', ') : 'Porteur à désigner'}
-                        </Text>
-                      </View>
-                    ))}
+                    {item.actions.map((a) => <BoardActionRow key={a.id} action={a} />)}
                   </View>
                 )}
                 {item.canEdit && (
@@ -365,10 +359,8 @@ const styles = StyleSheet.create({
   composer: { gap: 8 },
   composerInput: { minHeight: 64, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10, fontSize: 14, color: COLORS.text, textAlignVertical: 'top' },
   submitSmall: { paddingVertical: 8, paddingHorizontal: 18 },
-  actions: { backgroundColor: '#fffbeb', borderRadius: RADIUS.sm, padding: 10, gap: 6, borderLeftWidth: 3, borderLeftColor: '#f59e0b' },
+  actions: { backgroundColor: COLORS.surfaceAlt, borderRadius: RADIUS.sm, padding: 10, gap: 8, borderLeftWidth: 3, borderLeftColor: '#f59e0b' },
   actionsTitle: { fontSize: 11, fontWeight: '700', color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.4 },
-  action: { gap: 1 },
-  actionOwners: { fontSize: 13, fontWeight: '700', color: COLORS.text, paddingLeft: 10 },
   itemActions: { flexDirection: 'row', gap: 16 },
   link: { color: COLORS.secondary, fontWeight: '700', fontSize: 13 },
 });

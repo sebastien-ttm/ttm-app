@@ -5,6 +5,7 @@ import type {
   BoardItemInput,
   BoardMeetingDetail,
   BoardMeetingSummary,
+  BoardOpenAction,
   BoardOption,
   VolunteerApplication,
   VolunteerApplicationStatus,
@@ -654,7 +655,14 @@ export const stages = {
 export const board = {
   /** Toutes les réunions (à venir puis passées) + listes des pôles et des types de point. */
   meetings: () =>
-    api.get<{ data: BoardMeetingSummary[]; nextId: number | null; poles: BoardOption[]; types: BoardOption[] }>('/api/board/meetings'),
+    api.get<{
+      data: BoardMeetingSummary[];
+      nextId: number | null;
+      /** Actions en cours de toutes les réunions, échéance la plus proche d'abord. */
+      actions?: BoardOpenAction[];
+      poles: BoardOption[];
+      types: BoardOption[];
+    }>('/api/board/meetings'),
   meeting: (id: number) => api.get<BoardMeetingDetail>(`/api/board/meetings/${id}`),
   addItem: (meetingId: number, input: BoardItemInput) =>
     api.post<BoardMeetingDetail>(`/api/board/meetings/${meetingId}/items`, input),
