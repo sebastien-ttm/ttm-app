@@ -49,6 +49,44 @@
             </form>
         </div>
 
+        {# Actions en cours décidées lors d'autres réunions : à passer en revue (et clôturer) en début de séance #}
+        {% if otherOpenActions|length > 0 %}
+            <details id="actions-en-cours" open style="{{ card }} padding:12px 16px; margin-bottom:16px;">
+                <summary style="cursor:pointer; font-weight:700;">Actions en cours des autres réunions ({{ otherOpenActions|length }})</summary>
+                <table style="width:100%; margin-top:8px; font-size:14px; border-collapse:collapse;">
+                    <thead>
+                        <tr style="{{ label }} text-align:left;">
+                            <th style="padding:4px 8px;">Action</th>
+                            <th style="padding:4px 8px;">Réunion · pôle</th>
+                            <th style="padding:4px 8px;">Porteur(s)</th>
+                            <th style="padding:4px 8px;">Échéance</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in otherOpenActions %}
+                            <tr style="border-top:1px solid #e2e8f0; {{ a.overdue ? 'background:#fef2f2;' : '' }}">
+                                <td style="padding:6px 8px; white-space:pre-line;">{{ a.text }}</td>
+                                <td style="padding:6px 8px;">{{ a.item.meeting.label }}<br><span style="font-size:12px; color:#64748b;">{{ a.item.pole.label }}</span></td>
+                                <td style="padding:6px 8px;">{{ a.assigneeNames|join(', ') ?: '—' }}</td>
+                                <td style="padding:6px 8px; white-space:nowrap;">
+                                    {{ a.dueDate ? a.dueDate|date('d/m/Y') : '—' }}
+                                    {% if a.overdue %}<span style="font-size:11px; font-weight:700; background:#fee2e2; color:#b91c1c; padding:1px 8px; border-radius:3px; margin-left:4px;">En retard</span>{% endif %}
+                                </td>
+                                <td style="padding:6px 8px; text-align:right;">
+                                    <form method="post" action="{{ path('admin_board_action_close', {id: a.id}) }}" style="display:inline;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                                        <input type="hidden" name="back" value="{{ meeting.id }}">
+                                        <button type="submit" class="btn btn-success btn-sm">Clôturer</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </details>
+        {% endif %}
+
         {% if groups is empty %}
             <div style="{{ card }} padding:20px; color:#64748b; margin-bottom:16px;">Aucun point à l'ordre du jour pour l'instant.</div>
         {% endif %}
@@ -112,15 +150,27 @@
                     <div style="margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
                         <div style="{{ label }}">Actions ({{ item.actions|length }})</div>
                         {% for a in item.actions %}
-                            <div style="margin-top:8px; padding:8px 12px; background:#f0fdf4; border-radius:6px;">
+                            <div style="margin-top:8px; padding:8px 12px; background:{{ a.closed ? '#f1f5f9' : '#f0fdf4' }}; border-radius:6px; {{ a.overdue ? 'border-left:4px solid #dc2626;' : '' }}">
                                 <div style="display:flex; gap:10px; align-items:flex-start;">
                                     <div style="flex:1; font-size:14px;">
-                                        <div style="white-space:pre-line;">{{ a.text }}</div>
+                                        <div style="white-space:pre-line; {{ a.closed ? 'text-decoration:line-through; color:#64748b;' : '' }}">{{ a.text }}</div>
                                         <div style="font-size:13px; color:#475569; margin-top:2px;">
                                             Porteur{{ a.assignees|length > 1 ? 's' : '' }} :
                                             {% if a.assignees|length > 0 %}<strong>{{ a.assigneeNames|join(', ') }}</strong>{% else %}<em>non affectée</em>{% endif %}
+                                            · Échéance : {% if a.dueDate %}<strong>{{ a.dueDate|date('d/m/Y') }}</strong>{% else %}<em>non définie</em>{% endif %}
+                                            {% if a.closed %}
+                                                <span style="font-size:11px; font-weight:700; background:#dcfce7; color:#166534; padding:1px 8px; border-radius:3px; margin-left:6px;">Clôturée le {{ a.closedAt|date('d/m/Y') }}</span>
+                                            {% elseif a.overdue %}
+                                                <span style="font-size:11px; font-weight:700; background:#fee2e2; color:#b91c1c; padding:1px 8px; border-radius:3px; margin-left:6px;">En retard</span>
+                                            {% endif %}
                                         </div>
                                     </div>
+                                    <form method="post" action="{{ path('admin_board_action_close', {id: a.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                                        <input type="hidden" name="back" value="{{ meeting.id }}">
+                                        {% if a.closed %}<input type="hidden" name="reopen" value="1">{% endif %}
+                                        <button type="submit" class="btn {{ a.closed ? 'btn-link' : 'btn-success' }} btn-sm" style="{{ a.closed ? 'padding:0;' : '' }}">{{ a.closed ? 'Rouvrir' : 'Clôturer' }}</button>
+                                    </form>
                                     <form method="post" action="{{ path('admin_board_action_delete', {id: a.id}) }}" onsubmit="return confirm('Supprimer cette action ?');">
                                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                                         <button type="submit" class="btn btn-link btn-sm" style="color:#b91c1c; padding:0;">Supprimer</button>

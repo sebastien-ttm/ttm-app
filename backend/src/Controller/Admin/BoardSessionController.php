@@ -9,6 +9,7 @@ use App\Entity\BoardMeeting;
 use App\Entity\User;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
+use App\Repository\BoardActionRepository;
 use App\Repository\BoardAgendaItemRepository;
 use App\Repository\BoardMeetingRepository;
 use App\Repository\UserRepository;
@@ -26,8 +27,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 /**
  * Comité directeur — page « En séance » (membres du CoDir et administrateurs) : l'ordre du jour d'une réunion,
  * classé par pôle, avec les commentaires / réponses des membres, la saisie des colonnes Qui répond ? /
- * Réponse-Décision, les actions confiées à un ou plusieurs porteurs (membres du CoDir ou autres adhérents),
- * l'ajout d'un point soulevé en séance, la clôture de la réunion, le compte rendu imprimable et l'export CSV.
+ * Réponse-Décision, les actions confiées à un ou plusieurs porteurs (membres du CoDir ou autres adhérents) avec
+ * leur échéance et leur clôture, l'ajout d'un point soulevé en séance, la clôture de la réunion, le compte rendu
+ * imprimable (avec les actions en cours) et l'export CSV.
  */
 #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
 class BoardSessionController extends AbstractController
@@ -39,6 +41,7 @@ class BoardSessionController extends AbstractController
     public function __construct(
         private readonly BoardMeetingRepository $meetings,
         private readonly BoardAgendaItemRepository $items,
+        private readonly BoardActionRepository $actions,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
     ) {
@@ -55,16 +58,23 @@ class BoardSessionController extends AbstractController
         $meeting = $id > 0 ? $this->meetings->find($id) : ($this->meetings->findNext() ?? ($all[0] ?? null));
 
         $groups = [];
+        $otherOpenActions = [];
         if ($meeting !== null) {
             foreach ($meeting->getSortedItems() as $item) {
                 $groups[$item->getPole()->label()][] = $item;
             }
+            // Actions en cours décidées lors d'autres réunions : à passer en revue (et clore) en début de séance.
+            $otherOpenActions = array_values(array_filter(
+                $this->actions->findOpen(),
+                static fn (BoardAction $a) => $a->getItem()->getMeeting()->getId() !== $meeting->getId(),
+            ));
         }
 
         return $this->render('admin/board_session.html.twig', [
             'meeting' => $meeting,
             'meetings' => $all,
             'groups' => $groups,
+            'otherOpenActions' => $otherOpenActions,
             'poles' => BoardPole::cases(),
             'types' => BoardItemType::cases(),
             'codir' => $this->users->findCommitteeMembers(),
@@ -154,8 +164,13 @@ class BoardSessionController extends AbstractController
             $this->addFlash('danger', 'Décrivez l\'action à mener.');
             return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
         }
+        $due = $this->parseDueDate($request);
+        if ($due === false) {
+            $this->addFlash('danger', 'Échéance invalide : l\'action n\'a pas été ajoutée.');
+            return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+        }
         $action = new BoardAction($item, $text);
-        $action->setAssignees($this->assigneesFromRequest($request));
+        $action->setAssignees($this->assigneesFromRequest($request))->setDueDate($due);
         $item->addAction($action);
         $this->em->persist($action);
         $this->em->flush();
@@ -178,11 +193,39 @@ class BoardSessionController extends AbstractController
             $this->addFlash('danger', 'Décrivez l\'action à mener.');
             return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
         }
-        $action->setText($text)->setAssignees($this->assigneesFromRequest($request));
+        $due = $this->parseDueDate($request);
+        if ($due === false) {
+            $this->addFlash('danger', 'Échéance invalide : l\'action n\'a pas été modifiée.');
+            return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+        }
+        $action->setText($text)->setAssignees($this->assigneesFromRequest($request))->setDueDate($due);
         $this->em->flush();
         $this->addFlash('success', 'Action modifiée.');
 
         return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+    }
+
+    /**
+     * Clôture une action (ou la rouvre avec `reopen`). Le champ `back` indique la réunion à réafficher : on clôt
+     * aussi, depuis la séance en cours, les actions décidées lors de réunions précédentes.
+     */
+    #[Route('/admin/codir/actions/{id}/close', name: 'admin_board_action_close', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function closeAction(int $id, Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request);
+        $action = $this->em->getRepository(BoardAction::class)->find($id);
+        if ($action === null) {
+            throw $this->createNotFoundException();
+        }
+        $item = $action->getItem();
+        $action->setClosed($request->request->get('reopen') === null);
+        $this->em->flush();
+        $this->addFlash('success', $action->isClosed() ? 'Action clôturée.' : 'Action rouverte.');
+
+        $back = $this->meetings->find((int) $request->request->get('back', 0)) ?? $item->getMeeting();
+        $sameMeeting = $back->getId() === $item->getMeeting()->getId();
+
+        return $this->backTo($back, $sameMeeting ? 'item-'.$item->getId() : 'actions-en-cours');
     }
 
     #[Route('/admin/codir/actions/{id}/delete', name: 'admin_board_action_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -248,24 +291,21 @@ class BoardSessionController extends AbstractController
             throw $this->createNotFoundException();
         }
         $groups = [];
-        $actionRows = [];
         $commentCount = 0;
+        $decidedCount = 0;
         foreach ($meeting->getSortedItems() as $item) {
             $groups[$item->getPole()->label()][] = $item;
             $commentCount += $item->getComments()->count();
-            foreach ($item->getActions() as $action) {
-                $actionRows[] = ['pole' => $item->getPole()->label(), 'point' => $item->getText(), 'text' => $action->getText(), 'owners' => implode(', ', $action->getAssigneeNames())];
-            }
-            if ($item->getActions()->isEmpty() && $item->getActionOwner() !== null) {
-                $actionRows[] = ['pole' => $item->getPole()->label(), 'point' => $item->getText(), 'text' => $item->getAnswer() ?? 'Action à mener', 'owners' => $item->getActionOwner()];
-            }
+            $decidedCount += $item->getActions()->count();
         }
 
         return $this->render('admin/board_minutes.html.twig', [
             'meeting' => $meeting,
             'groups' => $groups,
-            'actionRows' => $actionRows,
             'commentCount' => $commentCount,
+            'decidedCount' => $decidedCount,
+            // Suivi : toutes les actions en cours à la date de la réunion (nouvelles et reportées des précédentes).
+            'openActions' => $this->actions->findOpenAsOf($meeting),
         ]);
     }
 
@@ -306,7 +346,10 @@ class BoardSessionController extends AbstractController
                     $i->getComments()->toArray(),
                 );
                 $actions = array_map(
-                    static fn (BoardAction $a) => $a->getText().($a->getAssigneeNames() !== [] ? ' ('.implode(', ', $a->getAssigneeNames()).')' : ''),
+                    static fn (BoardAction $a) => $a->getText()
+                        .($a->getAssigneeNames() !== [] ? ' ('.implode(', ', $a->getAssigneeNames()).')' : '')
+                        .($a->getDueDate() !== null ? ' — échéance '.$a->getDueDate()->format('d/m/Y') : '')
+                        .($a->isClosed() ? ' — clôturée le '.$a->getClosedAt()->format('d/m/Y') : ''),
                     $i->getActions()->toArray(),
                 );
                 if ($i->getActionOwner() !== null) {
@@ -329,6 +372,24 @@ class BoardSessionController extends AbstractController
         $response->headers->set('Content-Disposition', 'attachment; filename="CODIR_'.$meeting->getScheduledAt()->format('Y_m_d').'.csv"');
 
         return $response;
+    }
+
+    /**
+     * Échéance saisie (champ `dueDate`, AAAA-MM-JJ) : null si vide, false si invalide.
+     */
+    private function parseDueDate(Request $request): \DateTimeImmutable|false|null
+    {
+        $raw = trim((string) $request->request->get('dueDate', ''));
+        if ($raw === '') {
+            return null;
+        }
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $raw);
+        $errors = \DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            return false;
+        }
+
+        return $date;
     }
 
     /**

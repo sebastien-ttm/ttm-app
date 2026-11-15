@@ -9,6 +9,10 @@
         <textarea name="text" rows="2" required maxlength="1000" style="{{ input }}">{{ action ? action.text : '' }}</textarea>
     </div>
     <div>
+        <label style="{{ label }}">Échéance (facultative)</label>
+        <input type="date" name="dueDate" value="{{ action and action.dueDate ? action.dueDate|date('Y-m-d') : '' }}" style="{{ input }} max-width:200px;">
+    </div>
+    <div>
         <label style="{{ label }}">Porteurs · membres du CoDir</label>
         <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
             {% for u in codir %}

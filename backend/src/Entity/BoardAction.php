@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Repository\BoardActionRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -9,11 +10,13 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Action décidée en séance sur un point de l'ordre du jour, confiée à un ou plusieurs porteurs : membres du CoDir
- * ou n'importe quel autre adhérent. Saisie dans le back-office (page « En séance »), affichée dans l'appli et dans
- * le compte rendu.
+ * ou n'importe quel autre adhérent. Saisie dans le back-office (page « En séance »), avec une échéance facultative ;
+ * elle reste « en cours » jusqu'à ce qu'on la clôture. Affichée dans l'appli (en évidence pour ses porteurs) et dans
+ * le compte rendu de chaque réunion tant qu'elle est en cours.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: BoardActionRepository::class)]
 #[ORM\Table(name: 'board_action')]
+#[ORM\Index(name: 'idx_board_action_closed_at', columns: ['closed_at'])]
 class BoardAction
 {
     public const TEXT_MAX = 1000;
@@ -38,6 +41,14 @@ class BoardAction
     #[ORM\JoinColumn(name: 'action_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     #[ORM\InverseJoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     private Collection $assignees;
+
+    /** Échéance (jour), facultative. */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $dueDate = null;
+
+    /** Date de clôture : null tant que l'action est en cours. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $closedAt = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -75,6 +86,16 @@ class BoardAction
         return $this;
     }
 
+    public function isAssignedTo(User $user): bool
+    {
+        foreach ($this->assignees as $assignee) {
+            if ($assignee->getId() === $user->getId()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Noms des porteurs, dans l'ordre alphabétique (compte rendu, appli).
      *
@@ -85,6 +106,29 @@ class BoardAction
         $names = array_map(static fn (User $u) => $u->getFullName(), $this->assignees->toArray());
         sort($names, \SORT_NATURAL | \SORT_FLAG_CASE);
         return $names;
+    }
+
+    public function getDueDate(): ?\DateTimeImmutable { return $this->dueDate; }
+    public function setDueDate(?\DateTimeImmutable $d): self { $this->dueDate = $d?->setTime(0, 0); return $this; }
+
+    public function getClosedAt(): ?\DateTimeImmutable { return $this->closedAt; }
+    public function isClosed(): bool { return $this->closedAt !== null; }
+
+    /** Clôture l'action (ou la rouvre) : la date de clôture n'est posée qu'une fois. */
+    public function setClosed(bool $closed): self
+    {
+        if ($closed && $this->closedAt === null) {
+            $this->closedAt = new \DateTimeImmutable();
+        } elseif (!$closed) {
+            $this->closedAt = null;
+        }
+        return $this;
+    }
+
+    /** En cours et échéance dépassée (le jour de l'échéance n'est pas encore en retard). */
+    public function isOverdue(): bool
+    {
+        return $this->closedAt === null && $this->dueDate !== null && $this->dueDate < new \DateTimeImmutable('today');
     }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }

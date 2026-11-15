@@ -29,8 +29,13 @@
         .block { margin:6px 0 0; font-size:14px; }
         .block .k { display:block; font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); }
         .block ul { margin:2px 0 0; padding-left:18px; }
-        .block li { margin:1px 0; white-space:pre-line; }
+        .block li { margin:1px 0; }
+        .block .free { white-space:pre-line; }
         .decision { padding:6px 10px; background:#f0fdf4; border-radius:4px; }
+        .due { color:var(--muted); }
+        .done { color:#166534; font-weight:600; }
+        .new { display:inline-block; margin-left:6px; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; padding:0 6px; border-radius:3px; background:#e0e7ff; color:#3730a3; }
+        .late { display:inline-block; font-size:11px; font-weight:700; color:#b91c1c; }
         .pending { color:var(--muted); font-style:italic; font-size:14px; margin-top:6px; }
         table { width:100%; border-collapse:collapse; margin-top:6px; font-size:14px; }
         th, td { text-align:left; vertical-align:top; padding:6px 8px; border:1px solid var(--line); }
@@ -64,7 +69,8 @@
             {{ meeting.itemCount }} point{{ meeting.itemCount > 1 ? 's' : '' }} à l'ordre du jour
             · {{ meeting.answeredCount }} traité{{ meeting.answeredCount > 1 ? 's' : '' }}
             · {{ commentCount }} commentaire{{ commentCount > 1 ? 's' : '' }} ou réponse{{ commentCount > 1 ? 's' : '' }} des membres
-            · {{ actionRows|length }} action{{ actionRows|length > 1 ? 's' : '' }}
+            · {{ decidedCount }} action{{ decidedCount > 1 ? 's' : '' }} décidée{{ decidedCount > 1 ? 's' : '' }}
+            · {{ openActions|length }} action{{ openActions|length > 1 ? 's' : '' }} en cours
         </div>
         {% if meeting.notes %}<div class="notes">{{ meeting.notes }}</div>{% endif %}
 
@@ -87,7 +93,7 @@
                             <span class="k">{{ item.commentsLabel }} des membres</span>
                             <ul>
                                 {% for c in item.comments %}
-                                    <li><strong>{{ c.authorName }}</strong> : {{ c.text }}</li>
+                                    <li><strong>{{ c.authorName }}</strong> : <span class="free">{{ c.text }}</span></li>
                                 {% endfor %}
                             </ul>
                         </div>
@@ -107,7 +113,11 @@
                             <span class="k">Action{{ item.actions|length + (item.actionOwner ? 1 : 0) > 1 ? 's' : '' }}</span>
                             <ul>
                                 {% for a in item.actions %}
-                                    <li>{{ a.text }}{% if a.assignees|length > 0 %} — <strong>{{ a.assigneeNames|join(', ') }}</strong>{% endif %}</li>
+                                    <li>
+                                        <span class="free">{{ a.text }}</span>{% if a.assignees|length > 0 %} — <strong>{{ a.assigneeNames|join(', ') }}</strong>{% endif %}
+                                        {% if a.dueDate %}<span class="due">· échéance {{ a.dueDate|date('d/m/Y') }}</span>{% endif %}
+                                        {% if a.closed %}<span class="done">· clôturée le {{ a.closedAt|date('d/m/Y') }}</span>{% endif %}
+                                    </li>
                                 {% endfor %}
                                 {% if item.actionOwner %}<li>Porteur : <strong>{{ item.actionOwner }}</strong></li>{% endif %}
                             </ul>
@@ -117,20 +127,32 @@
             {% endfor %}
         {% endfor %}
 
-        {% if actionRows|length > 0 %}
-            <h2>Tableau des actions</h2>
+        <h2>Actions en cours</h2>
+        {% if openActions|length > 0 %}
             <table>
-                <thead><tr><th>Action</th><th>Point concerné</th><th>Porteur(s)</th></tr></thead>
+                <thead><tr><th>Action</th><th>Point concerné</th><th>Porteur(s)</th><th>Échéance</th></tr></thead>
                 <tbody>
-                    {% for row in actionRows %}
+                    {% for a in openActions %}
                         <tr>
-                            <td style="white-space:pre-line;">{{ row.text }}</td>
-                            <td><span style="color:#64748b; font-size:12px;">{{ row.pole }}</span><br>{{ row.point|length > 110 ? row.point|slice(0, 110) ~ '…' : row.point }}</td>
-                            <td>{{ row.owners ?: '—' }}</td>
+                            <td style="white-space:pre-line;">
+                                {{ a.text }}
+                                {% if a.item.meeting.id == meeting.id %}<span class="new">Nouvelle</span>{% endif %}
+                            </td>
+                            <td>
+                                <span style="color:#64748b; font-size:12px;">{{ a.item.meeting.label }} · {{ a.item.pole.label }}</span><br>
+                                {{ a.item.text|length > 110 ? a.item.text|slice(0, 110) ~ '…' : a.item.text }}
+                            </td>
+                            <td>{{ a.assigneeNames|join(', ') ?: '—' }}</td>
+                            <td style="white-space:nowrap;">
+                                {{ a.dueDate ? a.dueDate|date('d/m/Y') : '—' }}
+                                {% if a.overdue %}<br><span class="late">En retard</span>{% endif %}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        {% else %}
+            <p class="pending">Aucune action en cours.</p>
         {% endif %}
 
         <div class="foot">Document généré le {{ 'now'|date('d/m/Y à H\\hi') }} depuis l'application du club.</div>

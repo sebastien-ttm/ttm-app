@@ -9,6 +9,7 @@ use App\Entity\BoardMeeting;
 use App\Entity\User;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
+use App\Repository\BoardActionRepository;
 use App\Repository\BoardAgendaItemRepository;
 use App\Repository\BoardMeetingRepository;
 use App\Security\BoardSessionVoter;
@@ -27,7 +28,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - ajout d'un point (pôle, Information / Sujet / Question, texte) tant que la réunion n'est pas close ;
  *  - modification / suppression de ses propres points tant qu'ils n'ont pas été traités ;
  *  - commentaire (réponse, pour une Question) sur le point d'un autre membre tant que la réunion est ouverte ;
- *  - lecture des actions confiées en séance (saisies dans le back-office).
+ *  - lecture des actions confiées en séance (saisies dans le back-office), avec échéance et état : la liste des
+ *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`).
  */
 #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
 #[Route('/api/board')]
@@ -36,6 +38,7 @@ class BoardMeetingController extends AbstractController
     public function __construct(
         private readonly BoardMeetingRepository $meetings,
         private readonly BoardAgendaItemRepository $items,
+        private readonly BoardActionRepository $actions,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -43,10 +46,19 @@ class BoardMeetingController extends AbstractController
     #[Route('/meetings', methods: ['GET'])]
     public function list(): JsonResponse
     {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
         $next = $this->meetings->findNext();
         return new JsonResponse([
             'data' => array_map(fn (BoardMeeting $m) => $this->summary($m, $next), $this->meetings->findAllForListing()),
             'nextId' => $next?->getId(),
+            // Actions en cours de toutes les réunions, échéance la plus proche d'abord.
+            'actions' => array_map(fn (BoardAction $a) => $this->actionPayload($a, $viewer) + [
+                'meetingId' => $a->getItem()->getMeeting()->getId(),
+                'meetingLabel' => $a->getItem()->getMeeting()->getLabel(),
+                'poleLabel' => $a->getItem()->getPole()->label(),
+                'pointText' => mb_strimwidth($a->getItem()->getText(), 0, 140, '…'),
+            ], $this->actions->findOpen()),
             'poles' => array_map(static fn (BoardPole $p) => ['value' => $p->value, 'label' => $p->label()], BoardPole::cases()),
             'types' => array_map(static fn (BoardItemType $t) => ['value' => $t->value, 'label' => $t->label()], BoardItemType::cases()),
         ]);
@@ -219,7 +231,7 @@ class BoardMeetingController extends AbstractController
         return $this->summary($m, $next) + [
             'notes' => $m->getNotes(),
             'canAddItems' => !$m->isClosed(),
-            'items' => array_map(static fn (BoardAgendaItem $i) => [
+            'items' => array_map(fn (BoardAgendaItem $i) => [
                 'id' => $i->getId(),
                 'pole' => $i->getPole()->value,
                 'poleLabel' => $i->getPole()->label(),
@@ -243,12 +255,28 @@ class BoardMeetingController extends AbstractController
                     'canDelete' => !$i->getMeeting()->isClosed() && $c->isAuthoredBy($viewer),
                     'createdAt' => $c->getCreatedAt()->format(\DATE_ATOM),
                 ], $i->getComments()->toArray()),
-                'actions' => array_map(static fn (BoardAction $a) => [
-                    'id' => $a->getId(),
-                    'text' => $a->getText(),
-                    'assignees' => $a->getAssigneeNames(),
-                ], $i->getActions()->toArray()),
+                'actions' => array_map(fn (BoardAction $a) => $this->actionPayload($a, $viewer), $i->getActions()->toArray()),
             ], $m->getSortedItems()),
+        ];
+    }
+
+    /**
+     * Une action : texte, porteurs, échéance (AAAA-MM-JJ), état (en cours / clôturée, en retard) et `isMine` si le
+     * membre connecté en est l'un des porteurs.
+     *
+     * @return array<string, mixed>
+     */
+    private function actionPayload(BoardAction $a, User $viewer): array
+    {
+        return [
+            'id' => $a->getId(),
+            'text' => $a->getText(),
+            'assignees' => $a->getAssigneeNames(),
+            'dueDate' => $a->getDueDate()?->format('Y-m-d'),
+            'closed' => $a->isClosed(),
+            'closedAt' => $a->getClosedAt()?->format(\DATE_ATOM),
+            'overdue' => $a->isOverdue(),
+            'isMine' => $a->isAssignedTo($viewer),
         ];
     }
 
