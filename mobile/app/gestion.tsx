@@ -8,23 +8,21 @@ import { EmargementTab } from '@/components/gestion/EmargementTab';
 import { GroupTab } from '@/components/gestion/GroupTab';
 import { MembersTab } from '@/components/gestion/MembersTab';
 import { PresenceTab } from '@/components/gestion/PresenceTab';
-import { YouthTab } from '@/components/gestion/YouthTab';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { canCheckIn, canUseStaffSpace, isStaffMember } from '@/utils/profile';
 
-type GestionTab = 'presences' | 'emargements' | 'groupe' | 'jeunes' | 'adherents';
+type GestionTab = 'presences' | 'emargements' | 'groupe' | 'adherents';
 
 const TABS: { key: GestionTab; label: string }[] = [
   { key: 'presences', label: 'Présences' },
   { key: 'emargements', label: 'Émargements' },
   { key: 'groupe', label: 'Groupes' },
-  { key: 'jeunes', label: 'Jeunes' },
-  { key: 'adherents', label: 'Séniors' },
+  { key: 'adherents', label: 'Adhérents' },
 ];
 
 /**
  * Espace « Staff », ouvert depuis le bouton de l'en-tête. Route /gestion :
- * /staff est déjà le trombinoscope du Club. Cinq onglets, selon le profil :
+ * /staff est déjà le trombinoscope du Club. Quatre onglets, selon le profil :
  *  - Présences (entraîneur, encadrant) : indiquer / confirmer ses présences,
  *    semaine type ;
  *  - Émargements : présence aux événements (entraîneur, encadrant, CoDir,
@@ -32,9 +30,9 @@ const TABS: { key: GestionTab; label: string }[] = [
  *    (entraîneur, admin) ;
  *  - Groupes (entraîneur, encadrant) : mon groupe d'entraînement à la volée, créé avant une séance
  *    (adhérents, encadrants, informations, trace GPX, commentaires, position en direct) ;
- *  - Jeunes (entraîneur, encadrant) : fiche sanitaire et autorisation de rentrer seul de chaque jeune, avec les documents manquants en évidence et l'ouverture en un appui ;
- *  - Séniors (entraîneur, encadrant) : annuaire des adhérents adultes (nom, prénom, téléphone)
- *    avec appel ou message WhatsApp en un geste.
+ *  - Adhérents (entraîneur, encadrant) : annuaire des adhérents, séniors et jeunes ensemble (nom, prénom, téléphone)
+ *    avec appel ou message WhatsApp en un geste, et un filtre Tous / Séniors / Jeunes. Pour un jeune : fiche
+ *    sanitaire et autorisation de rentrer seul, documents manquants en évidence, ouverture de sa fiche en un appui.
  * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.
  */
 export default function GestionScreen() {
@@ -61,7 +59,7 @@ export default function GestionScreen() {
       <Stack.Screen options={{ title: 'Staff' }} />
 
       {tabs.length > 1 && (
-        // Défilement horizontal : à cinq onglets, certains libellés ne tiennent plus sur un petit téléphone.
+        // Défilement horizontal : certains libellés pourraient ne plus tenir sur un petit téléphone.
         <View style={styles.tabsWrap}>
           <ScrollView
             horizontal
@@ -91,7 +89,6 @@ export default function GestionScreen() {
         {tab === 'presences' ? <PresenceTab />
           : tab === 'emargements' ? <EmargementTab />
           : tab === 'groupe' ? <GroupTab />
-          : tab === 'jeunes' ? <YouthTab />
           : <MembersTab />}
       </View>
     </SafeAreaView>
