@@ -36,8 +36,9 @@ class PerfTestController extends AbstractController
     }
 
     /**
-     * GET /api/perf-tests/allures — mes allures du club (1 à 5) : pour chaque épreuve où j'ai un temps, mon meilleur
-     * temps (retenu) de la saison la plus récente où je l'ai passée, mon allure et la séance. Vide sans aucun temps.
+     * GET /api/perf-tests/allures — mes allures du club (1 à 5) : une épreuve par sport (la dernière que j'ai passée),
+     * avec mon meilleur temps (retenu) de la saison la plus récente où je l'ai passée, mon allure et la séance. Vide sans
+     * aucun temps.
      */
     #[Route('/api/perf-tests/allures', methods: ['GET'])]
     public function myAllures(): JsonResponse

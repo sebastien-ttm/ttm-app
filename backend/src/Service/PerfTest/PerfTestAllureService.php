@@ -216,9 +216,9 @@ class PerfTestAllureService
     }
 
     /**
-     * Mes allures : pour chaque épreuve où j'ai un temps, mon meilleur temps (retenu) de la saison la plus récente où je
-     * l'ai passée, avec mon allure d'après les intervalles de CETTE saison et la séance. Dans l'ordre course (1500 m,
-     * 2000 m), natation, vélo ; vide si je n'ai aucun temps.
+     * Mes allures : une épreuve par sport — celle que j'ai passée en dernier (pas de 1500 m ET de 2000 m) — avec mon
+     * meilleur temps (retenu) de la saison la plus récente où je l'ai passée, mon allure d'après les intervalles de
+     * CETTE saison et la séance. Dans l'ordre course, natation, vélo ; vide si je n'ai aucun temps.
      *
      * @return list<array<string, mixed>>
      */
@@ -226,9 +226,15 @@ class PerfTestAllureService
     {
         /** @var array<string, array{season: int, result: PerfTestResult, effective: int}> $latest */
         $latest = [];
+        /** @var array<string, \DateTimeImmutable> $lastDay dernier jour où j'ai passé chaque épreuve (toutes séances) */
+        $lastDay = [];
         foreach ($this->results->findByUserWithSession($user) as $result) {
             $session = $result->getSession();
             $test = $session->getTest();
+            $end = $session->getPeriodEnd();
+            if (!isset($lastDay[$test->value]) || $end > $lastDay[$test->value]) {
+                $lastDay[$test->value] = $end;
+            }
             $season = PerfTestSessionRepository::seasonStartYear($session->getDate());
             $effective = $this->effectiveSeconds($test, $session->getPoolLength(), $result->getTimeSeconds());
             $current = $latest[$test->value] ?? null;
@@ -240,9 +246,22 @@ class PerfTestAllureService
             }
         }
 
-        $out = [];
+        // Par sport, l'épreuve passée en dernier ; à égalité de jour, la première dans l'ordre d'affichage.
+        /** @var array<string, PerfTest> $kept */
+        $kept = [];
         foreach (self::TESTS as $test) {
             if (!isset($latest[$test->value])) {
+                continue;
+            }
+            $other = $kept[$test->sport()] ?? null;
+            if ($other === null || $lastDay[$test->value] > $lastDay[$other->value]) {
+                $kept[$test->sport()] = $test;
+            }
+        }
+
+        $out = [];
+        foreach (self::TESTS as $test) {
+            if (!isset($latest[$test->value]) || $kept[$test->sport()] !== $test) {
                 continue;
             }
             $entry = $latest[$test->value];

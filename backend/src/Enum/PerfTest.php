@@ -42,6 +42,16 @@ enum PerfTest: string
         };
     }
 
+    /** Sport de l'épreuve : 'run', 'swim' ou 'bike' (« Mes allures » ne garde qu'une épreuve par sport). */
+    public function sport(): string
+    {
+        return match ($this) {
+            self::Run1500, self::Run2000 => 'run',
+            self::Swim400 => 'swim',
+            self::BikeClimb2k => 'bike',
+        };
+    }
+
     /**
      * Fourchette de temps plausible, en secondes [min, max] — sert à repérer
      * un temps mal lu à l'import (ex : « 5:42 » interprété comme 5 h 42).
