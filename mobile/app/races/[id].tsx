@@ -18,8 +18,9 @@ import { formatRelativeFr } from '@/utils/html';
 
 /**
  * Détail d'une compétition proposée : infos, lien vers le site, vote
- * d'intérêt (Intéressé(e) / Peut-être) et liste des adhérents
- * intéressés — utile au capitaine pour l'inscription groupée. Si c'est
+ * (Je suis inscrit(e) — Partant(e) quand un capitaine organise l'inscription
+ * groupée — ou Intéressé(e)) et liste des adhérents ayant répondu, utile au
+ * capitaine pour l'inscription groupée. Si c'est
  * ma proposition : modifier / supprimer.
  */
 export default function RaceDetailScreen() {
@@ -167,15 +168,15 @@ export default function RaceDetailScreen() {
           <View style={styles.voteRow}>
             <VoteBtn
               icon="thumbs-up"
-              label={race.captain ? 'Intéressé(e)' : 'Je suis inscrit(e)'}
+              label={race.captain ? 'Partant(e)' : 'Je suis inscrit(e)'}
               count={race.interestedCount}
               active={race.myVote === 'interested'}
               onPress={() => void vote('interested')}
               disabled={busy || race.votesClosed === true}
             />
             <VoteBtn
-              icon="help-circle"
-              label="Peut-être"
+              icon="star"
+              label="Intéressé(e)"
               count={race.maybeCount}
               active={race.myVote === 'maybe'}
               onPress={() => void vote('maybe')}
@@ -183,8 +184,8 @@ export default function RaceDetailScreen() {
             />
           </View>
 
-          <PeopleList title={race.captain ? 'Intéressés' : 'Inscrits'} people={race.interested} />
-          <PeopleList title="Peut-être" people={race.maybe} />
+          <PeopleList title={race.captain ? 'Partants' : 'Inscrits'} people={race.interested} />
+          <PeopleList title="Intéressés" people={race.maybe} />
 
           {isMine && (
             <View style={styles.ownerActions}>
@@ -220,7 +221,7 @@ export default function RaceDetailScreen() {
 }
 
 function VoteBtn({ icon, label, count, active, onPress, disabled }: {
-  icon: 'thumbs-up' | 'help-circle';
+  icon: 'thumbs-up' | 'star';
   label: string;
   count: number;
   active: boolean;

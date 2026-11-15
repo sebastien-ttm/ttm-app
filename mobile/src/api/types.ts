@@ -1110,7 +1110,10 @@ export type MarketplaceConversation = {
 
 export type RaceType = 'triathlon' | 'trail' | 'route' | 'cross' | 'cyclosportive' | 'eau_libre' | 'autre';
 export type RaceTypeOption = { value: RaceType; label: string };
-/** Intérêt d'un adhérent pour une course proposée (pas de vote = null). */
+/**
+ * Réponse d'un adhérent à une course proposée (pas de réponse = null) : `interested` = « Je suis inscrit(e) »
+ * (« Partant(e) » quand un capitaine organise l'inscription groupée), `maybe` = « Intéressé(e) ».
+ */
 export type RaceVote = 'interested' | 'maybe';
 
 export type RaceProposal = {

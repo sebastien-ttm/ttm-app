@@ -14,6 +14,8 @@ import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen } from '@/lib/seenListings';
 
 type Tab = 'browse' | 'mine';
+/** Ligne de la liste : une carte, ou l'intitulé d'un bloc (mes réponses / les autres compétitions). */
+type Row = { kind: 'header'; key: string; title: string } | { kind: 'race'; key: string; item: RaceProposal };
 
 /** Une proposition reste « Nouveau » pendant une semaine après sa création. */
 const NEW_FOR_MS = 7 * 24 * 60 * 60 * 1000;
@@ -25,10 +27,13 @@ function isNewProposal(createdAt: string): boolean {
 
 /**
  * Compétitions proposées par les adhérents (onglet Social) : onglet « À venir »
- * (toutes les propositions, la plus proche d'abord, vote d'intérêt
- * directement depuis la carte) + « Mes propositions » (modifier /
+ * (toutes les propositions, la plus proche d'abord, réponse directement depuis la
+ * carte : « Je suis inscrit(e) » — « Partant(e) » quand un capitaine organise
+ * l'inscription groupée — ou « Intéressé(e) ») + « Mes propositions » (modifier /
  * supprimer), filtrables par type (Tous, Triathlon, Trail, Cross…) ; label
- * « Nouveau » pendant une semaine. Même organisation que la bourse aux équipements.
+ * « Nouveau » pendant une semaine. Dans « À venir », les compétitions où j'ai
+ * répondu forment un bloc à part, au-dessus des autres. Même organisation que la
+ * bourse aux équipements.
  */
 export default function RacesScreen() {
   const router = useRouter();
@@ -105,6 +110,25 @@ export default function RacesScreen() {
   const activeFilter = typeFilter !== 'all' && typeChips.some((t) => t.value === typeFilter) ? typeFilter : 'all';
   const data = activeFilter === 'all' ? tabItems : tabItems.filter((r) => raceTypeMeta(r.type).value === activeFilter);
 
+  // « À venir » en deux blocs : celles où j'ai répondu (inscrit(e) / partant(e) ou intéressé(e)) d'abord, puis les autres.
+  // Répondre (ou retirer sa réponse) fait passer la carte d'un bloc à l'autre. Un seul bloc : pas d'intitulés.
+  const rows = useMemo<Row[]>(() => {
+    const toRows = (list: RaceProposal[]): Row[] => list.map((item) => ({ kind: 'race', key: tab + '-' + item.id, item }));
+    if (tab !== 'browse') return toRows(data);
+    const answered = data.filter((r) => r.myVote);
+    const others = data.filter((r) => !r.myVote);
+    return [
+      ...(answered.length > 0 && others.length > 0
+        ? [{ kind: 'header', key: 'h-answered', title: `✅ Inscrit(e) ou intéressé(e) · ${answered.length}` } as Row]
+        : []),
+      ...toRows(answered),
+      ...(answered.length > 0 && others.length > 0
+        ? [{ kind: 'header', key: 'h-others', title: `🔎 À découvrir · ${others.length}` } as Row]
+        : []),
+      ...toRows(others),
+    ];
+  }, [tab, data]);
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Compétitions proposées' }} />
@@ -131,8 +155,8 @@ export default function RacesScreen() {
         <ErrorState message={error} onRetry={load} />
       ) : (
         <FlatList
-          data={data}
-          keyExtractor={(item) => tab + '-' + item.id}
+          data={rows}
+          keyExtractor={(row) => row.key}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
           ListHeaderComponent={
@@ -151,47 +175,51 @@ export default function RacesScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <RaceCard
-              item={item}
-              busy={busyId === item.id}
-              onOpen={() => router.push(('/races/' + item.id) as never)}
-              footer={tab === 'browse' ? (
-                <>
-                  <ActionBtn
-                    icon={item.myVote === 'interested' ? 'thumbs-up' : 'thumbs-up-outline'}
-                    label={(item.captain ? 'Intéressé(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
-                    active={item.myVote === 'interested'}
-                    onPress={() => void vote(item, 'interested')}
-                    disabled={busyId === item.id || item.votesClosed === true}
-                  />
-                  <ActionBtn
-                    icon={item.myVote === 'maybe' ? 'help-circle' : 'help-circle-outline'}
-                    label={'Peut-être · ' + item.maybeCount}
-                    active={item.myVote === 'maybe'}
-                    onPress={() => void vote(item, 'maybe')}
-                    disabled={busyId === item.id || item.votesClosed === true}
-                  />
-                </>
-              ) : (
-                <>
-                  <ActionBtn
-                    icon="create-outline"
-                    label="Modifier"
-                    onPress={() => router.push(('/races/' + item.id + '/edit') as never)}
-                    disabled={busyId === item.id}
-                  />
-                  <ActionBtn
-                    icon="trash-outline"
-                    label="Supprimer"
-                    onPress={() => void remove(item)}
-                    disabled={busyId === item.id}
-                    danger
-                  />
-                </>
-              )}
-            />
-          )}
+          renderItem={({ item: row }) => {
+            if (row.kind === 'header') return <Text style={styles.blockTitle}>{row.title}</Text>;
+            const item = row.item;
+            return (
+              <RaceCard
+                item={item}
+                busy={busyId === item.id}
+                onOpen={() => router.push(('/races/' + item.id) as never)}
+                footer={tab === 'browse' ? (
+                  <>
+                    <ActionBtn
+                      icon={item.myVote === 'interested' ? 'thumbs-up' : 'thumbs-up-outline'}
+                      label={(item.captain ? 'Partant(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
+                      active={item.myVote === 'interested'}
+                      onPress={() => void vote(item, 'interested')}
+                      disabled={busyId === item.id || item.votesClosed === true}
+                    />
+                    <ActionBtn
+                      icon={item.myVote === 'maybe' ? 'star' : 'star-outline'}
+                      label={'Intéressé(e) · ' + item.maybeCount}
+                      active={item.myVote === 'maybe'}
+                      onPress={() => void vote(item, 'maybe')}
+                      disabled={busyId === item.id || item.votesClosed === true}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ActionBtn
+                      icon="create-outline"
+                      label="Modifier"
+                      onPress={() => router.push(('/races/' + item.id + '/edit') as never)}
+                      disabled={busyId === item.id}
+                    />
+                    <ActionBtn
+                      icon="trash-outline"
+                      label="Supprimer"
+                      onPress={() => void remove(item)}
+                      disabled={busyId === item.id}
+                      danger
+                    />
+                  </>
+                )}
+              />
+            );
+          }}
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyCard}>
@@ -347,6 +375,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
   chipLabelActive: { color: '#fff' },
+  blockTitle: { fontSize: 13, fontWeight: '800', color: COLORS.secondaryDark, marginTop: SPACING.xs, marginBottom: SPACING.sm },
   newBadge: { backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   newBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#166534' },
   card: {
