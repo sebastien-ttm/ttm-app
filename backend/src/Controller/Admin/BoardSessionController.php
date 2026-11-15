@@ -91,7 +91,7 @@ class BoardSessionController extends AbstractController
             throw $this->createNotFoundException();
         }
         // « Porteur action » (texte libre) n'est plus saisi que sur les anciens points : sans le champ, on le conserve.
-        $item->answer(
+        $item->recordAnswer(
             (string) $request->request->get('respondent', ''),
             (string) $request->request->get('answer', ''),
             $request->request->has('actionOwner') ? (string) $request->request->get('actionOwner', '') : $item->getActionOwner(),

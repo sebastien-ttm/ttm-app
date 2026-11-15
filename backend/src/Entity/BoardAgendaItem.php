@@ -122,8 +122,11 @@ class BoardAgendaItem
     public function getActionOwner(): ?string { return $this->actionOwner; }
     public function getAnsweredAt(): ?\DateTimeImmutable { return $this->answeredAt; }
 
-    /** Saisie en séance des trois colonnes de réponse. */
-    public function answer(?string $respondent, ?string $answer, ?string $actionOwner): self
+    /**
+     * Saisie en séance des trois colonnes de réponse. Ne s'appelle surtout pas « answer » : Twig résoudrait
+     * `item.answer` vers cette méthode (qui exige des arguments) au lieu de getAnswer().
+     */
+    public function recordAnswer(?string $respondent, ?string $answer, ?string $actionOwner): self
     {
         $this->respondent = self::clean($respondent, 120);
         $this->answer = self::clean($answer, self::TEXT_MAX);
