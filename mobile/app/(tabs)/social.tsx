@@ -21,7 +21,7 @@ import { ErrorState } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { confirmAction } from '@/utils/confirm';
-import { canViewBoard, isAdminUser, isBoardMember } from '@/utils/profile';
+import { canUseBoard } from '@/utils/profile';
 import { useSocialNews } from '@/lib/useSocialNews';
 import { useUnansweredSurveys } from '@/lib/useUnansweredSurveys';
 import { useUnreadMessages } from '@/lib/useUnreadMessages';
@@ -320,7 +320,7 @@ export default function ContactScreen() {
             </View>
           )}
 
-          {canViewBoard(user) && (
+          {canUseBoard(user) && (
             <View style={styles.surveysSection}>
               <Text style={styles.surveysSectionTitle}>🏛️ Comité directeur</Text>
               <Pressable
@@ -332,11 +332,7 @@ export default function ContactScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.surveyCardTitle}>Ordre du jour des réunions</Text>
-                  <Text style={styles.surveyCardMeta}>
-                    {isBoardMember(user) || isAdminUser(user)
-                      ? 'Ajouter un point à la prochaine réunion · comptes rendus'
-                      : 'Ordre du jour et comptes rendus des réunions'}
-                  </Text>
+                  <Text style={styles.surveyCardMeta}>Ajouter un point à la prochaine réunion · comptes rendus</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </Pressable>

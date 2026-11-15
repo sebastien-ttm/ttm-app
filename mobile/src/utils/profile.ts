@@ -151,11 +151,11 @@ export function isBoardMember(user: AuthenticatedUser | null | undefined): boole
 }
 
 /**
- * Consulter la partie « Comité directeur » de l'onglet Social (ordre du jour, comptes rendus, actions) : membres du
- * CoDir, administrateurs et entraîneurs, invités aux réunions. Les entraîneurs consultent seulement : ajouter un
- * point et commenter restent réservés aux membres du CoDir et aux administrateurs (BoardMeetingController).
+ * Utiliser la partie « Comité directeur » de l'onglet Social (ordre du jour : consulter, ajouter des points,
+ * commenter ; comptes rendus, actions) : membres du CoDir, administrateurs et entraîneurs, invités aux réunions,
+ * avec les mêmes droits (BoardMeetingController, voter BOARD_AGENDA). Le back-end revérifie.
  */
-export function canViewBoard(user: AuthenticatedUser | null | undefined): boolean {
+export function canUseBoard(user: AuthenticatedUser | null | undefined): boolean {
   return isBoardMember(user) || isAdminUser(user) || isEntraineur(user);
 }
 
