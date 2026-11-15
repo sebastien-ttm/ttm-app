@@ -1030,6 +1030,12 @@ export type MarketplaceListingSummary = {
   /** null si l'annonce n'a aucune photo. */
   photoUrl: string | null;
   photoCount: number;
+  /** J'aime cette annonce : elle reste dans ma liste tant que son auteur ne la supprime pas, même expirée ou en pause. Absent des anciennes réponses. */
+  liked?: boolean;
+  /** En pause chez son auteur (n'est dans ma liste que parce que je l'aime). Absent des anciennes réponses. */
+  paused?: boolean;
+  /** Expirée : plus de 10 jours depuis sa mise en ligne (n'est dans ma liste que parce que je l'aime). Absent des anciennes réponses. */
+  expired?: boolean;
 };
 
 export type MarketplaceListingPhoto = {
@@ -1063,6 +1069,8 @@ export type MarketplaceListing = {
    * encore jamais écrit).
    */
   myConversationId?: number | null;
+  /** J'aime cette annonce — renseigné uniquement par GET /listings/{id} (toujours false pour l'auteur). */
+  liked?: boolean;
 };
 
 /** Ligne de la liste « Messages » de la bourse (acheteur ou vendeur). */

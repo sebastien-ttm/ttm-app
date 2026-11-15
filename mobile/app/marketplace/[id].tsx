@@ -29,9 +29,10 @@ import { formatRelativeFr } from '@/utils/html';
 import { formatPrice } from '@/utils/price';
 
 /**
- * Détail d'une annonce : galerie photo, description, contact WhatsApp
- * de l'auteur — ou, si c'est la mienne, actions de gestion (modifier /
- * mettre en pause-publier / supprimer) directement sur cette page.
+ * Détail d'une annonce : galerie photo, description, bouton « J'aime » (l'annonce
+ * reste dans ma liste tant que son auteur ne la supprime pas, même expirée),
+ * contact de l'auteur par messages — ou, si c'est la mienne, actions de gestion
+ * (modifier / mettre en pause-publier / supprimer) directement sur cette page.
  */
 export default function MarketplaceDetailScreen() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function MarketplaceDetailScreen() {
   /** Brouillon du premier message à l'auteur + envoi en cours. */
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [liking, setLiking] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -69,6 +71,8 @@ export default function MarketplaceDetailScreen() {
   useEffect(() => { void load(); }, [load]);
 
   const isMine = listing !== null && user !== null && listing.authorId === user.id;
+  // Expirée ou en pause : plus proposée au club — je ne la vois que parce que je l'aime.
+  const inactive = listing !== null && (listing.expired === true || listing.paused);
 
   async function togglePause() {
     if (!listing) return;
@@ -97,6 +101,38 @@ export default function MarketplaceDetailScreen() {
     } catch (e) {
       showError(e);
       setBusy(false);
+    }
+  }
+
+  async function toggleLike() {
+    if (!listing) return;
+    const liked = listing.liked === true;
+    const inactive = listing.expired === true || listing.paused;
+    // Une annonce expirée ou en pause ne se re-aime pas : retirer son « J'aime » la fait disparaître pour de bon.
+    if (liked && inactive) {
+      const ok = await confirmAsync(
+        'Retirer cette annonce ?',
+        `« ${listing.title} » n'est plus proposée au club : elle disparaîtra de votre liste.`,
+        'Retirer',
+      );
+      if (!ok) return;
+    }
+    setLiking(true);
+    try {
+      if (liked) {
+        await marketplaceApi.unlike(listing.id);
+        if (inactive) {
+          router.replace('/marketplace' as never);
+          return;
+        }
+      } else {
+        await marketplaceApi.like(listing.id);
+      }
+      setListing({ ...listing, liked: !liked });
+    } catch (e) {
+      showError(e);
+    } finally {
+      setLiking(false);
     }
   }
 
@@ -147,7 +183,15 @@ export default function MarketplaceDetailScreen() {
         )}
 
         <View style={styles.body}>
-          {listing.expired ? (
+          {!isMine && inactive ? (
+            <View style={styles.pausedBanner}>
+              <Ionicons name={listing.expired ? 'time' : 'pause-circle'} size={16} color="#92400e" />
+              <Text style={styles.pausedBannerLabel}>
+                {listing.expired ? 'Annonce expirée (plus de 10 jours)' : 'Annonce en pause'} : elle n'est plus proposée au club.
+                Vous la gardez car vous l'aimez, mais vous ne pouvez plus écrire à son auteur.
+              </Text>
+            </View>
+          ) : listing.expired ? (
             <View style={styles.pausedBanner}>
               <Ionicons name="time" size={16} color="#92400e" />
               <Text style={styles.pausedBannerLabel}>
@@ -170,6 +214,32 @@ export default function MarketplaceDetailScreen() {
           </Text>
           <Text style={styles.description}>{listing.description}</Text>
 
+          {/* « J'aime » : l'annonce reste dans ma liste tant que son auteur ne la supprime pas, même après 10 jours.
+              Absent avec un backend qui ne connaît pas encore les « J'aime ». */}
+          {!isMine && listing.liked !== undefined && (
+            <View style={styles.likeBox}>
+              <Pressable
+                onPress={() => void toggleLike()}
+                disabled={liking}
+                accessibilityRole="button"
+                accessibilityState={{ selected: listing.liked === true }}
+                style={({ pressed }) => [styles.likeBtn, listing.liked && styles.likeBtnActive, (pressed || liking) && { opacity: 0.6 }]}
+              >
+                <Ionicons
+                  name={listing.liked ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={listing.liked ? '#fff' : '#dc2626'}
+                />
+                <Text style={[styles.likeBtnLabel, listing.liked && { color: '#fff' }]}>J'aime</Text>
+              </Pressable>
+              <Text style={styles.likeHint}>
+                {listing.liked
+                  ? "Gardée dans votre liste tant que son auteur ne la supprime pas, même après 10 jours."
+                  : "Gardez cette annonce dans votre liste, même après ses 10 jours, tant que son auteur ne la supprime pas."}
+              </Text>
+            </View>
+          )}
+
           {!isMine && listing.myConversationId != null && (
             <View style={styles.contactBox}>
               <Text style={styles.contactTitle}>Discussion en cours avec {listing.authorFullName}</Text>
@@ -183,7 +253,7 @@ export default function MarketplaceDetailScreen() {
             </View>
           )}
 
-          {!isMine && listing.myConversationId == null && (
+          {!isMine && listing.myConversationId == null && !inactive && (
             <View style={styles.contactBox}>
               <Text style={styles.contactTitle}>Intéressé(e) ? Écrivez à {listing.authorFullName}</Text>
               <Text style={styles.contactHint}>
@@ -353,14 +423,14 @@ function showError(e: unknown) {
   }
 }
 
-function confirmAsync(title: string, message: string): Promise<boolean> {
+function confirmAsync(title: string, message: string, confirmLabel = 'Supprimer'): Promise<boolean> {
   if (Platform.OS === 'web') {
     return Promise.resolve(typeof window !== 'undefined' ? window.confirm(title + '\n' + message) : false);
   }
   return new Promise((resolve) => {
     Alert.alert(title, message, [
       { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
+      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
     ]);
   });
 }
@@ -395,6 +465,15 @@ const styles = StyleSheet.create({
   price: { fontSize: 22, fontWeight: '800', color: COLORS.primary, marginTop: 2 },
   author: { fontSize: 13, color: COLORS.textMuted, marginTop: 4, marginBottom: SPACING.md },
   description: { fontSize: 15, color: COLORS.text, lineHeight: 22 },
+  likeBox: { marginTop: SPACING.lg, gap: 6 },
+  likeBtn: {
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.full,
+    borderWidth: 1, borderColor: '#dc2626', backgroundColor: COLORS.surface,
+  },
+  likeBtnActive: { backgroundColor: '#dc2626' },
+  likeBtnLabel: { fontSize: 14, fontWeight: '700', color: '#dc2626' },
+  likeHint: { fontSize: 12, color: COLORS.textMuted },
   contactBox: {
     marginTop: SPACING.lg, backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md, padding: SPACING.md,

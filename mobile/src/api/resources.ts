@@ -516,8 +516,15 @@ async function appendMarketplacePhoto(form: FormData, photo: MarketplacePhotoInp
 export const marketplace = {
   /** true si le compte courant a accès à la bourse (phase de test réservée à quelques comptes). */
   access: () => api.get<{ enabled: boolean }>('/api/marketplace/access'),
-  /** Annonces publiées, plus récentes d'abord. */
+  /**
+   * Annonces publiées, plus récentes d'abord, suivies de celles que j'aime et qui ne sont plus proposées au club
+   * (expirées ou en pause) : je les garde tant que leur auteur ne les supprime pas.
+   */
   list: () => api.get<{ data: MarketplaceListingSummary[] }>('/api/marketplace/listings'),
+  /** J'aime : garde l'annonce dans ma liste, même après ses 10 jours. */
+  like: (id: number) => api.put<{ liked: boolean }>(`/api/marketplace/listings/${id}/like`, {}),
+  /** Retire mon J'aime (une annonce expirée ou en pause disparaît alors de ma liste). */
+  unlike: (id: number) => api.delete<{ liked: boolean }>(`/api/marketplace/listings/${id}/like`),
   /** Mes annonces (publiées + en pause). */
   mine: () => api.get<{ data: MarketplaceListing[] }>('/api/marketplace/mine'),
   get: (id: number) => api.get<MarketplaceListing>(`/api/marketplace/listings/${id}`),

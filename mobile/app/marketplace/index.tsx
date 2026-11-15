@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
@@ -25,11 +25,25 @@ function expiresIn(expiresAt: string | undefined): string | null {
 
 type Tab = 'browse' | 'mine' | 'messages';
 
+/** Ligne de l'onglet « Annonces » : une annonce, ou l'intitulé d'un bloc (annonces que j'aime / autres annonces). */
+type Row =
+  | { kind: 'header'; key: string; title: string }
+  | { kind: 'listing'; key: string; item: MarketplaceListingSummary };
+
+/** Annonce que je garde grâce à mon « J'aime » alors qu'elle n'est plus proposée au club (expirée ou en pause). */
+function isInactive(item: { expired?: boolean; paused?: boolean }): boolean {
+  return item.expired === true || item.paused === true;
+}
+
 /**
  * Bourse aux équipements : onglet « Annonces » (toutes les annonces
  * publiées, plus récentes d'abord) + onglet « Mes annonces » (gestion
  * perso — modifier / mettre en pause-publier / supprimer directement
  * depuis la carte, sans entrer dans le détail).
+ *
+ * « J'aime » (cœur sur la carte et dans le détail) : l'annonce passe dans un bloc « Annonces que j'aime » en tête de
+ * liste et y reste tant que son auteur ne l'a pas supprimée, même après ses 10 jours (elle porte alors le badge
+ * « Expirée »).
  */
 export default function MarketplaceScreen() {
   const router = useRouter();
@@ -81,6 +95,48 @@ export default function MarketplaceScreen() {
       setBusyId(null);
     }
   }
+
+  async function toggleLike(item: MarketplaceListingSummary) {
+    const liked = item.liked === true;
+    const inactive = isInactive(item);
+    // Une annonce expirée ou en pause ne se re-aime pas : la retirer de ses « J'aime » la fait disparaître pour de bon.
+    if (liked && inactive) {
+      const ok = await confirmAsync(
+        'Retirer cette annonce ?',
+        `« ${item.title} » n'est plus proposée au club : elle disparaîtra de votre liste.`,
+        'Retirer',
+      );
+      if (!ok) return;
+    }
+    setBusyId(item.id);
+    try {
+      if (liked) await marketplaceApi.unlike(item.id);
+      else await marketplaceApi.like(item.id);
+      setListings((prev) => (liked && inactive
+        ? prev.filter((l) => l.id !== item.id)
+        : prev.map((l) => (l.id === item.id ? { ...l, liked: !liked } : l))));
+    } catch (e) {
+      showError(e);
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Deux blocs quand il y a des deux sortes : les annonces que j'aime d'abord (actives en premier, puis les expirées /
+  // en pause que je garde), les autres ensuite. Un seul bloc : pas d'intitulés.
+  const rows = useMemo<Row[]>(() => {
+    const toRows = (list: MarketplaceListingSummary[]): Row[] => list.map((item) => ({ kind: 'listing', key: 's-' + item.id, item }));
+    const liked = listings.filter((l) => l.liked === true);
+    const others = listings.filter((l) => l.liked !== true);
+    const both = liked.length > 0 && others.length > 0;
+    return [
+      ...(both ? [{ kind: 'header', key: 'h-liked', title: `❤️ Annonces que j'aime · ${liked.length}` } as Row] : []),
+      ...toRows(liked),
+      ...(both ? [{ kind: 'header', key: 'h-others', title: `🛍️ Autres annonces · ${others.length}` } as Row] : []),
+      ...toRows(others),
+    ];
+  }, [listings]);
 
   async function remove(item: MarketplaceListing) {
     const confirmed = await confirmAsync(
@@ -142,32 +198,65 @@ export default function MarketplaceScreen() {
         <ErrorState message={error} onRetry={load} />
       ) : tab === 'browse' ? (
         <FlatList
-          data={listings}
-          keyExtractor={(item) => 's-' + item.id}
+          data={rows}
+          keyExtractor={(row) => row.key}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push(('/marketplace/' + item.id) as never)}
-              style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-            >
-              {item.photoUrl ? (
-                <Image source={{ uri: item.photoUrl }} style={styles.cardPhoto} contentFit="cover" />
-              ) : (
-                <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
-                  <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
+          renderItem={({ item: row }) => {
+            if (row.kind === 'header') return <Text style={styles.blockTitle}>{row.title}</Text>;
+            const item = row.item;
+            // Cœur : pas sur mes propres annonces, ni avec un backend qui ne connaît pas encore les « J'aime ».
+            const canLike = item.liked !== undefined && item.authorId !== user?.id;
+            return (
+              <Pressable
+                onPress={() => router.push(('/marketplace/' + item.id) as never)}
+                style={({ pressed }) => [styles.card, styles.cardRow, pressed && { opacity: 0.85 }]}
+              >
+                {item.photoUrl ? (
+                  <Image source={{ uri: item.photoUrl }} style={styles.cardPhoto} contentFit="cover" />
+                ) : (
+                  <View style={[styles.cardPhoto, styles.cardPhotoPlaceholder]}>
+                    <Ionicons name="image-outline" size={28} color={COLORS.textMuted} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                  {formatPrice(item.price) && <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>}
+                  <Text style={styles.cardMeta}>
+                    par {item.authorFullName} · {formatRelativeFr(item.publishedAt ?? item.createdAt)}
+                  </Text>
+                  {isInactive(item) && (
+                    <>
+                      <View style={[styles.statusBadge, item.expired ? styles.statusBadgeExpired : styles.statusBadgePaused]}>
+                        <Text style={[styles.statusBadgeLabel, item.expired ? styles.statusBadgeLabelExpired : styles.statusBadgeLabelPaused]}>
+                          {item.expired ? 'Expirée' : 'En pause'}
+                        </Text>
+                      </View>
+                      <Text style={styles.cardMeta}>Plus proposée au club : gardée car vous l'aimez.</Text>
+                    </>
+                  )}
                 </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                {formatPrice(item.price) && <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>}
-                <Text style={styles.cardMeta}>
-                  par {item.authorFullName} · {formatRelativeFr(item.publishedAt ?? item.createdAt)}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-            </Pressable>
-          )}
+                {canLike && (
+                  <Pressable
+                    onPress={() => void toggleLike(item)}
+                    disabled={busyId === item.id}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: item.liked === true }}
+                    accessibilityLabel={item.liked ? "Retirer des annonces que j'aime" : "J'aime cette annonce"}
+                    style={({ pressed }) => [styles.heartBtn, (pressed || busyId === item.id) && { opacity: 0.5 }]}
+                  >
+                    <Ionicons
+                      name={item.liked ? 'heart' : 'heart-outline'}
+                      size={26}
+                      color={item.liked ? '#dc2626' : COLORS.textMuted}
+                    />
+                  </Pressable>
+                )}
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+              </Pressable>
+            );
+          }}
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyCard}>
@@ -322,14 +411,14 @@ function showError(e: unknown) {
   }
 }
 
-function confirmAsync(title: string, message: string): Promise<boolean> {
+function confirmAsync(title: string, message: string, confirmLabel = 'Supprimer'): Promise<boolean> {
   if (Platform.OS === 'web') {
     return Promise.resolve(typeof window !== 'undefined' ? window.confirm(title + '\n' + message) : false);
   }
   return new Promise((resolve) => {
     Alert.alert(title, message, [
       { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Supprimer', style: 'destructive', onPress: () => resolve(true) },
+      { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
     ]);
   });
 }
@@ -364,6 +453,8 @@ const styles = StyleSheet.create({
   cardRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.sm,
   },
+  blockTitle: { fontSize: 13, fontWeight: '800', color: COLORS.secondaryDark, marginTop: SPACING.xs, marginBottom: SPACING.sm },
+  heartBtn: { padding: 2 },
   cardPhoto: { width: 64, height: 64, borderRadius: RADIUS.sm, backgroundColor: COLORS.background },
   cardPhotoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
