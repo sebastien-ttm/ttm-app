@@ -118,10 +118,10 @@ class BoardMeeting
         return count(array_filter($this->items->toArray(), static fn (BoardAgendaItem $i) => $i->isAnswered()));
     }
 
-    /** « CoDir du 23/09/2026 ». */
+    /** « CODIR du 23/09/2026 ». */
     public function getLabel(): string
     {
-        return 'CoDir du '.$this->scheduledAt->format('d/m/Y');
+        return 'CODIR du '.$this->scheduledAt->format('d/m/Y');
     }
 
     public function __toString(): string

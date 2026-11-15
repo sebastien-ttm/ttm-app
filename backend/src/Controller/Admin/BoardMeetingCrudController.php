@@ -34,8 +34,8 @@ class BoardMeetingCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Réunion du CoDir')
-            ->setEntityLabelInPlural('Réunions du CoDir')
+            ->setEntityLabelInSingular('Réunion du CODIR')
+            ->setEntityLabelInPlural('Réunions du CODIR')
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['scheduledAt' => 'DESC']);
     }

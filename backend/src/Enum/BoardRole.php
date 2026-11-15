@@ -22,7 +22,7 @@ enum BoardRole: string
             self::President => 'Président',
             self::Tresorier => 'Trésorier',
             self::Secretaire => 'Secrétaire',
-            self::MembreCoDir => 'Membre du CoDir',
+            self::MembreCoDir => 'Membre du CODIR',
         };
     }
 

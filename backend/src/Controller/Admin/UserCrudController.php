@@ -152,7 +152,7 @@ class UserCrudController extends AbstractCrudController
         // EnumType : convertit '' ↔ null proprement, et une valeur non
         // vide en instance BoardRole. ChoiceField::setChoices avec des
         // strings passait des '' au setter typé ?BoardRole → TypeError.
-        yield ChoiceField::new('boardRole', 'Rôle CoDir')
+        yield ChoiceField::new('boardRole', 'Rôle CODIR')
             ->setFormType(EnumType::class)
             ->setFormTypeOptions([
                 'class' => BoardRole::class,
@@ -166,11 +166,11 @@ class UserCrudController extends AbstractCrudController
                 BoardRole::Secretaire->value => 'info',
                 BoardRole::MembreCoDir->value => 'secondary',
             ])
-            ->setHelp('Renseigné uniquement pour les élus du CoDir. Les 3 rôles Président / Trésorier / Secrétaire composent le Bureau, affiché en tête de la page trombinoscope Comité.');
+            ->setHelp('Renseigné uniquement pour les élus du CODIR. Les 3 rôles Président / Trésorier / Secrétaire composent le Bureau, affiché en tête de la page trombinoscope Comité.');
 
         yield TextField::new('clubFunction', 'Fonction au club')
             ->setRequired(false)
-            ->setHelp('Ex : « Référent triathlon jeunes », « Coach natation », « Gestion des inscriptions ». Attendue non vide pour les Entraîneurs et les membres du CoDir. Vide pour les autres adhérents.');
+            ->setHelp('Ex : « Référent triathlon jeunes », « Coach natation », « Gestion des inscriptions ». Attendue non vide pour les Entraîneurs et les membres du CODIR. Vide pour les autres adhérents.');
 
         yield ChoiceField::new('role', 'Rôle backend')
             ->setChoices([

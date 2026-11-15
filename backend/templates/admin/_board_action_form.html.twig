@@ -1,5 +1,5 @@
 {# Formulaire d'action (ajout ou modification) — inclus avec `only` par board_session.html.twig.
-   Variables : action (null pour un ajout), item, codir (membres du CoDir actifs), csrf, label, input (styles). #}
+   Variables : action (null pour un ajout), item, codir (membres du CODIR actifs), csrf, label, input (styles). #}
 {% set codirIds = codir|map(u => u.id) %}
 {% set picked = action ? action.assignees|map(u => u.id) : [] %}
 <form method="post" action="{{ action ? path('admin_board_action_update', {id: action.id}) : path('admin_board_action_add', {id: item.id}) }}" style="display:grid; gap:10px; margin-top:8px;">
@@ -13,7 +13,7 @@
         <input type="date" name="dueDate" value="{{ action and action.dueDate ? action.dueDate|date('Y-m-d') : '' }}" style="{{ input }} max-width:200px;">
     </div>
     <div>
-        <label style="{{ label }}">Porteurs · membres du CoDir</label>
+        <label style="{{ label }}">Porteurs · membres du CODIR</label>
         <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
             {% for u in codir %}
                 <label style="font-size:13px; display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0;">
