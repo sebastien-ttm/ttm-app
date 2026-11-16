@@ -45,7 +45,7 @@ export function EventVoteBar({ event, size = 'sm', onVoted }: { event: EventItem
   const votingRef = useRef(false);
   const locked = event.voteLocked === true || serverLocked || hasStarted(event);
 
-  // Le vote affiché doit suivre les données de l'événement : la liste « Prochainement » est rechargée
+  // Le vote affiché doit suivre les données de l'événement : la liste « Calendrier Événements » est rechargée
   // au retour sur l'accueil, et le vote a pu changer entre-temps (ex : sur la page détail). Sans cette
   // resynchronisation, la barre gardait indéfiniment le vote affiché au premier rendu. Pas pendant un
   // vote en cours : l'affichage optimiste ne doit pas être écrasé par d'anciennes données.
@@ -186,7 +186,7 @@ const countStyles = StyleSheet.create({
 });
 
 // xs = icon only, compact — pour tenir sur la même ligne que le titre
-// (« Prochainement » sur la home). Boutons carrés ~28×28.
+// (« Calendrier Événements » sur la home). Boutons carrés ~28×28.
 const xsStyles = StyleSheet.create({
   bar: {
     flexDirection: 'row',

@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     // Aligné avec les section titles standards (mêmes marges que
-    // « Prochainement » et que les article cards en dessous).
+    // « Calendrier Événements » et que les article cards en dessous).
     marginHorizontal: SPACING.md,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,

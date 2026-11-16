@@ -44,15 +44,30 @@ export function formatEventPeriod(event: { startsAt: string; lastDay: string; is
   return formatEventWhen(event.startsAt, event.isAllDay);
 }
 
+/** Quelle moitié des feuilles de présence : celle des entraînements (avec les tests chronométrés), ou celle des événements (avec les bonnets). */
+type Part = 'training' | 'event';
+
 /**
- * Onglet « Émargements » de l'espace Staff : feuille de présence des
- * événements soumis au vote (entraîneurs et CoDir), remise des bonnets du club
- * et saisie des temps des tests chronométrés (entraîneurs seulement). Les
- * compteurs se rafraîchissent au retour d'une feuille.
+ * Vue « Émargement & tests » de l'onglet Entraînements de l'espace Staff : présence aux entraînements sur inscription
+ * (entraîneurs, encadrants, CoDir, administrateurs) et saisie des temps des tests chronométrés (entraîneurs et
+ * administrateurs). Les compteurs se rafraîchissent au retour d'une feuille.
  */
-export function EmargementTab() {
+export function TrainingSheets() {
+  return <CheckInSections part="training" />;
+}
+
+/**
+ * Vue « Bonnets & événements » de l'onglet Adhérents de l'espace Staff : remise des bonnets du club (entraîneurs et
+ * administrateurs) et feuille de présence des événements soumis au vote (entraîneurs, encadrants, CoDir, administrateurs).
+ */
+export function EventSheets() {
+  return <CheckInSections part="event" />;
+}
+
+function CheckInSections({ part }: { part: Part }) {
   const router = useRouter();
   const { user } = useAuth();
+  const training = part === 'training';
   const showCheckIn = canCheckIn(user);
   const showManage = canManageCapsAndTimes(user);
   const [events, setEvents] = useState<StaffCheckInEvent[]>([]);
@@ -64,11 +79,11 @@ export function EmargementTab() {
 
   const load = useCallback(async () => {
     setError(null);
-    // Sources indépendantes : l'échec de l'une ne vide pas les autres.
+    // Sources indépendantes : l'échec de l'une ne vide pas les autres. Seules celles de la vue affichée sont lues.
     const [ev, tr, ses] = await Promise.allSettled([
-      showCheckIn ? staffCheckIn.events() : Promise.resolve({ data: [] as StaffCheckInEvent[] }),
-      showCheckIn ? staffCheckIn.trainings() : Promise.resolve({ data: [] as StaffCheckInTraining[] }),
-      showManage ? staffPerfTests.list() : Promise.resolve({ data: [] as StaffPerfTestSession[] }),
+      showCheckIn && !training ? staffCheckIn.events() : Promise.resolve({ data: [] as StaffCheckInEvent[] }),
+      showCheckIn && training ? staffCheckIn.trainings() : Promise.resolve({ data: [] as StaffCheckInTraining[] }),
+      showManage && training ? staffPerfTests.list() : Promise.resolve({ data: [] as StaffPerfTestSession[] }),
     ]);
     if (ev.status === 'fulfilled') setEvents(ev.value.data);
     if (tr.status === 'fulfilled') setTrainings(tr.value.data);
@@ -79,7 +94,7 @@ export function EmargementTab() {
       : null;
     if (failure) setError(failure instanceof ApiError ? failure.message : 'Erreur de chargement');
     setLoading(false);
-  }, [showCheckIn, showManage]);
+  }, [showCheckIn, showManage, training]);
 
   // Au retour d'une feuille, les compteurs (émargés, temps saisis) doivent être à jour.
   useFocusEffect(useCallback(() => { void load(); }, [load]));
@@ -98,24 +113,10 @@ export function EmargementTab() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
     >
-      {showManage && (
+      {/* Tests chronométrés (vue Entraînements) */}
+      {training && showManage && (
         <>
-          <Text style={styles.sectionTitle}>🧢 Bonnets de bain</Text>
-          <Pressable
-            onPress={() => router.push('/staff-caps' as never)}
-            style={({ pressed }) => [styles.card, styles.cardCaps, pressed && { opacity: 0.7 }]}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: COLORS.secondary }]}>
-              <Ionicons name="water" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Remise des bonnets</Text>
-              <Text style={styles.sub}>Qui a reçu son bonnet du club</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </Pressable>
-
-          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>⏱️ Tests chronométrés</Text>
+          <Text style={styles.sectionTitle}>⏱️ Tests chronométrés</Text>
           <Text style={styles.hint}>
             Saisie des temps des prises de temps en cours ou terminées depuis moins de 45 jours.
           </Text>
@@ -150,7 +151,8 @@ export function EmargementTab() {
         </>
       )}
 
-      {showCheckIn && (
+      {/* Présence aux entraînements (vue Entraînements) */}
+      {training && showCheckIn && (
         <>
           <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>🏊 Présence aux entraînements</Text>
           <Text style={styles.hint}>
@@ -182,8 +184,33 @@ export function EmargementTab() {
               </Pressable>
             ))
           )}
+        </>
+      )}
 
-          <Text style={[styles.sectionTitle, { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
+      {/* Bonnets de bain (vue Adhérents) */}
+      {!training && showManage && (
+        <>
+          <Text style={styles.sectionTitle}>🧢 Bonnets de bain</Text>
+          <Pressable
+            onPress={() => router.push('/staff-caps' as never)}
+            style={({ pressed }) => [styles.card, styles.cardCaps, pressed && { opacity: 0.7 }]}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: COLORS.secondary }]}>
+              <Ionicons name="water" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Remise des bonnets</Text>
+              <Text style={styles.sub}>Qui a reçu son bonnet du club</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </Pressable>
+        </>
+      )}
+
+      {/* Présence aux événements (vue Adhérents) */}
+      {!training && showCheckIn && (
+        <>
+          <Text style={[styles.sectionTitle, showManage && { marginTop: SPACING.lg }]}>✅ Présence aux événements</Text>
           <Text style={styles.hint}>
             Événements soumis au vote de présence : à venir (à partir de 5 jours avant), puis terminés depuis moins de 5 jours. Émargez les adhérents présents sur place, même sans vote.
           </Text>

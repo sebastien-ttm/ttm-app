@@ -9,6 +9,7 @@ import { ApiError } from '@/api/client';
 import { races as racesApi } from '@/api/resources';
 import type { RaceProposal, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { LinkedText } from '@/components/LinkedText';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RaceCourses } from '@/components/RaceCourses';
 import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
@@ -142,7 +143,8 @@ export default function RaceDetailScreen() {
 
           {race.description ? (
             <View style={styles.descriptionBox}>
-              <Text style={styles.descriptionText}>{race.description}</Text>
+              {/* Liens cliquables (adresse, [texte](adresse) ou <a href>) : ex. règlement ou fichier Google Drive. */}
+              <LinkedText text={race.description} style={styles.descriptionText} />
             </View>
           ) : null}
 

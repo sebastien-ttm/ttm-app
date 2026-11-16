@@ -67,7 +67,7 @@ export function UpcomingEvents() {
     <View>
       <View style={styles.header}>
         <Ionicons name="calendar" size={18} color={COLORS.secondary} />
-        <Text style={styles.title}>Prochainement</Text>
+        <Text style={styles.title}>Calendrier Événements</Text>
       </View>
 
       {hasEvents ? (
@@ -88,7 +88,7 @@ export function UpcomingEvents() {
 }
 
 /**
- * Ligne d'événement « Prochainement ». Réutilisée telle quelle dans le
+ * Ligne d'événement du « Calendrier Événements ». Réutilisée telle quelle dans le
  * détail d'un article (événements intégrés) — `inset={false}` retire la
  * marge horizontale quand le conteneur parent a déjà son propre padding.
  */

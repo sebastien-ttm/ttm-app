@@ -2,8 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { BoardAction, BoardOpenAction } from '@/api/types';
+import { LinkedText } from '@/components/LinkedText';
 import { COLORS, RADIUS } from '@/config';
 import { dueStatus, type DueTone } from '@/utils/boardDate';
+import { poleTone } from '@/utils/boardPoles';
 
 const TONES: Record<DueTone, { bg: string; fg: string }> = {
   late: { bg: '#fee2e2', fg: '#b91c1c' },
@@ -51,13 +53,13 @@ export function BoardActionRow({ action, showContext = false, onPress }: Props) 
           </View>
         )}
       </View>
-      <Text style={[styles.text, focus && styles.textFocus, action.closed && styles.textClosed]}>{action.text}</Text>
+      <LinkedText text={action.text} style={[styles.text, focus && styles.textFocus, action.closed && styles.textClosed]} />
       <Text style={styles.owners}>
         {action.assignees.length > 0 ? (action.assignees.length > 1 ? 'Porteurs : ' : 'Porteur : ') + action.assignees.join(', ') : 'Porteur à désigner'}
       </Text>
       {context && (
         <Text style={styles.context} numberOfLines={2}>
-          {context.meetingLabel} · {context.poleLabel} — {context.pointText}
+          {context.meetingLabel} · <Text style={{ color: poleTone(context.pole).ink, fontWeight: '700' }}>{context.poleLabel}</Text> — {context.pointText}
         </Text>
       )}
     </View>

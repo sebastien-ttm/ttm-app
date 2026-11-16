@@ -1855,6 +1855,8 @@ export type BoardAction = {
 export type BoardOpenAction = BoardAction & {
   meetingId: number;
   meetingLabel: string;
+  /** Valeur du pôle (sert à sa couleur) ; absente des anciennes réponses. */
+  pole?: string;
   poleLabel: string;
   /** Point d'ordre du jour concerné (tronqué). */
   pointText: string;

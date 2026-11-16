@@ -9,9 +9,9 @@ import { ApiError, auth as authApi } from '@/api/client';
 import { charter as charterApi } from '@/api/resources';
 import { useAuth } from '@/auth/AuthContext';
 import { InstallAppCard } from '@/components/InstallAppCard';
-import { WebPushSettings } from '@/components/WebPushSettings';
 import { COLORS } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
+import { getWebPushState, type WebPushState } from '@/notifications/webPush';
 import { accountTypeColor, accountTypeLabel, profileColor, profileLabel, sortProfiles, subTypeLabel } from '@/utils/profile';
 
 const AVATAR_SIZE = 96;
@@ -293,8 +293,8 @@ export default function ProfileScreen() {
       {/* Installation de l'appli web sur l'écran d'accueil (rien à afficher sur l'appli native ou déjà installée). */}
       <InstallAppCard />
 
-      {/* Notifications push de l'appli web installée (sans effet sur l'appli native). */}
-      <WebPushSettings />
+      {/* Notifications push de l'appli web installée : réglages sur un écran à part (rien sur l'appli native). */}
+      <PushSettingsRow />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Notifications par email</Text>
@@ -325,6 +325,53 @@ export default function ProfileScreen() {
         <Text style={styles.logoutLabel}>Se déconnecter</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+const PUSH_HINTS: Partial<Record<WebPushState, string>> = {
+  on: 'Activées sur cet appareil · choisir les sujets',
+  off: 'Désactivées · touchez pour les activer',
+  denied: 'Bloquées par le navigateur',
+  'needs-install': 'Disponibles dans l\'appli installée',
+  unsupported: 'Indisponibles sur ce navigateur',
+  unconfigured: 'Pas encore activées côté club',
+};
+
+/**
+ * Ligne « Notifications push » : ouvre l'écran des réglages (activation, sujets, test), avec l'état actuel en sous-titre.
+ * Réservée à l'appli web / installée ; l'appli native gère ses notifications dans les réglages du téléphone.
+ */
+function PushSettingsRow() {
+  const router = useRouter();
+  const [state, setState] = useState<WebPushState | null>(null);
+
+  // Relu à chaque retour sur le profil : l'écran des réglages peut avoir activé ou coupé les notifications.
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'web') return;
+    let cancelled = false;
+    getWebPushState().then((s) => { if (!cancelled) setState(s); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []));
+
+  if (Platform.OS !== 'web') return null;
+
+  return (
+    <View style={styles.card}>
+      <Pressable
+        style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed, { borderTopWidth: 0 }]}
+        onPress={() => router.push('/profile/notifications' as never)}
+        accessibilityRole="button"
+      >
+        <View style={styles.qrIcon}>
+          <Ionicons name="notifications-outline" size={22} color="#fff" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowLabel}>Notifications push</Text>
+          <Text style={styles.actionHint}>{(state && PUSH_HINTS[state]) || 'Activer et choisir les sujets'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+      </Pressable>
+    </View>
   );
 }
 

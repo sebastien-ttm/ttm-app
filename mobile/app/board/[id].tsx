@@ -1,14 +1,16 @@
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { board as boardApi } from '@/api/resources';
 import type { BoardAgendaItem, BoardComment, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
 import { BoardActionRow } from '@/components/BoardActionRow';
+import { LinkedText } from '@/components/LinkedText';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { formatMeetingDate } from '@/utils/boardDate';
+import { poleTone } from '@/utils/boardPoles';
 
 const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
   information: { bg: '#DBEAFE', fg: '#1e40af' },
@@ -22,9 +24,14 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
  * n'ont pas été traités. Sur le point d'un autre membre, on peut ajouter un commentaire (Information, Sujet) ou une
  * réponse (Question). Les réponses, décisions et actions (porteurs, échéance, état — en évidence quand c'est le
  * membre connecté qui les porte) saisies en séance s'affichent sous chaque point.
+ *
+ * Chaque pôle (Partenaires, Organisations…) a sa couleur (utils/boardPoles). Les textes peuvent contenir des liens
+ * (<a href="…">, [libellé](…) ou adresse collée) rendus cliquables — ex. un fichier Google Drive. « Modifier » remonte
+ * en haut de l'écran, où se trouve le formulaire.
  */
 export default function BoardMeetingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const scrollRef = useRef<ScrollView>(null);
   const [meeting, setMeeting] = useState<BoardMeetingDetail | null>(null);
   const [poles, setPoles] = useState<BoardOption[]>([]);
   const [types, setTypes] = useState<BoardOption[]>([]);
@@ -68,6 +75,8 @@ export default function BoardMeetingScreen() {
     setPole(item.pole);
     setType(item.type);
     setText(item.text);
+    // Le formulaire est en haut de l'écran, le point modifié peut être loin en dessous : on remonte pour voir les champs.
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   }
 
   async function submit() {
@@ -130,19 +139,20 @@ export default function BoardMeetingScreen() {
   if (!meeting) return <FullScreenLoading />;
 
   // Regroupement par pôle (les points arrivent déjà triés dans l'ordre du compte rendu).
-  const groups: { label: string; items: BoardAgendaItem[] }[] = [];
+  const groups: { label: string; pole: string; items: BoardAgendaItem[] }[] = [];
   for (const raw of meeting.items) {
     // Tolère un serveur pas encore à jour (champs commentaires / actions absents).
     const item: BoardAgendaItem = { ...raw, canComment: raw.canComment ?? false, comments: raw.comments ?? [], actions: raw.actions ?? [] };
     const last = groups[groups.length - 1];
     if (last && last.label === item.poleLabel) last.items.push(item);
-    else groups.push({ label: item.poleLabel, items: [item] });
+    else groups.push({ label: item.poleLabel, pole: item.pole, items: [item] });
   }
 
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ title: meeting.label }} />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
         keyboardShouldPersistTaps="handled"
@@ -155,7 +165,7 @@ export default function BoardMeetingScreen() {
               ? `Réunion close · compte rendu · ${meeting.answeredCount}/${meeting.itemCount} points traités`
               : `${meeting.itemCount} point${meeting.itemCount > 1 ? 's' : ''} à l'ordre du jour`}
           </Text>
-          {meeting.notes ? <Text style={styles.notes}>{meeting.notes}</Text> : null}
+          {meeting.notes ? <LinkedText text={meeting.notes} style={styles.notes} linkStyle={styles.onDarkLink} /> : null}
         </View>
 
         {meeting.canAddItems && (
@@ -163,11 +173,21 @@ export default function BoardMeetingScreen() {
             <Text style={styles.formTitle}>{editingId ? 'Modifier mon point' : 'Ajouter un point à l\'ordre du jour'}</Text>
             <Text style={styles.label}>Pôle</Text>
             <View style={styles.chips}>
-              {poles.map((p) => (
-                <Pressable key={p.value} onPress={() => setPole(p.value)} style={[styles.chip, pole === p.value && styles.chipActive]}>
-                  <Text style={[styles.chipLabel, pole === p.value && styles.chipLabelActive]}>{p.label}</Text>
-                </Pressable>
-              ))}
+              {poles.map((p) => {
+                const tone = poleTone(p.value);
+                const active = pole === p.value;
+                return (
+                  <Pressable
+                    key={p.value}
+                    onPress={() => setPole(p.value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={[styles.chip, { backgroundColor: active ? tone.accent : tone.soft, borderColor: tone.accent }]}
+                  >
+                    <Text style={[styles.chipLabel, { color: active ? '#fff' : tone.ink }]}>{p.label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
             <Text style={styles.label}>Type</Text>
             <View style={styles.segment}>
@@ -190,6 +210,9 @@ export default function BoardMeetingScreen() {
               maxLength={2000}
               style={styles.input}
             />
+            <Text style={styles.linkHint}>
+              Un lien (fichier Google Drive, site…) : collez l'adresse, ou écrivez {'<a href="https://…">mon document</a>'} — il sera cliquable.
+            </Text>
             <View style={styles.formActions}>
               <Pressable onPress={() => void submit()} disabled={busy} style={[styles.submit, busy && { opacity: 0.6 }]}>
                 {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLabel}>{editingId ? 'Enregistrer' : 'Ajouter'}</Text>}
@@ -205,16 +228,18 @@ export default function BoardMeetingScreen() {
 
         {groups.map((g) => (
           <View key={g.label} style={styles.group}>
-            <Text style={styles.groupTitle}>{g.label}</Text>
+            <View style={[styles.groupTag, { backgroundColor: poleTone(g.pole).accent }]}>
+              <Text style={styles.groupTitle}>{g.label}</Text>
+            </View>
             {g.items.map((item) => (
-              <View key={item.id} style={styles.item}>
+              <View key={item.id} style={[styles.item, { borderLeftWidth: 4, borderLeftColor: poleTone(item.pole).accent }]}>
                 <View style={styles.itemHead}>
                   <View style={[styles.typeTag, { backgroundColor: TYPE_COLORS[item.type].bg }]}>
                     <Text style={[styles.typeTagLabel, { color: TYPE_COLORS[item.type].fg }]}>{item.typeLabel}</Text>
                   </View>
                   <Text style={styles.speaker}>{item.speaker ?? '—'}{item.isMine ? ' (moi)' : ''}</Text>
                 </View>
-                <Text style={styles.itemText}>{item.text}</Text>
+                <LinkedText text={item.text} style={styles.itemText} />
 
                 {item.comments.length > 0 && (
                   <View style={styles.comments}>
@@ -225,7 +250,7 @@ export default function BoardMeetingScreen() {
                       <View key={c.id} style={styles.comment}>
                         <Text style={styles.commentText}>
                           <Text style={styles.commentAuthor}>{c.authorName}{c.isMine ? ' (moi)' : ''} : </Text>
-                          {c.text}
+                          <LinkedText text={c.text} />
                         </Text>
                         {c.canDelete && (
                           <Pressable onPress={() => void removeComment(c)} disabled={busy}>
@@ -269,7 +294,7 @@ export default function BoardMeetingScreen() {
                 {item.answered && (
                   <View style={styles.answer}>
                     {item.respondent ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Qui répond : </Text>{item.respondent}</Text> : null}
-                    {item.answer ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Réponse / décision : </Text>{item.answer}</Text> : null}
+                    {item.answer ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Réponse / décision : </Text><LinkedText text={item.answer} /></Text> : null}
                     {item.actionOwner ? <Text style={styles.answerLine}><Text style={styles.answerKey}>Porteur action : </Text>{item.actionOwner}</Text> : null}
                   </View>
                 )}
@@ -326,9 +351,8 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceAlt },
-  chipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  chipLabel: { fontSize: 12.5, fontWeight: '600', color: COLORS.text },
+  chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1.5 },
+  chipLabel: { fontSize: 12.5, fontWeight: '700' },
   chipLabelActive: { color: '#fff' },
   segment: { flexDirection: 'row', gap: 6 },
   segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', backgroundColor: COLORS.surfaceAlt },
@@ -339,9 +363,12 @@ const styles = StyleSheet.create({
   submit: { backgroundColor: COLORS.secondary, borderRadius: RADIUS.md, paddingVertical: 10, paddingHorizontal: 22, alignItems: 'center' },
   submitLabel: { color: '#fff', fontWeight: '800', fontSize: 14 },
   cancel: { color: COLORS.textMuted, fontWeight: '600' },
+  linkHint: { fontSize: 11.5, color: COLORS.textMuted, lineHeight: 16 },
+  onDarkLink: { color: '#bfdbfe' },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: 10 },
   group: { gap: 8 },
-  groupTitle: { fontSize: 13, fontWeight: '800', color: COLORS.brandNavy, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 },
+  groupTag: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, marginTop: 4 },
+  groupTitle: { fontSize: 12.5, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
   item: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md, gap: 6, borderWidth: 1, borderColor: COLORS.border },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   typeTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },

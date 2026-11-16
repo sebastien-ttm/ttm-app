@@ -4,48 +4,59 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthContext';
-import { EmargementTab } from '@/components/gestion/EmargementTab';
-import { GroupTab } from '@/components/gestion/GroupTab';
-import { MembersTab } from '@/components/gestion/MembersTab';
-import { PresenceTab } from '@/components/gestion/PresenceTab';
+import { AdherentsTab, type AdherentsView } from '@/components/gestion/AdherentsTab';
+import { BoardTab } from '@/components/gestion/BoardTab';
+import { TrainingsTab, type TrainingsView } from '@/components/gestion/TrainingsTab';
 import { COLORS, RADIUS, SPACING } from '@/config';
-import { canCheckIn, canUseStaffSpace, isStaffMember } from '@/utils/profile';
+import { canCheckIn, canUseBoard, canUseStaffSpace } from '@/utils/profile';
 
-type GestionTab = 'presences' | 'emargements' | 'groupe' | 'adherents';
+type GestionTab = 'entrainements' | 'adherents' | 'codir';
 
 const TABS: { key: GestionTab; label: string }[] = [
-  { key: 'presences', label: 'Présences' },
-  { key: 'emargements', label: 'Émargements' },
-  { key: 'groupe', label: 'Groupes' },
+  { key: 'entrainements', label: 'Entraînements' },
   { key: 'adherents', label: 'Adhérents' },
+  { key: 'codir', label: 'Comité directeur' },
 ];
 
 /**
+ * Liens directs : l'onglet (et la vue de l'onglet) qu'ouvre chaque valeur de `?tab=`, y compris les anciennes valeurs
+ * d'avant le regroupement en trois onglets (favoris, liens enregistrés).
+ */
+const LINKS: Record<string, { tab: GestionTab; training?: TrainingsView; adherents?: AdherentsView }> = {
+  entrainements: { tab: 'entrainements' },
+  presences: { tab: 'entrainements', training: 'presences' },
+  groupe: { tab: 'entrainements', training: 'groupes' },
+  adherents: { tab: 'adherents', adherents: 'list' },
+  emargements: { tab: 'adherents', adherents: 'sheets' },
+  codir: { tab: 'codir' },
+};
+
+/**
  * Espace « Staff », ouvert depuis le bouton de l'en-tête. Route /gestion :
- * /staff est déjà le trombinoscope du Club. Quatre onglets, selon le profil :
- *  - Présences (entraîneur, encadrant) : indiquer / confirmer ses présences,
- *    semaine type ;
- *  - Émargements : présence aux événements (entraîneur, encadrant, CoDir,
- *    admin) ; remise des bonnets et saisie des temps des tests chronométrés
- *    (entraîneur, admin) ;
- *  - Groupes (entraîneur, encadrant) : mon groupe d'entraînement à la volée, créé avant une séance
- *    (adhérents, encadrants, informations, trace GPX, commentaires, position en direct) ;
- *  - Adhérents (entraîneur, encadrant) : annuaire des adhérents, séniors et jeunes ensemble (nom, prénom, téléphone)
- *    avec appel ou message WhatsApp en un geste, et un filtre Tous / Séniors / Jeunes. Pour un jeune : fiche
- *    sanitaire et autorisation de rentrer seul, documents manquants en évidence, ouverture de sa fiche en un appui.
- * `?tab=emargements` / `?tab=adherents` ouvrent directement l'onglet.
+ * /staff est déjà le trombinoscope du Club. Trois onglets, selon le profil ; dans un onglet, un petit sélecteur sous les
+ * onglets distingue les vues :
+ *  - Entraînements : Présences (entraîneur, encadrant : indiquer / confirmer ses présences, semaine type), Groupes
+ *    (entraîneur, encadrant : mon groupe d'entraînement à la volée, créé avant une séance : adhérents, encadrants,
+ *    informations, trace GPX, commentaires, position en direct) et Émargement & tests (présence aux entraînements sur
+ *    inscription pour le staff, le CoDir et les admins ; temps des tests chronométrés pour les entraîneurs et admins) ;
+ *  - Adhérents : Liste (entraîneur, encadrant : annuaire des adhérents, séniors et jeunes ensemble, appel ou message
+ *    WhatsApp en un geste, fiche sanitaire et autorisation de rentrer seul des jeunes) et Bonnets & événements (remise des
+ *    bonnets pour les entraîneurs et admins ; présence aux événements pour le staff, le CoDir et les admins) ;
+ *  - Comité directeur (membre du CoDir, administrateur, entraîneur) : actions en cours et réunions, avec l'ordre du jour
+ *    de chacune (ex-section de l'onglet Social).
+ * `?tab=entrainements` / `adherents` / `codir` ouvrent directement l'onglet ; les anciennes valeurs (`presences`,
+ *  `groupe`, `emargements`) mènent à la vue correspondante.
  */
 export default function GestionScreen() {
   const { user } = useAuth();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const link = tabParam ? LINKS[tabParam] : undefined;
 
   const tabs = useMemo(
-    () => TABS.filter((t) => (t.key === 'emargements' ? canCheckIn(user) : isStaffMember(user))),
+    () => TABS.filter((t) => (t.key === 'codir' ? canUseBoard(user) : canCheckIn(user))),
     [user],
   );
-  const [chosen, setChosen] = useState<GestionTab | null>(
-    TABS.some((t) => t.key === tabParam) ? (tabParam as GestionTab) : null,
-  );
+  const [chosen, setChosen] = useState<GestionTab | null>(link?.tab ?? null);
   // L'onglet demandé (ou choisi) doit être permis ; sinon le premier accessible.
   const tab = tabs.find((t) => t.key === chosen)?.key ?? tabs[0]?.key;
 
@@ -86,10 +97,9 @@ export default function GestionScreen() {
       )}
 
       <View style={{ flex: 1 }}>
-        {tab === 'presences' ? <PresenceTab />
-          : tab === 'emargements' ? <EmargementTab />
-          : tab === 'groupe' ? <GroupTab />
-          : <MembersTab />}
+        {tab === 'entrainements' ? <TrainingsTab initialView={link?.training} />
+          : tab === 'adherents' ? <AdherentsTab initialView={link?.adherents} />
+          : <BoardTab />}
       </View>
     </SafeAreaView>
   );
