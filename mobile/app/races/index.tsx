@@ -9,15 +9,16 @@ import type { RaceProposal, RaceType, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { formatRaceDate, formatRaceDates, RACE_TYPES, raceTypeMeta } from '@/components/RaceForm';
+import { isRacePublished, raceAcceptsResponses, raceStatus, RaceStatusBadge } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
-import { markSeen } from '@/lib/seenListings';
+import { markSeen, seenMark } from '@/lib/seenListings';
 
 type Tab = 'browse' | 'mine';
 /** Ligne de la liste : une carte, ou l'intitulé d'un bloc (mes réponses / les autres compétitions). */
 type Row = { kind: 'header'; key: string; title: string } | { kind: 'race'; key: string; item: RaceProposal };
 
-/** Une proposition reste « Nouveau » pendant une semaine après sa création. */
+/** Une proposition reste « Nouveau » pendant une semaine après sa publication (sa validation par un administrateur). */
 const NEW_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isNewProposal(createdAt: string): boolean {
@@ -34,6 +35,9 @@ function isNewProposal(createdAt: string): boolean {
  * « Nouveau » pendant une semaine. Dans « À venir », les compétitions où j'ai
  * répondu forment un bloc à part, au-dessus des autres. Même organisation que la
  * bourse aux équipements.
+ *
+ * Modération : « À venir » ne montre que les compétitions publiées (validées ou « En pause » — réponses suspendues) ;
+ * mes propres propositions « En attente de validation » ou « Non retenue » n'apparaissent que dans « Mes propositions ».
  */
 export default function RacesScreen() {
   const router = useRouter();
@@ -52,7 +56,7 @@ export default function RacesScreen() {
       const resp = await racesApi.list();
       setItems(resp.data);
       // Liste affichée → plus de pastille « nouveautés » dans Social.
-      if (user) void markSeen('races', user.id, resp.data.map((r) => r.id));
+      if (user) void markSeen('races', user.id, resp.data.map(seenMark));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Erreur de chargement');
     } finally {
@@ -65,6 +69,8 @@ export default function RacesScreen() {
   useRefreshOnResume(() => { void load(); });
 
   const mine = items.filter((r) => user !== null && r.authorId === user.id);
+  // « À venir » : seulement ce qui est publié (mes propositions en attente / refusées restent dans « Mes propositions »).
+  const published = useMemo(() => items.filter(isRacePublished), [items]);
 
   async function vote(item: RaceProposal, status: RaceVote) {
     setBusyId(item.id);
@@ -96,7 +102,7 @@ export default function RacesScreen() {
     }
   }
 
-  const tabItems = tab === 'browse' ? items : mine;
+  const tabItems = tab === 'browse' ? published : mine;
 
   // Filtres : les types présents dans l'onglet affiché (dans l'ordre de RACE_TYPES), avec leur nombre. Un type inconnu de
   // cette version de l'appli est rangé sous « Autre », comme sur sa carte.
@@ -136,7 +142,7 @@ export default function RacesScreen() {
       <View style={styles.tabs}>
         <Pressable onPress={() => setTab('browse')} style={[styles.tab, tab === 'browse' && styles.tabActive]}>
           <Text style={[styles.tabLabel, tab === 'browse' && styles.tabLabelActive]}>
-            À venir{items.length > 0 ? ' · ' + items.length : ''}
+            À venir{published.length > 0 ? ' · ' + published.length : ''}
           </Text>
         </Pressable>
         <Pressable onPress={() => setTab('mine')} style={[styles.tab, tab === 'mine' && styles.tabActive]}>
@@ -190,14 +196,14 @@ export default function RacesScreen() {
                       label={(item.captain ? 'Partant(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
                       active={item.myVote === 'interested'}
                       onPress={() => void vote(item, 'interested')}
-                      disabled={busyId === item.id || item.votesClosed === true}
+                      disabled={busyId === item.id || item.votesClosed === true || !raceAcceptsResponses(item)}
                     />
                     <ActionBtn
                       icon={item.myVote === 'maybe' ? 'star' : 'star-outline'}
                       label={'Intéressé(e) · ' + item.maybeCount}
                       active={item.myVote === 'maybe'}
                       onPress={() => void vote(item, 'maybe')}
-                      disabled={busyId === item.id || item.votesClosed === true}
+                      disabled={busyId === item.id || item.votesClosed === true || !raceAcceptsResponses(item)}
                     />
                   </>
                 ) : (
@@ -261,7 +267,8 @@ function RaceCard({ item, busy, onOpen, footer }: {
             <View style={[styles.typeBadge, { backgroundColor: meta.color }]}>
               <Text style={styles.typeBadgeLabel}>{item.typeLabel}</Text>
             </View>
-            {isNewProposal(item.createdAt) && (
+            <RaceStatusBadge race={item} />
+            {isRacePublished(item) && isNewProposal(item.publishedAt ?? item.createdAt) && (
               <View style={styles.newBadge} accessibilityLabel="Nouvelle proposition">
                 <Text style={styles.newBadgeLabel}>Nouveau</Text>
               </View>
@@ -275,6 +282,12 @@ function RaceCard({ item, busy, onOpen, footer }: {
           {!item.captain && (
             <Text style={styles.cardMeta}>proposée par {item.authorFirstName}</Text>
           )}
+          {/* Pause ou refus : le message de l'administrateur, s'il y en a un. */}
+          {(raceStatus(item) === 'paused' || raceStatus(item) === 'refused') && item.moderationNote ? (
+            <Text style={styles.cardMeta}>
+              {raceStatus(item) === 'refused' ? 'Motif : ' : ''}{item.moderationNote}
+            </Text>
+          ) : null}
           {/* Capitaine : date limite de réponse avant l'inscription groupée. */}
           {item.captain && item.registrationDeadline ? (
             <Text style={[styles.cardMeta, item.votesClosed && styles.deadlineClosed]}>

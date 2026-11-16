@@ -1133,6 +1133,13 @@ export type RaceTypeOption = { value: RaceType; label: string };
  */
 export type RaceVote = 'interested' | 'maybe';
 
+/**
+ * Modération d'une compétition proposée : `pending` = en attente de validation par un administrateur (visible de son
+ * auteur seul), `validated` = publiée, `paused` = publiée mais suspendue (visible, réponses bloquées), `refused` = non
+ * retenue (visible de son auteur seul ; il peut la corriger, elle repart alors en validation).
+ */
+export type RaceProposalStatus = 'pending' | 'validated' | 'paused' | 'refused';
+
 export type RaceProposal = {
   id: number;
   name: string;
@@ -1149,6 +1156,15 @@ export type RaceProposal = {
   registrationDeadline?: string | null;
   /** True = la date limite est dépassée : les réponses sont figées. Absent des anciennes réponses. */
   votesClosed?: boolean;
+  /** Modération par un administrateur. Absent des anciennes réponses = publiée (validated). */
+  status?: RaceProposalStatus;
+  statusLabel?: string;
+  /** Motif d'un refus (vu de l'auteur seul) ou d'une mise en pause (vu de tous). */
+  moderationNote?: string | null;
+  /** Première publication (validation) AAAA-MM-JJ…, null tant qu'elle n'est pas publiée. */
+  publishedAt?: string | null;
+  /** Rang croissant de publication : repère des « nouveautés non vues » (l'id seul ne convient pas à une validation tardive). */
+  publishedRank?: number | null;
   /** Covoiturage activé par l'auteur (conducteur/passager, mise en relation WhatsApp). */
   carpoolingEnabled: boolean;
   type: RaceType;

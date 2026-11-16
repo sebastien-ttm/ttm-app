@@ -12,6 +12,7 @@ import {
 import { ApiError } from '@/api/client';
 import type { RaceCourseInput, RaceProposalInput, RaceType } from '@/api/types';
 import { DateField, formatIsoDate, todayIso } from '@/components/DateField';
+import { FFTRI_NOTICE } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
@@ -55,13 +56,15 @@ export function formatRaceDates(start: string, end?: string | null): string {
  * peut durer plusieurs jours et comporter plusieurs épreuves), site Internet, description libre, type, case « Je me
  * propose d'être capitaine » (avec, dans ce cas, la date limite de réponse avant l'inscription groupée) et covoiturage.
  */
-export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses = false }: {
+export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses = false, notice }: {
   initial?: RaceProposalInput;
   submitLabel: string;
   onSubmit: (input: RaceProposalInput) => Promise<void>;
   onCancel: () => void;
   /** Création : saisie des courses de la compétition (ensuite, elles se gèrent depuis le détail). */
   withCourses?: boolean;
+  /** Encadré d'information en tête de formulaire (ex. « la proposition sera relue par un administrateur »). */
+  notice?: string;
 }) {
   const [courses, setCourses] = useState<RaceCourseInput[]>([]);
   const [courseName, setCourseName] = useState('');
@@ -137,6 +140,13 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses
 
   return (
     <View>
+      {notice ? (
+        <View style={styles.noticeBox}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.secondaryDark} />
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.label}>Nom de la compétition</Text>
       <TextInput
         value={name}
@@ -269,6 +279,14 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses
         })}
       </View>
 
+      {/* Triathlon : seuls les événements affiliés à la FFTri sont acceptés par les administrateurs. */}
+      {type === 'triathlon' && (
+        <View style={styles.fftriBox} accessibilityRole="alert">
+          <Ionicons name="information-circle" size={18} color="#92400e" />
+          <Text style={styles.fftriText}>{FFTRI_NOTICE}</Text>
+        </View>
+      )}
+
       <Pressable
         onPress={() => setCaptain((c) => !c)}
         disabled={busy}
@@ -377,6 +395,16 @@ const styles = StyleSheet.create({
   },
   typeEmoji: { fontSize: 15 },
   typeLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  noticeBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: COLORS.secondarySoft,
+  },
+  noticeText: { flex: 1, fontSize: 13, lineHeight: 19, color: COLORS.secondaryDark },
+  fftriBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginTop: SPACING.sm, padding: SPACING.md, borderRadius: RADIUS.md, backgroundColor: '#fef3c7',
+  },
+  fftriText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '700', color: '#92400e' },
   captainBox: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     marginTop: SPACING.lg, padding: SPACING.md,

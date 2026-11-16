@@ -12,6 +12,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RaceCourses } from '@/components/RaceCourses';
 import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
+import { isRacePublished, raceAcceptsResponses, RaceStatusNotice } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatRelativeFr } from '@/utils/html';
@@ -22,6 +23,10 @@ import { formatRelativeFr } from '@/utils/html';
  * groupée — ou Intéressé(e)) et liste des adhérents ayant répondu, utile au
  * capitaine pour l'inscription groupée. Si c'est
  * ma proposition : modifier / supprimer.
+ *
+ * Modération : ma proposition « En attente de validation » ou « Non retenue » (visible de moi seul) n'a ni vote ni liste
+ * de réponses, seulement l'encadré qui explique son état ; « En pause » (visible de tous) garde la fiche mais bloque
+ * les réponses.
  */
 export default function RaceDetailScreen() {
   const router = useRouter();
@@ -118,6 +123,8 @@ export default function RaceDetailScreen() {
             Proposée par {race.authorFullName} · {formatRelativeFr(race.createdAt)}
           </Text>
 
+          <RaceStatusNotice race={race} />
+
           {race.captain && (
             <View style={styles.captainBox}>
               <Text style={styles.captainEmoji}>🧢</Text>
@@ -164,6 +171,8 @@ export default function RaceDetailScreen() {
             </Pressable>
           )}
 
+          {isRacePublished(race) && (
+            <>
           <Text style={styles.sectionTitle}>{race.captain ? 'Ça vous intéresse ?' : 'Vous participez ?'}</Text>
           <View style={styles.voteRow}>
             <VoteBtn
@@ -172,7 +181,7 @@ export default function RaceDetailScreen() {
               count={race.interestedCount}
               active={race.myVote === 'interested'}
               onPress={() => void vote('interested')}
-              disabled={busy || race.votesClosed === true}
+              disabled={busy || race.votesClosed === true || !raceAcceptsResponses(race)}
             />
             <VoteBtn
               icon="star"
@@ -180,12 +189,14 @@ export default function RaceDetailScreen() {
               count={race.maybeCount}
               active={race.myVote === 'maybe'}
               onPress={() => void vote('maybe')}
-              disabled={busy || race.votesClosed === true}
+              disabled={busy || race.votesClosed === true || !raceAcceptsResponses(race)}
             />
           </View>
 
           <PeopleList title={race.captain ? 'Partants' : 'Inscrits'} people={race.interested} />
           <PeopleList title="Intéressés" people={race.maybe} />
+            </>
+          )}
 
           {isMine && (
             <View style={styles.ownerActions}>

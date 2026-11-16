@@ -62,7 +62,7 @@ export function SocialNewsProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (userId === null) return;
-    const count = async (list: SeenList, fetchItems: () => Promise<{ id: number; authorId?: number }[]>) => {
+    const count = async (list: SeenList, fetchItems: () => Promise<{ id: number; authorId?: number; publishedRank?: number | null }[]>) => {
       try {
         const [items, lastSeen] = await Promise.all([fetchItems(), getLastSeenId(list, userId)]);
         return countUnseen(items, lastSeen, userId);
