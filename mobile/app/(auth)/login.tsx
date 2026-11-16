@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/api/client';
+import { ApiError, isAccountDisabledError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { STORAGE_KEYS, storage } from '@/auth/storage';
+import { AccountDisabledNotice } from '@/components/auth/AccountHelp';
 import { APP_NAME, COLORS, RADIUS, SPACING } from '@/config';
 
 type Mode = 'magic-link' | 'password';
@@ -28,12 +30,27 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Compte désactivé (adhésion non renouvelée) : message dédié, avec lien de réinscription et contact du club.
+  const [disabled, setDisabled] = useState(false);
   // Refs = fallback pour lire le DOM directement si le state React est
   // vide (cas iOS Safari : le password manager écrit dans le node <input>
   // sans déclencher onChangeText — le state reste '' alors que la valeur
   // est visible à l'écran, submit envoyait des credentials vides → 401).
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+
+  // Session coupée parce que le compte a été désactivé : l'appli retombe ici, on l'explique (une seule fois).
+  useEffect(() => {
+    let cancelled = false;
+    storage.getItem(STORAGE_KEYS.accountDisabled)
+      .then(async (flag) => {
+        if (flag === null || cancelled) return;
+        await storage.removeItem(STORAGE_KEYS.accountDisabled);
+        if (!cancelled) setDisabled(true);
+      })
+      .catch(() => { /* sans l'indicateur, l'écran de connexion reste normal */ });
+    return () => { cancelled = true; };
+  }, []);
 
   /** Lit la valeur d'un TextInput. Sur le web, c'est le champ AFFICHÉ (le DOM) qui fait foi : un autofill (gestionnaire de
    *  mots de passe, surtout dans une appli installée) écrit dans le nœud sans toujours déclencher onChangeText, et le
@@ -48,6 +65,7 @@ export default function LoginScreen() {
 
   async function submit() {
     setError(null);
+    setDisabled(false);
     const effectiveEmail = readInput(email, emailRef).trim();
     const effectivePassword = readInput(password, passwordRef);
     // Re-sync le state React si l'autofill DOM avait fait perdre la valeur —
@@ -69,6 +87,11 @@ export default function LoginScreen() {
         router.push({ pathname: '/(auth)/magic-link-request', params: { email: effectiveEmail } });
       }
     } catch (err) {
+      // Compte désactivé : ce n'est pas le mot de passe qui est en cause.
+      if (isAccountDisabledError(err)) {
+        setDisabled(true);
+        return;
+      }
       // 401 : identifiants refusés (le serveur répond en anglais) → message clair, avec la sortie « mot de passe oublié ».
       if (err instanceof ApiError && err.status === 401) {
         setError(
@@ -164,6 +187,7 @@ export default function LoginScreen() {
               </>
             )}
 
+            {disabled && <AccountDisabledNotice />}
             {error && <Text style={styles.error}>{error}</Text>}
 
             <Pressable

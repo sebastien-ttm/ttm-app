@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError, auth } from '@/api/client';
+import { NoMailHint } from '@/components/auth/AccountHelp';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 /**
@@ -98,6 +99,7 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.hint}>
                   Le lien est valable 1 heure et utilisable une seule fois. Pensez à regarder dans vos courriers indésirables.
                 </Text>
+                <NoMailHint />
               </>
             )}
 

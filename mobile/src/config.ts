@@ -40,6 +40,11 @@ export const API_BASE_URL = (fromEnv ?? fromConfig ?? defaultBase()).replace(/\/
 
 export const APP_NAME = 'Triathlon Toulouse Métropole';
 
+/** Adresse du club à qui écrire (compte désactivé, adhésion non renouvelée…). */
+export const CLUB_CONTACT_EMAIL = 'contact@triathlontoulousemetropole.com';
+/** Page d'inscription du site du club : s'y réinscrire quand l'adhésion n'est pas renouvelée. */
+export const CLUB_REGISTRATION_URL = 'https://www.triathlontoulousemetropole.com/inscription/';
+
 export const COLORS = {
   // Couleurs officielles du club : Bleu / Rouge / Blanc.
   primary: '#D32F2F',     // rouge club

@@ -47,4 +47,9 @@ export const STORAGE_KEYS = {
   accessToken: 'ttm.access_token',
   refreshToken: 'ttm.refresh_token',
   user: 'ttm.user',
+  /**
+   * Posé quand le serveur refuse le renouvellement de la session parce que le compte a été désactivé : l'écran de
+   * connexion, où l'appli retombe, l'explique une fois puis l'efface. Volontairement conservé à la déconnexion.
+   */
+  accountDisabled: 'ttm.account_disabled',
 } as const;

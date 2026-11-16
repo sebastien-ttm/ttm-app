@@ -23,6 +23,23 @@ type FetchOptions = Omit<RequestInit, 'body' | 'headers'> & {
   _retried?: boolean;
 };
 
+/**
+ * Le serveur refuse un compte désactivé avec « Votre compte a été désactivé. » (App\Security\UserChecker), dans le champ
+ * `message` d'une réponse 401 : à la connexion comme au renouvellement de session. Ce n'est pas un mauvais mot de passe.
+ */
+const ACCOUNT_DISABLED_PATTERN = /compte a été désactivé/i;
+
+export function isAccountDisabledPayload(body: unknown): boolean {
+  if (typeof body !== 'object' || body === null) return false;
+  const message = (body as { message?: unknown }).message;
+  return typeof message === 'string' && ACCOUNT_DISABLED_PATTERN.test(message);
+}
+
+/** Cette erreur est le refus d'un compte désactivé (et non des identifiants incorrects). */
+export function isAccountDisabledError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401 && isAccountDisabledPayload(err.body);
+}
+
 let onUnauthorizedHandler: (() => void) | null = null;
 
 export function setOnUnauthorized(handler: (() => void) | null): void {
@@ -51,7 +68,14 @@ async function refreshAccessToken(): Promise<string | null> {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refresh_token: rt }),
       });
-      if (!resp.ok) return null;
+      if (!resp.ok) {
+        // Compte désactivé depuis la dernière connexion : on le retient pour l'expliquer sur l'écran de connexion, où la
+        // déconnexion qui suit ramène l'utilisateur (sans cela, il y arrive sans aucune explication).
+        if (resp.status === 401 && isAccountDisabledPayload(await resp.json().catch(() => null))) {
+          await storage.setItem(STORAGE_KEYS.accountDisabled, '1');
+        }
+        return null;
+      }
       const data = await resp.json().catch(() => null) as { token?: string; refresh_token?: string } | null;
       if (!data?.token) return null;
       await storage.setItem(STORAGE_KEYS.accessToken, data.token);

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { auth } from '@/api/client';
 import { peekIntendedPath } from '@/auth/AuthContext';
+import { NoMailHint } from '@/components/auth/AccountHelp';
 import { COLORS } from '@/config';
 
 type State = 'sending' | 'sent' | 'error';
@@ -55,6 +56,7 @@ export default function MagicLinkRequest() {
               recevoir un lien de connexion.
             </Text>
             <Text style={styles.hint}>Le lien est valable 15 minutes et utilisable une seule fois.</Text>
+            <NoMailHint />
           </>
         )}
 
