@@ -26,6 +26,10 @@ security:
         app_user_provider:
             id: App\Security\JwtUidAwareUserProvider
 
+    # Un compte désactivé (is_active = false : ancien adhérent non renouvelé, jeune d'association externe…) ne peut ni
+    # se connecter ni continuer à utiliser une session ouverte : App\Security\UserChecker est branché sur CHAQUE firewall
+    # qui authentifie (connexion, refresh, JWT de l'API, back-office). Sans cette ligne par firewall, Symfony retombe sur
+    # son vérificateur par défaut, qui ne contrôle rien pour nos comptes.
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
@@ -34,6 +38,7 @@ security:
         api_login:
             pattern: ^/api/auth/login$
             stateless: true
+            user_checker: App\Security\UserChecker
             json_login:
                 check_path: api_login_check
                 username_path: email
@@ -44,6 +49,7 @@ security:
         api_refresh:
             pattern: ^/api/auth/refresh$
             stateless: true
+            user_checker: App\Security\UserChecker
             refresh_jwt:
                 check_path: api_token_refresh
 
@@ -55,12 +61,14 @@ security:
         api:
             pattern: ^/api
             stateless: true
+            user_checker: App\Security\UserChecker
             jwt: ~
 
         admin:
             pattern: ^/admin
             lazy: true
             provider: app_user_provider
+            user_checker: App\Security\UserChecker
             form_login:
                 login_path: admin_login
                 check_path: admin_login
@@ -75,6 +83,7 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+            user_checker: App\Security\UserChecker
 
     access_control:
         - { path: ^/admin/login, roles: PUBLIC_ACCESS }
