@@ -58,6 +58,7 @@ class BoardMeetingController extends AbstractController
             'actions' => array_map(fn (BoardAction $a) => $this->actionPayload($a, $viewer) + [
                 'meetingId' => $a->getItem()->getMeeting()->getId(),
                 'meetingLabel' => $a->getItem()->getMeeting()->getLabel(),
+                'pole' => $a->getItem()->getPole()->value,
                 'poleLabel' => $a->getItem()->getPole()->label(),
                 'pointText' => mb_strimwidth($a->getItem()->getText(), 0, 140, '…'),
             ], $this->actions->findOpen()),
