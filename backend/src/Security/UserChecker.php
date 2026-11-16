@@ -15,6 +15,10 @@ class UserChecker implements UserCheckerInterface
             return;
         }
         if (!$user->isActive()) {
+            // Ce texte est reconnu par l'appli mobile (mobile/src/api/client.ts, ACCOUNT_DISABLED_PATTERN : « compte a été
+            // désactivé ») pour afficher le message de réinscription au lieu de « mot de passe incorrect » : le modifier
+            // impose d'adapter aussi ce motif. Une exception « CustomUserMessage… » est la seule dont Symfony laisse
+            // passer le message (les autres deviennent « Bad credentials »).
             throw new CustomUserMessageAccountStatusException('Votre compte a été désactivé.');
         }
     }
