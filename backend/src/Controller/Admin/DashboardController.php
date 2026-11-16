@@ -49,6 +49,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem as AdminMenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
 use App\Repository\PerfTestDeclarationRepository;
+use App\Repository\RaceProposalRepository;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserRepository;
 use Symfony\Component\HttpFoundation\Response;
@@ -72,6 +73,28 @@ class DashboardController extends AbstractDashboardController
     {
         try {
             return $this->perfDeclarations?->countPending() ?? 0;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /** Injecté par setter (pas de constructeur) : sert au badge « Compétitions proposées » du menu. */
+    private ?RaceProposalRepository $raceProposals = null;
+
+    #[Required]
+    public function setRaceProposals(RaceProposalRepository $repository): void
+    {
+        $this->raceProposals = $repository;
+    }
+
+    /**
+     * Compétitions proposées qui attendent d'être validées — seuls les administrateurs (qui valident) voient la pastille ;
+     * jamais bloquant pour le menu (0 en cas d'erreur).
+     */
+    private function pendingRaceProposals(): int
+    {
+        try {
+            return $this->isGranted('ROLE_ADMIN') ? ($this->raceProposals?->countPending() ?? 0) : 0;
         } catch (\Throwable) {
             return 0;
         }
@@ -199,7 +222,8 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Réglages de la bourse', 'fa fa-sliders', MarketplaceSettings::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Bourse aux dossards', 'fa fa-ticket', BibOffer::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Échanges vendeurs / acheteurs', 'fa fa-right-left', 'admin_marketplace_exchanges')],
-                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Compétitions proposées', 'fa fa-flag-checkered', RaceProposal::class)],
+                ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Compétitions proposées', 'fa fa-flag-checkered', RaceProposal::class)
+                    ->setBadge($this->pendingRaceProposals() ?: null, 'danger')],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Covoiturages', 'fa fa-car', EventCarpoolOffer::class)],
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToCrud('Photos du club', 'fa fa-camera', PhotoUpload::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Albums photos', 'fa fa-images', 'admin_photo_albums')],

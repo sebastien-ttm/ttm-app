@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\RaceProposalStatus;
 use App\Enum\RaceType;
 use App\Repository\RaceProposalRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -15,10 +16,15 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * `captain` = l'auteur se porte capitaine : il prend contact avec
  * l'organisateur et propose une inscription groupée.
+ *
+ * Modération : une proposition est d'abord « en attente de validation » (visible de son seul auteur) ; un administrateur
+ * la valide (publiée) ou la refuse, puis peut la mettre en pause et la reprendre — voir RaceProposalStatus et
+ * App\Service\RaceProposalModerator.
  */
 #[ORM\Entity(repositoryClass: RaceProposalRepository::class)]
 #[ORM\Table(name: 'race_proposal')]
 #[ORM\Index(name: 'idx_race_proposal_date', columns: ['race_date'])]
+#[ORM\Index(name: 'idx_race_proposal_status', columns: ['status'])]
 class RaceProposal
 {
     #[ORM\Id]
@@ -74,6 +80,33 @@ class RaceProposal
 
     #[ORM\Column(length: 20, enumType: RaceType::class)]
     private RaceType $type = RaceType::Autre;
+
+    /**
+     * Statut de modération. Une nouvelle proposition est « en attente » (sauf celles d'un administrateur, publiées
+     * d'emblée). Le défaut SQL « validated » ne sert qu'à la migration : les propositions déjà en base restent publiées.
+     */
+    #[ORM\Column(length: 20, enumType: RaceProposalStatus::class, options: ['default' => 'validated'])]
+    private RaceProposalStatus $status = RaceProposalStatus::Pending;
+
+    /**
+     * Message de l'administrateur : motif du refus (vu par l'auteur) ou de la mise en pause (vu de tous sur la fiche).
+     * Effacé quand la proposition est validée ou reprise.
+     */
+    #[ORM\Column(length: 500, nullable: true)]
+    #[Assert\Length(max: 500)]
+    private ?string $moderationNote = null;
+
+    /** Première publication (validation) ; null = jamais publiée. Sert au repère « Nouveau » côté appli. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
+    /**
+     * Rang de publication : strictement supérieur à tous les identifiants et rangs existants au moment de la
+     * validation. Les « nouveautés non vues » de l'appli comparent des nombres croissants : une proposition validée
+     * tardivement (identifiant ancien) doit quand même compter comme nouvelle, ce que l'identifiant seul ne permet pas.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?int $publishedRank = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -178,6 +211,47 @@ class RaceProposal
 
     public function getType(): RaceType { return $this->type; }
     public function setType(RaceType $type): self { $this->type = $type; return $this; }
+
+    public function getStatus(): RaceProposalStatus { return $this->status; }
+    public function setStatus(RaceProposalStatus $status): self { $this->status = $status; return $this; }
+
+    public function isPending(): bool { return $this->status === RaceProposalStatus::Pending; }
+    public function isPaused(): bool { return $this->status === RaceProposalStatus::Paused; }
+    public function isRefused(): bool { return $this->status === RaceProposalStatus::Refused; }
+    /** Publiée : validée ou en pause (visible de tous). */
+    public function isPublished(): bool { return $this->status->isPublic(); }
+
+    /** Les adhérents peuvent répondre (voter, ajouter une course, s'inscrire à une course) : validée, et pas en pause. */
+    public function acceptsResponses(): bool { return $this->status === RaceProposalStatus::Validated; }
+
+    /** Une proposition non publiée (en attente, refusée) n'est visible que de son auteur. */
+    public function isVisibleTo(User $viewer): bool
+    {
+        return $this->isPublished() || $this->author->getId() === $viewer->getId();
+    }
+
+    public function getModerationNote(): ?string { return $this->moderationNote; }
+    public function setModerationNote(?string $note): self
+    {
+        $note = $note !== null ? trim($note) : null;
+        $this->moderationNote = ($note === null || $note === '') ? null : $note;
+        return $this;
+    }
+
+    public function getPublishedAt(): ?\DateTimeImmutable { return $this->publishedAt; }
+    public function getPublishedRank(): ?int { return $this->publishedRank; }
+    /** Enregistre la première publication (sans effet si elle a déjà eu lieu : une reprise après pause ne « republie » pas). */
+    public function markPublished(int $rank): self
+    {
+        if ($this->publishedAt === null) {
+            $this->publishedAt = new \DateTimeImmutable();
+            $this->publishedRank = $rank;
+        }
+        return $this;
+    }
+
+    /** Libellé du statut — helper d'affichage EA. */
+    public function getStatusLabel(): string { return $this->status->label(); }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }

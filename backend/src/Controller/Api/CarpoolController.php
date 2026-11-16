@@ -51,7 +51,7 @@ class CarpoolController extends AbstractController
     #[Route('/api/races/{id}/carpool', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function listForRace(int $id): JsonResponse
     {
-        $race = $this->races->find($id);
+        $race = $this->findRace($id);
         if ($race === null) {
             return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -85,7 +85,7 @@ class CarpoolController extends AbstractController
     #[Route('/api/races/{id}/carpool', methods: ['POST', 'PATCH'], requirements: ['id' => '\d+'])]
     public function upsertForRace(int $id, Request $request): JsonResponse
     {
-        $race = $this->races->find($id);
+        $race = $this->findRace($id);
         if ($race === null) {
             return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -108,11 +108,24 @@ class CarpoolController extends AbstractController
     #[Route('/api/races/{id}/carpool', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteForRace(int $id): JsonResponse
     {
-        $race = $this->races->find($id);
+        $race = $this->findRace($id);
         if ($race === null) {
             return new JsonResponse(['error' => 'Course introuvable.'], Response::HTTP_NOT_FOUND);
         }
         return $this->removeFor($race);
+    }
+
+    /**
+     * La compétition proposée demandée, ou null si elle n'existe pas OU si elle n'est pas encore publiée (en attente de
+     * validation, refusée) et que l'adhérent n'en est pas l'auteur : 404, on ne révèle pas son existence.
+     */
+    private function findRace(int $id): ?RaceProposal
+    {
+        $race = $this->races->find($id);
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+
+        return $race !== null && $race->isVisibleTo($viewer) ? $race : null;
     }
 
     /**

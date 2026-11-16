@@ -5,7 +5,6 @@ namespace App\EventListener;
 use App\Entity\BibOffer;
 use App\Entity\Event;
 use App\Entity\MarketplaceListing;
-use App\Entity\RaceProposal;
 use App\Entity\StaticPage;
 use App\Entity\Survey;
 use App\Entity\User;
@@ -19,8 +18,9 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
- * Notifications push « nouveau contenu » : événement, page du club, sondage, compétition proposée, annonce
- * d'occasion, dossard à céder (les plans d'entraînement, articles et albums photo ont leur propre déclencheur).
+ * Notifications push « nouveau contenu » : événement, page du club, sondage, annonce d'occasion, dossard à céder
+ * (les plans d'entraînement, articles et albums photo ont leur propre déclencheur ; les compétitions proposées sont
+ * annoncées à leur validation par un administrateur — voir RaceProposalModerator).
  *
  * Chaque adhérent abonné ne reçoit que les sujets qu'il n'a pas désactivés (profil → Notifications push), et
  * seulement s'il peut voir le contenu (audience, stage, accès à la bourse). L'auteur n'est jamais prévenu.
@@ -47,7 +47,6 @@ class PushTopicListener
                 $entity instanceof Event => $this->onEvent($entity),
                 $entity instanceof StaticPage => $this->onStaticPage($entity),
                 $entity instanceof Survey => $this->onSurvey($entity),
-                $entity instanceof RaceProposal => $this->onRaceProposal($entity),
                 $entity instanceof MarketplaceListing => $this->onMarketplaceListing($entity),
                 $entity instanceof BibOffer => $this->onBibOffer($entity),
                 default => null,
@@ -126,18 +125,6 @@ class PushTopicListener
             exclude: $survey->getCreatedBy(),
             recipientFilter: $stage === null ? null : WebPushNotifier::onlyThese($stage->getParticipants()),
             stamps: self::delayUntil($publishedAt),
-        );
-    }
-
-    private function onRaceProposal(RaceProposal $race): void
-    {
-        $this->webPush->notifyTopic(
-            PushTopic::Race,
-            'Compétition proposée',
-            sprintf('%s — %s', $race->getName(), $race->getRaceDate()->format('d/m/Y')),
-            '/races/'.$race->getId(),
-            'race-'.$race->getId(),
-            exclude: $race->getAuthor(),
         );
     }
 

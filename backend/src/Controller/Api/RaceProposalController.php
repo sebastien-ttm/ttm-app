@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Enum\RaceType;
 use App\Repository\RaceProposalRepository;
 use App\Repository\RaceProposalVoteRepository;
+use App\Service\RaceProposalModerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,6 +22,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Compétitions proposées (onglet Social) : n'importe quel adhérent propose une compétition — un événement d'un ou
  * plusieurs jours, avec une ou plusieurs épreuves — (capitaine ou non), les autres indiquent leur intérêt. Seules les
  * compétitions à venir ou en cours sont listées ; l'auteur peut modifier ou supprimer sa proposition.
+ *
+ * Modération : une proposition est « en attente de validation » (visible de son seul auteur) tant qu'un administrateur
+ * ne l'a pas validée dans le back-office ; elle peut ensuite être mise en pause (toujours visible, réponses suspendues).
+ * Voir RaceProposalStatus / RaceProposalModerator.
  */
 #[IsGranted('ROLE_USER')]
 class RaceProposalController extends AbstractController
@@ -29,6 +34,7 @@ class RaceProposalController extends AbstractController
         private readonly RaceProposalRepository $proposals,
         private readonly RaceProposalVoteRepository $votes,
         private readonly EntityManagerInterface $em,
+        private readonly RaceProposalModerator $moderation,
     ) {
     }
 
@@ -38,7 +44,7 @@ class RaceProposalController extends AbstractController
         /** @var User $viewer */
         $viewer = $this->getUser();
         return new JsonResponse([
-            'data' => array_map(fn (RaceProposal $r) => $this->serialize($r, $viewer), $this->proposals->findUpcoming()),
+            'data' => array_map(fn (RaceProposal $r) => $this->serialize($r, $viewer), $this->proposals->findUpcomingFor($viewer)),
             'types' => $this->typeOptions(),
         ]);
     }
@@ -48,7 +54,7 @@ class RaceProposalController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        return new JsonResponse($this->serialize($this->findOr404($id), $viewer));
+        return new JsonResponse($this->serialize($this->findOr404($id, $viewer), $viewer));
     }
 
     /**
@@ -82,8 +88,11 @@ class RaceProposalController extends AbstractController
                 return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
             }
         }
+        // En attente de validation par un administrateur (publiée d'emblée si l'auteur en est un).
+        $this->moderation->submit($proposal, $this->isGranted('ROLE_ADMIN'));
         $this->em->persist($proposal);
         $this->em->flush();
+        $this->moderation->afterSubmit($proposal);
 
         return new JsonResponse($this->serialize($proposal, $user), Response::HTTP_CREATED);
     }
@@ -104,7 +113,12 @@ class RaceProposalController extends AbstractController
             return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
         }
         $proposal->touchUpdatedAt();
+        // Proposition refusée puis corrigée par son auteur : elle repart en validation.
+        $resubmitted = $this->moderation->resubmit($proposal);
         $this->em->flush();
+        if ($resubmitted) {
+            $this->moderation->afterSubmit($proposal);
+        }
 
         return new JsonResponse($this->serialize($proposal, $user));
     }
@@ -128,7 +142,11 @@ class RaceProposalController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $proposal = $this->findOr404($id);
+        $proposal = $this->findOr404($id, $user);
+        // Ajouter une course est une réponse à la proposition : suspendu tant qu'elle est en pause.
+        if ($proposal->isPaused()) {
+            return $this->responsesClosed($proposal);
+        }
         $payload = json_decode($request->getContent(), true);
         if (!is_array($payload)) {
             return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
@@ -189,7 +207,7 @@ class RaceProposalController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $proposal = $this->findOr404($id);
+        $proposal = $this->findOr404($id, $user);
         $course = null;
         foreach ($proposal->getCourses() as $c) {
             if ($c->getId() === $courseId) {
@@ -222,7 +240,11 @@ class RaceProposalController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $proposal = $this->findOr404($id);
+        $proposal = $this->findOr404($id, $user);
+        // Pas de réponse tant que la proposition n'est pas publiée, ni pendant une pause.
+        if (!$proposal->acceptsResponses()) {
+            return $this->responsesClosed($proposal);
+        }
 
         $payload = json_decode($request->getContent() ?: '{}', true);
         $status = is_array($payload) ? ($payload['status'] ?? null) : null;
@@ -262,7 +284,7 @@ class RaceProposalController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $proposal = $this->findOr404($id);
+        $proposal = $this->findOr404($id, $user);
         $course = null;
         foreach ($proposal->getCourses() as $c) {
             if ($c->getId() === $courseId) {
@@ -271,6 +293,9 @@ class RaceProposalController extends AbstractController
         }
         if ($course === null) {
             throw $this->createNotFoundException('Course introuvable.');
+        }
+        if (!$proposal->acceptsResponses()) {
+            return $this->responsesClosed($proposal);
         }
         if ($proposal->isVotingClosed()) {
             return new JsonResponse(
@@ -428,18 +453,31 @@ class RaceProposalController extends AbstractController
         return null;
     }
 
-    private function findOr404(int $id): RaceProposal
+    /** La proposition, si elle existe ET si $viewer peut la voir : une proposition non publiée n'est vue que de son auteur (404 sinon). */
+    private function findOr404(int $id, User $viewer): RaceProposal
     {
         $proposal = $this->proposals->find($id);
-        if ($proposal === null) {
+        if ($proposal === null || !$proposal->isVisibleTo($viewer)) {
             throw $this->createNotFoundException('Compétition introuvable.');
         }
         return $proposal;
     }
 
+    /** Réponse 409 « pas de nouvelle réponse » (en attente de validation, refusée ou en pause) ; le texte est montré tel quel à l'adhérent. */
+    private function responsesClosed(RaceProposal $proposal): JsonResponse
+    {
+        $message = match (true) {
+            $proposal->isPaused() => 'Cette compétition est en pause : les réponses sont suspendues pour le moment.',
+            $proposal->isRefused() => 'Cette proposition n\'a pas été retenue.',
+            default => 'Cette proposition attend la validation d\'un administrateur : les réponses ouvriront à sa publication.',
+        };
+
+        return new JsonResponse(['error' => $message], Response::HTTP_CONFLICT);
+    }
+
     private function findOwnedOr404(int $id, User $viewer): RaceProposal
     {
-        $proposal = $this->findOr404($id);
+        $proposal = $this->findOr404($id, $viewer);
         if ($proposal->getAuthor()->getId() !== $viewer->getId()) {
             throw $this->createNotFoundException('Compétition introuvable.');
         }
@@ -486,6 +524,15 @@ class RaceProposalController extends AbstractController
             // Capitaine : date limite de réponse (AAAA-MM-JJ, incluse) ; réponses figées une fois dépassée.
             'registrationDeadline' => $r->getRegistrationDeadline()?->format('Y-m-d'),
             'votesClosed' => $r->isVotingClosed(),
+            // Modération : pending | validated | paused | refused. `moderationNote` = motif du refus (vu de l'auteur seul :
+            // une proposition refusée ne lui est montrée qu'à lui) ou de la pause (vu de tous).
+            'status' => $r->getStatus()->value,
+            'statusLabel' => $r->getStatus()->label(),
+            'moderationNote' => $r->getModerationNote(),
+            'publishedAt' => $r->getPublishedAt()?->format(\DATE_ATOM),
+            // Rang croissant de publication : repère des « nouveautés non vues » (l'id seul ne convient pas à une
+            // proposition validée longtemps après sa création).
+            'publishedRank' => $r->getPublishedRank(),
             'carpoolingEnabled' => $r->isCarpoolingEnabled(),
             'type' => $r->getType()->value,
             'typeLabel' => $r->getType()->label(),
