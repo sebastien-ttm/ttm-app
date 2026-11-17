@@ -39,7 +39,7 @@ const LINKS: Record<string, { tab: GestionTab; training?: TrainingsView; adheren
  *    (entraîneur, encadrant : mon groupe d'entraînement à la volée, créé avant une séance : adhérents, encadrants,
  *    informations, trace GPX, commentaires, position en direct) et Émargement & tests (présence aux entraînements sur
  *    inscription pour le staff, le CoDir et les admins ; temps des tests chronométrés pour les entraîneurs et admins) ;
- *  - Adhérents : Liste (entraîneur, encadrant : annuaire des adhérents, séniors et jeunes ensemble, appel ou message
+ *  - Adhérents : Liste (entraîneur, encadrant, administrateur dont gestionnaire externe : annuaire des adhérents, séniors et jeunes ensemble, appel ou message
  *    WhatsApp en un geste, fiche sanitaire et autorisation de rentrer seul des jeunes) et Bonnets & événements (remise des
  *    bonnets pour les entraîneurs et admins ; présence aux événements pour le staff, le CoDir et les admins) ;
  *  - Comité directeur (membre du CoDir, administrateur, entraîneur) : actions en cours et réunions, avec l'ordre du jour

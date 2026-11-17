@@ -9,6 +9,7 @@ const PROFILE_LABELS: Record<UserProfile, string> = {
   parent: 'Parent',
   entraineur: 'Entraîneur',
   encadrant: 'Encadrant',
+  gestionnaire: 'Gestionnaire externe',
 };
 
 /**
@@ -20,6 +21,7 @@ const PROFILE_COLORS: Record<UserProfile, string> = {
   parent: '#ea580c',
   entraineur: '#0d2148',
   encadrant: '#dc2626',
+  gestionnaire: '#7c3aed',
 };
 
 export function profileLabel(p: UserProfile): string {
@@ -50,9 +52,9 @@ export function accountTypeColor(t: UserAccountType): string {
 
 /**
  * Tri des profils pour un affichage cohérent : catégorie principale en
- * premier (Jeune/Senior), puis fonctions (Parent, Entraîneur, Encadrant).
+ * premier (Jeune/Senior), puis fonctions (Parent, Entraîneur, Encadrant, Gestionnaire externe).
  */
-const PROFILE_ORDER: UserProfile[] = ['jeune', 'senior', 'parent', 'entraineur', 'encadrant'];
+const PROFILE_ORDER: UserProfile[] = ['jeune', 'senior', 'parent', 'entraineur', 'encadrant', 'gestionnaire'];
 
 export function sortProfiles(profiles: UserProfile[]): UserProfile[] {
   return [...profiles].sort((a, b) => PROFILE_ORDER.indexOf(a) - PROFILE_ORDER.indexOf(b));
@@ -162,6 +164,19 @@ export function canUseBoard(user: AuthenticatedUser | null | undefined): boolean
 /** Administrateur (niveau d'accès du compte, pas un profil). */
 export function isAdminUser(user: AuthenticatedUser | null | undefined): boolean {
   return !!user && user.role === 'admin';
+}
+
+/** Gestionnaire externe : profil qui porte le rôle Administrateur (le back-end l'accorde avec le profil). */
+export function isGestionnaire(user: AuthenticatedUser | null | undefined): boolean {
+  return !!user && user.profiles.includes('gestionnaire');
+}
+
+/**
+ * Annuaire des adhérents de l'espace Staff (liste, téléphones, fiches des jeunes) : staff sportif (entraîneur,
+ * encadrant) et administrateurs, gestionnaires externes compris. Le back-end revérifie (StaffMembersController).
+ */
+export function canSeeDirectory(user: AuthenticatedUser | null | undefined): boolean {
+  return isStaffMember(user) || isAdminUser(user) || isGestionnaire(user);
 }
 
 /**
