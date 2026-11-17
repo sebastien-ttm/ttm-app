@@ -20,6 +20,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class PasswordResetService
 {
     public const TTL_SECONDS = 3600;
+    /** Lien d'accueil d'un gestionnaire externe : il n'ouvre pas l'e-mail forcément dans l'heure, d'où une semaine. */
+    public const WELCOME_TTL_SECONDS = 604800;
     public const MIN_PASSWORD_LENGTH = 8;
 
     public function __construct(
@@ -30,8 +32,11 @@ class PasswordResetService
     ) {
     }
 
-    /** Crée un lien de réinitialisation et renvoie le jeton EN CLAIR (à n'envoyer que par e-mail). */
-    public function issue(User $user): string
+    /**
+     * Crée un lien de réinitialisation et renvoie le jeton EN CLAIR (à n'envoyer que par e-mail).
+     * Valable une heure, ou `$ttlSeconds` pour un lien d'accueil (cf. WELCOME_TTL_SECONDS).
+     */
+    public function issue(User $user, int $ttlSeconds = self::TTL_SECONDS): string
     {
         $this->tokens->invalidateUnusedForUser($user);
 
@@ -39,7 +44,7 @@ class PasswordResetService
         $this->em->persist(new PasswordResetToken(
             $user,
             hash('sha256', $clear),
-            new \DateTimeImmutable('+'.self::TTL_SECONDS.' seconds'),
+            new \DateTimeImmutable('+'.$ttlSeconds.' seconds'),
         ));
         $this->em->flush();
 

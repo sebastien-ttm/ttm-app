@@ -1,0 +1,21 @@
+Bonjour {{ user.prenom }},
+
+Un compte gestionnaire vient de vous être ouvert sur l'application du club et sur son espace d'administration (le backend).
+
+1. Créez votre mot de passe
+{% if hasPassword %}Vous avez déjà un mot de passe : vous pouvez le garder, ou en choisir un nouveau avec ce lien.
+{% else %}Ouvrez ce lien pour choisir votre mot de passe (valable {{ validityDays }} jours, utilisable une seule fois) :
+{% endif %}
+{{ passwordUrl }}
+
+Un seul mot de passe pour tout : le mot de passe de votre compte vous sert à vous connecter à l'application et aussi au backend.
+Votre identifiant est votre adresse e-mail : {{ user.email }}
+
+2. Accédez à vos outils
+- Application : {{ appUrl }}
+- Backend : {{ backendUrl }}
+
+Le lien de création du mot de passe a expiré ou vous l'avez perdu ? Ouvrez l'application, touchez « Mot de passe oublié » sur l'écran de connexion et saisissez cette adresse e-mail : vous recevrez un nouveau lien.
+Si vous n'attendiez pas ce message, ne cliquez sur rien et prévenez le club.
+
+— Triathlon Toulouse Métropole

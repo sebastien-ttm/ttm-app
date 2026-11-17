@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votre accès gestionnaire TTM</title>
+    <style>
+        @media only screen and (max-width: 620px) {
+            .ttm-container { width: 100% !important; }
+            .ttm-body-cell { padding: 20px !important; }
+        }
+    </style>
+</head>
+<body style="margin:0; padding:0; font-family: Arial, sans-serif; background:#f4f4f4; color:#222;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f4f4;">
+        <tr>
+            <td align="center" style="padding:20px 10px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" class="ttm-container"
+                       style="width:100%; max-width:600px; background:#fff; border-radius:8px; overflow:hidden; border-collapse:collapse;">
+                    <tr>
+                        <td style="background:#D32F2F; color:#fff; padding:20px; text-align:center;">
+                            <h1 style="margin:0; font-size:22px; line-height:1.2;">Triathlon Toulouse Métropole</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ttm-body-cell" style="padding:30px; line-height:1.5; word-wrap:break-word; overflow-wrap:break-word;">
+                            <p>Bonjour <strong>{{ user.prenom }}</strong>,</p>
+
+                            <p>Un compte <strong>gestionnaire</strong> vient de vous être ouvert sur l'application du club et sur son espace d'administration (le backend).</p>
+
+                            <p style="margin-bottom:6px;"><strong>1. Créez votre mot de passe</strong></p>
+                            <p style="margin-top:0;">
+                                {% if hasPassword %}
+                                    Vous avez déjà un mot de passe : vous pouvez le garder, ou en choisir un nouveau avec le bouton ci-dessous.
+                                {% else %}
+                                    Cliquez sur le bouton ci-dessous pour choisir votre mot de passe. Le lien est valable {{ validityDays }} jours et utilisable une seule fois.
+                                {% endif %}
+                            </p>
+                            <p style="text-align:center; margin:24px 0;">
+                                <a href="{{ passwordUrl }}" style="display:inline-block; background:#D32F2F; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; font-weight:bold;">
+                                    Créer mon mot de passe
+                                </a>
+                            </p>
+
+                            <p style="background:#f4f8ff; border-left:4px solid #1d4ed8; padding:12px 14px; border-radius:4px;">
+                                <strong>Un seul mot de passe pour tout :</strong> le mot de passe de votre compte vous sert à vous connecter à l'application et aussi au backend. Votre identifiant est votre adresse e-mail&nbsp;: <strong>{{ user.email }}</strong>.
+                            </p>
+
+                            <p style="margin-bottom:6px;"><strong>2. Accédez à vos outils</strong></p>
+                            {# Deux boutons l'un sous l'autre : côte à côte, ils se tassent et se coupent sur un téléphone. #}
+                            <p style="text-align:center; margin:10px 0;">
+                                <a href="{{ appUrl }}" style="display:block; max-width:280px; margin:0 auto; background:#0d2148; color:#fff; padding:14px 24px; text-decoration:none; border-radius:6px; font-weight:bold; text-align:center;">
+                                    Ouvrir l'application
+                                </a>
+                            </p>
+                            <p style="text-align:center; margin:10px 0 24px;">
+                                <a href="{{ backendUrl }}" style="display:block; max-width:280px; margin:0 auto; background:#374151; color:#fff; padding:14px 24px; text-decoration:none; border-radius:6px; font-weight:bold; text-align:center;">
+                                    Accéder au backend
+                                </a>
+                            </p>
+
+                            <p style="font-size:12px; color:#888;">
+                                Si les boutons ne marchent pas, copiez-collez ces liens dans votre navigateur :<br>
+                                Mot de passe : <a href="{{ passwordUrl }}" style="color:#1d4ed8; word-break:break-all;">{{ passwordUrl }}</a><br>
+                                Application : <a href="{{ appUrl }}" style="color:#1d4ed8; word-break:break-all;">{{ appUrl }}</a><br>
+                                Backend : <a href="{{ backendUrl }}" style="color:#1d4ed8; word-break:break-all;">{{ backendUrl }}</a>
+                            </p>
+
+                            <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+
+                            <p style="font-size:12px; color:#999;">
+                                Le lien de création du mot de passe a expiré ou vous l'avez perdu&nbsp;? Ouvrez l'application, touchez «&nbsp;Mot de passe oublié&nbsp;» sur l'écran de connexion et saisissez cette adresse e-mail&nbsp;: vous recevrez un nouveau lien. Si vous n'attendiez pas ce message, ne cliquez sur rien et prévenez le club.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#222; color:#aaa; padding:15px; text-align:center; font-size:12px;">
+                            Triathlon Toulouse Métropole — message automatique, ne pas répondre
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

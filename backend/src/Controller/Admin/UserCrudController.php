@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\BoardRole;
 use App\Enum\Profile;
 use App\Enum\UserType;
+use App\Message\SendGestionnaireWelcomeEmailMessage;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +35,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCrudController extends AbstractCrudController
@@ -51,6 +53,7 @@ class UserCrudController extends AbstractCrudController
         private readonly UserSeasonMembershipRepository $memberships,
         private readonly RequestStack $requestStack,
         private readonly AdminUrlGenerator $adminUrlGenerator,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -436,10 +439,15 @@ class UserCrudController extends AbstractCrudController
             $this->ensureParentProfileWhenChildren($entityInstance);
         }
         parent::persistEntity($entityManager, $entityInstance);
+        // Après l'enregistrement : le compte a son identifiant, et le message d'envoi le retrouve en base.
+        if ($entityInstance instanceof User && $entityInstance->isGestionnaire()) {
+            $this->sendGestionnaireWelcome($entityInstance);
+        }
     }
 
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
+        $becameGestionnaire = false;
         if ($entityInstance instanceof User) {
             $request = $this->container->get('request_stack')->getCurrentRequest();
             $plain = (string) ($request?->request->all('User')['plainPassword'] ?? '');
@@ -448,9 +456,22 @@ class UserCrudController extends AbstractCrudController
             }
             $this->reconcileLinkedToUser($entityInstance);
             $this->ensureParentProfileWhenChildren($entityInstance);
-            $this->revokeAdminOfRemovedGestionnaire($entityManager, $entityInstance);
+            $hadGestionnaire = $this->hadGestionnaireProfile($entityManager, $entityInstance);
+            $this->revokeAdminOfRemovedGestionnaire($hadGestionnaire, $entityInstance);
+            $becameGestionnaire = !$hadGestionnaire && $entityInstance->isGestionnaire();
         }
         parent::updateEntity($entityManager, $entityInstance);
+        if ($becameGestionnaire) {
+            $this->sendGestionnaireWelcome($entityInstance);
+        }
+    }
+
+    /** Le compte avait-il déjà le profil Gestionnaire externe avant cette modification (valeur en base) ? */
+    private function hadGestionnaireProfile(EntityManagerInterface $entityManager, User $user): bool
+    {
+        $original = $entityManager->getUnitOfWork()->getOriginalEntityData($user);
+
+        return in_array(Profile::Gestionnaire->value, (array) ($original['profiles'] ?? []), true);
     }
 
     /**
@@ -458,18 +479,40 @@ class UserCrudController extends AbstractCrudController
      * (qui renvoie le rôle affiché, « Administrateur ») laisserait un ancien gestionnaire administrateur sans que
      * personne l'ait décidé. Pour le garder administrateur, remettre le rôle dans une seconde modification.
      */
-    private function revokeAdminOfRemovedGestionnaire(EntityManagerInterface $entityManager, User $user): void
+    private function revokeAdminOfRemovedGestionnaire(bool $hadProfile, User $user): void
     {
-        $original = $entityManager->getUnitOfWork()->getOriginalEntityData($user);
-        $hadProfile = in_array(Profile::Gestionnaire->value, (array) ($original['profiles'] ?? []), true);
         if ($hadProfile && !$user->isGestionnaire() && $user->isAdmin()) {
             $user->setRole(User::ROLE_USER);
             $this->addFlash('warning', sprintf(
                 'Le profil Gestionnaire externe de %s a été retiré : son rôle backend est repassé à « Utilisateur ». '
                 .'Modifiez de nouveau le compte pour lui rendre un autre rôle.',
-                $user->getFullName(),
+                htmlspecialchars($user->getFullName(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
             ));
         }
+    }
+
+    /**
+     * E-mail d'accès d'un gestionnaire externe (lien pour créer son mot de passe, boutons application et backend),
+     * envoyé en arrière-plan. Le compte doit être actif et avoir une adresse : sinon on prévient l'administrateur
+     * plutôt que de laisser croire que le message est parti.
+     */
+    private function sendGestionnaireWelcome(User $user): void
+    {
+        $name = htmlspecialchars($user->getFullName(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        if (!$user->isActive() || !$user->getEmail()) {
+            $this->addFlash('warning', sprintf(
+                'L\'e-mail d\'accès de %s n\'a pas été envoyé : le compte est désactivé ou n\'a pas d\'adresse e-mail.',
+                $name,
+            ));
+
+            return;
+        }
+
+        $this->bus->dispatch(new SendGestionnaireWelcomeEmailMessage((int) $user->getId()));
+        $this->addFlash('success', sprintf(
+            'Un e-mail d\'accès (création du mot de passe, application et backend) va être envoyé à %s.',
+            htmlspecialchars((string) $user->getEmail(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        ));
     }
 
     /**
