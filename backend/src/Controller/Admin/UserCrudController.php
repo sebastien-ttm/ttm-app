@@ -142,11 +142,14 @@ class UserCrudController extends AbstractCrudController
                 Profile::Parent->value => 'warning',
                 Profile::Entraineur->value => 'dark',
                 Profile::Encadrant->value => 'danger',
+                Profile::Gestionnaire->value => 'primary',
             ])
             ->setHelp(
                 'Jeune / Sénior sont assignés automatiquement à l\'import CSV selon l\'âge dans l\'année. '
                 .'Parent, Entraîneur, Encadrant sont cochés à la main. '
-                .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur.'
+                .'Le profil Entraîneur ne donne PAS automatiquement l\'accès admin : il faut aussi mettre Rôle = Administrateur. '
+                .'À l\'inverse, le profil Gestionnaire externe donne automatiquement le rôle Administrateur (accès complet au backend) : '
+                .'à réserver aux gestionnaires de confiance extérieurs au club. En le retirant, le rôle repasse à Utilisateur.'
             );
 
         // EnumType : convertit '' ↔ null proprement, et une valeur non
@@ -177,7 +180,7 @@ class UserCrudController extends AbstractCrudController
                 'Utilisateur (mobile uniquement)' => User::ROLE_USER,
                 'Éditeur (communication + config)' => User::ROLE_EDITEUR,
                 'Entraîneur (éditeur + entraînements + présences)' => User::ROLE_ENTRAINEUR,
-                'Administrateur (tout, dont adhérents et charte)' => User::ROLE_ADMIN,
+                'Administrateur (tout, dont utilisateurs et charte)' => User::ROLE_ADMIN,
                 'Responsable RH (« Présence entraînements » + récap des heures)' => User::ROLE_RH,
             ])
             ->renderAsBadges([
@@ -191,10 +194,12 @@ class UserCrudController extends AbstractCrudController
                 'Hiérarchie : Administrateur ⊃ Entraîneur ⊃ Éditeur ⊃ Utilisateur. '
                 .'« Éditeur » : articles, calendrier, pages, bannière, badge piscines. '
                 .'« Entraîneur » : tout l\'éditeur + créneaux, semaine type, plans, présences staff. '
-                .'« Administrateur » : tout l\'entraîneur + adhérents, import CSV, charte du club. '
+                .'« Administrateur » : tout l\'entraîneur + utilisateurs, import CSV, charte du club. '
                 .'« Responsable RH » : hors hiérarchie, accès au backend limité à « Présence entraînements » '
                 .'(lecture seule) et au récap des heures encadrées par entraîneur ; reçoit ce récap par e-mail '
-                .'chaque samedi soir.'
+                .'chaque samedi soir. '
+                .'Un compte avec le profil « Gestionnaire externe » est toujours Administrateur : pour changer son rôle, '
+                .'retirer d\'abord ce profil.'
             );
 
         yield BooleanField::new('canManageTrainerSchedule', 'Entraîneur référent')
@@ -443,8 +448,28 @@ class UserCrudController extends AbstractCrudController
             }
             $this->reconcileLinkedToUser($entityInstance);
             $this->ensureParentProfileWhenChildren($entityInstance);
+            $this->revokeAdminOfRemovedGestionnaire($entityManager, $entityInstance);
         }
         parent::updateEntity($entityManager, $entityInstance);
+    }
+
+    /**
+     * Retirer le profil Gestionnaire externe retire aussi le rôle Administrateur qu'il donnait : sans cela, le formulaire
+     * (qui renvoie le rôle affiché, « Administrateur ») laisserait un ancien gestionnaire administrateur sans que
+     * personne l'ait décidé. Pour le garder administrateur, remettre le rôle dans une seconde modification.
+     */
+    private function revokeAdminOfRemovedGestionnaire(EntityManagerInterface $entityManager, User $user): void
+    {
+        $original = $entityManager->getUnitOfWork()->getOriginalEntityData($user);
+        $hadProfile = in_array(Profile::Gestionnaire->value, (array) ($original['profiles'] ?? []), true);
+        if ($hadProfile && !$user->isGestionnaire() && $user->isAdmin()) {
+            $user->setRole(User::ROLE_USER);
+            $this->addFlash('warning', sprintf(
+                'Le profil Gestionnaire externe de %s a été retiré : son rôle backend est repassé à « Utilisateur ». '
+                .'Modifiez de nouveau le compte pour lui rendre un autre rôle.',
+                $user->getFullName(),
+            ));
+        }
     }
 
     /**

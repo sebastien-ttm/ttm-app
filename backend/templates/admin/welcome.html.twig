@@ -34,6 +34,13 @@
             <p style="color:#555;">Importez un export Espace Tri pour synchroniser les comptes adhérents.</p>
             <a href="{{ path('admin_csv_import') }}" class="btn btn-primary">Importer un CSV</a>
         </div>
+        {% if is_granted('ROLE_ADMIN') %}
+        <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            <h3 style="margin-top:0;">👥 Utilisateurs</h3>
+            <p style="color:#555;">Consultez et modifiez les comptes : adhérents, parents, entraîneurs, gestionnaires externes…</p>
+            <a href="{{ ea_url().setController('App\\Controller\\Admin\\UserCrudController').setAction('index') }}" class="btn btn-primary">Liste des utilisateurs</a>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 {% endblock %}

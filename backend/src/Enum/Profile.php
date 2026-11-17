@@ -11,11 +11,17 @@ namespace App\Enum;
  *                      autonome (cf. phase 3).
  *  - Encadrant       : adhérent qui encadre des créneaux. Donne accès
  *                      à une page de saisie de présence (cf. phase 2).
+ *  - Gestionnaire    : gestionnaire extérieur au club (prestataire, bénévole
+ *                      de gestion…). Donne AUTOMATIQUEMENT le rôle backend
+ *                      Administrateur (cf. User::setProfiles) et, dans l'appli,
+ *                      les droits d'un administrateur (espace Staff, annuaire
+ *                      des adhérents…).
  *
  * L'accès au backend EasyAdmin est désormais gouverné par le simple
  * champ User::$role ('user' | 'admin'). Le profile 'entraineur' n'implique
  * pas automatiquement role='admin' — c'est à l'admin de cocher les deux
  * (la combinaison entraineur + admin lui donne accès aux sections training).
+ * Seul le profil 'gestionnaire' porte son rôle Administrateur avec lui.
  */
 enum Profile: string
 {
@@ -24,6 +30,7 @@ enum Profile: string
     case Parent = 'parent';
     case Entraineur = 'entraineur';
     case Encadrant = 'encadrant';
+    case Gestionnaire = 'gestionnaire';
 
     public function label(): string
     {
@@ -33,6 +40,7 @@ enum Profile: string
             self::Parent => 'Parent',
             self::Entraineur => 'Entraîneur',
             self::Encadrant => 'Encadrant',
+            self::Gestionnaire => 'Gestionnaire externe',
         };
     }
 
@@ -45,6 +53,7 @@ enum Profile: string
             self::Parent => '#ea580c',
             self::Entraineur => '#0d2148',
             self::Encadrant => '#dc2626',
+            self::Gestionnaire => '#7c3aed',
         };
     }
 

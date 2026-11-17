@@ -18,8 +18,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * l'appeler en cas d'urgence, et appartenance à la liste des adhérents de la saison
  * en cours.
  *
- * Données personnelles : réservé aux profils Entraîneur et Encadrant, et
- * limité à l'identité, à la photo, au téléphone et au contact d'urgence (rien d'autre n'est exposé).
+ * Données personnelles : réservé aux profils Entraîneur et Encadrant et aux administrateurs (dont les gestionnaires
+ * externes, qui ont le rôle Administrateur), et limité à l'identité, à la photo, au téléphone et au contact d'urgence
+ * (rien d'autre n'est exposé).
  */
 #[IsGranted('ROLE_USER')]
 class StaffMembersController extends AbstractController
@@ -37,7 +38,7 @@ class StaffMembersController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        if (!$viewer->isEntraineur() && !$viewer->isEncadrant()) {
+        if (!$viewer->isEntraineur() && !$viewer->isEncadrant() && !$viewer->isAdmin()) {
             throw $this->createAccessDeniedException();
         }
 

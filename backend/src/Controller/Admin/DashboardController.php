@@ -262,7 +262,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_ENTRAINEUR', fn () => AdminMenuItem::linkToRoute('Modèles documents jeunes', 'fa fa-file-signature', 'admin_youth_document_templates')],
             ],
             'Adhérents' => [
-                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Adhérents', 'fa fa-users', User::class)],
+                ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToCrud('Utilisateurs', 'fa fa-users', User::class)],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Licences en attente', 'fa fa-hourglass-half', 'admin_pending_licence')],
                 ['ROLE_ADMIN',      fn () => AdminMenuItem::linkToRoute('Adhérents externes', 'fa fa-user-plus', 'admin_external_members')
                     ->setBadge($this->externalMembersToActivate() ?: null, 'danger')],

@@ -567,6 +567,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             );
         }
         $this->profiles = array_keys($normalized);
+        // Le profil Gestionnaire externe porte avec lui le rôle backend Administrateur.
+        if (isset($normalized[Profile::Gestionnaire->value])) {
+            $this->role = self::ROLE_ADMIN;
+        }
         return $this;
     }
 
@@ -581,6 +585,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
     public function isEntraineur(): bool { return $this->hasProfile(Profile::Entraineur); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
+    /** Gestionnaire externe : administrateur du backend sans être un adhérent du club (cf. setProfiles / setRole). */
+    public function isGestionnaire(): bool { return $this->hasProfile(Profile::Gestionnaire); }
 
     /**
      * Plans d'entraînement hebdomadaires : réservés aux adultes. Un
@@ -766,6 +772,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!in_array($role, self::ALLOWED_ROLES, true)) {
             $role = self::ROLE_USER;
+        }
+        // Un gestionnaire externe reste administrateur tant qu'il a le profil : le formulaire d'administration
+        // soumet aussi le champ « Rôle backend », qui ne doit pas défaire ce que le profil vient d'accorder.
+        if ($this->isGestionnaire()) {
+            $role = self::ROLE_ADMIN;
         }
         $this->role = $role;
         return $this;
