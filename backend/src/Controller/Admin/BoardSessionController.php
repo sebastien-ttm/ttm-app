@@ -28,8 +28,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Comité directeur — page « En séance » (membres du CoDir et administrateurs) : l'ordre du jour d'une réunion,
  * classé par pôle, avec les commentaires / réponses des membres, la saisie des colonnes Qui répond ? /
  * Réponse-Décision, les actions confiées à un ou plusieurs porteurs (membres du CoDir ou autres adhérents) avec
- * leur échéance et leur clôture, l'ajout d'un point soulevé en séance, la clôture de la réunion, le compte rendu
- * imprimable (avec les actions en cours) et l'export CSV.
+ * leur échéance et leur clôture, l'ajout d'un point soulevé en séance, la modification d'un point par n'importe quel
+ * membre du CoDir, la clôture de la réunion, le compte rendu imprimable (avec les actions en cours) et l'export CSV.
  */
 #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
 class BoardSessionController extends AbstractController
@@ -129,6 +129,37 @@ class BoardSessionController extends AbstractController
         $this->em->persist($item);
         $this->em->flush();
         $this->addFlash('success', 'Point ajouté.');
+
+        return $this->backTo($meeting, 'item-'.$item->getId());
+    }
+
+    /**
+     * Modification d'un point (pôle, type, « Qui s'exprime ? », texte) par n'importe quel membre du CoDir ou
+     * administrateur — pas seulement son auteur —, y compris traité ou dans une réunion close (corriger le compte rendu).
+     */
+    #[Route('/admin/codir/items/{id}/update', name: 'admin_board_item_update', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function updateItem(int $id, Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request);
+        $item = $this->items->find($id);
+        if ($item === null) {
+            throw $this->createNotFoundException();
+        }
+        $meeting = $item->getMeeting();
+        $pole = BoardPole::tryFrom((string) $request->request->get('pole', ''));
+        $type = BoardItemType::tryFrom((string) $request->request->get('type', ''));
+        $text = trim((string) $request->request->get('text', ''));
+        if ($pole === null || $type === null || $text === '') {
+            $this->addFlash('danger', 'Pôle, type et texte sont obligatoires : le point n\'a pas été modifié.');
+            return $this->backTo($meeting, 'item-'.$item->getId());
+        }
+        if (mb_strlen($text) > BoardAgendaItem::TEXT_MAX) {
+            $this->addFlash('danger', sprintf('Texte trop long (%d caractères max) : le point n\'a pas été modifié.', BoardAgendaItem::TEXT_MAX));
+            return $this->backTo($meeting, 'item-'.$item->getId());
+        }
+        $item->setPole($pole)->setType($type)->setText($text)->setSpeaker((string) $request->request->get('speaker', ''));
+        $this->em->flush();
+        $this->addFlash('success', 'Point modifié.');
 
         return $this->backTo($meeting, 'item-'.$item->getId());
     }
@@ -245,7 +276,7 @@ class BoardSessionController extends AbstractController
         return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
     }
 
-    /** Modération : retire un commentaire / une réponse déposé depuis l'appli. */
+    /** Modération : retire un commentaire / une réponse déposé depuis l'appli, avec les réponses qu'il a reçues. */
     #[Route('/admin/codir/comments/{id}/delete', name: 'admin_board_comment_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function deleteComment(int $id, Request $request): RedirectResponse
     {
@@ -255,8 +286,11 @@ class BoardSessionController extends AbstractController
             throw $this->createNotFoundException();
         }
         $item = $comment->getItem();
-        $item->removeComment($comment);
-        $this->em->remove($comment);
+        // Le commentaire et ses réponses (la base les supprime en cascade ; la collection en mémoire doit suivre).
+        foreach ($item->getCommentThread($comment) as $c) {
+            $item->removeComment($c);
+            $this->em->remove($c);
+        }
         $this->em->flush();
         $this->addFlash('success', 'Commentaire supprimé.');
 
@@ -341,9 +375,13 @@ class BoardSessionController extends AbstractController
             fputcsv($out, [$meeting->getLabel().($meeting->getLocation() ? ' · '.$meeting->getLocation() : '')], ';');
             fputcsv($out, ['Sujets Pôle', 'Qui s\'exprime ?', 'Type', 'Information/Sujet/Question', 'Commentaires / réponses des membres', 'Qui répond ?', 'Réponse/Décision', 'Porteur action'], ';');
             foreach ($meeting->getSortedItems() as $i) {
+                // En fil : une réponse est préfixée de « ↳ » et du nom de l'auteur du commentaire auquel elle répond.
                 $comments = array_map(
-                    static fn (BoardItemComment $c) => $c->getAuthorName().' : '.$c->getText(),
-                    $i->getComments()->toArray(),
+                    static fn (array $t) => ($t['replyTo'] !== null ? '↳ ' : '')
+                        .$t['comment']->getAuthorName()
+                        .($t['replyTo'] !== null ? ' (à '.$t['replyTo'].')' : '')
+                        .' : '.$t['comment']->getText(),
+                    $i->getThreadedComments(),
                 );
                 $actions = array_map(
                     static fn (BoardAction $a) => $a->getText()

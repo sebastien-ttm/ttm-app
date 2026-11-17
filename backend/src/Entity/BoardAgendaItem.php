@@ -17,8 +17,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  * `author` = le compte qui a ajouté le point (dans l'appli, ou le secrétaire en séance) ; `speaker` = « Qui
  * s'exprime ? », par défaut le prénom de l'auteur. Les trois derniers champs sont saisis en séance.
  *
- * Les autres membres du CoDir peuvent commenter un point (réponse s'il s'agit d'une Question) tant que la réunion
- * est ouverte : `comments`. En séance, des actions (`actions`) sont confiées à un ou plusieurs porteurs ;
+ * Les membres du CoDir peuvent commenter un point (réponse s'il s'agit d'une Question), sans limite de nombre, et
+ * répondre aux commentaires des autres tant que la réunion est ouverte : `comments` (fil via getThreadedComments()). En séance, des actions (`actions`) sont confiées à un ou plusieurs porteurs ;
  * `actionOwner` (texte libre) ne sert plus que pour les points saisis avant l'introduction des actions.
  */
 #[ORM\Entity(repositoryClass: BoardAgendaItemRepository::class)]
@@ -26,6 +26,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 class BoardAgendaItem
 {
     public const TEXT_MAX = 2000;
+    /** Profondeur maximale d'indentation d'un fil de commentaires (au-delà, les réponses restent au même niveau). */
+    public const COMMENT_MAX_DEPTH = 2;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -159,6 +161,83 @@ class BoardAgendaItem
         return $this;
     }
 
+    /**
+     * Commentaires en fil : chaque commentaire de premier niveau suivi de ses réponses (récursivement, dans l'ordre
+     * chronologique). `depth` (0 = premier niveau) est plafonné à COMMENT_MAX_DEPTH pour l'indentation ; `replyTo` est le
+     * nom de l'auteur du commentaire auquel on répond (null au premier niveau).
+     *
+     * @return list<array{comment: BoardItemComment, depth: int, replyTo: ?string}>
+     */
+    public function getThreadedComments(): array
+    {
+        $present = [];
+        foreach ($this->comments as $c) {
+            $present[$c->getId()] = true;
+        }
+        $children = [];
+        $roots = [];
+        foreach ($this->comments as $c) {
+            $parentId = $c->getParent()?->getId();
+            if ($parentId !== null && isset($present[$parentId])) {
+                $children[$parentId][] = $c;
+            } else {
+                $roots[] = $c;
+            }
+        }
+        $out = [];
+        $walk = function (BoardItemComment $c, int $depth) use (&$walk, &$out, $children): void {
+            $out[] = [
+                'comment' => $c,
+                'depth' => min($depth, self::COMMENT_MAX_DEPTH),
+                'replyTo' => $depth > 0 ? $c->getParent()?->getAuthorName() : null,
+            ];
+            foreach ($children[$c->getId()] ?? [] as $child) {
+                $walk($child, $depth + 1);
+            }
+        };
+        foreach ($roots as $root) {
+            $walk($root, 0);
+        }
+
+        return $out;
+    }
+
+    /** Ce commentaire a-t-il reçu au moins une réponse ? */
+    public function hasReplies(BoardItemComment $comment): bool
+    {
+        foreach ($this->comments as $c) {
+            if ($c->getParent() !== null && $c->getParent()->getId() === $comment->getId()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Le commentaire et toutes ses réponses (descendants), les réponses d'abord : ce qu'il faut retirer ensemble quand
+     * on supprime un commentaire (la base supprime les réponses en cascade, la collection en mémoire doit suivre).
+     *
+     * @return list<BoardItemComment>
+     */
+    public function getCommentThread(BoardItemComment $root): array
+    {
+        $thread = [$root];
+        $ids = [$root->getId() => true];
+        do {
+            $added = false;
+            foreach ($this->comments as $c) {
+                $parentId = $c->getParent()?->getId();
+                if ($parentId !== null && isset($ids[$parentId]) && !isset($ids[$c->getId()])) {
+                    $ids[$c->getId()] = true;
+                    $thread[] = $c;
+                    $added = true;
+                }
+            }
+        } while ($added);
+
+        return array_reverse($thread);
+    }
+
     /** @return Collection<int, BoardAction> */
     public function getActions(): Collection { return $this->actions; }
 
@@ -177,13 +256,13 @@ class BoardAgendaItem
     }
 
     /**
-     * Un membre du CoDir peut commenter (ou répondre à) le point d'un autre tant que la réunion est ouverte.
-     * Le libellé « commentaire » / « réponse » se déduit du type du point.
+     * Tout membre (y compris l'auteur du point, pour répondre à ceux qui l'ont commenté) peut ajouter autant de
+     * commentaires qu'il veut, et répondre à n'importe quel commentaire, tant que la réunion est ouverte. Le libellé
+     * « commentaire » / « réponse » se déduit du type du point.
      */
     public function isCommentableBy(User $user): bool
     {
-        return !$this->meeting->isClosed()
-            && ($this->author === null || $this->author->getId() !== $user->getId());
+        return !$this->meeting->isClosed();
     }
 
     /** « Commentaires » pour une Information ou un Sujet, « Réponses » pour une Question. */

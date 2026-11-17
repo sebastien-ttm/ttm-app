@@ -92,8 +92,11 @@
                         <div class="block">
                             <span class="k">{{ item.commentsLabel }} des membres</span>
                             <ul>
-                                {% for c in item.comments %}
-                                    <li><strong>{{ c.authorName }}</strong> : <span class="free">{{ c.text }}</span></li>
+                                {# En fil : une réponse est en retrait, avec le nom de l'auteur du commentaire auquel elle répond #}
+                                {% for t in item.threadedComments %}
+                                    <li style="{{ t.depth > 0 ? 'margin-left:' ~ (t.depth * 18) ~ 'px; list-style:none;' : '' }}">
+                                        {% if t.replyTo %}↳ {% endif %}<strong>{{ t.comment.authorName }}</strong>{% if t.replyTo %} <span style="color:#64748b;">(à {{ t.replyTo }})</span>{% endif %} : <span class="free">{{ t.comment.text }}</span>
+                                    </li>
                                 {% endfor %}
                             </ul>
                         </div>

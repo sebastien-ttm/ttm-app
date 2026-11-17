@@ -29,7 +29,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - détail d'une réunion : points classés par pôle, avec les réponses / décisions saisies en séance ;
  *  - ajout d'un point (pôle, Information / Sujet / Question, texte) tant que la réunion n'est pas close ;
  *  - modification / suppression de ses propres points tant qu'ils n'ont pas été traités ;
- *  - commentaire (réponse, pour une Question) sur le point d'un autre membre tant que la réunion est ouverte ;
+ *  - commentaires (réponses, pour une Question) sur n'importe quel point, sans limite de nombre, et réponses aux
+ *    commentaires (fil) tant que la réunion est ouverte ;
  *  - lecture des actions confiées en séance (saisies dans le back-office), avec échéance et état : la liste des
  *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`).
  */
@@ -129,7 +130,10 @@ class BoardMeetingController extends AbstractController
         return new JsonResponse($this->detailPayload($meeting, $viewer));
     }
 
-    /** Commentaire (ou réponse, pour une Question) sur le point d'un autre membre. JSON : { text }. */
+    /**
+     * Commentaire (ou réponse, pour une Question) sur un point — le sien compris, pour répondre à ceux qui l'ont
+     * commenté — sans limite de nombre. JSON : { text, parentId? } ; `parentId` = commentaire du même point auquel on répond.
+     */
     #[Route('/items/{id}/comments', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function addComment(int $id, Request $request): JsonResponse
     {
@@ -144,7 +148,7 @@ class BoardMeetingController extends AbstractController
             return new JsonResponse(['error' => 'Cette réunion est close : les commentaires ne sont plus ouverts.'], Response::HTTP_CONFLICT);
         }
         if (!$item->isCommentableBy($viewer)) {
-            return new JsonResponse(['error' => 'Vous ne pouvez pas commenter votre propre point.'], Response::HTTP_FORBIDDEN);
+            return new JsonResponse(['error' => 'Les commentaires ne sont pas ouverts sur ce point.'], Response::HTTP_FORBIDDEN);
         }
         $payload = json_decode($request->getContent(), true);
         $text = is_array($payload) ? trim((string) ($payload['text'] ?? '')) : '';
@@ -155,7 +159,16 @@ class BoardMeetingController extends AbstractController
             return new JsonResponse(['error' => sprintf('Message trop long (%d caractères max).', BoardItemComment::TEXT_MAX)], Response::HTTP_BAD_REQUEST);
         }
 
-        $comment = new BoardItemComment($item, $viewer, $text);
+        $parent = null;
+        $parentId = is_array($payload) ? ($payload['parentId'] ?? null) : null;
+        if ($parentId !== null && $parentId !== '') {
+            $parent = is_numeric($parentId) ? $this->em->getRepository(BoardItemComment::class)->find((int) $parentId) : null;
+            if ($parent === null || $parent->getItem()->getId() !== $item->getId()) {
+                return new JsonResponse(['error' => 'Le commentaire auquel vous répondez n\'existe plus.'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        $comment = new BoardItemComment($item, $viewer, $text, $parent);
         $item->addComment($comment);
         $this->em->persist($comment);
         $this->em->flush();
@@ -163,7 +176,7 @@ class BoardMeetingController extends AbstractController
         return new JsonResponse($this->detailPayload($meeting, $viewer), Response::HTTP_CREATED);
     }
 
-    /** Suppression de son propre commentaire tant que la réunion est ouverte. */
+    /** Suppression de son propre commentaire tant que la réunion est ouverte et que personne n'y a répondu. */
     #[Route('/comments/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteComment(int $id): JsonResponse
     {
@@ -177,6 +190,9 @@ class BoardMeetingController extends AbstractController
         $meeting = $item->getMeeting();
         if ($meeting->isClosed() || !$comment->isAuthoredBy($viewer)) {
             throw $this->createAccessDeniedException('Seul l\'auteur peut supprimer son commentaire, tant que la réunion est ouverte.');
+        }
+        if ($item->hasReplies($comment)) {
+            return new JsonResponse(['error' => 'Ce commentaire a reçu des réponses : il ne peut plus être supprimé.'], Response::HTTP_CONFLICT);
         }
         $item->removeComment($comment);
         $this->em->remove($comment);
@@ -250,14 +266,19 @@ class BoardMeetingController extends AbstractController
                 'answered' => $i->isAnswered(),
                 'createdAt' => $i->getCreatedAt()->format(\DATE_ATOM),
                 'canComment' => $i->isCommentableBy($viewer),
-                'comments' => array_map(static fn (BoardItemComment $c) => [
-                    'id' => $c->getId(),
-                    'authorName' => $c->getAuthorName(),
-                    'text' => $c->getText(),
-                    'isMine' => $c->isAuthoredBy($viewer),
-                    'canDelete' => !$i->getMeeting()->isClosed() && $c->isAuthoredBy($viewer),
-                    'createdAt' => $c->getCreatedAt()->format(\DATE_ATOM),
-                ], $i->getComments()->toArray()),
+                // En fil : chaque commentaire suivi de ses réponses ; `depth` = indentation (0 à 2), `replyToName` = auteur
+                // du commentaire auquel on répond.
+                'comments' => array_map(static fn (array $t) => [
+                    'id' => $t['comment']->getId(),
+                    'parentId' => $t['comment']->getParent()?->getId(),
+                    'depth' => $t['depth'],
+                    'replyToName' => $t['replyTo'],
+                    'authorName' => $t['comment']->getAuthorName(),
+                    'text' => $t['comment']->getText(),
+                    'isMine' => $t['comment']->isAuthoredBy($viewer),
+                    'canDelete' => !$i->getMeeting()->isClosed() && $t['comment']->isAuthoredBy($viewer) && !$i->hasReplies($t['comment']),
+                    'createdAt' => $t['comment']->getCreatedAt()->format(\DATE_ATOM),
+                ], $i->getThreadedComments()),
                 'actions' => array_map(fn (BoardAction $a) => $this->actionPayload($a, $viewer), $i->getActions()->toArray()),
             ], $m->getSortedItems()),
         ];

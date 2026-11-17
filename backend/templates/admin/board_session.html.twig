@@ -106,18 +106,49 @@
                     </div>
                     <div style="font-size:15px; margin:6px 0 10px; white-space:pre-line;">{{ item.text }}</div>
 
-                    {# Commentaires (Information / Sujet) ou réponses (Question) déposés par les membres depuis l'appli #}
+                    {# Modification du point : ouverte à tout membre du CoDir / administrateur (pas seulement à l'auteur) #}
+                    <details style="margin:0 0 10px;">
+                        <summary style="cursor:pointer; font-size:13px; color:#2563eb;">Modifier le point</summary>
+                        <form method="post" action="{{ path('admin_board_item_update', {id: item.id}) }}" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:8px;">
+                            <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                            <div>
+                                <label style="{{ label }}">Pôle</label>
+                                <select name="pole" required style="{{ input }}">
+                                    {% for p in poles %}<option value="{{ p.value }}" {{ p == item.pole ? 'selected' : '' }}>{{ p.label }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="{{ label }}">Type</label>
+                                <select name="type" required style="{{ input }}">
+                                    {% for t in types %}<option value="{{ t.value }}" {{ t == item.type ? 'selected' : '' }}>{{ t.label }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="{{ label }}">Qui s'exprime ?</label>
+                                <input type="text" name="speaker" value="{{ item.speaker }}" maxlength="120" placeholder="Prénom" style="{{ input }}">
+                            </div>
+                            <div style="grid-column: 1 / -1;">
+                                <label style="{{ label }}">Information / Sujet / Question</label>
+                                <textarea name="text" rows="3" required maxlength="2000" style="{{ input }}">{{ item.text }}</textarea>
+                            </div>
+                            <div><button type="submit" class="btn btn-primary btn-sm">Enregistrer le point</button></div>
+                        </form>
+                    </details>
+
+                    {# Commentaires (Information / Sujet) ou réponses (Question) déposés par les membres depuis l'appli, en fil : les réponses sont en retrait #}
                     {% if item.comments|length > 0 %}
                         <div style="background:#f8fafc; border-radius:6px; padding:8px 12px; margin-bottom:10px;">
                             <div style="{{ label }}">{{ item.commentsLabel }} des membres ({{ item.comments|length }})</div>
-                            {% for c in item.comments %}
-                                <div style="display:flex; gap:10px; align-items:flex-start; font-size:14px; margin-top:6px;">
+                            {% for t in item.threadedComments %}
+                                {% set c = t.comment %}
+                                <div style="display:flex; gap:10px; align-items:flex-start; font-size:14px; margin-top:6px; margin-left:{{ t.depth * 22 }}px; {{ t.depth > 0 ? 'padding-left:10px; border-left:2px solid #cbd5e1;' : '' }}">
                                     <div style="flex:1;">
                                         <strong>{{ c.authorName }}</strong>
+                                        {% if t.replyTo %}<span style="font-size:12px; color:#64748b;">↳ en réponse à {{ t.replyTo }}</span>{% endif %}
                                         <span style="font-size:12px; color:#94a3b8;">{{ c.createdAt|date('d/m à H\\hi') }}</span>
                                         <div style="white-space:pre-line;">{{ c.text }}</div>
                                     </div>
-                                    <form method="post" action="{{ path('admin_board_comment_delete', {id: c.id}) }}" onsubmit="return confirm('Supprimer ce message ?');">
+                                    <form method="post" action="{{ path('admin_board_comment_delete', {id: c.id}) }}" onsubmit="return confirm('Supprimer ce message{{ item.hasReplies(c) ? ' et les réponses qu\\\'il a reçues' : '' }} ?');">
                                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                                         <button type="submit" class="btn btn-link btn-sm" style="color:#b91c1c; padding:0;">Supprimer</button>
                                     </form>
