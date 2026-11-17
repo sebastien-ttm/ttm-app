@@ -1824,9 +1824,16 @@ export type BoardMeetingSummary = {
   answeredCount: number;
 };
 
-/** Commentaire (Information / Sujet) ou réponse (Question) d'un membre sur le point d'un autre. */
+/**
+ * Commentaire (Information / Sujet) ou réponse (Question) d'un membre sur un point. Les commentaires arrivent « en
+ * fil » : chacun suivi de ses réponses ; `depth` (0 à 2) donne le retrait, `replyToName` l'auteur du commentaire
+ * auquel on répond. (Champs absents d'un serveur pas encore à jour : tout est alors au premier niveau.)
+ */
 export type BoardComment = {
   id: number;
+  parentId?: number | null;
+  depth?: number;
+  replyToName?: string | null;
   authorName: string;
   text: string;
   isMine: boolean;
@@ -1879,7 +1886,7 @@ export type BoardAgendaItem = {
   actionOwner: string | null;
   answered: boolean;
   createdAt: string;
-  /** Réunion ouverte et point d'un autre membre : on peut le commenter (ou y répondre, pour une Question). */
+  /** Réunion ouverte : on peut commenter le point (ou y répondre, pour une Question) sans limite, et répondre aux commentaires. */
   canComment: boolean;
   comments: BoardComment[];
   actions: BoardAction[];

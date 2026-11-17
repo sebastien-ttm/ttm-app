@@ -680,9 +680,9 @@ export const board = {
     api.post<BoardMeetingDetail>(`/api/board/meetings/${meetingId}/items`, input),
   updateItem: (itemId: number, input: BoardItemInput) => api.patch<BoardMeetingDetail>(`/api/board/items/${itemId}`, input),
   removeItem: (itemId: number) => api.delete<BoardMeetingDetail>(`/api/board/items/${itemId}`),
-  /** Commentaire (ou réponse, pour une Question) sur le point d'un autre membre. */
-  addComment: (itemId: number, text: string) =>
-    api.post<BoardMeetingDetail>(`/api/board/items/${itemId}/comments`, { text }),
+  /** Commentaire (ou réponse, pour une Question) sur un point ; `parentId` = commentaire auquel on répond. */
+  addComment: (itemId: number, text: string, parentId?: number | null) =>
+    api.post<BoardMeetingDetail>(`/api/board/items/${itemId}/comments`, parentId ? { text, parentId } : { text }),
   removeComment: (commentId: number) => api.delete<BoardMeetingDetail>(`/api/board/comments/${commentId}`),
 };
 
