@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Enum\BoardRole;
 use App\Enum\Profile;
 use App\Enum\UserType;
+use App\Filter\ProfileTypeFilter;
 use App\Message\SendGestionnaireWelcomeEmailMessage;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
@@ -34,6 +35,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -78,6 +80,9 @@ class UserCrudController extends AbstractCrudController
         return $filters
             ->add(BooleanFilter::new('isActive', 'Actif'))
             ->add(BooleanFilter::new('externalAssociation', 'Association sportive externe'))
+            // Sous-filtre « Profil / type de compte » : Adhérent, Externe, Jeune, Sénior, Parent, Entraîneur, Encadrant,
+            // Gestionnaire externe — plusieurs choix possibles (l'un OU l'autre).
+            ->add(ProfileTypeFilter::new('profileType', 'Profil / type de compte'))
             ->add(ChoiceFilter::new('type', 'Type')
                 ->setChoices(['Adhérent' => UserType::Adherent, 'Externe' => UserType::Externe]))
             ->add(ChoiceFilter::new('subType', 'Sous-type')
@@ -418,9 +423,28 @@ class UserCrudController extends AbstractCrudController
         if ($this->getContext()?->getCrud()?->getCurrentAction() !== Action::INDEX) {
             return self::SEASON_ALL;
         }
+        // Dès qu'on recherche ou qu'on filtre (inactifs, externes, gestionnaires… qui n'ont pas d'adhésion sur la saison
+        // courante), on cherche parmi tous les comptes : le bouton « Toutes les saisons » s'allume. Un bouton de saison
+        // reste applicable à tout moment (il ajoute alors seasonFilter à l'URL, filtres conservés).
+        if ($this->hasSearchOrFilters($req)) {
+            return self::SEASON_ALL;
+        }
         $currentId = $this->seasons->findCurrent()?->getId();
 
         return $currentId !== null ? (string) $currentId : self::SEASON_ALL;
+    }
+
+    /** La requête porte-t-elle une recherche (`query`) ou au moins un filtre EasyAdmin (`filters[...]`) ? */
+    private function hasSearchOrFilters(?Request $req): bool
+    {
+        if ($req === null) {
+            return false;
+        }
+        $params = $req->query->all();
+        $search = $params['query'] ?? null;
+        $filters = $params['filters'] ?? null;
+
+        return (is_string($search) && trim($search) !== '') || (is_array($filters) && $filters !== []);
     }
 
     private function seasonUrl(string $filter): string

@@ -66,6 +66,7 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
+            - '../src/Filter/'
             - '../src/Kernel.php'
             # DataFixtures dépendent de doctrine/doctrine-fixtures-bundle qui
             # est en require-dev ; on les exclut de la compilation par défaut
