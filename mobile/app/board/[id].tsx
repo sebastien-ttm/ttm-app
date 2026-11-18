@@ -182,8 +182,24 @@ export default function BoardMeetingScreen() {
     );
   }
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!meeting) return <FullScreenLoading />;
+  // Titre posé dès le premier rendu : sans lui, l'en-tête affiche le nom de la route (« board/[id] ») jusqu'à l'arrivée
+  // de la réunion (le titre définitif est son libellé, plus bas).
+  if (error) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Comité directeur' }} />
+        <ErrorState message={error} onRetry={load} />
+      </>
+    );
+  }
+  if (!meeting) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Comité directeur' }} />
+        <FullScreenLoading />
+      </>
+    );
+  }
 
   // Regroupement par pôle (les points arrivent déjà triés dans l'ordre du compte rendu).
   const groups: { label: string; pole: string; items: BoardAgendaItem[] }[] = [];
