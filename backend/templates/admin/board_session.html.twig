@@ -201,8 +201,8 @@
                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                         <div>
                             <label style="{{ label }}">Qui répond ?</label>
-                            {# Membre du CoDir ou entraîneur invité uniquement (même liste que « Qui s'exprime ? ») #}
-                            {% include 'admin/_board_speaker_select.html.twig' with {name: 'respondent', input: input, speakersCodir: speakersCodir, speakersCoaches: speakersCoaches, speakerNames: speakerNames, current: item.respondent, defaultId: null} only %}
+                            {# Le CoDir dans son ensemble, un membre du CoDir ou un entraîneur invité (même liste que « Qui s'exprime ? ») #}
+                            {% include 'admin/_board_speaker_select.html.twig' with {name: 'respondent', collective: collectiveRespondent, emptyLabel: '— non renseigné —', input: input, speakersCodir: speakersCodir, speakersCoaches: speakersCoaches, speakerNames: speakerNames, current: item.respondent, defaultId: null} only %}
                         </div>
                         <div>
                             <label style="{{ label }}">Réponse / Décision</label>

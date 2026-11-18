@@ -27,6 +27,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 class BoardAgendaItem
 {
     public const TEXT_MAX = 2000;
+    /** « Qui répond ? » collectif : c'est le comité directeur dans son ensemble qui répond / décide. */
+    public const RESPONDENT_CODIR = 'CoDir';
     /** Profondeur maximale d'indentation d'un fil de commentaires (au-delà, les réponses restent au même niveau). */
     public const COMMENT_MAX_DEPTH = 2;
 

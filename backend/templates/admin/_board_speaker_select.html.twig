@@ -3,11 +3,19 @@
     Variables : input (style), speakersCodir, speakersCoaches, speakerNames (noms complets de la liste),
     current (intervenant déjà enregistré d'un point existant, sinon null), defaultId (pré-sélection à l'ajout, sinon null).
     name : nom du champ posté (« speaker » par défaut ; « respondent » pour « Qui répond ? »).
-    Valeur postée : identifiant du compte, « » (personne) ou « keep » (conserver une ancienne saisie libre non reconnue).
+    collective : libellé d'une réponse collective (« CoDir ») proposée avant les personnes, ou absent ; emptyLabel : libellé
+    de l'option vide (« — personne — » par défaut).
+    Valeur postée : identifiant du compte, « codir » (réponse collective), « » (vide) ou « keep » (conserver une
+    ancienne saisie libre non reconnue).
 #}
+{% set collectiveLabel = collective|default(null) %}
+{% set isCollective = collectiveLabel and current and current|lower == collectiveLabel|lower %}
 <select name="{{ name|default('speaker') }}" style="{{ input }}">
-    <option value="">— personne —</option>
-    {% if current and current not in speakerNames %}
+    <option value="">{{ emptyLabel|default('— personne —') }}</option>
+    {% if collectiveLabel %}
+        <option value="codir" {{ isCollective ? 'selected' : '' }}>{{ collectiveLabel }} (collectif)</option>
+    {% endif %}
+    {% if current and not isCollective and current not in speakerNames %}
         <option value="keep" selected>{{ current }} (saisie libre actuelle)</option>
     {% endif %}
     {% if speakersCodir|length > 0 %}

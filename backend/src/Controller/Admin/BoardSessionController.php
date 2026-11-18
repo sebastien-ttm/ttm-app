@@ -98,6 +98,8 @@ class BoardSessionController extends AbstractController
             'speakerNames' => array_map(static fn (User $u) => $u->getFullName(), [...$codir, ...$coaches]),
             // À l'ajout d'un point, l'intervenant proposé par défaut est l'utilisateur connecté s'il peut s'exprimer.
             'defaultSpeakerId' => $viewer->canSpeakAtBoard() ? $viewer->getId() : null,
+            // « Qui répond ? » peut être le CoDir dans son ensemble.
+            'collectiveRespondent' => BoardAgendaItem::RESPONDENT_CODIR,
             'csrf' => self::CSRF,
         ]);
     }
@@ -110,16 +112,24 @@ class BoardSessionController extends AbstractController
         if ($item === null) {
             throw $this->createNotFoundException();
         }
-        // « Qui répond ? » : un membre du CoDir ou un entraîneur invité (« keep » conserve une ancienne saisie libre).
+        // « Qui répond ? » : « codir » = le CoDir collectivement ; sinon un membre du CoDir ou un entraîneur invité
+        // (« keep » conserve une ancienne saisie libre ; vide = non renseigné).
         $rawRespondent = trim((string) $request->request->get('respondent', 'keep'));
-        $respondent = $rawRespondent === 'keep' ? null : $this->resolveParticipant($rawRespondent);
-        if ($respondent === false) {
-            $this->addFlash('danger', 'Qui répond ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : la réponse n\'a pas été enregistrée.');
-            return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+        if ($rawRespondent === 'keep') {
+            $respondentName = $item->getRespondent();
+        } elseif ($rawRespondent === 'codir') {
+            $respondentName = BoardAgendaItem::RESPONDENT_CODIR;
+        } else {
+            $respondent = $this->resolveParticipant($rawRespondent);
+            if ($respondent === false) {
+                $this->addFlash('danger', 'Qui répond ? Choisissez le CoDir, un membre du CoDir ou un entraîneur invité : la réponse n\'a pas été enregistrée.');
+                return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+            }
+            $respondentName = $respondent?->getFullName();
         }
         // « Porteur action » (texte libre) n'est plus saisi que sur les anciens points : sans le champ, on le conserve.
         $item->recordAnswer(
-            $rawRespondent === 'keep' ? $item->getRespondent() : $respondent?->getFullName(),
+            $respondentName,
             (string) $request->request->get('answer', ''),
             $request->request->has('actionOwner') ? (string) $request->request->get('actionOwner', '') : $item->getActionOwner(),
         );
