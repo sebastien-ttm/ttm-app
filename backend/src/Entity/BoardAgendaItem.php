@@ -15,7 +15,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  * Pôle · Qui s'exprime ? · Information/Sujet/Question · Qui répond ? · Réponse/Décision · Porteur action.
  *
  * `author` = le compte qui a ajouté le point (dans l'appli, ou le secrétaire en séance) ; `speaker` = « Qui
- * s'exprime ? », par défaut le prénom de l'auteur. Les trois derniers champs sont saisis en séance.
+ * s'exprime ? », en nom complet : par défaut l'auteur, s'il est membre du CoDir ou entraîneur invité (seuls ceux-là
+ * peuvent s'exprimer ; le back-office choisit l'intervenant dans cette liste). Les trois derniers champs sont saisis en séance.
  *
  * Les membres du CoDir peuvent commenter un point (réponse s'il s'agit d'une Question), sans limite de nombre, et
  * répondre aux commentaires des autres tant que la réunion est ouverte : `comments` (fil via getThreadedComments()). En séance, des actions (`actions`) sont confiées à un ou plusieurs porteurs ;
@@ -96,7 +97,8 @@ class BoardAgendaItem
         $this->type = $type;
         $this->setText($text);
         $this->author = $author;
-        $this->speaker = $author?->getPrenom();
+        // « Qui s'exprime ? » : nom complet de l'auteur — seulement s'il est membre du CoDir ou entraîneur invité.
+        $this->speaker = $author !== null && $author->canSpeakAtBoard() ? mb_substr($author->getFullName(), 0, 120) : null;
         $this->createdAt = new \DateTimeImmutable();
         $this->comments = new ArrayCollection();
         $this->actions = new ArrayCollection();

@@ -1,0 +1,26 @@
+{#
+    « Qui s'exprime ? » : liste des personnes autorisées à s'exprimer en réunion — membres du CoDir, puis entraîneurs invités.
+    Variables : input (style), speakersCodir, speakersCoaches, speakerNames (noms complets de la liste),
+    current (intervenant déjà enregistré d'un point existant, sinon null), defaultId (pré-sélection à l'ajout, sinon null).
+    Valeur postée : identifiant du compte, « » (personne) ou « keep » (conserver une ancienne saisie libre non reconnue).
+#}
+<select name="speaker" style="{{ input }}">
+    <option value="">— personne —</option>
+    {% if current and current not in speakerNames %}
+        <option value="keep" selected>{{ current }} (saisie libre actuelle)</option>
+    {% endif %}
+    {% if speakersCodir|length > 0 %}
+        <optgroup label="Comité directeur">
+            {% for u in speakersCodir %}
+                <option value="{{ u.id }}" {{ (current ? u.fullName == current : u.id == defaultId) ? 'selected' : '' }}>{{ u.fullName }} ({{ u.boardRole.label }})</option>
+            {% endfor %}
+        </optgroup>
+    {% endif %}
+    {% if speakersCoaches|length > 0 %}
+        <optgroup label="Entraîneurs invités">
+            {% for u in speakersCoaches %}
+                <option value="{{ u.id }}" {{ (current ? u.fullName == current : u.id == defaultId) ? 'selected' : '' }}>{{ u.fullName }}</option>
+            {% endfor %}
+        </optgroup>
+    {% endif %}
+</select>

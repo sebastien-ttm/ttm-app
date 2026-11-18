@@ -49,6 +49,10 @@ class BoardItemComment
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?self $parent = null;
 
+    /** Date de la dernière modification du texte par son auteur (null = jamais modifié). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $updatedAt = null;
+
     public function __construct(BoardAgendaItem $item, User $author, string $text, ?self $parent = null)
     {
         $this->item = $item;
@@ -68,6 +72,22 @@ class BoardItemComment
 
     /** Le commentaire auquel celui-ci répond, ou null pour un commentaire de premier niveau. */
     public function getParent(): ?self { return $this->parent; }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
+
+    /** Le texte a-t-il été modifié depuis sa publication ? */
+    public function isEdited(): bool { return $this->updatedAt !== null; }
+
+    /** Remplace le texte (l'auteur corrige son commentaire) ; une saisie identique ne marque pas « modifié ». */
+    public function edit(string $text): self
+    {
+        $text = mb_substr(trim($text), 0, self::TEXT_MAX);
+        if ($text !== $this->text) {
+            $this->text = $text;
+            $this->updatedAt = new \DateTimeImmutable();
+        }
+        return $this;
+    }
 
     public function isAuthoredBy(User $user): bool
     {

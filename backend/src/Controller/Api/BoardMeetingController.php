@@ -30,7 +30,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - ajout d'un point (pôle, Information / Sujet / Question, texte) tant que la réunion n'est pas close ;
  *  - modification / suppression de ses propres points tant qu'ils n'ont pas été traités ;
  *  - commentaires (réponses, pour une Question) sur n'importe quel point, sans limite de nombre, et réponses aux
- *    commentaires (fil) tant que la réunion est ouverte ;
+ *    commentaires (fil) tant que la réunion est ouverte ; modification de ses propres commentaires ;
  *  - lecture des actions confiées en séance (saisies dans le back-office), avec échéance et état : la liste des
  *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`).
  */
@@ -176,6 +176,37 @@ class BoardMeetingController extends AbstractController
         return new JsonResponse($this->detailPayload($meeting, $viewer), Response::HTTP_CREATED);
     }
 
+    /** Modification de son propre commentaire tant que la réunion est ouverte (même s'il a reçu des réponses). JSON : { text }. */
+    #[Route('/comments/{id}', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function updateComment(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $comment = $this->em->getRepository(BoardItemComment::class)->find($id);
+        if ($comment === null) {
+            throw $this->createNotFoundException('Commentaire introuvable.');
+        }
+        $meeting = $comment->getItem()->getMeeting();
+        if ($meeting->isClosed()) {
+            return new JsonResponse(['error' => 'Cette réunion est close : les commentaires ne sont plus modifiables.'], Response::HTTP_CONFLICT);
+        }
+        if (!$comment->isAuthoredBy($viewer)) {
+            throw $this->createAccessDeniedException('Seul l\'auteur peut modifier son commentaire.');
+        }
+        $payload = json_decode($request->getContent(), true);
+        $text = is_array($payload) ? trim((string) ($payload['text'] ?? '')) : '';
+        if ($text === '') {
+            return new JsonResponse(['error' => 'Écrivez votre message.'], Response::HTTP_BAD_REQUEST);
+        }
+        if (mb_strlen($text) > BoardItemComment::TEXT_MAX) {
+            return new JsonResponse(['error' => sprintf('Message trop long (%d caractères max).', BoardItemComment::TEXT_MAX)], Response::HTTP_BAD_REQUEST);
+        }
+        $comment->edit($text);
+        $this->em->flush();
+
+        return new JsonResponse($this->detailPayload($meeting, $viewer));
+    }
+
     /** Suppression de son propre commentaire tant que la réunion est ouverte et que personne n'y a répondu. */
     #[Route('/comments/{id}', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function deleteComment(int $id): JsonResponse
@@ -257,6 +288,7 @@ class BoardMeetingController extends AbstractController
                 'type' => $i->getType()->value,
                 'typeLabel' => $i->getType()->label(),
                 'text' => $i->getText(),
+                // « Qui s'exprime ? » en nom complet (membre du CoDir ou entraîneur invité) ; null si non renseigné.
                 'speaker' => $i->getSpeaker(),
                 'isMine' => $i->getAuthor() !== null && $i->getAuthor()->getId() === $viewer->getId(),
                 'canEdit' => $i->isEditableBy($viewer),
@@ -276,6 +308,8 @@ class BoardMeetingController extends AbstractController
                     'authorName' => $t['comment']->getAuthorName(),
                     'text' => $t['comment']->getText(),
                     'isMine' => $t['comment']->isAuthoredBy($viewer),
+                    'canEdit' => !$i->getMeeting()->isClosed() && $t['comment']->isAuthoredBy($viewer),
+                    'edited' => $t['comment']->isEdited(),
                     'canDelete' => !$i->getMeeting()->isClosed() && $t['comment']->isAuthoredBy($viewer) && !$i->hasReplies($t['comment']),
                     'createdAt' => $t['comment']->getCreatedAt()->format(\DATE_ATOM),
                 ], $i->getThreadedComments()),

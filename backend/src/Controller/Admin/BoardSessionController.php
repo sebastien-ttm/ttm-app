@@ -70,6 +70,16 @@ class BoardSessionController extends AbstractController
             ));
         }
 
+        $codir = $this->users->findCommitteeMembers();
+        // « Qui s'exprime ? » : membres du CoDir, puis entraîneurs invités (sans doublon avec le CoDir).
+        $coaches = array_values(array_filter(
+            $this->users->findCoaches(),
+            static fn (User $u) => $u->getBoardRole() === null,
+        ));
+        usort($coaches, static fn (User $a, User $b) => strcasecmp($a->getNom().' '.$a->getPrenom(), $b->getNom().' '.$b->getPrenom()));
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+
         return $this->render('admin/board_session.html.twig', [
             'meeting' => $meeting,
             'meetings' => $all,
@@ -77,7 +87,12 @@ class BoardSessionController extends AbstractController
             'otherOpenActions' => $otherOpenActions,
             'poles' => BoardPole::cases(),
             'types' => BoardItemType::cases(),
-            'codir' => $this->users->findCommitteeMembers(),
+            'codir' => $codir,
+            'speakersCodir' => $codir,
+            'speakersCoaches' => $coaches,
+            'speakerNames' => array_map(static fn (User $u) => $u->getFullName(), [...$codir, ...$coaches]),
+            // À l'ajout d'un point, l'intervenant proposé par défaut est l'utilisateur connecté s'il peut s'exprimer.
+            'defaultSpeakerId' => $viewer->canSpeakAtBoard() ? $viewer->getId() : null,
             'csrf' => self::CSRF,
         ]);
     }
@@ -102,7 +117,11 @@ class BoardSessionController extends AbstractController
         return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
     }
 
-    /** Point soulevé en séance (saisi par le secrétaire de séance pour le compte de « Qui s'exprime ? »). */
+    /**
+     * Ajout d'un point depuis le back-office, avant la séance (ordre du jour préparé par le secrétaire, un administrateur…)
+     * comme pendant (point soulevé en séance), pour le compte de « Qui s'exprime ? » : un membre du CoDir ou un
+     * entraîneur invité.
+     */
     #[Route('/admin/codir/meetings/{id}/items', name: 'admin_board_item_add', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function addItem(int $id, Request $request): RedirectResponse
     {
@@ -118,13 +137,19 @@ class BoardSessionController extends AbstractController
             $this->addFlash('danger', 'Pôle, type et texte sont obligatoires.');
             return $this->backTo($meeting);
         }
+        if (mb_strlen($text) > BoardAgendaItem::TEXT_MAX) {
+            $this->addFlash('danger', sprintf('Texte trop long (%d caractères max) : le point n\'a pas été ajouté.', BoardAgendaItem::TEXT_MAX));
+            return $this->backTo($meeting);
+        }
+        $speaker = $this->resolveSpeaker((string) $request->request->get('speaker', ''));
+        if ($speaker === false) {
+            $this->addFlash('danger', 'Qui s\'exprime ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : le point n\'a pas été ajouté.');
+            return $this->backTo($meeting);
+        }
         /** @var User $user */
         $user = $this->getUser();
         $item = new BoardAgendaItem($meeting, $pole, $type, $text, $user);
-        $speaker = trim((string) $request->request->get('speaker', ''));
-        if ($speaker !== '') {
-            $item->setSpeaker($speaker);
-        }
+        $item->setSpeaker($speaker?->getFullName());
         $meeting->addItem($item);
         $this->em->persist($item);
         $this->em->flush();
@@ -157,7 +182,17 @@ class BoardSessionController extends AbstractController
             $this->addFlash('danger', sprintf('Texte trop long (%d caractères max) : le point n\'a pas été modifié.', BoardAgendaItem::TEXT_MAX));
             return $this->backTo($meeting, 'item-'.$item->getId());
         }
-        $item->setPole($pole)->setType($type)->setText($text)->setSpeaker((string) $request->request->get('speaker', ''));
+        // « Qui s'exprime ? » : « keep » conserve l'intervenant actuel (ancienne saisie libre non reconnue dans la liste).
+        $rawSpeaker = trim((string) $request->request->get('speaker', 'keep'));
+        $speaker = $rawSpeaker === 'keep' ? null : $this->resolveSpeaker($rawSpeaker);
+        if ($speaker === false) {
+            $this->addFlash('danger', 'Qui s\'exprime ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : le point n\'a pas été modifié.');
+            return $this->backTo($meeting, 'item-'.$item->getId());
+        }
+        $item->setPole($pole)->setType($type)->setText($text);
+        if ($rawSpeaker !== 'keep') {
+            $item->setSpeaker($speaker?->getFullName());
+        }
         $this->em->flush();
         $this->addFlash('success', 'Point modifié.');
 
@@ -449,6 +484,21 @@ class BoardSessionController extends AbstractController
         }
 
         return $this->users->findBy(['id' => array_slice(array_values($ids), 0, 30)]);
+    }
+
+    /**
+     * « Qui s'exprime ? » : identifiant d'un compte actif membre du CoDir ou entraîneur. Retourne ce compte, null si le
+     * champ est vide (personne), false si la valeur n'est pas un compte autorisé à s'exprimer.
+     */
+    private function resolveSpeaker(string $raw): User|null|false
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+        $user = ctype_digit($raw) ? $this->users->find((int) $raw) : null;
+
+        return $user instanceof User && $user->isActive() && $user->canSpeakAtBoard() ? $user : false;
     }
 
     private function validateCsrf(Request $request): void

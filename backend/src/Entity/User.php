@@ -584,6 +584,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isSenior(): bool { return $this->hasProfile(Profile::Senior); }
     public function isParent(): bool { return $this->hasProfile(Profile::Parent); }
     public function isEntraineur(): bool { return $this->hasProfile(Profile::Entraineur); }
+    /** « Qui s'exprime ? » à une réunion du CoDir : un membre du CoDir ou un entraîneur (invité aux réunions). */
+    public function canSpeakAtBoard(): bool { return $this->boardRole !== null || $this->isEntraineur(); }
     public function isEncadrant(): bool { return $this->hasProfile(Profile::Encadrant); }
     /** Gestionnaire externe : administrateur du backend sans être un adhérent du club (cf. setProfiles / setRole). */
     public function isGestionnaire(): bool { return $this->hasProfile(Profile::Gestionnaire); }

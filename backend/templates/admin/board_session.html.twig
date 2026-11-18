@@ -49,6 +49,37 @@
             </form>
         </div>
 
+        {# Ajout d'un point à l'ordre du jour — avant la séance (préparation) comme pendant. Replié sauf si l'ordre du jour est vide #}
+        <details id="ajout-point" {{ groups is empty ? 'open' : '' }} style="{{ card }} padding:12px 16px; margin-bottom:16px;">
+            <summary style="cursor:pointer; font-weight:700; color:#2563eb;">+ Ajouter un sujet / une question / une information</summary>
+            <form method="post" action="{{ path('admin_board_item_add', {id: meeting.id}) }}" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:10px;">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                <div>
+                    <label style="{{ label }}">Pôle</label>
+                    <select name="pole" required style="{{ input }}">
+                        <option value="">—</option>
+                        {% for p in poles %}<option value="{{ p.value }}">{{ p.label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="{{ label }}">Type</label>
+                    <select name="type" required style="{{ input }}">
+                        {% for t in types %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="{{ label }}">Qui s'exprime ?</label>
+                    {% include 'admin/_board_speaker_select.html.twig' with {input: input, speakersCodir: speakersCodir, speakersCoaches: speakersCoaches, speakerNames: speakerNames, current: null, defaultId: defaultSpeakerId} only %}
+                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Membre du CoDir ou entraîneur invité.</div>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label style="{{ label }}">Information / Sujet / Question</label>
+                    <textarea name="text" rows="2" required maxlength="2000" style="{{ input }}"></textarea>
+                </div>
+                <div><button type="submit" class="btn btn-primary">Ajouter le point</button></div>
+            </form>
+        </details>
+
         {# Actions en cours décidées lors d'autres réunions : à passer en revue (et clôturer) en début de séance #}
         {% if otherOpenActions|length > 0 %}
             <details id="actions-en-cours" open style="{{ card }} padding:12px 16px; margin-bottom:16px;">
@@ -125,7 +156,7 @@
                             </div>
                             <div>
                                 <label style="{{ label }}">Qui s'exprime ?</label>
-                                <input type="text" name="speaker" value="{{ item.speaker }}" maxlength="120" placeholder="Prénom" style="{{ input }}">
+                                {% include 'admin/_board_speaker_select.html.twig' with {input: input, speakersCodir: speakersCodir, speakersCoaches: speakersCoaches, speakerNames: speakerNames, current: item.speaker, defaultId: null} only %}
                             </div>
                             <div style="grid-column: 1 / -1;">
                                 <label style="{{ label }}">Information / Sujet / Question</label>
@@ -145,7 +176,7 @@
                                     <div style="flex:1;">
                                         <strong>{{ c.authorName }}</strong>
                                         {% if t.replyTo %}<span style="font-size:12px; color:#64748b;">↳ en réponse à {{ t.replyTo }}</span>{% endif %}
-                                        <span style="font-size:12px; color:#94a3b8;">{{ c.createdAt|date('d/m à H\\hi') }}</span>
+                                        <span style="font-size:12px; color:#94a3b8;">{{ c.createdAt|date('d/m à H\\hi') }}{{ c.edited ? ' · modifié' : '' }}</span>
                                         <div style="white-space:pre-line;">{{ c.text }}</div>
                                     </div>
                                     <form method="post" action="{{ path('admin_board_comment_delete', {id: c.id}) }}" onsubmit="return confirm('Supprimer ce message{{ item.hasReplies(c) ? ' et les réponses qu\\\'il a reçues' : '' }} ?');">
@@ -222,35 +253,6 @@
             {% endfor %}
         {% endfor %}
 
-        {# Point soulevé en séance #}
-        <div style="{{ card }} padding:14px 16px; margin-top:20px;">
-            <div style="font-weight:700; margin-bottom:10px;">Ajouter un point soulevé en séance</div>
-            <form method="post" action="{{ path('admin_board_item_add', {id: meeting.id}) }}" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
-                <div>
-                    <label style="{{ label }}">Pôle</label>
-                    <select name="pole" required style="{{ input }}">
-                        <option value="">—</option>
-                        {% for p in poles %}<option value="{{ p.value }}">{{ p.label }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label style="{{ label }}">Type</label>
-                    <select name="type" required style="{{ input }}">
-                        {% for t in types %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label style="{{ label }}">Qui s'exprime ?</label>
-                    <input type="text" name="speaker" maxlength="120" placeholder="Prénom" style="{{ input }}">
-                </div>
-                <div style="grid-column: 1 / -1;">
-                    <label style="{{ label }}">Information / Sujet / Question</label>
-                    <textarea name="text" rows="2" required maxlength="2000" style="{{ input }}"></textarea>
-                </div>
-                <div><button type="submit" class="btn btn-primary">Ajouter le point</button></div>
-            </form>
-        </div>
     {% endif %}
 
     </div>
