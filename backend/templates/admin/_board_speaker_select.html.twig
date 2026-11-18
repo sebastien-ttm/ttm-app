@@ -2,9 +2,10 @@
     « Qui s'exprime ? » : liste des personnes autorisées à s'exprimer en réunion — membres du CoDir, puis entraîneurs invités.
     Variables : input (style), speakersCodir, speakersCoaches, speakerNames (noms complets de la liste),
     current (intervenant déjà enregistré d'un point existant, sinon null), defaultId (pré-sélection à l'ajout, sinon null).
+    name : nom du champ posté (« speaker » par défaut ; « respondent » pour « Qui répond ? »).
     Valeur postée : identifiant du compte, « » (personne) ou « keep » (conserver une ancienne saisie libre non reconnue).
 #}
-<select name="speaker" style="{{ input }}">
+<select name="{{ name|default('speaker') }}" style="{{ input }}">
     <option value="">— personne —</option>
     {% if current and current not in speakerNames %}
         <option value="keep" selected>{{ current }} (saisie libre actuelle)</option>

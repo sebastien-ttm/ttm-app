@@ -105,9 +105,16 @@ class BoardSessionController extends AbstractController
         if ($item === null) {
             throw $this->createNotFoundException();
         }
+        // « Qui répond ? » : un membre du CoDir ou un entraîneur invité (« keep » conserve une ancienne saisie libre).
+        $rawRespondent = trim((string) $request->request->get('respondent', 'keep'));
+        $respondent = $rawRespondent === 'keep' ? null : $this->resolveParticipant($rawRespondent);
+        if ($respondent === false) {
+            $this->addFlash('danger', 'Qui répond ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : la réponse n\'a pas été enregistrée.');
+            return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
+        }
         // « Porteur action » (texte libre) n'est plus saisi que sur les anciens points : sans le champ, on le conserve.
         $item->recordAnswer(
-            (string) $request->request->get('respondent', ''),
+            $rawRespondent === 'keep' ? $item->getRespondent() : $respondent?->getFullName(),
             (string) $request->request->get('answer', ''),
             $request->request->has('actionOwner') ? (string) $request->request->get('actionOwner', '') : $item->getActionOwner(),
         );
@@ -141,7 +148,7 @@ class BoardSessionController extends AbstractController
             $this->addFlash('danger', sprintf('Texte trop long (%d caractères max) : le point n\'a pas été ajouté.', BoardAgendaItem::TEXT_MAX));
             return $this->backTo($meeting);
         }
-        $speaker = $this->resolveSpeaker((string) $request->request->get('speaker', ''));
+        $speaker = $this->resolveParticipant((string) $request->request->get('speaker', ''));
         if ($speaker === false) {
             $this->addFlash('danger', 'Qui s\'exprime ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : le point n\'a pas été ajouté.');
             return $this->backTo($meeting);
@@ -184,7 +191,7 @@ class BoardSessionController extends AbstractController
         }
         // « Qui s'exprime ? » : « keep » conserve l'intervenant actuel (ancienne saisie libre non reconnue dans la liste).
         $rawSpeaker = trim((string) $request->request->get('speaker', 'keep'));
-        $speaker = $rawSpeaker === 'keep' ? null : $this->resolveSpeaker($rawSpeaker);
+        $speaker = $rawSpeaker === 'keep' ? null : $this->resolveParticipant($rawSpeaker);
         if ($speaker === false) {
             $this->addFlash('danger', 'Qui s\'exprime ? Seul un membre du CoDir ou un entraîneur invité peut être choisi : le point n\'a pas été modifié.');
             return $this->backTo($meeting, 'item-'.$item->getId());
@@ -332,7 +339,10 @@ class BoardSessionController extends AbstractController
         return $this->backTo($item->getMeeting(), 'item-'.$item->getId());
     }
 
-    /** Recherche d'adhérents (nom ou prénom) pour désigner un porteur d'action qui ne fait pas partie du CoDir. */
+    /**
+     * Recherche (nom ou prénom) parmi tous les comptes actifs — adhérents, entraîneurs, comptes externes — pour désigner
+     * un porteur d'action qui ne figure pas dans les listes CoDir / entraîneurs : un porteur peut être n'importe qui.
+     */
     #[Route('/admin/codir/adherents', name: 'admin_board_adherents', methods: ['GET'])]
     public function searchAdherents(Request $request): JsonResponse
     {
@@ -343,7 +353,7 @@ class BoardSessionController extends AbstractController
 
         return new JsonResponse(['data' => array_map(
             static fn (User $u) => ['id' => $u->getId(), 'name' => $u->getFullName()],
-            $this->users->searchActiveAdherents($q, null, 12),
+            $this->users->searchActiveAccounts($q, 12),
         )]);
     }
 
@@ -487,10 +497,10 @@ class BoardSessionController extends AbstractController
     }
 
     /**
-     * « Qui s'exprime ? » : identifiant d'un compte actif membre du CoDir ou entraîneur. Retourne ce compte, null si le
-     * champ est vide (personne), false si la valeur n'est pas un compte autorisé à s'exprimer.
+     * « Qui s'exprime ? » et « Qui répond ? » : identifiant d'un compte actif membre du CoDir ou entraîneur. Retourne ce
+     * compte, null si le champ est vide (personne), false si la valeur n'est pas un compte autorisé à s'exprimer.
      */
-    private function resolveSpeaker(string $raw): User|null|false
+    private function resolveParticipant(string $raw): User|null|false
     {
         $raw = trim($raw);
         if ($raw === '') {

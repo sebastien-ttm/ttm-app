@@ -465,6 +465,29 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Recherche de comptes actifs par nom ou prénom, TOUS types confondus (adhérents, entraîneurs, comptes externes) :
+     * désignation d'un porteur d'action du CoDir, qui peut être n'importe qui.
+     *
+     * @return list<User>
+     */
+    public function searchActiveAccounts(string $query, int $limit = 20): array
+    {
+        $qb = $this->createQueryBuilder('u')
+            ->where('u.isActive = true')
+            ->orderBy('u.nom', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->setMaxResults($limit);
+        foreach (preg_split('/\s+/', trim($query)) ?: [] as $i => $word) {
+            if ($word === '') {
+                continue;
+            }
+            $qb->andWhere(sprintf('(u.nom LIKE :w%1$d OR u.prenom LIKE :w%1$d)', $i))
+                ->setParameter('w'.$i, '%'.addcslashes($word, '%_').'%');
+        }
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Restreint une requête sur User (alias donné) aux adhérents actifs inscrits sur la saison donnée
      * (une ligne UserSeasonMembership). Sert aussi aux listes de choix de l'admin (AssociationField).
      */

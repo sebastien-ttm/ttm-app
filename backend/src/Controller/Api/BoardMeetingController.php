@@ -291,6 +291,9 @@ class BoardMeetingController extends AbstractController
                 // « Qui s'exprime ? » en nom complet (membre du CoDir ou entraîneur invité) ; null si non renseigné.
                 'speaker' => $i->getSpeaker(),
                 'isMine' => $i->getAuthor() !== null && $i->getAuthor()->getId() === $viewer->getId(),
+                // « (moi) » à côté de l'intervenant : seulement s'il s'agit de moi. Un point saisi pour quelqu'un d'autre
+                // depuis le back-office reste « le mien » (auteur : je peux le modifier) sans que je sois l'intervenant.
+                'speakerIsMe' => $this->isSpeakerViewer($i, $viewer),
                 'canEdit' => $i->isEditableBy($viewer),
                 'respondent' => $i->getRespondent(),
                 'answer' => $i->getAnswer(),
@@ -336,6 +339,26 @@ class BoardMeetingController extends AbstractController
             'overdue' => $a->isOverdue(),
             'isMine' => $a->isAssignedTo($viewer),
         ];
+    }
+
+    /**
+     * L'intervenant (« Qui s'exprime ? », nom complet) est-il le membre connecté ? Les anciens points portent le simple
+     * prénom de leur auteur : reconnu aussi quand l'auteur est le membre connecté.
+     */
+    private function isSpeakerViewer(BoardAgendaItem $item, User $viewer): bool
+    {
+        $speaker = $item->getSpeaker();
+        if ($speaker === null) {
+            return false;
+        }
+        $speaker = mb_strtolower(trim($speaker), 'UTF-8');
+        if ($speaker === mb_strtolower($viewer->getFullName(), 'UTF-8')) {
+            return true;
+        }
+
+        return $item->getAuthor() !== null
+            && $item->getAuthor()->getId() === $viewer->getId()
+            && $speaker === mb_strtolower($viewer->getPrenom(), 'UTF-8');
     }
 
     private function findMeetingOr404(int $id): BoardMeeting

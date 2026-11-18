@@ -188,11 +188,12 @@
                         </div>
                     {% endif %}
 
-                    <form method="post" action="{{ path('admin_board_item_answer', {id: item.id}) }}" style="display:grid; grid-template-columns: {{ item.actionOwner ? '1fr 3fr 1fr auto' : '1fr 3fr auto' }}; gap:10px; align-items:end;">
+                    <form method="post" action="{{ path('admin_board_item_answer', {id: item.id}) }}" style="display:grid; grid-template-columns: {{ item.actionOwner ? '1.4fr 3fr 1fr auto' : '1.4fr 3fr auto' }}; gap:10px; align-items:end;">
                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                         <div>
                             <label style="{{ label }}">Qui répond ?</label>
-                            <input type="text" name="respondent" value="{{ item.respondent }}" maxlength="120" style="{{ input }}">
+                            {# Membre du CoDir ou entraîneur invité uniquement (même liste que « Qui s'exprime ? ») #}
+                            {% include 'admin/_board_speaker_select.html.twig' with {name: 'respondent', input: input, speakersCodir: speakersCodir, speakersCoaches: speakersCoaches, speakerNames: speakerNames, current: item.respondent, defaultId: null} only %}
                         </div>
                         <div>
                             <label style="{{ label }}">Réponse / Décision</label>
@@ -240,13 +241,13 @@
                                 </div>
                                 <details style="margin-top:6px;">
                                     <summary style="cursor:pointer; font-size:13px; color:#2563eb;">Modifier l'action / les porteurs</summary>
-                                    {% include 'admin/_board_action_form.html.twig' with {action: a, item: item, codir: codir, csrf: csrf, label: label, input: input} only %}
+                                    {% include 'admin/_board_action_form.html.twig' with {action: a, item: item, codir: codir, coaches: speakersCoaches, csrf: csrf, label: label, input: input} only %}
                                 </details>
                             </div>
                         {% endfor %}
                         <details style="margin-top:8px;">
                             <summary style="cursor:pointer; font-size:13px; font-weight:700; color:#2563eb;">+ Ajouter une action</summary>
-                            {% include 'admin/_board_action_form.html.twig' with {action: null, item: item, codir: codir, csrf: csrf, label: label, input: input} only %}
+                            {% include 'admin/_board_action_form.html.twig' with {action: null, item: item, codir: codir, coaches: speakersCoaches, csrf: csrf, label: label, input: input} only %}
                         </details>
                     </div>
                 </div>
@@ -333,6 +334,16 @@
         });
 
         root.addEventListener('click', function (e) {
+            // « Tout cocher / Tout décocher » : bascule toutes les cases du groupe (membres du CODIR, entraîneurs).
+            var toggle = e.target.closest('.chk-toggle');
+            if (toggle) {
+                e.preventDefault();
+                var boxes = toggle.closest('.chk-group').querySelectorAll('input[type="checkbox"]');
+                var allChecked = Array.prototype.every.call(boxes, function (b) { return b.checked; });
+                Array.prototype.forEach.call(boxes, function (b) { b.checked = !allChecked; });
+                toggle.textContent = allChecked ? 'Tout cocher' : 'Tout décocher';
+                return;
+            }
             var result = e.target.closest('.adh-result');
             if (result) {
                 var picker = result.closest('.adh-picker');

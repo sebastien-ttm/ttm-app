@@ -1,6 +1,8 @@
 {# Formulaire d'action (ajout ou modification) — inclus avec `only` par board_session.html.twig.
-   Variables : action (null pour un ajout), item, codir (membres du CODIR actifs), csrf, label, input (styles). #}
-{% set codirIds = codir|map(u => u.id) %}
+   Variables : action (null pour un ajout), item, codir (membres du CODIR actifs), coaches (entraîneurs invités),
+   csrf, label, input (styles). Un porteur peut être n'importe qui : membres du CODIR et entraîneurs cochables d'un
+   clic (ou « Tout cocher »), tout autre compte actif par la recherche. #}
+{% set knownIds = codir|map(u => u.id)|merge(coaches|map(u => u.id)) %}
 {% set picked = action ? action.assignees|map(u => u.id) : [] %}
 <form method="post" action="{{ action ? path('admin_board_action_update', {id: action.id}) : path('admin_board_action_add', {id: item.id}) }}" style="display:grid; gap:10px; margin-top:8px;">
     <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
@@ -12,8 +14,8 @@
         <label style="{{ label }}">Échéance (facultative)</label>
         <input type="date" name="dueDate" value="{{ action and action.dueDate ? action.dueDate|date('Y-m-d') : '' }}" style="{{ input }} max-width:200px;">
     </div>
-    <div>
-        <label style="{{ label }}">Porteurs · membres du CODIR</label>
+    <div class="chk-group">
+        <label style="{{ label }}">Porteurs · membres du CODIR <a href="#" class="chk-toggle" style="text-transform:none; letter-spacing:0; margin-left:8px; color:#2563eb;">Tout cocher</a></label>
         <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
             {% for u in codir %}
                 <label style="font-size:13px; display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0;">
@@ -22,18 +24,30 @@
             {% endfor %}
         </div>
     </div>
+    {% if coaches|length > 0 %}
+        <div class="chk-group">
+            <label style="{{ label }}">Porteurs · entraîneurs <a href="#" class="chk-toggle" style="text-transform:none; letter-spacing:0; margin-left:8px; color:#2563eb;">Tout cocher</a></label>
+            <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
+                {% for u in coaches %}
+                    <label style="font-size:13px; display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0;">
+                        <input type="checkbox" name="assignees[]" value="{{ u.id }}" {{ u.id in picked ? 'checked' : '' }}> {{ u.fullName }}
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
     <div class="adh-picker">
-        <label style="{{ label }}">Porteurs · autres adhérents</label>
+        <label style="{{ label }}">Porteurs · toute autre personne (adhérent, parent, compte externe…)</label>
         <div class="adh-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
             {% if action %}
                 {% for u in action.assignees %}
-                    {% if u.id not in codirIds %}
+                    {% if u.id not in knownIds %}
                         <span class="adh-chip" style="display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3; border-radius:12px; padding:2px 4px 2px 10px; font-size:13px;">{{ u.fullName }}<button type="button" class="adh-remove" title="Retirer" style="border:0; background:transparent; color:#3730a3; font-size:16px; line-height:1; cursor:pointer; padding:0 4px;">×</button><input type="hidden" name="assignees[]" value="{{ u.id }}"></span>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         </div>
-        <input type="search" class="adh-search" placeholder="Rechercher un adhérent (nom ou prénom)…" autocomplete="off" style="{{ input }}">
+        <input type="search" class="adh-search" placeholder="Rechercher une personne (nom ou prénom)…" autocomplete="off" style="{{ input }}">
         <div class="adh-results" style="display:none; margin-top:4px; max-width:360px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.1);"></div>
     </div>
     <div>
