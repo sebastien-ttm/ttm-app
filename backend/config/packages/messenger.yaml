@@ -19,6 +19,7 @@ framework:
             App\Message\SendMagicLinkEmailMessage: async
             App\Message\SendPasswordResetEmailMessage: async
             App\Message\SendGestionnaireWelcomeEmailMessage: async
+            App\Message\CreateBoardMeetingCalendarEventMessage: async
             App\Message\NotifyExternalMemberCreatedMessage: async
             App\Message\SendTrainingPlanEmailsMessage: async
             App\Message\SendInvoiceEmailMessage: async

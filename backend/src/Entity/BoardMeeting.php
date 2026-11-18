@@ -41,6 +41,10 @@ class BoardMeeting
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
+    /** Identifiant de l'événement Google Agenda créé pour la réunion (null = aucune invitation envoyée). */
+    #[ORM\Column(name: 'google_event_id', length: 255, nullable: true)]
+    private ?string $googleEventId = null;
+
     /** @var Collection<int, BoardAgendaItem> */
     #[ORM\OneToMany(targetEntity: BoardAgendaItem::class, mappedBy: 'meeting', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
@@ -80,6 +84,15 @@ class BoardMeeting
     }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+
+    public function getGoogleEventId(): ?string { return $this->googleEventId; }
+    public function setGoogleEventId(?string $id): self { $this->googleEventId = $id !== null && trim($id) !== '' ? trim($id) : null; return $this; }
+
+    /** Une invitation Google Agenda a-t-elle été envoyée pour cette réunion ? */
+    public function isCalendarInvited(): bool { return $this->googleEventId !== null; }
+
+    /** La réunion n'a pas encore eu lieu (inutile d'inviter à une réunion passée). */
+    public function isUpcoming(): bool { return $this->scheduledAt > new \DateTimeImmutable(); }
 
     /** @return Collection<int, BoardAgendaItem> */
     public function getItems(): Collection { return $this->items; }

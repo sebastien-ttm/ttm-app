@@ -37,11 +37,20 @@
                 <div style="font-size:13px; color:#64748b;">
                     {{ meeting.itemCount }} point{{ meeting.itemCount > 1 ? 's' : '' }} · {{ meeting.answeredCount }} traité{{ meeting.answeredCount > 1 ? 's' : '' }}
                     {% if meeting.closed %} · <strong style="color:#166534;">Réunion close</strong>{% endif %}
+                    {% if meeting.calendarInvited %} · <strong style="color:#1d4ed8;">📅 Invitation Google Agenda envoyée</strong>{% endif %}
                 </div>
                 {% if meeting.notes %}<div style="font-size:13px; margin-top:6px; white-space:pre-line;">{{ meeting.notes }}</div>{% endif %}
             </div>
             <a class="btn btn-primary" href="{{ path('admin_board_minutes', {id: meeting.id}) }}" target="_blank" rel="noopener"><i class="fa fa-file-lines"></i> Générer le compte rendu</a>
             <a class="btn btn-secondary" href="{{ path('admin_board_export', {id: meeting.id}) }}"><i class="fa fa-file-csv"></i> Export CSV</a>
+            {# Invitation Google Agenda (membres du CoDir + entraîneurs) : réunions à venir, administrateurs. Envoyée d'office à la programmation ; ici pour les réunions programmées avant, ou pour la renvoyer. #}
+            {% if is_granted('ROLE_ADMIN') and meeting.upcoming %}
+                <form method="post" action="{{ path('admin_board_meeting_calendar', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.calendarInvited ? 'Supprimer l\\\'événement Google Agenda actuel et en créer un nouveau ? Tous les invités seront prévenus.' : 'Créer l\\\'événement Google Agenda et envoyer l\\\'invitation ?' }}');">
+                    <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                    {% if meeting.calendarInvited %}<input type="hidden" name="replace" value="1">{% endif %}
+                    <button type="submit" class="btn btn-secondary"><i class="fa fa-calendar-plus"></i> {{ meeting.calendarInvited ? 'Renvoyer l\'invitation Google Agenda' : 'Inviter via Google Agenda' }}</button>
+                </form>
+            {% endif %}
             <form method="post" action="{{ path('admin_board_meeting_close', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.closed ? 'Rouvrir cette réunion ?' : 'Clore la réunion ? Plus aucun point ne pourra être ajouté depuis l\\\'appli.' }}');">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                 {% if meeting.closed %}<input type="hidden" name="reopen" value="1">{% endif %}

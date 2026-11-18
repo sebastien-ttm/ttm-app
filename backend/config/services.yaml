@@ -31,6 +31,13 @@ parameters:
     # généré avant leur ajout) → notifications push web désactivées.
     app.vapid_empty_fallback: ''
     app.vapid_subject_fallback: 'mailto:noreply@ttm-toulouse.fr'
+    # Google Agenda (invitations à une réunion du CoDir) : replis si les variables manquent (ex : .env.local.php
+    # généré avant leur ajout) → invitations désactivées. Durée par défaut d'une réunion : 2 h.
+    app.google_calendar_empty_fallback: ''
+    app.google_calendar_id_fallback: 'primary'
+    # Invitée unique pour le moment (adresse générique du CoDir) ; la valeur vide invite chaque membre individuellement.
+    app.google_calendar_attendee_fallback: 'codir@triathlontoulousemetropole.com'
+    app.board.meeting_duration_minutes: 120
     # HelloAsso (vérification des paiements) : replis si les variables manquent → vérification désactivée.
     app.helloasso_empty_fallback: ''
     app.helloasso_api_fallback: 'https://api.helloasso.com'
@@ -139,6 +146,18 @@ services:
             $rootAlbumId: '%env(default:app.piwigo_empty_fallback:PIWIGO_ROOT_ALBUM_ID)%'
             $membersGroupId: '%env(default:app.piwigo_empty_fallback:PIWIGO_MEMBERS_GROUP_ID)%'
             $cacheDir: '%app.piwigo_cache_dir%'
+
+    App\Service\Google\GoogleCalendarClient:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $credentialsPath: '%env(default:app.google_calendar_empty_fallback:GOOGLE_CALENDAR_CREDENTIALS)%'
+            $impersonate: '%env(default:app.google_calendar_empty_fallback:GOOGLE_CALENDAR_IMPERSONATE)%'
+            $calendarId: '%env(default:app.google_calendar_id_fallback:GOOGLE_CALENDAR_ID)%'
+
+    App\MessageHandler\CreateBoardMeetingCalendarEventMessageHandler:
+        arguments:
+            $genericAttendee: '%env(default:app.google_calendar_attendee_fallback:GOOGLE_CALENDAR_GENERIC_ATTENDEE)%'
+            $durationMinutes: '%app.board.meeting_duration_minutes%'
 
     App\Service\WebPush\WebPushClient:
         arguments:

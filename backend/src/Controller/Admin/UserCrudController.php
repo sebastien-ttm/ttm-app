@@ -70,7 +70,7 @@ class UserCrudController extends AbstractCrudController
             ->setEntityPermission('ROLE_ADMIN')
             ->setDefaultSort(['nom' => 'ASC'])
             ->setPaginatorPageSize(50)
-            ->setSearchFields(['numLicence', 'nom', 'prenom', 'email']);
+            ->setSearchFields(['numLicence', 'nom', 'prenom', 'email', 'clubEmail']);
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -104,7 +104,12 @@ class UserCrudController extends AbstractCrudController
             ->setHelp('Vide pour les comptes externes (parents non adhérents).');
         yield TextField::new('prenom', 'Prénom');
         yield TextField::new('nom');
-        yield EmailField::new('email');
+        yield EmailField::new('email', 'E-mail personnel')
+            ->setHelp('Adresse renseignée sur FFTRi (import du CSV) : identifiant de connexion et destinataire des e-mails de l\'appli.');
+        yield EmailField::new('clubEmail', 'E-mail du club')
+            ->setRequired(false)
+            ->hideOnIndex()
+            ->setHelp('Adresse du club (ex. prenom.nom@triathlontoulousemetropole.com), si elle diffère de l\'e-mail personnel. Servira aux invitations Google Agenda individuelles des réunions du CoDir (pour le moment, l\'invitation part à l\'adresse générique du CoDir) ; à défaut, l\'e-mail personnel sera utilisé. L\'import FFTRi ne la modifie pas.');
         yield TextField::new('telephone', 'Téléphone')->hideOnIndex();
         yield TextField::new('telephoneUrgence', 'Téléphone d\'urgence')
             ->hideOnIndex()

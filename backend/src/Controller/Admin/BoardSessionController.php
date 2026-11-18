@@ -7,6 +7,7 @@ use App\Entity\BoardAgendaItem;
 use App\Entity\BoardItemComment;
 use App\Entity\BoardMeeting;
 use App\Entity\User;
+use App\Message\CreateBoardMeetingCalendarEventMessage;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
 use App\Repository\BoardActionRepository;
@@ -14,6 +15,7 @@ use App\Repository\BoardAgendaItemRepository;
 use App\Repository\BoardMeetingRepository;
 use App\Repository\UserRepository;
 use App\Security\BoardSessionVoter;
+use App\Service\Google\GoogleCalendarClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,6 +23,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -44,6 +47,8 @@ class BoardSessionController extends AbstractController
         private readonly BoardActionRepository $actions,
         private readonly UserRepository $users,
         private readonly EntityManagerInterface $em,
+        private readonly GoogleCalendarClient $calendar,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -386,6 +391,32 @@ class BoardSessionController extends AbstractController
             // Suivi : toutes les actions en cours à la date de la réunion (nouvelles et reportées des précédentes).
             'openActions' => $this->actions->findOpenAsOf($meeting),
         ]);
+    }
+
+    /**
+     * (Ré)envoie l'invitation par un événement Google Agenda — pour une réunion programmée avant
+     * la mise en service de Google Agenda, ou pour renvoyer l'invitation (`replace` : l'ancien événement est supprimé et
+     * un nouveau créé). Administrateurs uniquement ; l'envoi est asynchrone.
+     */
+    #[IsGranted('ROLE_ADMIN')]
+    #[Route('/admin/codir/meetings/{id}/calendar', name: 'admin_board_meeting_calendar', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function inviteCalendar(int $id, Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request);
+        $meeting = $this->meetings->find($id);
+        if ($meeting === null) {
+            throw $this->createNotFoundException();
+        }
+        if (!$this->calendar->isConfigured()) {
+            $this->addFlash('danger', 'Google Agenda n\'est pas configuré : aucune invitation n\'a été envoyée (voir docs/GOOGLE-CALENDAR.md).');
+        } elseif (!$meeting->isUpcoming()) {
+            $this->addFlash('danger', 'Cette réunion est déjà passée : on n\'invite pas à une réunion passée.');
+        } else {
+            $this->bus->dispatch(new CreateBoardMeetingCalendarEventMessage((int) $meeting->getId(), $request->request->get('replace') !== null));
+            $this->addFlash('success', 'Invitation Google Agenda en cours d\'envoi.');
+        }
+
+        return $this->backTo($meeting);
     }
 
     #[Route('/admin/codir/meetings/{id}/close', name: 'admin_board_meeting_close', methods: ['POST'], requirements: ['id' => '\d+'])]

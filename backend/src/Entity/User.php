@@ -43,6 +43,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\Email]
     private string $email;
 
+    /**
+     * Adresse e-mail du club de l'adhérent (ex. prenom.nom@triathlontoulousemetropole.com), distincte de `email`,
+     * l'adresse personnelle renseignée sur FFTRi. Facultative : voir getInvitationEmail().
+     */
+    #[ORM\Column(name: 'club_email', length: 180, nullable: true)]
+    #[Assert\Email]
+    #[Assert\Length(max: 180)]
+    private ?string $clubEmail = null;
+
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $telephone = null;
 
@@ -350,6 +359,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getEmail(): string
     {
         return $this->email;
+    }
+
+    public function getClubEmail(): ?string
+    {
+        return $this->clubEmail;
+    }
+
+    public function setClubEmail(?string $clubEmail): self
+    {
+        $clubEmail = $clubEmail !== null ? mb_strtolower(trim($clubEmail), 'UTF-8') : null;
+        $this->clubEmail = $clubEmail !== null && $clubEmail !== '' ? $clubEmail : null;
+        return $this;
+    }
+
+    /**
+     * Adresse à utiliser pour inviter l'adhérent (Google Agenda…) : son e-mail du club, à défaut son e-mail personnel.
+     */
+    public function getInvitationEmail(): string
+    {
+        return $this->clubEmail ?? $this->email;
     }
 
     public function setEmail(string $email): self

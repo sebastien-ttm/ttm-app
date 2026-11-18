@@ -4,7 +4,9 @@ namespace App\Controller\Admin;
 
 use App\Entity\BoardMeeting;
 use App\Entity\User;
+use App\Message\CreateBoardMeetingCalendarEventMessage;
 use App\Service\Board\BoardMeetingNotifier;
+use App\Service\Google\GoogleCalendarClient;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -15,15 +17,20 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Réunions du comité directeur (administrateurs) : programmer une réunion (les membres du CoDir sont notifiés),
- * la clore une fois tenue. Les réponses se saisissent sur la page « En séance ».
+ * Réunions du comité directeur (administrateurs) : programmer une réunion (les membres du CoDir sont notifiés et, si
+ * Google Agenda est configuré, invités par un événement Google Agenda), la clore une fois tenue. Les réponses se
+ * saisissent sur la page « En séance ».
  */
 class BoardMeetingCrudController extends AbstractCrudController
 {
-    public function __construct(private readonly BoardMeetingNotifier $notifier)
-    {
+    public function __construct(
+        private readonly BoardMeetingNotifier $notifier,
+        private readonly GoogleCalendarClient $calendar,
+        private readonly MessageBusInterface $bus,
+    ) {
     }
 
     public static function getEntityFqcn(): string
@@ -50,6 +57,11 @@ class BoardMeetingCrudController extends AbstractCrudController
             ->hideOnIndex();
         yield IntegerField::new('itemCount', 'Points')->hideOnForm()->setSortable(false);
         yield IntegerField::new('answeredCount', 'Traités')->hideOnForm()->setSortable(false);
+        yield BooleanField::new('calendarInvited', 'Invitation Google Agenda')
+            ->renderAsSwitch(false)
+            ->hideOnForm()
+            ->setSortable(false)
+            ->setHelp('Événement créé dans Google Agenda et invitation envoyée (pour le moment à l\'adresse générique du CoDir).');
         yield BooleanField::new('closed', 'Réunion close')
             ->renderAsSwitch(false)
             ->hideWhenCreating()
@@ -74,12 +86,30 @@ class BoardMeetingCrudController extends AbstractCrudController
             ->add(Crud::PAGE_INDEX, Action::DETAIL);
     }
 
+    /**
+     * À la création d'une réunion à venir : événement Google Agenda et invitation (à l'adresse générique du CoDir pour le
+     * moment ; voir CreateBoardMeetingCalendarEventMessageHandler). L'envoi est asynchrone (file Messenger).
+     */
+    private function inviteViaGoogleCalendar(BoardMeeting $meeting): void
+    {
+        if (!$this->calendar->isConfigured()) {
+            $this->addFlash('warning', 'Google Agenda n\'est pas configuré : aucune invitation n\'a été envoyée (voir docs/GOOGLE-CALENDAR.md).');
+            return;
+        }
+        if (!$meeting->isUpcoming()) {
+            return;
+        }
+        $this->bus->dispatch(new CreateBoardMeetingCalendarEventMessage((int) $meeting->getId()));
+        $this->addFlash('success', 'Invitation Google Agenda en cours d\'envoi.');
+    }
+
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         parent::persistEntity($entityManager, $entityInstance);
         if ($entityInstance instanceof BoardMeeting) {
             $user = $this->getUser();
             $this->notifier->notifyScheduled($entityInstance, $user instanceof User ? $user : null);
+            $this->inviteViaGoogleCalendar($entityInstance);
         }
     }
 }
