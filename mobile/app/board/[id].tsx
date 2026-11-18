@@ -284,7 +284,7 @@ export default function BoardMeetingScreen() {
                   <View style={[styles.typeTag, { backgroundColor: TYPE_COLORS[item.type].bg }]}>
                     <Text style={[styles.typeTagLabel, { color: TYPE_COLORS[item.type].fg }]}>{item.typeLabel}</Text>
                   </View>
-                  <Text style={styles.speaker}>{item.speaker ?? '—'}{item.isMine ? ' (moi)' : ''}</Text>
+                  <Text style={styles.speaker}>{item.speaker ?? '—'}{(item.speakerIsMe ?? item.isMine) ? ' (moi)' : ''}</Text>
                 </View>
                 <LinkedText text={item.text} style={styles.itemText} />
 

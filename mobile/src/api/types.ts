@@ -1882,7 +1882,10 @@ export type BoardAgendaItem = {
   text: string;
   /** « Qui s'exprime ? » */
   speaker: string | null;
+  /** Point ajouté par moi (je peux le modifier), éventuellement pour le compte de quelqu'un d'autre. */
   isMine: boolean;
+  /** L'intervenant est moi (pour afficher « (moi) »). Absent d'un serveur pas à jour : on se rabat sur isMine. */
+  speakerIsMe?: boolean;
   canEdit: boolean;
   /** Saisis en séance : Qui répond ? / Réponse-Décision / Porteur action (ancien texte libre). */
   respondent: string | null;
