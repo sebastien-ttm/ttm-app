@@ -683,6 +683,9 @@ export const board = {
   /** Commentaire (ou réponse, pour une Question) sur un point ; `parentId` = commentaire auquel on répond. */
   addComment: (itemId: number, text: string, parentId?: number | null) =>
     api.post<BoardMeetingDetail>(`/api/board/items/${itemId}/comments`, parentId ? { text, parentId } : { text }),
+  /** Modification de son propre commentaire (réunion ouverte). */
+  updateComment: (commentId: number, text: string) =>
+    api.patch<BoardMeetingDetail>(`/api/board/comments/${commentId}`, { text }),
   removeComment: (commentId: number) => api.delete<BoardMeetingDetail>(`/api/board/comments/${commentId}`),
 };
 

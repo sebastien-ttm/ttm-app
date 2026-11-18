@@ -1837,6 +1837,10 @@ export type BoardComment = {
   authorName: string;
   text: string;
   isMine: boolean;
+  /** Mon commentaire, réunion ouverte : je peux le modifier (même s'il a reçu des réponses). Absent d'un serveur pas à jour. */
+  canEdit?: boolean;
+  /** Le texte a été modifié depuis sa publication. */
+  edited?: boolean;
   canDelete: boolean;
   createdAt: string;
 };

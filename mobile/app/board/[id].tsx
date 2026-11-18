@@ -22,8 +22,8 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
  * Réunion du CoDir : ordre du jour classé par pôle. Tant que la réunion n'est pas close, chaque membre ajoute
  * ses points (pôle, Information / Sujet / Question, texte) et peut modifier ou supprimer les siens tant qu'ils
  * n'ont pas été traités. Sur n'importe quel point (le sien compris), on peut ajouter autant de commentaires
- * (Information, Sujet) ou de réponses (Question) que l'on veut, et répondre à un commentaire : le fil s'affiche en
- * retrait. Les réponses, décisions et actions (porteurs, échéance, état — en évidence quand c'est le
+ * (Information, Sujet) ou de réponses (Question) que l'on veut, répondre à un commentaire (le fil s'affiche en
+ * retrait) et modifier les siens (mention « modifié »). « Qui s'exprime ? » s'affiche en nom complet. Les réponses, décisions et actions (porteurs, échéance, état — en évidence quand c'est le
  * membre connecté qui les porte) saisies en séance s'affichent sous chaque point.
  *
  * Chaque pôle (Partenaires, Organisations…) a sa couleur (utils/boardPoles). Les textes peuvent contenir des liens
@@ -44,8 +44,9 @@ export default function BoardMeetingScreen() {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  // Commentaire / réponse en cours de saisie : sous un point (parentId null) ou sous un commentaire auquel on répond.
-  const [composer, setComposer] = useState<{ itemId: number; parentId: number | null } | null>(null);
+  // Commentaire / réponse en cours de saisie : sous un point (parentId null), sous un commentaire auquel on répond, ou
+  // modification de son propre commentaire (editId).
+  const [composer, setComposer] = useState<{ itemId: number; parentId: number | null; editId: number | null } | null>(null);
   const [commentText, setCommentText] = useState('');
 
   const load = useCallback(async () => {
@@ -109,12 +110,23 @@ export default function BoardMeetingScreen() {
     }
   }
 
+  /** Ouvre la saisie ; passer d'une modification à autre chose (ou l'inverse) repart d'un texte propre. */
+  function openComposer(next: { itemId: number; parentId: number | null; editId?: number | null }, initialText = '') {
+    if (next.editId != null || composer?.editId != null) setCommentText(initialText);
+    setComposer({ itemId: next.itemId, parentId: next.parentId, editId: next.editId ?? null });
+  }
+
   async function sendComment(item: BoardAgendaItem) {
     const message = commentText.trim();
     if (message === '') return showMessage(item.type === 'question' ? 'Écrivez votre réponse.' : 'Écrivez votre commentaire.');
     setBusy(true);
     try {
-      setMeeting(await boardApi.addComment(item.id, message, composer?.itemId === item.id ? composer.parentId : null));
+      const target = composer?.itemId === item.id ? composer : null;
+      setMeeting(
+        target?.editId
+          ? await boardApi.updateComment(target.editId, message)
+          : await boardApi.addComment(item.id, message, target?.parentId ?? null),
+      );
       setComposer(null);
       setCommentText('');
     } catch (e) {
@@ -136,11 +148,16 @@ export default function BoardMeetingScreen() {
     }
   }
 
-  /** Zone de saisie d'un commentaire sous un point, ou d'une réponse sous le commentaire de `replyTo`. */
-  function renderComposer(item: BoardAgendaItem, replyTo: BoardComment | null) {
-    const placeholder = replyTo
-      ? `Votre réponse à ${replyTo.authorName}…`
-      : item.type === 'question' ? 'Votre réponse…' : 'Votre commentaire…';
+  /**
+   * Zone de saisie : un commentaire sous un point, une réponse sous le commentaire de `replyTo`, ou — avec `editing` —
+   * la modification de son propre commentaire (texte déjà rempli).
+   */
+  function renderComposer(item: BoardAgendaItem, replyTo: BoardComment | null, editing = false) {
+    const placeholder = editing
+      ? 'Votre message…'
+      : replyTo
+        ? `Votre réponse à ${replyTo.authorName}…`
+        : item.type === 'question' ? 'Votre réponse…' : 'Votre commentaire…';
     return (
       <View style={styles.composer}>
         <TextInput
@@ -155,7 +172,7 @@ export default function BoardMeetingScreen() {
         />
         <View style={styles.formActions}>
           <Pressable onPress={() => void sendComment(item)} disabled={busy} style={[styles.submit, styles.submitSmall, busy && { opacity: 0.6 }]}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLabel}>Envoyer</Text>}
+            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitLabel}>{editing ? 'Enregistrer' : 'Envoyer'}</Text>}
           </Pressable>
           <Pressable onPress={() => { setComposer(null); setCommentText(''); }}>
             <Text style={styles.cancel}>Annuler</Text>
@@ -279,27 +296,40 @@ export default function BoardMeetingScreen() {
                     {/* Fil : chaque commentaire est suivi de ses réponses, en retrait (depth 0 à 2). */}
                     {item.comments.map((c) => {
                       const depth = Math.min(Math.max(c.depth ?? 0, 0), 2);
-                      const replying = composer?.itemId === item.id && composer.parentId === c.id;
+                      const mine = composer?.itemId === item.id ? composer : null;
+                      const editing = mine?.editId === c.id;
+                      const replying = !editing && mine?.editId == null && mine?.parentId === c.id;
                       return (
                         <View key={c.id} style={[styles.comment, depth > 0 && { marginLeft: depth * 14, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: COLORS.border }]}>
                           <Text style={styles.commentText}>
                             <Text style={styles.commentAuthor}>{c.authorName}{c.isMine ? ' (moi)' : ''}</Text>
                             {c.replyToName ? <Text style={styles.commentReplyTo}> ↪ {c.replyToName}</Text> : null}
                             <Text style={styles.commentAuthor}> : </Text>
-                            <LinkedText text={c.text} />
+                            {/* En modification, le champ de saisie remplace le texte. */}
+                            {editing ? null : <LinkedText text={c.text} />}
+                            {!editing && c.edited ? <Text style={styles.commentReplyTo}> (modifié)</Text> : null}
                           </Text>
-                          <View style={styles.commentActions}>
-                            {item.canComment && !replying && (
-                              <Pressable onPress={() => setComposer({ itemId: item.id, parentId: c.id })} accessibilityRole="button">
-                                <Text style={styles.link}>Répondre</Text>
-                              </Pressable>
-                            )}
-                            {c.canDelete && (
-                              <Pressable onPress={() => void removeComment(c)} disabled={busy}>
-                                <Text style={[styles.link, { color: COLORS.error }]}>Supprimer</Text>
-                              </Pressable>
-                            )}
-                          </View>
+                          {editing ? (
+                            renderComposer(item, null, true)
+                          ) : (
+                            <View style={styles.commentActions}>
+                              {item.canComment && !replying && (
+                                <Pressable onPress={() => openComposer({ itemId: item.id, parentId: c.id })} accessibilityRole="button">
+                                  <Text style={styles.link}>Répondre</Text>
+                                </Pressable>
+                              )}
+                              {c.canEdit && (
+                                <Pressable onPress={() => openComposer({ itemId: item.id, parentId: c.parentId ?? null, editId: c.id }, c.text)} disabled={busy} accessibilityRole="button">
+                                  <Text style={styles.link}>Modifier</Text>
+                                </Pressable>
+                              )}
+                              {c.canDelete && (
+                                <Pressable onPress={() => void removeComment(c)} disabled={busy}>
+                                  <Text style={[styles.link, { color: COLORS.error }]}>Supprimer</Text>
+                                </Pressable>
+                              )}
+                            </View>
+                          )}
                           {replying && renderComposer(item, c)}
                         </View>
                       );
@@ -308,10 +338,10 @@ export default function BoardMeetingScreen() {
                 )}
 
                 {item.canComment && (
-                  composer?.itemId === item.id && composer.parentId === null ? (
+                  composer?.itemId === item.id && composer.parentId === null && composer.editId === null ? (
                     renderComposer(item, null)
                   ) : (
-                    <Pressable onPress={() => setComposer({ itemId: item.id, parentId: null })} accessibilityRole="button">
+                    <Pressable onPress={() => openComposer({ itemId: item.id, parentId: null })} accessibilityRole="button">
                       <Text style={styles.link}>{item.type === 'question' ? 'Ajouter une réponse' : 'Ajouter un commentaire'}</Text>
                     </Pressable>
                   )
