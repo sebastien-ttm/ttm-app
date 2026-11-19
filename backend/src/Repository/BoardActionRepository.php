@@ -30,6 +30,34 @@ class BoardActionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Les dernières actions clôturées (« faites »), la plus récemment clôturée d'abord, toutes réunions confondues.
+     *
+     * @return list<BoardAction>
+     */
+    public function findRecentlyClosed(int $limit = 30): array
+    {
+        // Deux temps : la jointure sur les porteurs multiplie les lignes, et un LIMIT s'y appliquerait aux lignes (pas aux actions).
+        $rows = $this->createQueryBuilder('a')
+            ->select('a.id')
+            ->andWhere('a.closedAt IS NOT NULL')
+            ->orderBy('a.closedAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+        $ids = array_map(static fn (array $r) => (int) $r['id'], $rows);
+        if ($ids === []) {
+            return [];
+        }
+
+        /** @var list<BoardAction> $actions */
+        $actions = $this->baseQuery()->andWhere('a.id IN (:ids)')->setParameter('ids', $ids)->getQuery()->getResult();
+        usort($actions, static fn (BoardAction $a, BoardAction $b) => [$b->getClosedAt(), $b->getId()] <=> [$a->getClosedAt(), $a->getId()]);
+
+        return $actions;
+    }
+
+    /**
      * Actions en cours au moment d'une réunion, pour son compte rendu : celles décidées lors de cette réunion ou
      * des précédentes, et pas encore clôturées — ou clôturées seulement après la clôture de la réunion (si elle est
      * close ; sinon, à ce jour).

@@ -31,6 +31,38 @@ class BoardMeetingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Liste de l'appli : les réunions à venir d'abord (la plus proche en tête), puis les passées — closes ou dont l'heure
+     * est dépassée — la plus récente en tête. Même partage que isNext / isPast de l'API (cf. BoardMeeting::isPast()).
+     *
+     * @return list<BoardMeeting>
+     */
+    public function findAllForApp(): array
+    {
+        /** @var list<BoardMeeting> $all */
+        $all = $this->createQueryBuilder('m')->orderBy('m.scheduledAt', 'ASC')->addOrderBy('m.id', 'ASC')->getQuery()->getResult();
+        $upcoming = array_values(array_filter($all, static fn (BoardMeeting $m) => !$m->isPast()));
+        $past = array_reverse(array_values(array_filter($all, static fn (BoardMeeting $m) => $m->isPast())));
+
+        return array_merge($upcoming, $past);
+    }
+
+    /**
+     * Prochaine réunion de l'appli : la plus proche des réunions non closes dont l'heure n'est pas encore passée.
+     * Une réunion déjà passée (même non close) n'est jamais « la prochaine ». Null s'il n'y en a pas.
+     */
+    public function findNextUpcoming(): ?BoardMeeting
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.closedAt IS NULL')
+            ->andWhere('m.scheduledAt > :now')
+            ->setParameter('now', new \DateTimeImmutable())
+            ->orderBy('m.scheduledAt', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Prochaine réunion : la plus proche des réunions non closes (y compris une réunion du jour ou à peine passée
      * mais pas encore close, pour la séance en cours). Null s'il n'y en a pas.
      */

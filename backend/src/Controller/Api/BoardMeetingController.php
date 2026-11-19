@@ -32,7 +32,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *  - commentaires (réponses, pour une Question) sur n'importe quel point, sans limite de nombre, et réponses aux
  *    commentaires (fil) tant que la réunion est ouverte ; modification de ses propres commentaires ;
  *  - lecture des actions confiées en séance (saisies dans le back-office), avec échéance et état : la liste des
- *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`).
+ *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`), et les
+ *    dernières actions faites (`doneActions`) ; un porteur acquitte (ou rouvre) ses propres actions ;
+ *  - la prochaine réunion est la plus proche des réunions non closes dont l'heure n'est pas passée ; les autres
+ *    sont « passées » (`isPast`).
  */
 #[IsGranted(BoardSessionVoter::AGENDA)]
 #[Route('/api/board')]
@@ -51,18 +54,15 @@ class BoardMeetingController extends AbstractController
     {
         /** @var User $viewer */
         $viewer = $this->getUser();
-        $next = $this->meetings->findNext();
+        $next = $this->meetings->findNextUpcoming();
         return new JsonResponse([
-            'data' => array_map(fn (BoardMeeting $m) => $this->summary($m, $next), $this->meetings->findAllForListing()),
+            // À venir d'abord (la prochaine en tête), puis les passées (`isPast`), la plus récente en tête.
+            'data' => array_map(fn (BoardMeeting $m) => $this->summary($m, $next), $this->meetings->findAllForApp()),
             'nextId' => $next?->getId(),
             // Actions en cours de toutes les réunions, échéance la plus proche d'abord.
-            'actions' => array_map(fn (BoardAction $a) => $this->actionPayload($a, $viewer) + [
-                'meetingId' => $a->getItem()->getMeeting()->getId(),
-                'meetingLabel' => $a->getItem()->getMeeting()->getLabel(),
-                'pole' => $a->getItem()->getPole()->value,
-                'poleLabel' => $a->getItem()->getPole()->label(),
-                'pointText' => mb_strimwidth($a->getItem()->getText(), 0, 140, '…'),
-            ], $this->actions->findOpen()),
+            'actions' => array_map(fn (BoardAction $a) => $this->actionWithContext($a, $viewer), $this->actions->findOpen()),
+            // Les dernières actions faites (clôturées), celles de tous les porteurs : pour voir ce qui a été fait.
+            'doneActions' => array_map(fn (BoardAction $a) => $this->actionWithContext($a, $viewer), $this->actions->findRecentlyClosed()),
             'poles' => array_map(static fn (BoardPole $p) => ['value' => $p->value, 'label' => $p->label()], BoardPole::cases()),
             'types' => array_map(static fn (BoardItemType $t) => ['value' => $t->value, 'label' => $t->label()], BoardItemType::cases()),
         ]);
@@ -233,6 +233,37 @@ class BoardMeetingController extends AbstractController
     }
 
     /**
+     * Acquitte une action dont on est porteur (la marque « faite »), ou la rouvre. JSON : { closed? } — vrai par défaut.
+     * Les autres membres voient l'action passer en « faite » ; la réunion de l'action peut être close (une action
+     * survit à sa réunion).
+     */
+    #[Route('/actions/{id}', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function updateAction(int $id, Request $request): JsonResponse
+    {
+        /** @var User $viewer */
+        $viewer = $this->getUser();
+        $action = $this->actions->find($id);
+        if ($action === null) {
+            throw $this->createNotFoundException('Action introuvable.');
+        }
+        if (!$action->isAssignedTo($viewer)) {
+            throw $this->createAccessDeniedException('Seuls les porteurs d\'une action peuvent l\'acquitter.');
+        }
+        $payload = json_decode($request->getContent(), true);
+        $closed = true;
+        if (is_array($payload) && array_key_exists('closed', $payload)) {
+            $closed = filter_var($payload['closed'], \FILTER_VALIDATE_BOOLEAN, \FILTER_NULL_ON_FAILURE);
+            if ($closed === null) {
+                return new JsonResponse(['error' => 'Valeur invalide.'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+        $action->setClosed($closed);
+        $this->em->flush();
+
+        return new JsonResponse($this->detailPayload($action->getItem()->getMeeting(), $viewer));
+    }
+
+    /**
      * @return array{pole: BoardPole, type: BoardItemType, text: string}|string  message d'erreur si invalide
      */
     private function parseInput(Request $request): array|string
@@ -269,6 +300,8 @@ class BoardMeetingController extends AbstractController
             'location' => $m->getLocation(),
             'closed' => $m->isClosed(),
             'isNext' => $next !== null && $next->getId() === $m->getId(),
+            // Passée : close, ou dont l'heure est dépassée (affichée à part, jamais comme « prochaine »).
+            'isPast' => $m->isPast(),
             'itemCount' => $m->getItemCount(),
             'answeredCount' => $m->getAnsweredCount(),
         ];
@@ -277,7 +310,7 @@ class BoardMeetingController extends AbstractController
     /** @return array<string, mixed> */
     private function detailPayload(BoardMeeting $m, User $viewer): array
     {
-        $next = $this->meetings->findNext();
+        $next = $this->meetings->findNextUpcoming();
         return $this->summary($m, $next) + [
             'notes' => $m->getNotes(),
             'canAddItems' => !$m->isClosed(),
@@ -338,6 +371,26 @@ class BoardMeetingController extends AbstractController
             'closedAt' => $a->getClosedAt()?->format(\DATE_ATOM),
             'overdue' => $a->isOverdue(),
             'isMine' => $a->isAssignedTo($viewer),
+        ];
+    }
+
+    /**
+     * Une action avec le contexte de sa réunion et de son point (listes de la vue Comité directeur). `itemId` sert à
+     * ouvrir la réunion directement sur le bon point.
+     *
+     * @return array<string, mixed>
+     */
+    private function actionWithContext(BoardAction $a, User $viewer): array
+    {
+        $item = $a->getItem();
+
+        return $this->actionPayload($a, $viewer) + [
+            'meetingId' => $item->getMeeting()->getId(),
+            'meetingLabel' => $item->getMeeting()->getLabel(),
+            'itemId' => $item->getId(),
+            'pole' => $item->getPole()->value,
+            'poleLabel' => $item->getPole()->label(),
+            'pointText' => mb_strimwidth($item->getText(), 0, 140, '…'),
         ];
     }
 

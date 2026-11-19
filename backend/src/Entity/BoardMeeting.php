@@ -94,6 +94,9 @@ class BoardMeeting
     /** La réunion n'a pas encore eu lieu (inutile d'inviter à une réunion passée). */
     public function isUpcoming(): bool { return $this->scheduledAt > new \DateTimeImmutable(); }
 
+    /** Réunion passée dans l'appli : close, ou dont l'heure prévue est dépassée (même si elle n'a pas encore été close). */
+    public function isPast(): bool { return $this->isClosed() || !$this->isUpcoming(); }
+
     /** @return Collection<int, BoardAgendaItem> */
     public function getItems(): Collection { return $this->items; }
 
