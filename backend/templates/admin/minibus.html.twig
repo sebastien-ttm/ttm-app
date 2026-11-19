@@ -1,0 +1,125 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Emprunt du minibus{% endblock %}
+{% block content_title %}🚐 Emprunt du minibus{% endblock %}
+
+{% block main %}
+    {% set card = 'background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:14px 16px; margin-bottom:14px;' %}
+    {% set muted = 'color:#64748b; font-size:13px;' %}
+    {% set badge = 'display:inline-block; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; margin-right:4px;' %}
+    {% set statusStyle = {
+        pending: 'background:#fef3c7; color:#92400e;',
+        approved: 'background:#dcfce7; color:#166534;',
+        refused: 'background:#fee2e2; color:#991b1b;',
+        cancelled: 'background:#e2e8f0; color:#475569;'
+    } %}
+    {% set stepLabel = {
+        charter: 'Charte à accepter',
+        departure: 'État des lieux de départ à faire',
+        return: 'État des lieux de retour à faire',
+        done: 'Terminé'
+    } %}
+
+    <div style="{{ card }} display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+        <div style="flex:1; min-width:240px;">
+            <strong>{{ pendingCount }} demande{{ pendingCount > 1 ? 's' : '' }} en attente de décision</strong>
+            <div style="{{ muted }}">Le gestionnaire du minibus valide ou refuse chaque demande, ici ou dans l'appli (Staff › Comité directeur › Emprunt minibus). Une fois validée, l'emprunteur accepte la charte puis remplit l'état des lieux de départ et de retour (photos, compte rendu, problèmes).</div>
+        </div>
+        <a class="btn btn-secondary" href="{{ ea_url().setController('App\\Controller\\Admin\\MinibusSettingsCrudController').setAction('index') }}"><i class="fa fa-file-signature"></i> Modifier la charte</a>
+    </div>
+
+    {% for b in bookings %}
+        <div id="booking-{{ b.id }}" style="{{ card }}">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:baseline;">
+                <strong style="font-size:16px;">
+                    {{ b.startDate|date('d/m/Y') }}{% if b.endDate != b.startDate %} → {{ b.endDate|date('d/m/Y') }}{% endif %}
+                </strong>
+                <span>{{ b.requesterName }}</span>
+                <span style="flex:1;"></span>
+                <span>
+                    <span style="{{ badge }} {{ statusStyle[b.status.value] }}">{{ b.status.label }}</span>
+                    {% if b.withTrailer %}<span style="{{ badge }} background:#dbeafe; color:#1e40af;">Avec remorque</span>{% endif %}
+                    {% if b.step %}<span style="{{ badge }} background:#f1f5f9; color:#334155;">{{ stepLabel[b.step] }}</span>{% endif %}
+                    {% if b.hasProblem %}<span style="{{ badge }} background:#fee2e2; color:#991b1b;">⚠ Problème signalé</span>{% endif %}
+                </span>
+            </div>
+            <div style="margin-top:6px; white-space:pre-line;">{{ b.reason }}</div>
+            <div style="{{ muted }} margin-top:4px;">Demandé le {{ b.createdAt|date('d/m/Y à H\\hi') }}</div>
+
+            {% if b.decidedAt %}
+                <div style="{{ muted }} margin-top:4px;">
+                    {{ b.status.value == 'approved' ? 'Validée' : (b.status.value == 'refused' ? 'Refusée' : 'Traitée') }}
+                    par {{ b.decidedByName }} le {{ b.decidedAt|date('d/m/Y') }}{% if b.decisionNote %} — « {{ b.decisionNote }} »{% endif %}
+                </div>
+            {% endif %}
+            {% if b.charterAcceptedAt %}
+                <div style="{{ muted }}">Charte acceptée le {{ b.charterAcceptedAt|date('d/m/Y à H\\hi') }}</div>
+            {% endif %}
+
+            {% if b.pending %}
+                {% set clash = conflicts[b.id]|default([]) %}
+                {% if clash is not empty %}
+                    <div style="margin-top:8px; padding:8px 10px; border-radius:6px; background:#fff7ed; color:#9a3412; font-size:13px;">
+                        ⚠ Chevauche
+                        {% for c in clash %}
+                            {{ c.requesterName }} ({{ c.startDate|date('d/m') }}{% if c.endDate != c.startDate %} → {{ c.endDate|date('d/m') }}{% endif %}, {{ c.status.value == 'approved' ? 'validée' : 'en attente' }}){{ loop.last ? '' : ', ' }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <form method="post" action="{{ path('admin_minibus_decision', {id: b.id}) }}" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                    <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                    <input type="text" name="note" maxlength="1000" placeholder="Message à l'emprunteur (facultatif : motif d'un refus, remise des clés…)" style="flex:1; min-width:260px; padding:6px 9px; border:1px solid #cbd5e1; border-radius:4px; font-size:14px;">
+                    <button type="submit" name="decision" value="approve" class="btn btn-success">Valider</button>
+                    <button type="submit" name="decision" value="refuse" class="btn btn-danger">Refuser</button>
+                </form>
+            {% endif %}
+
+            {% for type in checkTypes %}
+                {% set check = b.check(type) %}
+                {% if check %}
+                    <details style="margin-top:10px;" {{ check.hasProblem ? 'open' : '' }}>
+                        <summary style="cursor:pointer; font-weight:700;">
+                            {{ type.label }} — {{ check.submittedByName }}, le {{ check.submittedAt|date('d/m/Y à H\\hi') }}
+                            ({{ check.photos|length }} photo{{ check.photos|length > 1 ? 's' : '' }}){% if check.hasProblem %} <span style="color:#991b1b;">⚠ problème</span>{% endif %}
+                        </summary>
+                        <div style="padding:8px 0 0 12px; font-size:14px;">
+                            {% if check.mileage is not null %}<div>Kilométrage : <strong>{{ check.mileage|number_format(0, ',', ' ') }} km</strong></div>{% endif %}
+                            {% if type.value == 'return' %}
+                                <div>
+                                    Plein refait : <strong style="color:{{ check.refueled ? '#166534' : '#991b1b' }};">{{ check.refueled ? 'oui' : 'non' }}</strong>
+                                    · Minibus nettoyé et vidé : <strong style="color:{{ check.cleaned ? '#166534' : '#991b1b' }};">{{ check.cleaned ? 'oui' : 'non' }}</strong>
+                                </div>
+                            {% endif %}
+                            {% if check.comment %}<div style="white-space:pre-line;">Comment ça s'est passé : {{ check.comment }}</div>{% endif %}
+                            {% if check.hasProblem %}<div style="white-space:pre-line; color:#991b1b;">Problème : {{ check.problemDescription ?: 'non décrit' }}</div>{% endif %}
+                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+                                {% for p in check.photos %}
+                                    <a href="{{ path('admin_minibus_photo', {id: p.id}) }}" target="_blank" rel="noopener">
+                                        <img src="{{ path('admin_minibus_photo', {id: p.id}) }}" alt="Photo {{ loop.index }}" loading="lazy" style="width:120px; height:90px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </details>
+                {% endif %}
+            {% endfor %}
+
+            <div style="margin-top:10px; display:flex; gap:8px;">
+                {% if b.status.live and b.checks is empty %}
+                    <form method="post" action="{{ path('admin_minibus_cancel', {id: b.id}) }}" onsubmit="return confirm('Annuler cette demande ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                        <button type="submit" class="btn btn-link" style="padding-left:0;">Annuler la demande</button>
+                    </form>
+                {% endif %}
+                {% if is_granted('ROLE_ADMIN') %}
+                    <form method="post" action="{{ path('admin_minibus_delete', {id: b.id}) }}" onsubmit="return confirm('Supprimer définitivement cette demande, ses états des lieux et leurs photos ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                        <button type="submit" class="btn btn-link text-danger" style="padding-left:0;">Supprimer</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div style="{{ card }} color:#64748b;">Aucune demande d'emprunt pour le moment. Les membres du CODIR en font depuis l'appli : Staff › Comité directeur › Emprunt minibus.</div>
+    {% endfor %}
+{% endblock %}

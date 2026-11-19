@@ -82,6 +82,8 @@ class AuthSuccessListener
             'isDirigeant' => $user->isDirigeant(),
             // Membre du CoDir : ouvre l'espace « Staff » de l'appli (émargement des événements).
             'isBoardMember' => $user->getBoardRole() !== null,
+            // Gestionnaire du minibus (rôle complémentaire d'un membre du CoDir) : valide les demandes d'emprunt.
+            'isMinibusManager' => $user->isMinibusManager(),
             'categorieFFTri' => $user->getCategorieFFTri(),
             // Conservé pour rétrocompat mobile : "jeune" / "senior" / null
             'categorie' => $user->isJeune() ? 'jeune' : ($user->isSenior() ? 'senior' : null),

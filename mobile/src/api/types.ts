@@ -1966,3 +1966,90 @@ export type BoardMeetingDetail = BoardMeetingSummary & {
 export type BoardOption = { value: string; label: string };
 
 export type BoardItemInput = { pole: string; type: BoardItemType; text: string };
+
+// ============================================================
+//  Emprunt du minibus du club (Staff › Comité directeur › Emprunt minibus)
+// ============================================================
+
+export type MinibusStatus = 'pending' | 'approved' | 'refused' | 'cancelled';
+/** Étape d'un emprunt validé : charte à accepter → état des lieux de départ → de retour → terminé. */
+export type MinibusStep = 'charter' | 'departure' | 'return' | 'done';
+export type MinibusCheckType = 'departure' | 'return';
+
+/** Demande d'emprunt (calendrier et listes). Dates AAAA-MM-JJ, bornes comprises. */
+export type MinibusBooking = {
+  id: number;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  withTrailer: boolean;
+  status: MinibusStatus;
+  statusLabel: string;
+  requesterName: string;
+  isMine: boolean;
+  /** Étape en cours d'un emprunt validé ; null si la demande n'est pas validée. */
+  step: MinibusStep | null;
+  /** Un état des lieux signale un problème. */
+  hasProblem: boolean;
+  /** Message du gestionnaire (visible de l'emprunteur et du gestionnaire seulement). */
+  decisionNote: string | null;
+};
+
+export type MinibusList = {
+  data: MinibusBooking[];
+  /** Gestionnaire du minibus : peut valider / refuser les demandes. */
+  canManage: boolean;
+  /** Demandes en attente (gestionnaire seulement, null sinon). */
+  pendingCount: number | null;
+};
+
+/** URL authentifiée : le jeton est ajouté en `?bearer=` (voir withBearer). */
+export type MinibusPhoto = { id: number; url: string };
+
+/** État des lieux de départ ou de retour. */
+export type MinibusCheck = {
+  type: MinibusCheckType;
+  typeLabel: string;
+  submittedAt: string;
+  submittedByName: string;
+  comment: string | null;
+  hasProblem: boolean;
+  problemDescription: string | null;
+  mileage: number | null;
+  /** Au retour : plein refait / minibus nettoyé et vidé. */
+  refueled: boolean;
+  cleaned: boolean;
+  photos: MinibusPhoto[];
+};
+
+export type MinibusBookingDetail = MinibusBooking & {
+  createdAt: string;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  charterAcceptedAt: string | null;
+  /** Charte d'utilisation (HTML), présentée à l'emprunteur dès que la demande est validée. */
+  charter: { title: string; content: string } | null;
+  checks: { departure: MinibusCheck | null; return: MinibusCheck | null };
+  /** Autres demandes (en attente ou validées) sur les mêmes jours : pour le gestionnaire. */
+  conflicts: MinibusBooking[];
+  can: {
+    decide: boolean;
+    cancel: boolean;
+    acceptCharter: boolean;
+    departureCheck: boolean;
+    returnCheck: boolean;
+    deletePhotos: boolean;
+  };
+};
+
+export type MinibusRequestInput = { startDate: string; endDate: string; reason: string; withTrailer: boolean };
+
+/** Saisie d'un état des lieux (les photos sont envoyées à part). */
+export type MinibusCheckInput = {
+  comment: string;
+  mileage: string;
+  hasProblem: boolean;
+  problemDescription: string;
+  refueled: boolean;
+  cleaned: boolean;
+};

@@ -7,6 +7,11 @@ import type {
   BoardMeetingSummary,
   BoardOpenAction,
   BoardOption,
+  MinibusBookingDetail,
+  MinibusCheckInput,
+  MinibusCheckType,
+  MinibusList,
+  MinibusRequestInput,
   VolunteerApplication,
   VolunteerApplicationStatus,
   VolunteerCampaign,
@@ -533,6 +538,35 @@ async function appendMarketplacePhoto(form: FormData, photo: MarketplacePhotoInp
     form.append('photos[]', { uri, type: mimeType, name });
   }
 }
+
+/**
+ * Emprunt du minibus du club (CoDir) : calendrier, demande, décision du gestionnaire, charte, états des lieux (photos
+ * en multipart, même idiome `photos[]` que la bourse aux équipements).
+ */
+export const minibus = {
+  /** Calendrier : demandes en attente et validées (et l'historique des siennes) à partir de `from` (AAAA-MM-JJ). */
+  list: (from?: string) => api.get<MinibusList>(`/api/minibus/bookings${from ? `?from=${from}` : ''}`),
+  get: (id: number) => api.get<MinibusBookingDetail>(`/api/minibus/bookings/${id}`),
+  request: (input: MinibusRequestInput) => api.post<MinibusBookingDetail>('/api/minibus/bookings', input),
+  /** Gestionnaire : valide ou refuse, avec un message facultatif à l'emprunteur. */
+  decide: (id: number, decision: 'approve' | 'refuse', note?: string) =>
+    api.post<MinibusBookingDetail>(`/api/minibus/bookings/${id}/decision`, { decision, note: note ?? '' }),
+  cancel: (id: number) => api.post<MinibusBookingDetail>(`/api/minibus/bookings/${id}/cancel`, {}),
+  acceptCharter: (id: number) => api.post<MinibusBookingDetail>(`/api/minibus/bookings/${id}/charter`, {}),
+  /** État des lieux de départ ou de retour ; renvoyé une 2e fois, il complète l'existant (photos ajoutées). */
+  submitCheck: async (id: number, type: MinibusCheckType, input: MinibusCheckInput, photos: MarketplacePhotoInput[]) => {
+    const form = new FormData();
+    form.append('comment', input.comment);
+    form.append('mileage', input.mileage.trim());
+    form.append('hasProblem', input.hasProblem ? '1' : '0');
+    form.append('problemDescription', input.problemDescription);
+    form.append('refueled', input.refueled ? '1' : '0');
+    form.append('cleaned', input.cleaned ? '1' : '0');
+    for (const p of photos) await appendMarketplacePhoto(form, p);
+    return api.post<MinibusBookingDetail>(`/api/minibus/bookings/${id}/checks/${type}`, form);
+  },
+  deletePhoto: (photoId: number) => api.delete<MinibusBookingDetail>(`/api/minibus/photos/${photoId}`),
+};
 
 export const marketplace = {
   /** true si le compte courant a accès à la bourse (phase de test réservée à quelques comptes). */

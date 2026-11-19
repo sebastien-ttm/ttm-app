@@ -44,6 +44,24 @@ export async function pickReducedPhotos(limit: number, maxSide: number = MAX_SID
   return out;
 }
 
+/**
+ * Ouvre l'appareil photo et renvoie la photo prise, DÉJÀ RÉDUITE (comme pickReducedPhotos), ou null si elle est annulée.
+ * Sur le web (appli installée sur un téléphone), le navigateur propose directement l'appareil photo ; sur ordinateur, un
+ * sélecteur de fichier. Sert aux états des lieux du minibus : on photographie sur place.
+ */
+export async function takeReducedPhoto(maxSide: number = MAX_SIDE): Promise<PickedPhoto | null> {
+  if (Platform.OS !== 'web') {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission refusée', 'Autorise l\'accès à l\'appareil photo dans les réglages.');
+      return null;
+    }
+  }
+  const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
+  if (result.canceled || result.assets.length === 0) return null;
+  return reduce(result.assets[0], `photo-${Date.now()}`, maxSide);
+}
+
 async function reduce(asset: ImagePicker.ImagePickerAsset, baseName: string, maxSide: number): Promise<PickedPhoto> {
   const longest = Math.max(asset.width || 0, asset.height || 0);
   const actions: ImageManipulator.Action[] = longest > maxSide

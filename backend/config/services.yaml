@@ -20,6 +20,8 @@ parameters:
     app.uploads.invoice_signatures_dir: '%kernel.project_dir%/var/uploads/invoice-signatures'
     # Signature manuscrite des comptes (celle du Secrétaire, insérée dans le compte rendu du CoDir) : privé, jamais servi par une URL.
     app.uploads.user_signatures_dir: '%kernel.project_dir%/var/uploads/user-signatures'
+    # Photos des états des lieux du minibus : privé, servi uniquement par l'API / le back-office authentifié.
+    app.uploads.minibus_dir: '%kernel.project_dir%/var/uploads/minibus'
     app.uploads.marketplace_dir: '%kernel.project_dir%/public/uploads/marketplace'
     # Valeur de repli si MARKETPLACE_TESTER_EMAILS n'existe dans aucun .env
     # (ex : .env.local.php généré avant l'ajout de la variable) : bourse fermée.
@@ -129,6 +131,10 @@ services:
         arguments:
             $avatarsDir: '%app.uploads.avatars_dir%'
             $publicUrl: '%app.public_url%'
+
+    App\Service\Minibus\MinibusPhotoService:
+        arguments:
+            $minibusDir: '%app.uploads.minibus_dir%'
 
     App\Service\Marketplace\MarketplaceListingPhotoService:
         arguments:

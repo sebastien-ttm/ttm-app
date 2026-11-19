@@ -39,7 +39,10 @@ use App\Entity\VolunteerPole;
 use App\Entity\VolunteerRole;
 use App\Entity\WelcomeEmailTemplate;
 use App\Entity\BoardMeeting;
+use App\Entity\MinibusSettings;
+use App\Repository\MinibusBookingRepository;
 use App\Security\BoardSessionVoter;
+use App\Security\MinibusVoter;
 use App\Security\CapDistributionVoter;
 use App\Security\StaffScheduleSupervisionVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Asset;
@@ -96,6 +99,25 @@ class DashboardController extends AbstractDashboardController
     {
         try {
             return $this->isGranted('ROLE_ADMIN') ? ($this->raceProposals?->countPending() ?? 0) : 0;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /** Injecté par setter (pas de constructeur) : sert au badge « Emprunt du minibus » du menu. */
+    private ?MinibusBookingRepository $minibusBookings = null;
+
+    #[Required]
+    public function setMinibusBookings(MinibusBookingRepository $repository): void
+    {
+        $this->minibusBookings = $repository;
+    }
+
+    /** Demandes d'emprunt du minibus en attente de décision — jamais bloquant pour le menu (0 en cas d'erreur). */
+    private function pendingMinibusRequests(): int
+    {
+        try {
+            return $this->minibusBookings?->countPending() ?? 0;
         } catch (\Throwable) {
             return 0;
         }
@@ -250,6 +272,10 @@ class DashboardController extends AbstractDashboardController
             'Comité directeur' => [
                 [BoardSessionVoter::ATTRIBUTE, fn () => AdminMenuItem::linkToRoute('En séance', 'fa fa-gavel', 'admin_board_session')],
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Réunions', 'fa fa-calendar-check', BoardMeeting::class)],
+                // Minibus : le gestionnaire du minibus (rôle complémentaire d'un membre du CoDir) et les administrateurs.
+                [MinibusVoter::MANAGE, fn () => AdminMenuItem::linkToRoute('Emprunt du minibus', 'fa fa-van-shuttle', 'admin_minibus')
+                    ->setBadge($this->pendingMinibusRequests() ?: null, 'danger')],
+                [MinibusVoter::MANAGE, fn () => AdminMenuItem::linkToCrud('Charte du minibus', 'fa fa-file-signature', MinibusSettings::class)],
             ],
             'Bénévolat événements' => [
                 ['ROLE_ADMIN', fn () => AdminMenuItem::linkToCrud('Événements', 'fa fa-flag', VolunteerCampaign::class)],

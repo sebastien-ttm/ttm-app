@@ -190,6 +190,12 @@ class UserCrudController extends AbstractCrudController
             ])
             ->setHelp('Renseigné uniquement pour les élus du CODIR. Les 3 rôles Président / Trésorier / Secrétaire composent le Bureau, affiché en tête de la page trombinoscope Comité.');
 
+        // Rôle complémentaire, cumulable avec le rôle CODIR ci-dessus (qui doit être renseigné : Symfony l'applique avant cette case).
+        yield BooleanField::new('minibusManager', 'Gestionnaire du minibus')
+            ->renderAsSwitch(false)
+            ->hideOnIndex()
+            ->setHelp('Valide ou refuse les demandes d\'emprunt du minibus du club dans l\'appli (Staff › Comité directeur › Emprunt minibus) et peut modifier la charte d\'utilisation. Cumulable avec un rôle CODIR, qui est nécessaire : sans rôle CODIR, la case est ignorée.');
+
         // Signature manuscrite : celle du Secrétaire est insérée automatiquement au bas du compte rendu des réunions du
         // CoDir. Envoi hors formulaire mappé (comme le mot de passe) : voir handleSignature().
         yield Field::new('signatureUpload', 'Signature (compte rendu du CODIR)')

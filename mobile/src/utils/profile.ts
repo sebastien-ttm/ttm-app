@@ -152,6 +152,19 @@ export function isBoardMember(user: AuthenticatedUser | null | undefined): boole
   return !!user && user.isBoardMember === true;
 }
 
+/** Gestionnaire du minibus : valide ou refuse les demandes d'emprunt (rôle complémentaire d'un membre du CoDir). */
+export function isMinibusManager(user: AuthenticatedUser | null | undefined): boolean {
+  return !!user && user.isMinibusManager === true;
+}
+
+/**
+ * Emprunt du minibus du club (sous-partie « Emprunt minibus » du Comité directeur) : membres du CoDir seulement, pour le
+ * moment (MinibusController, voter MINIBUS — le back-end revérifie).
+ */
+export function canUseMinibus(user: AuthenticatedUser | null | undefined): boolean {
+  return isBoardMember(user);
+}
+
 /**
  * Utiliser la partie « Comité directeur » de l'onglet Social (ordre du jour : consulter, ajouter des points,
  * commenter ; comptes rendus, actions) : membres du CoDir, administrateurs et entraîneurs, invités aux réunions,

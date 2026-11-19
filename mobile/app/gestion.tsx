@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthContext';
 import { AdherentsTab, type AdherentsView } from '@/components/gestion/AdherentsTab';
-import { BoardTab } from '@/components/gestion/BoardTab';
+import { CodirTab, type CodirView } from '@/components/gestion/CodirTab';
 import { TrainingsTab, type TrainingsView } from '@/components/gestion/TrainingsTab';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { canCheckIn, canUseBoard, canUseStaffSpace } from '@/utils/profile';
@@ -22,13 +22,15 @@ const TABS: { key: GestionTab; label: string }[] = [
  * Liens directs : l'onglet (et la vue de l'onglet) qu'ouvre chaque valeur de `?tab=`, y compris les anciennes valeurs
  * d'avant le regroupement en trois onglets (favoris, liens enregistrés).
  */
-const LINKS: Record<string, { tab: GestionTab; training?: TrainingsView; adherents?: AdherentsView }> = {
+const LINKS: Record<string, { tab: GestionTab; training?: TrainingsView; adherents?: AdherentsView; codir?: CodirView }> = {
   entrainements: { tab: 'entrainements' },
   presences: { tab: 'entrainements', training: 'presences' },
   groupe: { tab: 'entrainements', training: 'groupes' },
   adherents: { tab: 'adherents', adherents: 'list' },
   emargements: { tab: 'adherents', adherents: 'sheets' },
   codir: { tab: 'codir' },
+  reunions: { tab: 'codir', codir: 'reunions' },
+  minibus: { tab: 'codir', codir: 'minibus' },
 };
 
 /**
@@ -42,10 +44,11 @@ const LINKS: Record<string, { tab: GestionTab; training?: TrainingsView; adheren
  *  - Adhérents : Liste (entraîneur, encadrant, administrateur dont gestionnaire externe : annuaire des adhérents, séniors et jeunes ensemble, appel ou message
  *    WhatsApp en un geste, fiche sanitaire et autorisation de rentrer seul des jeunes) et Bonnets & événements (remise des
  *    bonnets pour les entraîneurs et admins ; présence aux événements pour le staff, le CoDir et les admins) ;
- *  - Comité directeur (membre du CoDir, administrateur, entraîneur) : actions en cours et réunions, avec l'ordre du jour
- *    de chacune (ex-section de l'onglet Social).
+ *  - Comité directeur : deux sous-parties — Réunions (membre du CoDir, administrateur, entraîneur : actions en cours et
+ *    réunions, avec l'ordre du jour de chacune, ex-section de l'onglet Social) et Emprunt minibus (membres du CoDir :
+ *    calendrier du minibus du club, demande de réservation, charte, états des lieux).
  * `?tab=entrainements` / `adherents` / `codir` ouvrent directement l'onglet ; les anciennes valeurs (`presences`,
- *  `groupe`, `emargements`) mènent à la vue correspondante.
+ *  `groupe`, `emargements`) mènent à la vue correspondante ; `?tab=minibus` ouvre l'Emprunt minibus.
  */
 export default function GestionScreen() {
   const { user } = useAuth();
@@ -99,7 +102,7 @@ export default function GestionScreen() {
       <View style={{ flex: 1 }}>
         {tab === 'entrainements' ? <TrainingsTab initialView={link?.training} />
           : tab === 'adherents' ? <AdherentsTab initialView={link?.adherents} />
-          : <BoardTab />}
+          : <CodirTab initialView={link?.codir} />}
       </View>
     </SafeAreaView>
   );

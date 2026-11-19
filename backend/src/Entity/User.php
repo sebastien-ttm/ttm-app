@@ -198,6 +198,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\App\Enum\BoardRole $boardRole = null;
 
     /**
+     * Rôle complémentaire du CoDir : gestionnaire du minibus du club (il valide les demandes d'emprunt). Cumulable avec
+     * n'importe quel rôle CoDir ; sans rôle CoDir il est sans effet (voir isMinibusManager()).
+     */
+    #[ORM\Column(name: 'minibus_manager', options: ['default' => false])]
+    private bool $minibusManager = false;
+
+    /**
      * Nom du fichier de la signature manuscrite (var/uploads/user-signatures/, privé), null = aucune. Insérée
      * automatiquement au bas du compte rendu du CoDir quand la personne a le rôle Secrétaire (MinutesSignatureService).
      */
@@ -910,7 +917,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getSignatureStatus(): string { return $this->signatureFilename !== null ? 'Enregistrée' : 'Non renseignée'; }
 
     public function getBoardRole(): ?\App\Enum\BoardRole { return $this->boardRole; }
-    public function setBoardRole(?\App\Enum\BoardRole $role): self { $this->boardRole = $role; return $this; }
+    public function setBoardRole(?\App\Enum\BoardRole $role): self
+    {
+        $this->boardRole = $role;
+        // Quitter le CoDir retire aussi la gestion du minibus : elle ne doit pas « revenir » si la personne y entre à nouveau.
+        if ($role === null) {
+            $this->minibusManager = false;
+        }
+        return $this;
+    }
+
+    /** Gestionnaire du minibus : un membre du CoDir à qui ce rôle complémentaire est confié. */
+    public function isMinibusManager(): bool { return $this->minibusManager && $this->boardRole !== null; }
+    /** Sans rôle CoDir, la case est ignorée (le formulaire envoie le rôle CoDir avant elle : il est déjà à jour). */
+    public function setMinibusManager(bool $manager): self { $this->minibusManager = $manager && $this->boardRole !== null; return $this; }
     public function getClubFunction(): ?string { return $this->clubFunction; }
     public function setClubFunction(?string $f): self
     {

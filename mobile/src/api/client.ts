@@ -254,6 +254,8 @@ export type AuthenticatedUser = {
   isDirigeant: boolean;
   /** Membre du CoDir (poste au bureau) : accès à l'émargement des événements dans l'espace Staff. Absent des anciennes réponses. */
   isBoardMember?: boolean;
+  /** Gestionnaire du minibus (rôle complémentaire d'un membre du CoDir) : valide les demandes d'emprunt. Absent des anciennes réponses. */
+  isMinibusManager?: boolean;
   /** Catégorie FFTri calculée depuis la date de naissance (Senior, V1, Junior, ...). */
   categorieFFTri: string | null;
   /** Rétrocompat : 'jeune' / 'senior' / null. Dérivé de profiles[]. */
