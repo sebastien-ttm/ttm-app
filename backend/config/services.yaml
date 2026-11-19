@@ -138,6 +138,8 @@ services:
             $clientId: '%env(default:app.helloasso_empty_fallback:HELLOASSO_CLIENT_ID)%'
             $clientSecret: '%env(default:app.helloasso_empty_fallback:HELLOASSO_CLIENT_SECRET)%'
             $apiBaseUrl: '%env(default:app.helloasso_api_fallback:HELLOASSO_API_URL)%'
+            # Slug de l'association (…/associations/{slug}/…) : nécessaire aux paiements de l'appli (Checkout). Vide = désactivés.
+            $organizationSlug: '%env(default:app.helloasso_empty_fallback:HELLOASSO_ORGANIZATION_SLUG)%'
 
     App\Service\Piwigo\PiwigoClient:
         arguments:

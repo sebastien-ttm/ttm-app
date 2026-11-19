@@ -9,6 +9,7 @@ use App\Entity\ClubCharter;
 use App\Entity\Comment;
 use App\Entity\Event;
 use App\Entity\EventCarpoolOffer;
+use App\Entity\EventOrder;
 use App\Entity\EventTag;
 use App\Entity\Mailing;
 use App\Entity\MarketplaceListing;
@@ -213,6 +214,7 @@ class DashboardController extends AbstractDashboardController
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToRoute('Votes de présence', 'fa fa-list-check', 'admin_event_attendance_index')],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Sondages', 'fa fa-poll', Survey::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Calendrier', 'fa fa-calendar', Event::class)],
+                ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Inscriptions payantes', 'fa fa-credit-card', EventOrder::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Déplacements', 'fa fa-plane', Trip::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Stages', 'fa fa-campground', Stage::class)],
                 ['ROLE_EDITEUR',    fn () => AdminMenuItem::linkToCrud('Tags d\'événements', 'fa fa-tags', EventTag::class)],

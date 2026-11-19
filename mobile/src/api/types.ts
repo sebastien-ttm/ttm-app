@@ -204,6 +204,51 @@ export type EventItem = {
    * semaine. Absent des listes, null si aucun lien.
    */
   trainingSlot?: TrainingSlot | null;
+  /**
+   * Inscription payante (détail GET /api/events/{id} uniquement) : tarifs proposés au viewer, ses inscriptions en
+   * cours ou payées. Absent des listes ; null = événement sans tarif.
+   */
+  payment?: EventPaymentInfo | null;
+};
+
+/** Un tarif que le viewer peut choisir (déjà filtré selon son profil). `remaining` null = places illimitées. */
+export type EventTariffOption = {
+  id: number;
+  label: string;
+  description: string | null;
+  amountCents: number;
+  remaining: number | null;
+  soldOut: boolean;
+};
+
+export type EventOrderStatus = 'pending' | 'paid' | 'abandoned' | 'canceled';
+
+export type EventOrderItem = {
+  id: number;
+  eventId: number | null;
+  status: EventOrderStatus;
+  statusLabel: string;
+  totalCents: number;
+  createdAt: string;
+  paidAt: string | null;
+  /** Fin de la réservation des places (commande en attente). */
+  expiresAt: string;
+  /** En attente et dans le délai : on peut reprendre le paiement ou annuler. */
+  canPay: boolean;
+  lines: { label: string; unitAmountCents: number; quantity: number }[];
+};
+
+export type EventPaymentInfo = {
+  /** Paiement en ligne utilisable côté serveur (les tarifs à 0 € n'en ont pas besoin). */
+  configured: boolean;
+  /** Bac à sable HelloAsso : aucun vrai paiement. */
+  sandbox: boolean;
+  /** Événement terminé : plus d'inscription. */
+  closed: boolean;
+  maxQuantity: number;
+  tariffs: EventTariffOption[];
+  /** Inscriptions du viewer à cet événement : en attente de paiement ou payées. */
+  orders: EventOrderItem[];
 };
 
 export type CarpoolRole = 'driver' | 'passenger';

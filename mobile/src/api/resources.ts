@@ -41,6 +41,7 @@ import type {
   CommitteeResponse,
   StaffResponse,
   EventItem,
+  EventOrderItem,
   GouterPlanning,
   MarketplaceConversation,
   MarketplaceConversationSummary,
@@ -435,6 +436,21 @@ export const events = {
       content,
       ...(parentId ? { parentId } : {}),
     }),
+  /**
+   * S'inscrire : crée la commande des tarifs choisis. `redirectUrl` = page de paiement HelloAsso à ouvrir ; null quand
+   * la commande est déjà payée (total nul).
+   */
+  order: (id: number, lines: { tariffId: number; quantity: number }[]) =>
+    api.post<{ order: EventOrderItem; redirectUrl: string | null }>(`/api/events/${id}/orders`, { lines }),
+};
+
+/** Inscriptions payantes (commandes) de l'adhérent connecté. */
+export const eventOrders = {
+  /** Statut à jour : le serveur vérifie le paiement auprès de HelloAsso quand il est en attente. */
+  get: (id: number) => api.get<{ order: EventOrderItem }>(`/api/event-orders/${id}`),
+  /** Reprendre un paiement en attente ; redirectUrl null = en fait déjà payée. */
+  pay: (id: number) => api.post<{ order: EventOrderItem; redirectUrl: string | null }>(`/api/event-orders/${id}/pay`),
+  cancel: (id: number) => api.post<{ order: EventOrderItem }>(`/api/event-orders/${id}/cancel`),
 };
 
 function carpoolPath(kind: CarpoolKind, id: number): string {

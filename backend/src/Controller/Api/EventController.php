@@ -12,6 +12,7 @@ use App\Repository\EventRepository;
 use App\Service\Audience\AudienceFilter;
 use App\Service\AvatarService;
 use App\Service\Event\EventAttendanceService;
+use App\Service\Event\EventOrderService;
 use App\Service\Serializer\ApiSerializer;
 use App\Service\Training\TrainingRegistrationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ class EventController extends AbstractController
         private readonly ValidatorInterface $validator,
         private readonly TrainingRegistrationService $trainingRegistrations,
         private readonly AvatarService $avatars,
+        private readonly EventOrderService $orders,
     ) {
     }
 
@@ -78,6 +80,8 @@ class EventController extends AbstractController
         $data['trainingSlot'] = $linked !== null
             ? ($this->trainingRegistrations->decoratedSlots([$linked], $viewer)[0] ?? null)
             : null;
+        // Détail uniquement : tarifs et inscriptions payantes de l'adhérent (null = événement sans tarif).
+        $data['payment'] = $this->orders->paymentInfo($event, $viewer);
         return new JsonResponse($data);
     }
 

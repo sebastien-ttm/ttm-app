@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityRepository;
 use App\Entity\User;
 use App\Enum\ContentAudience;
 use App\Enum\Profile;
+use App\Form\EventTariffType;
 use App\Repository\EventTagRepository;
 use App\Security\ContentDeleteVoter;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -19,6 +20,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -111,6 +113,19 @@ class EventCrudController extends AbstractCrudController
                 .'Ex : lien Njuko / klikego / HelloAsso pour une compétition. '
                 .'Renseignée, le bouton « J\'y serai » est remplacé par « Je m\'inscris » '
                 .'qui ouvre cette URL dans le navigateur ET compte le vote.');
+        // Inscription payante dans l'appli (HelloAsso Checkout) : dès qu'un tarif existe, l'événement affiche
+        // « S'inscrire et payer » à la place du vote simple. Chaque tarif a son prix, ses places et son public.
+        yield CollectionField::new('tariffs', 'Tarifs (inscription et paiement dans l\'appli)')
+            ->setEntryType(EventTariffType::class)
+            ->setEntryIsComplex()
+            ->allowAdd()
+            ->allowDelete()
+            ->setFormTypeOption('by_reference', false)
+            ->setFormTypeOption('error_bubbling', false)
+            ->hideOnIndex()
+            ->setHelp('Optionnel. Un ou plusieurs tarifs : l\'adhérent choisit ceux qu\'il veut, avec une quantité (lui + ses invités, un repas…), '
+                .'puis règle en ligne via HelloAsso avec ses informations déjà remplies. Un tarif peut être réservé à certains profils. '
+                .'Supprimer un tarif ne touche pas aux inscriptions déjà payées.');
         yield TextField::new('helloassoFormUrl', 'Formulaire HelloAsso (vérification des paiements)')
             ->setRequired(false)
             ->hideOnIndex()

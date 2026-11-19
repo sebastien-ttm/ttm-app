@@ -10,6 +10,7 @@ import type { Comment, EventItem } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { CommentThread } from '@/components/CommentThread';
 import { EventAttendees } from '@/components/EventAttendees';
+import { EventPayment } from '@/components/EventPayment';
 import { EventVoteBar } from '@/components/EventVoteBar';
 import { LinkedTrainingSlotCard } from '@/components/LinkedTrainingSlotCard';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
@@ -60,8 +61,11 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const goBack = useGoBackOrHome();
   const { user } = useAuth();
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  // `order` et `payment` : paramètres du retour de la page de paiement HelloAsso (…/event/12?order=5&payment=return).
+  const { id: rawId, order: rawOrder, payment: rawPayment } = useLocalSearchParams<{ id: string; order?: string; payment?: string }>();
   const id = Number(rawId);
+  const returnOrderId = Number(rawOrder) > 0 ? Number(rawOrder) : null;
+  const returnResult = typeof rawPayment === 'string' ? rawPayment : null;
   const [event, setEvent] = useState<EventItem | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +121,17 @@ export default function EventDetailScreen() {
     setAttendeesKey((k) => k + 1);
     setRefreshing(false);
   }, [load]);
+
+  // Après une inscription payante (ou son annulation, son retour de HelloAsso) : relecture silencieuse de l'événement,
+  // pour les tarifs restants, mes inscriptions, mon vote (le paiement confirme la présence) et la liste « Qui vient ? ».
+  const refreshEvent = useCallback(() => {
+    if (!id) return;
+    api.get(id).then((resp) => { setEvent(resp); setAttendeesKey((k) => k + 1); }).catch(() => { /* on garde l'affichage actuel */ });
+  }, [id]);
+  // Les paramètres de retour sont retirés de l'adresse une fois le paiement vérifié : un rechargement ne le rejoue pas.
+  const clearReturnParams = useCallback(() => {
+    router.setParams({ order: undefined, payment: undefined } as never);
+  }, [router]);
 
   // Titre partagé (web) : nom de l'événement + description.
   useDocumentTitle(event?.title, event?.description ? htmlExcerpt(event.description, 160) : null);
@@ -209,6 +224,18 @@ export default function EventDetailScreen() {
 
         {/* Entraînement lié (un créneau occasionnel) : ouvre son détail (même écran que depuis l'onglet Entraînements). */}
         {event.trainingSlot && <LinkedTrainingSlotCard slot={event.trainingSlot} />}
+
+        {/* Inscription payante (tarifs + paiement HelloAsso), seulement si l'événement a des tarifs. */}
+        {event.payment && (
+          <EventPayment
+            event={event}
+            payment={event.payment}
+            returnOrderId={returnOrderId}
+            returnResult={returnResult}
+            onChanged={refreshEvent}
+            onReturnHandled={clearReturnParams}
+          />
+        )}
 
         {/* Vote de présence — même comportement que sur la home
             (« Je m'inscris » si externalRegistrationUrl est renseignée). */}

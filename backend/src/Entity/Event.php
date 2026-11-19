@@ -122,13 +122,46 @@ class Event implements OwnedContentInterface
     #[ORM\JoinColumn(name: 'stage_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
     private ?Stage $stage = null;
 
+    /**
+     * Tarifs de l'inscription payante (HelloAsso Checkout) : « Adulte 25 € », « Jeune 15 € », « Repas 10 € »… Vide = pas
+     * d'inscription payante depuis l'appli (les autres moyens — lien externe, formulaire HelloAsso — restent possibles).
+     *
+     * @var Collection<int, EventTariff>
+     */
+    #[ORM\OneToMany(targetEntity: EventTariff::class, mappedBy: 'event', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['id' => 'ASC'])]
+    #[Assert\Valid]
+    private Collection $tariffs;
+
     public function getStage(): ?Stage { return $this->stage; }
     public function setStage(?Stage $stage): self { $this->stage = $stage; return $this; }
 
     public function __construct()
     {
         $this->tags = new ArrayCollection();
+        $this->tariffs = new ArrayCollection();
     }
+
+    /** @return Collection<int, EventTariff> */
+    public function getTariffs(): Collection { return $this->tariffs; }
+
+    public function addTariff(EventTariff $tariff): self
+    {
+        if (!$this->tariffs->contains($tariff)) {
+            $this->tariffs->add($tariff);
+            $tariff->setEvent($this);
+        }
+        return $this;
+    }
+
+    public function removeTariff(EventTariff $tariff): self
+    {
+        $this->tariffs->removeElement($tariff);
+        return $this;
+    }
+
+    /** L'événement propose-t-il une inscription payante depuis l'appli ? */
+    public function hasTariffs(): bool { return !$this->tariffs->isEmpty(); }
 
     public function getId(): ?int { return $this->id; }
     public function getTitle(): string { return $this->title; }
