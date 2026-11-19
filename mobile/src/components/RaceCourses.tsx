@@ -6,7 +6,7 @@ import { ApiError } from '@/api/client';
 import { races as racesApi } from '@/api/resources';
 import type { RaceProposal } from '@/api/types';
 import { DateField, formatIsoDate } from '@/components/DateField';
-import { raceAcceptsResponses, raceStatus } from '@/components/RaceStatus';
+import { isRacePublished } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
 function notify(message: string): void {
@@ -30,10 +30,8 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
   const [busy, setBusy] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [joiningId, setJoiningId] = useState<number | null>(null);
-  // Inscription à une course : date limite dépassée, ou compétition pas (ou plus) ouverte aux réponses (en attente, en pause).
-  const closed = race.votesClosed === true || !raceAcceptsResponses(race);
-  // Ajouter une course est aussi suspendu pendant une pause (l'auteur peut en ajouter tant que la proposition est en attente).
-  const addLocked = raceStatus(race) === 'paused';
+  // Inscription à une course : date limite dépassée, ou compétition pas encore publiée (en attente de validation, refusée).
+  const closed = race.votesClosed === true || !isRacePublished(race);
 
   async function toggle(courseId: number, join: boolean) {
     setJoiningId(courseId);
@@ -175,7 +173,7 @@ export function RaceCourses({ race, onChange }: { race: RaceProposal; onChange: 
             </Pressable>
           </View>
         </View>
-      ) : addLocked ? null : (
+      ) : (
         <Pressable onPress={() => setOpen(true)} style={({ pressed }) => [styles.openBtn, pressed && { opacity: 0.7 }]}>
           <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
           <Text style={styles.openLabel}>Ajouter une course</Text>

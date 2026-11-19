@@ -9,7 +9,7 @@ import type { RaceProposal, RaceType, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { ErrorState } from '@/components/Loading';
 import { formatRaceDate, formatRaceDates, RACE_TYPES, raceTypeMeta } from '@/components/RaceForm';
-import { isRacePublished, raceAcceptsResponses, raceStatus, RaceStatusBadge } from '@/components/RaceStatus';
+import { isRacePublished, raceStatus, RaceStatusBadge } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen, seenMark } from '@/lib/seenListings';
@@ -36,7 +36,7 @@ function isNewProposal(createdAt: string): boolean {
  * répondu forment un bloc à part, au-dessus des autres. Même organisation que la
  * bourse aux équipements.
  *
- * Modération : « À venir » ne montre que les compétitions publiées (validées ou « En pause » — réponses suspendues) ;
+ * Modération : « À venir » ne montre que les compétitions publiées (validées) ;
  * mes propres propositions « En attente de validation » ou « Non retenue » n'apparaissent que dans « Mes propositions ».
  */
 export default function RacesScreen() {
@@ -196,14 +196,14 @@ export default function RacesScreen() {
                       label={(item.captain ? 'Partant(e) · ' : 'Je suis inscrit(e) · ') + item.interestedCount}
                       active={item.myVote === 'interested'}
                       onPress={() => void vote(item, 'interested')}
-                      disabled={busyId === item.id || item.votesClosed === true || !raceAcceptsResponses(item)}
+                      disabled={busyId === item.id || item.votesClosed === true || !isRacePublished(item)}
                     />
                     <ActionBtn
                       icon={item.myVote === 'maybe' ? 'star' : 'star-outline'}
                       label={'Intéressé(e) · ' + item.maybeCount}
                       active={item.myVote === 'maybe'}
                       onPress={() => void vote(item, 'maybe')}
-                      disabled={busyId === item.id || item.votesClosed === true || !raceAcceptsResponses(item)}
+                      disabled={busyId === item.id || item.votesClosed === true || !isRacePublished(item)}
                     />
                   </>
                 ) : (
@@ -282,11 +282,9 @@ function RaceCard({ item, busy, onOpen, footer }: {
           {!item.captain && (
             <Text style={styles.cardMeta}>proposée par {item.authorFirstName}</Text>
           )}
-          {/* Pause ou refus : le message de l'administrateur, s'il y en a un. */}
-          {(raceStatus(item) === 'paused' || raceStatus(item) === 'refused') && item.moderationNote ? (
-            <Text style={styles.cardMeta}>
-              {raceStatus(item) === 'refused' ? 'Motif : ' : ''}{item.moderationNote}
-            </Text>
+          {/* Refus : le motif de l'administrateur, s'il y en a un. */}
+          {raceStatus(item) === 'refused' && item.moderationNote ? (
+            <Text style={styles.cardMeta}>Motif : {item.moderationNote}</Text>
           ) : null}
           {/* Capitaine : date limite de réponse avant l'inscription groupée. */}
           {item.captain && item.registrationDeadline ? (

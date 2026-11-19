@@ -1180,10 +1180,10 @@ export type RaceVote = 'interested' | 'maybe';
 
 /**
  * Modération d'une compétition proposée : `pending` = en attente de validation par un administrateur (visible de son
- * auteur seul), `validated` = publiée, `paused` = publiée mais suspendue (visible, réponses bloquées), `refused` = non
- * retenue (visible de son auteur seul ; il peut la corriger, elle repart alors en validation).
+ * auteur seul), `validated` = publiée, `refused` = non retenue (visible de son auteur seul ; il peut la corriger, elle
+ * repart alors en validation).
  */
-export type RaceProposalStatus = 'pending' | 'validated' | 'paused' | 'refused';
+export type RaceProposalStatus = 'pending' | 'validated' | 'refused';
 
 export type RaceProposal = {
   id: number;
@@ -1204,7 +1204,7 @@ export type RaceProposal = {
   /** Modération par un administrateur. Absent des anciennes réponses = publiée (validated). */
   status?: RaceProposalStatus;
   statusLabel?: string;
-  /** Motif d'un refus (vu de l'auteur seul) ou d'une mise en pause (vu de tous). */
+  /** Motif d'un refus (vu de l'auteur seul). */
   moderationNote?: string | null;
   /** Première publication (validation) AAAA-MM-JJ…, null tant qu'elle n'est pas publiée. */
   publishedAt?: string | null;

@@ -18,17 +18,16 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * Modération des compétitions proposées : soumission, validation, refus, mise en pause et reprise, avec les
- * notifications qui vont avec. Utilisé par l'API (proposition d'un adhérent) et par le back-office (actions de
+ * Modération des compétitions proposées : soumission, validation et refus, avec les notifications qui vont avec. Utilisé par l'API (proposition d'un adhérent) et par le back-office (actions de
  * l'administrateur).
  *
  * Seuls les triathlons sont modérés (RaceType::requiresModeration) : les autres types de course sont publiés dès leur
  * proposition, comme celles d'un administrateur.
  *
  * Notifications : push ET e-mail aux administrateurs quand un triathlon attend leur validation, push ET e-mail à
- * l'auteur quand sa proposition est validée ou refusée (avec le motif du refus) ; push seul pour une pause ou une
- * reprise. Les e-mails partent par la file Messenger (SendRaceModerationEmailsMessage). Une panne du push ou de la file
- * ne doit jamais empêcher d'enregistrer la décision : tout est protégé par un try/catch.
+ * l'auteur quand sa proposition est validée ou refusée (avec le motif du refus). Les e-mails partent par la file
+ * Messenger (SendRaceModerationEmailsMessage). Une panne du push ou de la file ne doit jamais empêcher d'enregistrer la
+ * décision : tout est protégé par un try/catch.
  */
 class RaceProposalModerator
 {
@@ -144,43 +143,6 @@ class RaceProposalModerator
             sprintf('« %s » n\'a pas été publiée%s', $proposal->getName(), $reason !== null ? ' : '.$reason : '.'),
         );
         $this->emailAuthor($proposal, SendRaceModerationEmailsMessage::REFUSED, $reason);
-
-        return true;
-    }
-
-    /** Met en pause une compétition publiée : toujours visible, mais plus de nouvelle réponse. Motif facultatif. */
-    public function pause(RaceProposal $proposal, ?string $note): bool
-    {
-        if ($proposal->getStatus() !== RaceProposalStatus::Validated) {
-            return false;
-        }
-        $proposal->setStatus(RaceProposalStatus::Paused)->setModerationNote($note);
-        $this->em->flush();
-
-        $reason = $proposal->getModerationNote();
-        $this->notifyAuthor(
-            $proposal,
-            'Compétition mise en pause',
-            sprintf('« %s » est en pause%s', $proposal->getName(), $reason !== null ? ' : '.$reason : '.'),
-        );
-
-        return true;
-    }
-
-    /** Reprend une compétition en pause (les réponses sont de nouveau ouvertes). */
-    public function resume(RaceProposal $proposal): bool
-    {
-        if (!$proposal->isPaused()) {
-            return false;
-        }
-        $proposal->setStatus(RaceProposalStatus::Validated)->setModerationNote(null);
-        $this->em->flush();
-
-        $this->notifyAuthor(
-            $proposal,
-            'Compétition reprise',
-            sprintf('« %s » n\'est plus en pause : les réponses sont de nouveau ouvertes.', $proposal->getName()),
-        );
 
         return true;
     }

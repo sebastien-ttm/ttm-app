@@ -13,20 +13,16 @@ export function raceStatus(race: StatusSource): RaceProposalStatus {
   return race.status ?? 'validated';
 }
 
-/** Publiée = visible de tous les adhérents : validée, ou en pause. */
+/**
+ * Publiée (validée) = visible de tous les adhérents, qui peuvent y répondre (vote, inscription à une course). Une
+ * proposition en attente de validation ou refusée n'est vue que de son auteur et n'accepte aucune réponse.
+ */
 export function isRacePublished(race: StatusSource): boolean {
-  const s = raceStatus(race);
-  return s === 'validated' || s === 'paused';
-}
-
-/** Réponses ouvertes : seule une compétition validée (ni en attente, ni refusée, ni en pause) accepte réponses et inscriptions. */
-export function raceAcceptsResponses(race: StatusSource): boolean {
   return raceStatus(race) === 'validated';
 }
 
 const BADGES: Partial<Record<RaceProposalStatus, { label: string; bg: string; fg: string }>> = {
   pending: { label: '⏳ En attente de validation', bg: '#fef3c7', fg: '#92400e' },
-  paused: { label: '⏸ En pause', bg: COLORS.secondarySoft, fg: COLORS.secondaryDark },
   refused: { label: 'Non retenue', bg: '#fee2e2', fg: COLORS.error },
 };
 
@@ -42,8 +38,8 @@ export function RaceStatusBadge({ race }: { race: StatusSource }) {
 }
 
 /**
- * Encadré de la fiche d'une compétition qui n'est pas (ou plus) ouverte aux réponses : en attente de validation et
- * refusée (vues de l'auteur seul), ou en pause (vue de tous, avec le motif de l'administrateur s'il y en a un).
+ * Encadré de la fiche d'une compétition qui n'est pas publiée : en attente de validation ou refusée (vues de l'auteur
+ * seul, avec le motif de l'administrateur s'il y en a un pour un refus).
  */
 export function RaceStatusNotice({ race }: { race: Pick<RaceProposal, 'status' | 'moderationNote' | 'type'> }) {
   const status = raceStatus(race);
@@ -71,15 +67,6 @@ export function RaceStatusNotice({ race }: { race: Pick<RaceProposal, 'status' |
           <Text style={[styles.text, { color: badge.fg }]}>
             Vous pouvez la modifier : elle repartira alors en validation.
           </Text>
-        </>
-      )}
-      {status === 'paused' && (
-        <>
-          <Text style={[styles.title, { color: badge.fg }]}>⏸ Compétition en pause</Text>
-          <Text style={[styles.text, { color: badge.fg }]}>
-            Les réponses, les inscriptions aux courses et l'ajout de courses sont suspendus pour le moment.
-          </Text>
-          {note && <Text style={[styles.text, styles.bold, { color: badge.fg }]}>{note}</Text>}
         </>
       )}
     </View>

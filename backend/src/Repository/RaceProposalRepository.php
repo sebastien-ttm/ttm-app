@@ -20,7 +20,7 @@ class RaceProposalRepository extends ServiceEntityRepository
 
     /**
      * Compétitions à venir ou en cours (dernier jour >= aujourd'hui), la plus proche d'abord, telles que $viewer a le
-     * droit de les voir : les publiées (validées ou en pause) de tout le monde, plus ses propres propositions pas encore
+     * droit de les voir : les publiées (validées) de tout le monde, plus ses propres propositions pas encore
      * publiées (en attente, refusées).
      * Les votes sont chargés dans la même requête (compteurs + vote du
      * viewer sans N+1).

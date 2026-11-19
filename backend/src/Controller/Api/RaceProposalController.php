@@ -24,9 +24,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * compétitions à venir ou en cours sont listées ; l'auteur peut modifier ou supprimer sa proposition.
  *
  * Modération (triathlons seulement) : une proposition de triathlon est « en attente de validation » (visible de son seul
- * auteur) tant qu'un administrateur ne l'a pas validée dans le back-office ; elle peut ensuite être mise en pause
- * (toujours visible, réponses suspendues). Les autres types de course sont publiés directement.
- * Voir RaceProposalStatus / RaceProposalModerator.
+ * auteur) tant qu'un administrateur ne l'a pas validée dans le back-office. Les autres types de course sont publiés
+ * directement. Voir RaceProposalStatus / RaceProposalModerator.
  */
 #[IsGranted('ROLE_USER')]
 class RaceProposalController extends AbstractController
@@ -147,10 +146,6 @@ class RaceProposalController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $proposal = $this->findOr404($id, $user);
-        // Ajouter une course est une réponse à la proposition : suspendu tant qu'elle est en pause.
-        if ($proposal->isPaused()) {
-            return $this->responsesClosed($proposal);
-        }
         $payload = json_decode($request->getContent(), true);
         if (!is_array($payload)) {
             return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
@@ -245,8 +240,8 @@ class RaceProposalController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         $proposal = $this->findOr404($id, $user);
-        // Pas de réponse tant que la proposition n'est pas publiée, ni pendant une pause.
-        if (!$proposal->acceptsResponses()) {
+        // Pas de réponse tant que la proposition n'est pas publiée.
+        if (!$proposal->isPublished()) {
             return $this->responsesClosed($proposal);
         }
 
@@ -298,7 +293,7 @@ class RaceProposalController extends AbstractController
         if ($course === null) {
             throw $this->createNotFoundException('Course introuvable.');
         }
-        if (!$proposal->acceptsResponses()) {
+        if (!$proposal->isPublished()) {
             return $this->responsesClosed($proposal);
         }
         if ($proposal->isVotingClosed()) {
@@ -467,14 +462,12 @@ class RaceProposalController extends AbstractController
         return $proposal;
     }
 
-    /** Réponse 409 « pas de nouvelle réponse » (en attente de validation, refusée ou en pause) ; le texte est montré tel quel à l'adhérent. */
+    /** Réponse 409 « pas de réponse possible » (proposition en attente de validation ou refusée) ; le texte est montré tel quel à l'adhérent. */
     private function responsesClosed(RaceProposal $proposal): JsonResponse
     {
-        $message = match (true) {
-            $proposal->isPaused() => 'Cette compétition est en pause : les réponses sont suspendues pour le moment.',
-            $proposal->isRefused() => 'Cette proposition n\'a pas été retenue.',
-            default => 'Cette proposition attend la validation d\'un administrateur : les réponses ouvriront à sa publication.',
-        };
+        $message = $proposal->isRefused()
+            ? 'Cette proposition n\'a pas été retenue.'
+            : 'Cette proposition attend la validation d\'un administrateur : les réponses ouvriront à sa publication.';
 
         return new JsonResponse(['error' => $message], Response::HTTP_CONFLICT);
     }
@@ -528,8 +521,8 @@ class RaceProposalController extends AbstractController
             // Capitaine : date limite de réponse (AAAA-MM-JJ, incluse) ; réponses figées une fois dépassée.
             'registrationDeadline' => $r->getRegistrationDeadline()?->format('Y-m-d'),
             'votesClosed' => $r->isVotingClosed(),
-            // Modération : pending | validated | paused | refused. `moderationNote` = motif du refus (vu de l'auteur seul :
-            // une proposition refusée ne lui est montrée qu'à lui) ou de la pause (vu de tous).
+            // Modération : pending | validated | refused. `moderationNote` = motif du refus (une proposition refusée
+            // n'est montrée qu'à son auteur).
             'status' => $r->getStatus()->value,
             'statusLabel' => $r->getStatus()->label(),
             'moderationNote' => $r->getModerationNote(),

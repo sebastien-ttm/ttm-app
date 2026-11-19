@@ -31,17 +31,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Compétitions proposées par les adhérents (onglet Social côté mobile) : modération des TRIATHLONS. Les autres types de
- * course sont publiés directement ; on ne les retrouve ici que pour les modifier ou les mettre en pause.
+ * course sont publiés directement ; on ne les retrouve ici que pour les modifier ou les supprimer.
  *
  * Un triathlon proposé arrive « En attente de validation » : seul son auteur le voit dans l'appli, et les administrateurs
  * sont prévenus par notification et par e-mail. Un administrateur le VALIDE (il est publié, l'auteur et les adhérents sont
  * prévenus) ou le REFUSE (par exemple un événement non affilié à la FFTri) depuis un formulaire où il indique le motif :
- * l'auteur le reçoit par notification et par e-mail, et le lit sur sa proposition dans l'appli. Une compétition validée
- * peut être mise EN PAUSE (toujours visible, mais plus de nouvelle réponse) puis REPRISE ; le motif d'une pause se saisit
- * dans « Message de l'administrateur » (Modifier), AVANT de cliquer sur Mettre en pause. Voir RaceProposalModerator.
+ * l'auteur le reçoit par notification et par e-mail, et le lit sur sa proposition dans l'appli. Voir RaceProposalModerator.
  *
  * Pas de création depuis le backend — une proposition a toujours un auteur adhérent. L'auteur et les votes ne sont pas
- * modifiables. Modifier / supprimer : entraîneurs et plus ; valider, refuser, pause, reprise : administrateurs.
+ * modifiables. Modifier / supprimer : entraîneurs et plus ; valider et refuser : administrateurs.
  */
 class RaceProposalCrudController extends AbstractCrudController
 {
@@ -74,7 +72,6 @@ class RaceProposalCrudController extends AbstractCrudController
         return $filters->add(ChoiceFilter::new('status', 'Statut')->setChoices([
             RaceProposalStatus::Pending->label() => RaceProposalStatus::Pending,
             RaceProposalStatus::Validated->label() => RaceProposalStatus::Validated,
-            RaceProposalStatus::Paused->label() => RaceProposalStatus::Paused,
             RaceProposalStatus::Refused->label() => RaceProposalStatus::Refused,
         ]));
     }
@@ -82,7 +79,7 @@ class RaceProposalCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield TextField::new('name', 'Compétition');
-        // Statut de modération (affichage seulement : il change par les boutons Valider / Refuser / Mettre en pause / Reprendre).
+        // Statut de modération (affichage seulement : il change par les boutons Valider / Refuser).
         yield TextField::new('statusLabel', 'Statut')
             ->setSortable(false)
             ->hideOnForm()
@@ -92,7 +89,6 @@ class RaceProposalCrudController extends AbstractCrudController
                 match ($race->getStatus()) {
                     RaceProposalStatus::Pending => 'warning',
                     RaceProposalStatus::Validated => 'success',
-                    RaceProposalStatus::Paused => 'info',
                     RaceProposalStatus::Refused => 'danger',
                 },
                 htmlspecialchars($race->getStatus()->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
@@ -139,15 +135,10 @@ class RaceProposalCrudController extends AbstractCrudController
         yield UrlField::new('url', 'Site')
             ->setRequired(false)
             ->hideOnIndex();
-        yield TextareaField::new('moderationNote', 'Message de l\'administrateur')
-            ->setRequired(false)
-            ->setNumOfRows(2)
+        // Motif d'un refus, montré à l'auteur : il se saisit dans le formulaire du bouton « Refuser » (lecture seule ici).
+        yield TextareaField::new('moderationNote', 'Motif du refus')
             ->hideOnIndex()
-            ->setHelp(
-                'Motif d\'un refus (montré à l\'auteur ; il se saisit dans le formulaire du bouton « Refuser ») ou d\'une mise en pause '
-                .'(montré à tous sur la fiche de la compétition ; à saisir et enregistrer AVANT de cliquer sur « Mettre en pause »). '
-                .'Effacé à la validation et à la reprise.'
-            );
+            ->hideOnForm();
         yield DateTimeField::new('createdAt', 'Proposée le')
             ->setFormat('d MMM yyyy HH:mm')
             ->hideOnIndex()
@@ -170,25 +161,13 @@ class RaceProposalCrudController extends AbstractCrudController
             ->linkToCrudAction('refuse')
             ->setCssClass('btn btn-danger')
             ->displayIf(fn (RaceProposal $r) => $isAdmin() && $r->isPending());
-        $pause = Action::new('pause', 'Mettre en pause', 'fa fa-pause')
-            ->linkToCrudAction('pause')
-            ->setCssClass('btn btn-warning')
-            ->displayIf(fn (RaceProposal $r) => $isAdmin() && $r->getStatus() === RaceProposalStatus::Validated);
-        $resume = Action::new('resume', 'Reprendre', 'fa fa-play')
-            ->linkToCrudAction('resume')
-            ->setCssClass('btn btn-success')
-            ->displayIf(fn (RaceProposal $r) => $isAdmin() && $r->isPaused());
 
         return $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
             ->add(Crud::PAGE_INDEX, $validate)
             ->add(Crud::PAGE_INDEX, $refuse)
-            ->add(Crud::PAGE_INDEX, $pause)
-            ->add(Crud::PAGE_INDEX, $resume)
             ->add(Crud::PAGE_DETAIL, $validate)
             ->add(Crud::PAGE_DETAIL, $refuse)
-            ->add(Crud::PAGE_DETAIL, $pause)
-            ->add(Crud::PAGE_DETAIL, $resume)
             ->disable(Action::NEW);
     }
 
@@ -201,7 +180,7 @@ class RaceProposalCrudController extends AbstractCrudController
         if ($this->moderation->validate($race)) {
             $this->addFlash('success', sprintf('« %s » est validée et publiée : les adhérents sont prévenus.', $race->getName()));
         } else {
-            $this->addFlash('warning', 'Cette compétition ne peut pas être validée : elle l\'est déjà, ou elle est en pause (utilisez « Reprendre »).');
+            $this->addFlash('warning', 'Cette compétition est déjà validée.');
         }
 
         return $this->redirectToDetail($race);
@@ -223,8 +202,7 @@ class RaceProposalCrudController extends AbstractCrudController
             return $this->redirectToDetail($race);
         }
 
-        // Motif saisi ; à défaut, celui qu'un administrateur aurait déjà enregistré dans « Message de l'administrateur ».
-        $note = trim((string) $request->request->get('note', $race->getModerationNote() ?? ''));
+        $note = trim((string) $request->request->get('note', ''));
         $error = null;
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid(self::CSRF_REFUSE.$race->getId(), (string) $request->request->get('_token'))) {
@@ -249,36 +227,6 @@ class RaceProposalCrudController extends AbstractCrudController
             'csrfId' => self::CSRF_REFUSE.$race->getId(),
             'noteMax' => RaceProposal::MODERATION_NOTE_MAX,
         ]);
-    }
-
-    /** Suspend une compétition publiée : toujours visible, mais plus de nouvelle réponse. */
-    public function pause(AdminContext $context): RedirectResponse
-    {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-        $race = $this->currentRace($context);
-
-        if ($this->moderation->pause($race, $race->getModerationNote())) {
-            $this->addFlash('success', sprintf('« %s » est en pause : elle reste visible, mais les réponses sont suspendues.', $race->getName()));
-        } else {
-            $this->addFlash('warning', 'Seule une compétition validée peut être mise en pause.');
-        }
-
-        return $this->redirectToDetail($race);
-    }
-
-    /** Reprend une compétition en pause : les réponses sont de nouveau ouvertes. */
-    public function resume(AdminContext $context): RedirectResponse
-    {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-        $race = $this->currentRace($context);
-
-        if ($this->moderation->resume($race)) {
-            $this->addFlash('success', sprintf('« %s » est reprise : les réponses sont de nouveau ouvertes.', $race->getName()));
-        } else {
-            $this->addFlash('warning', 'Cette compétition n\'est pas en pause.');
-        }
-
-        return $this->redirectToDetail($race);
     }
 
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void

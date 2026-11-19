@@ -19,8 +19,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * Modération (triathlons seulement, voir RaceType::requiresModeration) : une proposition de triathlon est d'abord « en
  * attente de validation » (visible de son seul auteur) ; un administrateur la valide (publiée) ou la refuse en indiquant
- * un motif que l'auteur reçoit, puis peut la mettre en pause et la reprendre — voir RaceProposalStatus et
- * App\Service\RaceProposalModerator. Les autres types de course sont publiés dès leur proposition.
+ * un motif que l'auteur reçoit — voir RaceProposalStatus et App\Service\RaceProposalModerator. Les autres types de course sont publiés dès leur proposition.
  */
 #[ORM\Entity(repositoryClass: RaceProposalRepository::class)]
 #[ORM\Table(name: 'race_proposal')]
@@ -28,7 +27,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_race_proposal_status', columns: ['status'])]
 class RaceProposal
 {
-    /** Longueur maximale du message de l'administrateur (motif d'un refus ou d'une pause). */
+    /** Longueur maximale du motif d'un refus. */
     public const MODERATION_NOTE_MAX = 500;
 
     #[ORM\Id]
@@ -93,10 +92,7 @@ class RaceProposal
     #[ORM\Column(length: 20, enumType: RaceProposalStatus::class, options: ['default' => 'validated'])]
     private RaceProposalStatus $status = RaceProposalStatus::Pending;
 
-    /**
-     * Message de l'administrateur : motif du refus (vu par l'auteur) ou de la mise en pause (vu de tous sur la fiche).
-     * Effacé quand la proposition est validée ou reprise.
-     */
+    /** Motif du refus, saisi par l'administrateur et vu de l'auteur seul. Effacé quand la proposition repart en validation ou est validée. */
     #[ORM\Column(length: 500, nullable: true)]
     #[Assert\Length(max: 500)]
     private ?string $moderationNote = null;
@@ -221,13 +217,9 @@ class RaceProposal
     public function setStatus(RaceProposalStatus $status): self { $this->status = $status; return $this; }
 
     public function isPending(): bool { return $this->status === RaceProposalStatus::Pending; }
-    public function isPaused(): bool { return $this->status === RaceProposalStatus::Paused; }
     public function isRefused(): bool { return $this->status === RaceProposalStatus::Refused; }
-    /** Publiée : validée ou en pause (visible de tous). */
+    /** Publiée (validée) : visible de tous, et les adhérents peuvent y répondre (voter, ajouter une course, s'inscrire à une course). */
     public function isPublished(): bool { return $this->status->isPublic(); }
-
-    /** Les adhérents peuvent répondre (voter, ajouter une course, s'inscrire à une course) : validée, et pas en pause. */
-    public function acceptsResponses(): bool { return $this->status === RaceProposalStatus::Validated; }
 
     /** Une proposition non publiée (en attente, refusée) n'est visible que de son auteur. */
     public function isVisibleTo(User $viewer): bool
@@ -245,7 +237,7 @@ class RaceProposal
 
     public function getPublishedAt(): ?\DateTimeImmutable { return $this->publishedAt; }
     public function getPublishedRank(): ?int { return $this->publishedRank; }
-    /** Enregistre la première publication (sans effet si elle a déjà eu lieu : une reprise après pause ne « republie » pas). */
+    /** Enregistre la première publication (sans effet si elle a déjà eu lieu : une nouvelle validation ne « republie » pas). */
     public function markPublished(int $rank): self
     {
         if ($this->publishedAt === null) {

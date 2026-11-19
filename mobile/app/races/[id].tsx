@@ -13,7 +13,7 @@ import { LinkedText } from '@/components/LinkedText';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
 import { RaceCourses } from '@/components/RaceCourses';
 import { formatRaceDate, formatRaceDates, raceTypeMeta } from '@/components/RaceForm';
-import { isRacePublished, raceAcceptsResponses, RaceStatusNotice } from '@/components/RaceStatus';
+import { isRacePublished, RaceStatusNotice } from '@/components/RaceStatus';
 import { COLORS, RADIUS, SPACING } from '@/config';
 import { useGoBackOrHome } from '@/lib/goBackOrHome';
 import { formatRelativeFr } from '@/utils/html';
@@ -26,8 +26,7 @@ import { formatRelativeFr } from '@/utils/html';
  * ma proposition : modifier / supprimer.
  *
  * Modération : ma proposition « En attente de validation » ou « Non retenue » (visible de moi seul) n'a ni vote ni liste
- * de réponses, seulement l'encadré qui explique son état ; « En pause » (visible de tous) garde la fiche mais bloque
- * les réponses.
+ * de réponses, seulement l'encadré qui explique son état.
  */
 export default function RaceDetailScreen() {
   const router = useRouter();
@@ -183,7 +182,7 @@ export default function RaceDetailScreen() {
               count={race.interestedCount}
               active={race.myVote === 'interested'}
               onPress={() => void vote('interested')}
-              disabled={busy || race.votesClosed === true || !raceAcceptsResponses(race)}
+              disabled={busy || race.votesClosed === true || !isRacePublished(race)}
             />
             <VoteBtn
               icon="star"
@@ -191,7 +190,7 @@ export default function RaceDetailScreen() {
               count={race.maybeCount}
               active={race.myVote === 'maybe'}
               onPress={() => void vote('maybe')}
-              disabled={busy || race.votesClosed === true || !raceAcceptsResponses(race)}
+              disabled={busy || race.votesClosed === true || !isRacePublished(race)}
             />
           </View>
 
