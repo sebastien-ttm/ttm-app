@@ -67,10 +67,23 @@
         <a href="{{ path('admin_board_session', {meeting: meeting.id}) }}">← Retour à la séance</a>
         <a href="{{ path('admin_board_export', {id: meeting.id}) }}">Export CSV</a>
         <span class="hint">Le compte rendu se met à jour à chaque rechargement de la page.</span>
-        {# Rappel (écran seulement, la barre n'est pas imprimée) : la signature du secrétaire se règle sur sa fiche utilisateur #}
-        {% if secretaries is empty %}
+        {# Rappel (écran seulement, la barre n'est pas imprimée) : la signature du secrétaire se règle sur sa fiche utilisateur ;
+           une fois la réunion close, le signataire est figé (signersFrozen) et ne suit plus les changements de Secrétaire. #}
+        {% if signersFrozen %}
+            <span class="hint">Signataire figé à la clôture de la réunion : le compte rendu ne change plus si le Secrétaire change.</span>
+            {% if secretaries is empty %}
+                <span class="hint warn">Aucun compte n'avait le rôle CODIR « Secrétaire » à la clôture : la signature n'est pas insérée. Pour la corriger : attribuer le rôle, puis rouvrir et clore à nouveau la réunion.</span>
+            {% else %}
+                {% for s in secretaries %}
+                    {% if not s.hasSignature %}
+                        <span class="hint warn">Signature de {{ s.name }} non renseignée à la clôture : l'ajouter dans Utilisateurs › sa fiche › « Signature (compte rendu du CODIR) », puis rouvrir et clore à nouveau la réunion.</span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% elseif secretaries is empty %}
             <span class="hint warn">Aucun compte n'a le rôle CODIR « Secrétaire » : la signature n'est pas insérée.</span>
         {% else %}
+            <span class="hint">Réunion ouverte : le signataire sera figé à sa clôture.</span>
             {% for s in secretaries %}
                 {% if not s.hasSignature %}
                     <span class="hint warn">Signature de {{ s.name }} non renseignée : à ajouter dans Utilisateurs › sa fiche › « Signature (compte rendu du CODIR) ».</span>

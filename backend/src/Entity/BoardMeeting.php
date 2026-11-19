@@ -46,6 +46,16 @@ class BoardMeeting
     #[ORM\Column(name: 'google_event_id', length: 255, nullable: true)]
     private ?string $googleEventId = null;
 
+    /**
+     * Signataire(s) du compte rendu, figé(s) à la clôture de la réunion : le Secrétaire d'alors (nom, rôle et copie de sa
+     * signature), pour qu'un compte rendu rouvert plus tard ne change pas si le Secrétaire change. null = pas figé
+     * (réunion ouverte) ; [] = figé sans aucun Secrétaire. Voir MinutesSignatureService.
+     *
+     * @var list<array{name: string, role: string, file: ?string}>|null
+     */
+    #[ORM\Column(name: 'minutes_signers', type: 'json', nullable: true)]
+    private ?array $minutesSigners = null;
+
     /** @var Collection<int, BoardAgendaItem> */
     #[ORM\OneToMany(targetEntity: BoardAgendaItem::class, mappedBy: 'meeting', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
@@ -90,6 +100,13 @@ class BoardMeeting
     }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+
+    /** @return list<array{name: string, role: string, file: ?string}>|null */
+    public function getMinutesSigners(): ?array { return $this->minutesSigners; }
+    /** @param list<array{name: string, role: string, file: ?string}>|null $signers */
+    public function setMinutesSigners(?array $signers): self { $this->minutesSigners = $signers; return $this; }
+    /** Le signataire du compte rendu a-t-il été figé (à la clôture de la réunion) ? */
+    public function hasFrozenSigners(): bool { return $this->minutesSigners !== null; }
 
     public function getGoogleEventId(): ?string { return $this->googleEventId; }
     public function setGoogleEventId(?string $id): self { $this->googleEventId = $id !== null && trim($id) !== '' ? trim($id) : null; return $this; }

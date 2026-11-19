@@ -6,6 +6,7 @@ use App\Entity\BoardMeeting;
 use App\Entity\User;
 use App\Message\CreateBoardMeetingCalendarEventMessage;
 use App\Service\Board\BoardMeetingNotifier;
+use App\Service\Board\MinutesSignatureService;
 use App\Service\Google\GoogleCalendarClient;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -30,6 +31,7 @@ class BoardMeetingCrudController extends AbstractCrudController
         private readonly BoardMeetingNotifier $notifier,
         private readonly GoogleCalendarClient $calendar,
         private readonly MessageBusInterface $bus,
+        private readonly MinutesSignatureService $signatures,
     ) {
     }
 
@@ -126,6 +128,10 @@ class BoardMeetingCrudController extends AbstractCrudController
             $original = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance);
             $wasClosed = ($original['closedAt'] ?? null) !== null;
         }
+        if ($entityInstance instanceof BoardMeeting) {
+            // Clôture : le Secrétaire en fonction est figé sur le compte rendu ; réouverture : on le défige.
+            $this->signatures->syncWithClosure($entityInstance, $wasClosed);
+        }
         parent::updateEntity($entityManager, $entityInstance);
         if ($entityInstance instanceof BoardMeeting && !$wasClosed && $entityInstance->isClosed()) {
             $user = $this->getUser();
@@ -134,5 +140,14 @@ class BoardMeetingCrudController extends AbstractCrudController
                 ? 'Réunion close : les membres du CoDir et les entraîneurs sont prévenus que le compte rendu est consultable.'
                 : 'Réunion close, mais la notification aux membres n\'a pas pu être envoyée (voir le journal du serveur).');
         }
+    }
+
+    /** Supprimer une réunion supprime aussi les copies de signature figées à sa clôture (fichiers hors base). */
+    public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof BoardMeeting) {
+            $this->signatures->release($entityInstance);
+        }
+        parent::deleteEntity($entityManager, $entityInstance);
     }
 }

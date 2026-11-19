@@ -490,6 +490,11 @@ class BoardSessionController extends AbstractController
             $decidedCount += $item->getActions()->count();
         }
 
+        // Réunion close avant la mise en service du figeage : on fige le Secrétaire en fonction dès la première consultation.
+        if ($this->signatures->freezeIfMissing($meeting)) {
+            $this->em->flush();
+        }
+
         return $this->render('admin/board_minutes.html.twig', [
             'meeting' => $meeting,
             'groups' => $groups,
@@ -497,8 +502,10 @@ class BoardSessionController extends AbstractController
             'decidedCount' => $decidedCount,
             // Suivi : toutes les actions en cours à la date de la réunion (nouvelles et reportées des précédentes).
             'openActions' => $this->actions->findOpenAsOf($meeting),
-            // Signature du ou des comptes ayant le rôle Secrétaire (insérée automatiquement au bas du document).
-            'secretaries' => $this->signatures->secretaries(),
+            // Signataire(s) du compte rendu (insérés automatiquement au bas du document) : ceux figés à la clôture de la
+            // réunion, sinon le ou les comptes ayant actuellement le rôle Secrétaire.
+            'secretaries' => $this->signatures->signersFor($meeting),
+            'signersFrozen' => $meeting->hasFrozenSigners(),
         ]);
     }
 
@@ -538,6 +545,8 @@ class BoardSessionController extends AbstractController
         }
         $wasClosed = $meeting->isClosed();
         $meeting->setClosed($request->request->get('reopen') === null);
+        // Clôture : le Secrétaire en fonction est figé sur le compte rendu ; réouverture : on le défige.
+        $this->signatures->syncWithClosure($meeting, $wasClosed);
         $this->em->flush();
         if (!$meeting->isClosed()) {
             $this->addFlash('success', 'Réunion rouverte.');
