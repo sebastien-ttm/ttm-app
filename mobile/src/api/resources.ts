@@ -672,6 +672,8 @@ export const board = {
       nextId: number | null;
       /** Actions en cours de toutes les réunions, échéance la plus proche d'abord. */
       actions?: BoardOpenAction[];
+      /** Dernières actions faites (clôturées), de tous les porteurs, la plus récente d'abord. */
+      doneActions?: BoardOpenAction[];
       poles: BoardOption[];
       types: BoardOption[];
     }>('/api/board/meetings'),
@@ -687,6 +689,9 @@ export const board = {
   updateComment: (commentId: number, text: string) =>
     api.patch<BoardMeetingDetail>(`/api/board/comments/${commentId}`, { text }),
   removeComment: (commentId: number) => api.delete<BoardMeetingDetail>(`/api/board/comments/${commentId}`),
+  /** Acquitte (done = true) ou rouvre une action dont on est porteur ; renvoie la réunion de l'action. */
+  setActionDone: (actionId: number, done: boolean) =>
+    api.patch<BoardMeetingDetail>(`/api/board/actions/${actionId}`, { closed: done }),
 };
 
 /** Bénévolat d'événement (Breathman…) : fiches, candidatures, espace des responsables de pôle. */

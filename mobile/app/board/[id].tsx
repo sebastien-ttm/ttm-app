@@ -1,10 +1,10 @@
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { board as boardApi } from '@/api/resources';
-import type { BoardAgendaItem, BoardComment, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
+import type { BoardAction, BoardAgendaItem, BoardComment, BoardItemType, BoardMeetingDetail, BoardOption } from '@/api/types';
 import { BoardActionRow } from '@/components/BoardActionRow';
 import { LinkedText } from '@/components/LinkedText';
 import { ErrorState, FullScreenLoading } from '@/components/Loading';
@@ -29,10 +29,21 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
  * Chaque pôle (Partenaires, Organisations…) a sa couleur (utils/boardPoles). Les textes peuvent contenir des liens
  * (<a href="…">, [libellé](…) ou adresse collée) rendus cliquables — ex. un fichier Google Drive. « Modifier » remonte
  * en haut de l'écran, où se trouve le formulaire.
+ *
+ * Ouverte depuis une action (/board/12?item=34), la page défile jusqu'au point concerné et le met brièvement en
+ * évidence. Un porteur d'action l'acquitte d'un bouton (« Marquer comme faite »), les autres voient qu'elle est faite.
  */
 export default function BoardMeetingScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, item: itemParam } = useLocalSearchParams<{ id: string; item?: string }>();
+  const targetItemId = itemParam && /^\d+$/.test(itemParam) ? Number(itemParam) : null;
   const scrollRef = useRef<ScrollView>(null);
+  // Positions mesurées (onLayout) pour défiler jusqu'à un point : le groupe (pôle) dans le contenu, le point dans son groupe.
+  const groupY = useRef<Record<string, number>>({});
+  const itemPos = useRef<Record<number, { group: string; y: number; h: number }>>({});
+  const scrolledFor = useRef<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [busyActionId, setBusyActionId] = useState<number | null>(null);
   const [meeting, setMeeting] = useState<BoardMeetingDetail | null>(null);
   const [poles, setPoles] = useState<BoardOption[]>([]);
   const [types, setTypes] = useState<BoardOption[]>([]);
@@ -64,6 +75,57 @@ export default function BoardMeetingScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  // Ouverture depuis une action : défile jusqu'au point concerné (une seule fois par ouverture, pas à chaque rechargement).
+  // Les positions arrivent par onLayout après le rendu — et, sur un lien direct, parfois d'abord à zéro tant que l'écran
+  // n'est pas affiché : on n'en tient compte que si le point a une hauteur, on corrige si la mise en page bouge encore
+  // pendant un court instant, puis on s'arrête (ou on renonce, haut de page, si le point n'apparaît jamais).
+  useEffect(() => {
+    if (!meeting || targetItemId === null) return;
+    const key = `${meeting.id}:${targetItemId}`;
+    if (scrolledFor.current === key || !meeting.items.some((i) => i.id === targetItemId)) return;
+    let tries = 0;
+    let lastY: number | null = null;
+    let lastMoveAt = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      const pos = itemPos.current[targetItemId];
+      const top = pos ? groupY.current[pos.group] : undefined;
+      if (pos && pos.h > 0 && top !== undefined) {
+        const y = Math.max(0, top + pos.y - 12);
+        if (lastY === null || Math.abs(y - lastY) > 2) {
+          scrollRef.current?.scrollTo({ y, animated: lastY === null });
+          if (lastY === null) {
+            setHighlightId(targetItemId);
+            if (highlightTimer.current) clearTimeout(highlightTimer.current);
+            highlightTimer.current = setTimeout(() => setHighlightId(null), 2800);
+          }
+          lastY = y;
+          lastMoveAt = Date.now();
+        } else if (Date.now() - lastMoveAt > 800) {
+          scrolledFor.current = key;
+          clearInterval(timer);
+        }
+      } else if (tries >= 50 && lastY === null) {
+        clearInterval(timer);
+      }
+    }, 80);
+    return () => clearInterval(timer);
+  }, [meeting, targetItemId]);
+
+  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); }, []);
+
+  /** Acquitte une action dont je suis porteur (ou la rouvre) : la réunion revient à jour. */
+  async function toggleAction(action: BoardAction) {
+    setBusyActionId(action.id);
+    try {
+      setMeeting(await boardApi.setActionDone(action.id, !action.closed));
+    } catch (e) {
+      showMessage(e instanceof ApiError ? e.message : 'Erreur inattendue.');
+    } finally {
+      setBusyActionId(null);
+    }
+  }
 
   function resetForm() {
     setPole(null);
@@ -226,7 +288,7 @@ export default function BoardMeetingScreen() {
           <Text style={styles.headerMeta}>
             {meeting.closed
               ? `Réunion close · compte rendu · ${meeting.answeredCount}/${meeting.itemCount} points traités`
-              : `${meeting.itemCount} point${meeting.itemCount > 1 ? 's' : ''} à l'ordre du jour`}
+              : `${meeting.isPast ? 'Réunion passée · ' : ''}${meeting.itemCount} point${meeting.itemCount > 1 ? 's' : ''} à l'ordre du jour`}
           </Text>
           {meeting.notes ? <LinkedText text={meeting.notes} style={styles.notes} linkStyle={styles.onDarkLink} /> : null}
         </View>
@@ -290,12 +352,20 @@ export default function BoardMeetingScreen() {
         {groups.length === 0 && <Text style={styles.empty}>Aucun point à l'ordre du jour pour l'instant.</Text>}
 
         {groups.map((g) => (
-          <View key={g.label} style={styles.group}>
+          <View key={g.label} style={styles.group} onLayout={(e) => { groupY.current[g.label] = e.nativeEvent.layout.y; }}>
             <View style={[styles.groupTag, { backgroundColor: poleTone(g.pole).accent }]}>
               <Text style={styles.groupTitle}>{g.label}</Text>
             </View>
             {g.items.map((item) => (
-              <View key={item.id} style={[styles.item, { borderLeftWidth: 4, borderLeftColor: poleTone(item.pole).accent }]}>
+              <View
+                key={item.id}
+                onLayout={(e) => { itemPos.current[item.id] = { group: g.label, y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height }; }}
+                style={[
+                  styles.item,
+                  { borderLeftWidth: 4, borderLeftColor: poleTone(item.pole).accent },
+                  highlightId === item.id && styles.itemHighlight,
+                ]}
+              >
                 <View style={styles.itemHead}>
                   <View style={[styles.typeTag, { backgroundColor: TYPE_COLORS[item.type].bg }]}>
                     <Text style={[styles.typeTagLabel, { color: TYPE_COLORS[item.type].fg }]}>{item.typeLabel}</Text>
@@ -374,7 +444,14 @@ export default function BoardMeetingScreen() {
                 {item.actions.length > 0 && (
                   <View style={styles.actions}>
                     <Text style={styles.actionsTitle}>Action{item.actions.length > 1 ? 's' : ''}</Text>
-                    {item.actions.map((a) => <BoardActionRow key={a.id} action={a} />)}
+                    {item.actions.map((a) => (
+                      <BoardActionRow
+                        key={a.id}
+                        action={a}
+                        onToggleDone={a.isMine ? () => void toggleAction(a) : undefined}
+                        busy={busyActionId === a.id}
+                      />
+                    ))}
                   </View>
                 )}
                 {item.canEdit && (
@@ -442,6 +519,7 @@ const styles = StyleSheet.create({
   groupTag: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, marginTop: 4 },
   groupTitle: { fontSize: 12.5, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
   item: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md, gap: 6, borderWidth: 1, borderColor: COLORS.border },
+  itemHighlight: { backgroundColor: '#fffbeb', borderColor: COLORS.warning, borderWidth: 2 },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   typeTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   typeTagLabel: { fontSize: 11, fontWeight: '700' },

@@ -1818,8 +1818,10 @@ export type BoardMeetingSummary = {
   scheduledAt: string;
   location: string | null;
   closed: boolean;
-  /** Prochaine réunion (celle où l'on ajoute ses points). */
+  /** Prochaine réunion : la plus proche des réunions à venir (jamais une réunion déjà passée). */
   isNext: boolean;
+  /** Passée : close, ou dont l'heure est dépassée. Absent d'un serveur pas à jour : déduit de `closed` et de la date. */
+  isPast?: boolean;
   itemCount: number;
   answeredCount: number;
 };
@@ -1866,6 +1868,8 @@ export type BoardAction = {
 export type BoardOpenAction = BoardAction & {
   meetingId: number;
   meetingLabel: string;
+  /** Point d'ordre du jour porteur de l'action : la réunion s'ouvre directement dessus. Absent d'un serveur pas à jour. */
+  itemId?: number;
   /** Valeur du pôle (sert à sa couleur) ; absente des anciennes réponses. */
   pole?: string;
   poleLabel: string;
