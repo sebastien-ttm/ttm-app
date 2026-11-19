@@ -1903,7 +1903,16 @@ export type BoardAgendaItem = {
   actions: BoardAction[];
 };
 
+/** Présences saisies dans le back-office : présents et excusés (avec leur rôle au CoDir), invités (avec leur qualité ou organisme). */
+export type BoardAttendance = {
+  present: { name: string; role: string | null }[];
+  excused: { name: string; role: string | null }[];
+  guests: { name: string; note: string | null }[];
+};
+
 export type BoardMeetingDetail = BoardMeetingSummary & {
+  /** Absent d'un serveur pas à jour. */
+  attendance?: BoardAttendance;
   notes: string | null;
   canAddItems: boolean;
   items: BoardAgendaItem[];

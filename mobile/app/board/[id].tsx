@@ -30,6 +30,8 @@ const TYPE_COLORS: Record<BoardItemType, { bg: string; fg: string }> = {
  * (<a href="…">, [libellé](…) ou adresse collée) rendus cliquables — ex. un fichier Google Drive. « Modifier » remonte
  * en haut de l'écran, où se trouve le formulaire.
  *
+ * Sous l'en-tête, les présences saisies au back-office : présents, excusés, invités (compte rendu).
+ *
  * Ouverte depuis une action (/board/12?item=34), la page défile jusqu'au point concerné et le met brièvement en
  * évidence. Un porteur d'action l'acquitte d'un bouton (« Marquer comme faite »), les autres voient qu'elle est faite.
  */
@@ -263,6 +265,15 @@ export default function BoardMeetingScreen() {
     );
   }
 
+  // Présences (saisies dans le back-office) : présents, excusés, invités — une ligne par catégorie renseignée.
+  const att = meeting.attendance;
+  const withRole = (p: { name: string; role: string | null }) => p.name + (p.role ? ` (${p.role})` : '');
+  const attendanceLines = [
+    { label: 'Présents', count: att?.present.length ?? 0, text: (att?.present ?? []).map(withRole).join(', ') },
+    { label: 'Excusés', count: att?.excused.length ?? 0, text: (att?.excused ?? []).map(withRole).join(', ') },
+    { label: 'Invités', count: att?.guests.length ?? 0, text: (att?.guests ?? []).map((g) => g.name + (g.note ? ` (${g.note})` : '')).join(', ') },
+  ].filter((l) => l.count > 0);
+
   // Regroupement par pôle (les points arrivent déjà triés dans l'ordre du compte rendu).
   const groups: { label: string; pole: string; items: BoardAgendaItem[] }[] = [];
   for (const raw of meeting.items) {
@@ -292,6 +303,17 @@ export default function BoardMeetingScreen() {
           </Text>
           {meeting.notes ? <LinkedText text={meeting.notes} style={styles.notes} linkStyle={styles.onDarkLink} /> : null}
         </View>
+
+        {attendanceLines.length > 0 && (
+          <View style={styles.attendance}>
+            {attendanceLines.map((l) => (
+              <Text key={l.label} style={styles.attendanceLine}>
+                <Text style={styles.attendanceKey}>{l.label} ({l.count}) : </Text>
+                {l.text}
+              </Text>
+            ))}
+          </View>
+        )}
 
         {meeting.canAddItems && (
           <View style={styles.form}>
@@ -496,6 +518,9 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   headerMeta: { color: '#dbe4f3', fontSize: 13 },
   notes: { color: '#fff', fontSize: 13, marginTop: 6 },
+  attendance: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md, gap: 4, borderWidth: 1, borderColor: COLORS.border },
+  attendanceLine: { fontSize: 13.5, color: COLORS.text, lineHeight: 19 },
+  attendanceKey: { fontWeight: '700' },
   form: { backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.md, gap: 8, borderWidth: 2, borderColor: COLORS.secondary },
   formTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 },
