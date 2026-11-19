@@ -51,7 +51,7 @@
                     <button type="submit" class="btn btn-secondary"><i class="fa fa-calendar-plus"></i> {{ meeting.calendarInvited ? 'Renvoyer l\'invitation Google Agenda' : 'Inviter via Google Agenda' }}</button>
                 </form>
             {% endif %}
-            <form method="post" action="{{ path('admin_board_meeting_close', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.closed ? 'Rouvrir cette réunion ?' : 'Clore la réunion ? Plus aucun point ne pourra être ajouté depuis l\\\'appli.' }}');">
+            <form method="post" action="{{ path('admin_board_meeting_close', {id: meeting.id}) }}" onsubmit="return confirm('{{ meeting.closed ? 'Rouvrir cette réunion ?' : 'Clore la réunion ? Plus aucun point ne pourra être ajouté depuis l\\\'appli, et les membres du CoDir et les entraîneurs seront prévenus par notification que le compte rendu est consultable.' }}');">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                 {% if meeting.closed %}<input type="hidden" name="reopen" value="1">{% endif %}
                 <button type="submit" class="btn {{ meeting.closed ? 'btn-link' : 'btn-success' }}">{{ meeting.closed ? 'Rouvrir la réunion' : 'Clore la réunion' }}</button>

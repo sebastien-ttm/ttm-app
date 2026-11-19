@@ -17,6 +17,7 @@ use App\Repository\BoardAgendaItemRepository;
 use App\Repository\BoardMeetingRepository;
 use App\Repository\UserRepository;
 use App\Security\BoardSessionVoter;
+use App\Service\Board\BoardMeetingNotifier;
 use App\Service\Google\GoogleCalendarClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -53,6 +54,7 @@ class BoardSessionController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly GoogleCalendarClient $calendar,
         private readonly MessageBusInterface $bus,
+        private readonly BoardMeetingNotifier $notifier,
     ) {
     }
 
@@ -529,9 +531,22 @@ class BoardSessionController extends AbstractController
         if ($meeting === null) {
             throw $this->createNotFoundException();
         }
+        $wasClosed = $meeting->isClosed();
         $meeting->setClosed($request->request->get('reopen') === null);
         $this->em->flush();
-        $this->addFlash('success', $meeting->isClosed() ? 'Réunion close : le compte rendu est consultable dans l\'appli.' : 'Réunion rouverte.');
+        if (!$meeting->isClosed()) {
+            $this->addFlash('success', 'Réunion rouverte.');
+        } elseif ($wasClosed) {
+            $this->addFlash('success', 'Réunion déjà close.');
+        } else {
+            // Seule la transition ouverte → close prévient les membres (pas un double clic ni une page périmée).
+            $user = $this->getUser();
+            $sent = $this->notifier->notifyClosed($meeting, $user instanceof User ? $user : null);
+            $this->addFlash('success', 'Réunion close : le compte rendu est consultable dans l\'appli, les membres du CoDir et les entraîneurs en sont prévenus.');
+            if (!$sent) {
+                $this->addFlash('warning', 'La notification aux membres n\'a pas pu être envoyée (voir le journal du serveur).');
+            }
+        }
 
         return $this->backTo($meeting);
     }

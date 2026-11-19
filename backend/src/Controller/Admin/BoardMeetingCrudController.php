@@ -21,8 +21,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Réunions du comité directeur (administrateurs) : programmer une réunion (les membres du CoDir sont notifiés et, si
- * Google Agenda est configuré, invités par un événement Google Agenda), la clore une fois tenue. Les réponses se
- * saisissent sur la page « En séance ».
+ * Google Agenda est configuré, invités par un événement Google Agenda), la clore une fois tenue (ils sont alors prévenus
+ * que le compte rendu est consultable). Les réponses se saisissent sur la page « En séance ».
  */
 class BoardMeetingCrudController extends AbstractCrudController
 {
@@ -65,7 +65,7 @@ class BoardMeetingCrudController extends AbstractCrudController
         yield BooleanField::new('closed', 'Réunion close')
             ->renderAsSwitch(false)
             ->hideWhenCreating()
-            ->setHelp('Close : plus aucun point ne peut être ajouté depuis l\'appli ; l\'ordre du jour devient le compte rendu.');
+            ->setHelp('Close : plus aucun point ne peut être ajouté depuis l\'appli ; l\'ordre du jour devient le compte rendu. En cochant la case, les membres du CoDir et les entraîneurs sont prévenus par notification.');
     }
 
     public function configureActions(Actions $actions): Actions
@@ -110,6 +110,29 @@ class BoardMeetingCrudController extends AbstractCrudController
             $user = $this->getUser();
             $this->notifier->notifyScheduled($entityInstance, $user instanceof User ? $user : null);
             $this->inviteViaGoogleCalendar($entityInstance);
+        }
+    }
+
+    /**
+     * Cocher « Réunion close » prévient les membres du CoDir et les entraîneurs que le compte rendu est consultable (comme
+     * le bouton de la page « En séance »). Seule la transition ouverte → close notifie : modifier la date ou le lieu d'une
+     * réunion déjà close, ou la rouvrir, n'envoie rien. La valeur d'origine est lue avant l'enregistrement, tant que
+     * l'UnitOfWork n'a pas été resynchronisé.
+     */
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        $wasClosed = true;
+        if ($entityInstance instanceof BoardMeeting) {
+            $original = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance);
+            $wasClosed = ($original['closedAt'] ?? null) !== null;
+        }
+        parent::updateEntity($entityManager, $entityInstance);
+        if ($entityInstance instanceof BoardMeeting && !$wasClosed && $entityInstance->isClosed()) {
+            $user = $this->getUser();
+            $sent = $this->notifier->notifyClosed($entityInstance, $user instanceof User ? $user : null);
+            $this->addFlash($sent ? 'success' : 'warning', $sent
+                ? 'Réunion close : les membres du CoDir et les entraîneurs sont prévenus que le compte rendu est consultable.'
+                : 'Réunion close, mais la notification aux membres n\'a pas pu être envoyée (voir le journal du serveur).');
         }
     }
 }
