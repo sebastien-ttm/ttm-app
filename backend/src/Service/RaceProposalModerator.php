@@ -2,23 +2,33 @@
 
 namespace App\Service;
 
+use App\Controller\Admin\RaceProposalCrudController;
 use App\Entity\RaceProposal;
 use App\Entity\User;
 use App\Enum\PushTopic;
 use App\Enum\RaceProposalStatus;
+use App\Enum\RaceType;
+use App\Message\SendRaceModerationEmailsMessage;
 use App\Repository\RaceProposalRepository;
 use App\Repository\UserRepository;
 use App\Service\WebPush\WebPushNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Modération des compétitions proposées : soumission, validation, refus, mise en pause et reprise, avec les
- * notifications push qui vont avec. Utilisé par l'API (proposition d'un adhérent) et par le back-office (actions de
+ * notifications qui vont avec. Utilisé par l'API (proposition d'un adhérent) et par le back-office (actions de
  * l'administrateur).
  *
- * Pas d'e-mail : les alertes à l'administrateur passent par le push et la pastille du menu du back-office.
- * Une panne du push ne doit jamais empêcher d'enregistrer la décision : tout est protégé par un try/catch.
+ * Seuls les triathlons sont modérés (RaceType::requiresModeration) : les autres types de course sont publiés dès leur
+ * proposition, comme celles d'un administrateur.
+ *
+ * Notifications : push ET e-mail aux administrateurs quand un triathlon attend leur validation, push ET e-mail à
+ * l'auteur quand sa proposition est validée ou refusée (avec le motif du refus) ; push seul pour une pause ou une
+ * reprise. Les e-mails partent par la file Messenger (SendRaceModerationEmailsMessage). Une panne du push ou de la file
+ * ne doit jamais empêcher d'enregistrer la décision : tout est protégé par un try/catch.
  */
 class RaceProposalModerator
 {
@@ -27,27 +37,34 @@ class RaceProposalModerator
         private readonly RaceProposalRepository $proposals,
         private readonly UserRepository $users,
         private readonly WebPushNotifier $webPush,
+        private readonly MessageBusInterface $bus,
+        private readonly UrlGeneratorInterface $urlGenerator,
         private readonly LoggerInterface $logger,
     ) {
     }
 
     /**
-     * À appeler AVANT l'enregistrement d'une proposition qui vient d'être créée : « en attente de validation », sauf
-     * pour un administrateur (personne d'autre à qui demander) dont la proposition est publiée d'emblée.
+     * Une proposition doit-elle être validée par un administrateur avant publication ? Oui pour un triathlon, sauf s'il
+     * vient d'un administrateur (personne d'autre à qui demander).
      */
-    public function submit(RaceProposal $proposal, bool $authorIsAdmin): void
+    public function needsApproval(RaceProposal $proposal, bool $authorIsAdmin): bool
     {
-        if ($authorIsAdmin) {
-            $proposal->setStatus(RaceProposalStatus::Validated)->setModerationNote(null);
-            $proposal->markPublished($this->nextPublicationRank());
-        } else {
-            $proposal->setStatus(RaceProposalStatus::Pending)->setModerationNote(null);
-        }
+        return !$authorIsAdmin && $proposal->getType()->requiresModeration();
     }
 
     /**
-     * À appeler APRÈS l'enregistrement d'une proposition créée (ou corrigée après un refus) : prévient les
-     * administrateurs qu'elle attend une validation, ou — publiée d'emblée — annonce la compétition aux adhérents.
+     * À appeler AVANT l'enregistrement d'une proposition qui vient d'être créée : « en attente de validation » pour un
+     * triathlon d'adhérent, publiée d'emblée dans les autres cas (autre type de course, ou auteur administrateur).
+     */
+    public function submit(RaceProposal $proposal, bool $authorIsAdmin): void
+    {
+        $this->applyInitialStatus($proposal, $this->needsApproval($proposal, $authorIsAdmin));
+    }
+
+    /**
+     * À appeler APRÈS l'enregistrement d'une proposition créée (ou dont le statut vient de changer, voir reassess()) :
+     * prévient les administrateurs qu'elle attend une validation, ou — publiée d'emblée — annonce la compétition aux
+     * adhérents.
      */
     public function afterSubmit(RaceProposal $proposal): void
     {
@@ -59,17 +76,29 @@ class RaceProposalModerator
     }
 
     /**
-     * L'auteur d'une proposition refusée la corrige : elle repart en validation. Retourne true si c'est le cas (à
-     * l'appelant d'enregistrer puis d'appeler afterSubmit()).
+     * À appeler quand l'auteur a modifié sa proposition (AVANT l'enregistrement), avec le type qu'elle avait avant la
+     * modification. Retourne true si son statut a changé — à l'appelant d'enregistrer puis d'appeler afterSubmit() :
+     *  - refusée puis corrigée : elle repart en validation (triathlon) ou est publiée (autre type, non modéré) ;
+     *  - en attente mais devenue d'un autre type que triathlon : publiée directement ;
+     *  - publiée, mais devenue un triathlon alors qu'elle n'en était pas un : elle repart en validation (sinon, changer
+     *    le type après coup contournerait la modération).
      */
-    public function resubmit(RaceProposal $proposal): bool
+    public function reassess(RaceProposal $proposal, bool $authorIsAdmin, RaceType $previousType): bool
     {
-        if (!$proposal->isRefused()) {
-            return false;
-        }
-        $proposal->setStatus(RaceProposalStatus::Pending)->setModerationNote(null);
+        $needsApproval = $this->needsApproval($proposal, $authorIsAdmin);
 
-        return true;
+        if ($proposal->isRefused() || ($proposal->isPending() && !$needsApproval)) {
+            $this->applyInitialStatus($proposal, $needsApproval);
+
+            return true;
+        }
+        if ($proposal->isPublished() && $needsApproval && !$previousType->requiresModeration()) {
+            $proposal->setStatus(RaceProposalStatus::Pending)->setModerationNote(null);
+
+            return true;
+        }
+
+        return false;
     }
 
     /** Publie la compétition (en attente ou refusée → validée). Annonce aux adhérents à la première publication. */
@@ -91,11 +120,15 @@ class RaceProposalModerator
             'Compétition validée',
             sprintf('« %s » est publiée : les adhérents peuvent y répondre.', $proposal->getName()),
         );
+        $this->emailAuthor($proposal, SendRaceModerationEmailsMessage::VALIDATED, null);
 
         return true;
     }
 
-    /** Refuse une proposition en attente ; le motif (facultatif) est montré à son auteur. */
+    /**
+     * Refuse une proposition en attente. Le motif (facultatif) est montré à son auteur : dans l'appli, par notification
+     * et par e-mail.
+     */
     public function refuse(RaceProposal $proposal, ?string $note): bool
     {
         if (!$proposal->isPending()) {
@@ -110,6 +143,7 @@ class RaceProposalModerator
             'Proposition non retenue',
             sprintf('« %s » n\'a pas été publiée%s', $proposal->getName(), $reason !== null ? ' : '.$reason : '.'),
         );
+        $this->emailAuthor($proposal, SendRaceModerationEmailsMessage::REFUSED, $reason);
 
         return true;
     }
@@ -151,6 +185,18 @@ class RaceProposalModerator
         return true;
     }
 
+    /** Statut de départ : « en attente » si une validation est nécessaire, sinon publiée (avec son rang de publication). */
+    private function applyInitialStatus(RaceProposal $proposal, bool $needsApproval): void
+    {
+        if ($needsApproval) {
+            $proposal->setStatus(RaceProposalStatus::Pending)->setModerationNote(null);
+
+            return;
+        }
+        $proposal->setStatus(RaceProposalStatus::Validated)->setModerationNote(null);
+        $proposal->markPublished($this->nextPublicationRank());
+    }
+
     /** Rang strictement supérieur à tous les identifiants et rangs de publication existants (voir RaceProposal). */
     private function nextPublicationRank(): int
     {
@@ -169,6 +215,7 @@ class RaceProposalModerator
         ));
     }
 
+    /** Un triathlon attend sa validation : push et e-mail à chaque administrateur (sauf l'auteur, s'il en est un). */
     private function notifyAdminsPending(RaceProposal $proposal): void
     {
         $this->safely(function () use ($proposal): void {
@@ -184,10 +231,12 @@ class RaceProposalModerator
                 $ids,
                 'Compétition à valider',
                 sprintf('%s — %s, proposée par %s', $proposal->getName(), $proposal->getRaceDate()->format('d/m/Y'), $author->getFullName()),
-                '/admin',
+                // La fiche dans le back-office (valider / refuser) ; à défaut de pouvoir la construire, l'accueil du back-office.
+                $this->adminDetailPath($proposal),
                 'race-pending-'.$proposal->getId(),
             );
         });
+        $this->safely(fn () => $this->bus->dispatch(new SendRaceModerationEmailsMessage((int) $proposal->getId(), SendRaceModerationEmailsMessage::SUBMITTED)));
     }
 
     /** Résultat de la modération, pour l'auteur : indépendant de ses réglages de sujets (il est directement concerné). */
@@ -202,12 +251,31 @@ class RaceProposalModerator
         ));
     }
 
+    /** E-mail de la décision à l'auteur (validation ou refus, avec le motif figé à cet instant). */
+    private function emailAuthor(RaceProposal $proposal, string $event, ?string $note): void
+    {
+        $this->safely(fn () => $this->bus->dispatch(new SendRaceModerationEmailsMessage((int) $proposal->getId(), $event, $note)));
+    }
+
+    private function adminDetailPath(RaceProposal $proposal): string
+    {
+        try {
+            return $this->urlGenerator->generate('admin_dashboard', [
+                'crudAction' => 'detail',
+                'crudControllerFqcn' => RaceProposalCrudController::class,
+                'entityId' => $proposal->getId(),
+            ]);
+        } catch (\Throwable) {
+            return '/admin';
+        }
+    }
+
     private function safely(\Closure $send): void
     {
         try {
             $send();
         } catch (\Throwable $e) {
-            $this->logger->warning('Échec de la notification push (modération des compétitions)', ['error' => $e->getMessage()]);
+            $this->logger->warning('Échec de la notification (modération des compétitions)', ['error' => $e->getMessage()]);
         }
     }
 }

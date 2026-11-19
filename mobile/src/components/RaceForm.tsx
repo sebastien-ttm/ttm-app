@@ -58,13 +58,17 @@ export function formatRaceDates(start: string, end?: string | null): string {
  */
 export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses = false, notice }: {
   initial?: RaceProposalInput;
-  submitLabel: string;
+  /** Libellé du bouton ; une fonction le fait dépendre du type choisi (« Envoyer pour validation » pour un triathlon…). */
+  submitLabel: string | ((type: RaceType | null) => string);
   onSubmit: (input: RaceProposalInput) => Promise<void>;
   onCancel: () => void;
   /** Création : saisie des courses de la compétition (ensuite, elles se gèrent depuis le détail). */
   withCourses?: boolean;
-  /** Encadré d'information en tête de formulaire (ex. « la proposition sera relue par un administrateur »). */
-  notice?: string;
+  /**
+   * Encadré d'information en tête de formulaire (ex. « la proposition sera relue par un administrateur »). Une fonction
+   * le fait dépendre du type choisi : seuls les triathlons sont relus.
+   */
+  notice?: string | ((type: RaceType | null) => string | undefined);
 }) {
   const [courses, setCourses] = useState<RaceCourseInput[]>([]);
   const [courseName, setCourseName] = useState('');
@@ -87,6 +91,8 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = !busy && name.trim() !== '' && isoDate !== null && type !== null;
+  const noticeText = typeof notice === 'function' ? notice(type) : notice;
+  const submitText = typeof submitLabel === 'function' ? submitLabel(type) : submitLabel;
   const multiDay = isoDate !== null && endIso !== null && endIso !== isoDate;
 
   function addCourse() {
@@ -140,10 +146,10 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses
 
   return (
     <View>
-      {notice ? (
+      {noticeText ? (
         <View style={styles.noticeBox}>
           <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.secondaryDark} />
-          <Text style={styles.noticeText}>{notice}</Text>
+          <Text style={styles.noticeText}>{noticeText}</Text>
         </View>
       ) : null}
 
@@ -350,7 +356,7 @@ export function RaceForm({ initial, submitLabel, onSubmit, onCancel, withCourses
         disabled={!canSubmit}
         style={[styles.button, !canSubmit && styles.buttonDisabled]}
       >
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonLabel}>{submitLabel}</Text>}
+        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonLabel}>{submitText}</Text>}
       </Pressable>
       <Pressable onPress={onCancel} style={styles.backBtn} disabled={busy}>
         <Text style={styles.backBtnLabel}>Annuler</Text>

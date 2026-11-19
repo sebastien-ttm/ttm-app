@@ -21,6 +21,7 @@ framework:
             App\Message\SendGestionnaireWelcomeEmailMessage: async
             App\Message\CreateBoardMeetingCalendarEventMessage: async
             App\Message\NotifyExternalMemberCreatedMessage: async
+            App\Message\SendRaceModerationEmailsMessage: async
             App\Message\SendTrainingPlanEmailsMessage: async
             App\Message\SendInvoiceEmailMessage: async
             App\Message\NotifyNewUserMessageMessage: async

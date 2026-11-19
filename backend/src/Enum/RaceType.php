@@ -28,6 +28,15 @@ enum RaceType: string
         };
     }
 
+    /**
+     * Soumise à la validation d'un administrateur avant publication : les triathlons seulement (seuls les événements
+     * affiliés à la FFTri sont acceptés). Les autres types de course sont publiés dès leur proposition.
+     */
+    public function requiresModeration(): bool
+    {
+        return $this === self::Triathlon;
+    }
+
     /** @return array<string, string> libellé => valeur (ChoiceField EasyAdmin) */
     public static function choices(): array
     {

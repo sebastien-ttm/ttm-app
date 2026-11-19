@@ -1,0 +1,46 @@
+Bonjour {{ recipient.prenom }},
+
+{% if event == 'submitted' %}
+{{ proposal.author.fullName }} propose une compétition de triathlon : elle attend votre validation avant d'être publiée aux adhérents.
+{% elseif event == 'validated' %}
+Bonne nouvelle : votre proposition a été validée par un administrateur. Elle est publiée : les adhérents peuvent désormais indiquer leur intérêt, ajouter des courses et s'y inscrire.
+{% else %}
+Votre proposition n'a pas été retenue par les administrateurs : elle n'est pas publiée aux adhérents.
+{% endif %}
+
+  {{ proposal.name }}
+  {% if proposal.raceEndDate %}Du {{ proposal.raceDate|date('d/m/Y') }} au {{ proposal.raceEndDate|date('d/m/Y') }}{% else %}Le {{ proposal.raceDate|date('d/m/Y') }}{% endif %} · {{ proposal.typeLabel }}
+{% if event == 'submitted' %}
+  Proposée par {{ proposal.author.fullName }}{% if proposal.captain %} (se propose comme capitaine){% endif %}
+
+{% endif %}
+{% if proposal.url %}
+  Site : {{ proposal.url }}
+{% endif %}
+{% for course in proposal.courses %}
+  - {{ course.name }}{% if course.courseDate %} ({{ course.courseDate|date('d/m/Y') }}){% endif %}
+
+{% endfor %}
+{% if event == 'submitted' and proposal.description %}
+
+  Description : {{ proposal.description|slice(0, 400) }}{% if proposal.description|length > 400 %}…{% endif %}
+
+{% endif %}
+{% if event == 'refused' %}
+
+Motif du refus : {{ note ?: 'aucun motif n\'a été précisé.' }}
+
+{% if proposal.type.value == 'triathlon' %}
+Rappel : seuls les événements de triathlon affiliés à la FFTri sont acceptés.
+{% endif %}
+Vous pouvez modifier votre proposition depuis l'application : elle repartira alors en validation.
+{% elseif event == 'submitted' %}
+
+Vous pouvez la valider ou la refuser depuis le backend ; en cas de refus, le motif que vous saisissez est communiqué à son auteur.
+Rappel : seuls les événements de triathlon affiliés à la FFTri sont acceptés.
+{% endif %}
+
+{% if event == 'submitted' %}Examiner la proposition (backend) : {{ adminUrl }}{% elseif event == 'validated' %}Voir la compétition : {{ appUrl }}{% else %}Ouvrir ma proposition : {{ appUrl }}{% endif %}
+
+
+— Triathlon Toulouse Métropole (message automatique)

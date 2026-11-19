@@ -1,0 +1,58 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block title %}Refuser une compétition proposée{% endblock %}
+{% block content_title %}Refuser une compétition proposée{% endblock %}
+
+{% block main %}
+    {% set card = 'background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:18px 20px; max-width:760px;' %}
+    {% set detailUrl = ea_url().setController('App\\Controller\\Admin\\RaceProposalCrudController').setAction('detail').setEntityId(race.id) %}
+
+    <div style="{{ card }}">
+        <div style="font-size:18px; font-weight:700; color:#0d2148;">{{ race.name }}</div>
+        <div style="font-size:13px; color:#64748b; margin-top:2px;">
+            {{ race.typeLabel }}
+            · {% if race.raceEndDate %}du {{ race.raceDate|date('d/m/Y') }} au {{ race.raceEndDate|date('d/m/Y') }}{% else %}le {{ race.raceDate|date('d/m/Y') }}{% endif %}
+            · proposée par {{ race.author.fullName }} le {{ race.createdAt|date('d/m/Y à H:i') }}
+        </div>
+        {% if race.url %}
+            <div style="font-size:13px; margin-top:6px;">Site : <a href="{{ race.url }}" target="_blank" rel="noopener noreferrer">{{ race.url }}</a></div>
+        {% endif %}
+        {% if race.description %}
+            <div style="font-size:13px; color:#444; margin-top:8px; white-space:pre-line;">{{ race.description|slice(0, 400) }}{% if race.description|length > 400 %}…{% endif %}</div>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ ea_url().setController('App\\Controller\\Admin\\RaceProposalCrudController').setAction('refuse').setEntityId(race.id) }}" style="{{ card }} margin-top:16px;">
+        <input type="hidden" name="_token" value="{{ csrf_token(csrfId) }}">
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <label for="race-refuse-note" style="display:block; font-weight:700; margin-bottom:4px;">
+            Motif du refus <span style="font-weight:400; color:#64748b;">(facultatif, mais recommandé)</span>
+        </label>
+        <textarea id="race-refuse-note" name="note" rows="4" maxlength="{{ noteMax }}" class="form-control" placeholder="Ex. : événement non affilié à la FFTri" autofocus>{{ note }}</textarea>
+        <p style="font-size:12px; color:#64748b; margin:6px 0 10px;">
+            L'auteur reçoit ce motif par notification et par e-mail, et le lit sur sa proposition dans l'appli. Il peut ensuite
+            la corriger : elle repart alors en validation. {{ noteMax }} caractères au plus.
+        </p>
+
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+            <span style="font-size:12px; color:#64748b; align-self:center;">Motifs courants :</span>
+            {% for reason in [
+                'Événement non affilié à la FFTri.',
+                'Cette compétition est déjà proposée.',
+                'Informations insuffisantes : précisez les dates et le site de l\'événement.',
+            ] %}
+                <button type="button" class="btn btn-sm btn-secondary" data-reason="{{ reason }}"
+                        onclick="var t=document.getElementById('race-refuse-note'); t.value=this.dataset.reason; t.focus();">
+                    {{ reason|length > 40 ? reason|slice(0, 38) ~ '…' : reason }}
+                </button>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-danger"><i class="fa fa-xmark"></i> Refuser la proposition</button>
+        <a href="{{ detailUrl }}" class="btn btn-link">Annuler</a>
+    </form>
+{% endblock %}

@@ -26,21 +26,28 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Compétitions proposées par les adhérents (onglet Social côté mobile) : modération.
+ * Compétitions proposées par les adhérents (onglet Social côté mobile) : modération des TRIATHLONS. Les autres types de
+ * course sont publiés directement ; on ne les retrouve ici que pour les modifier ou les mettre en pause.
  *
- * Une proposition arrive « En attente de validation » : seul son auteur la voit dans l'appli. Un administrateur la
- * VALIDE (elle est publiée et les adhérents sont prévenus) ou la REFUSE (par exemple un événement de triathlon non
- * affilié à la FFTri). Une compétition validée peut être mise EN PAUSE (toujours visible, mais plus de nouvelle réponse)
- * puis REPRISE. Le motif d'un refus ou d'une pause se saisit dans « Message de l'administrateur » (Modifier), AVANT de
- * cliquer sur Refuser / Mettre en pause. Voir RaceProposalModerator.
+ * Un triathlon proposé arrive « En attente de validation » : seul son auteur le voit dans l'appli, et les administrateurs
+ * sont prévenus par notification et par e-mail. Un administrateur le VALIDE (il est publié, l'auteur et les adhérents sont
+ * prévenus) ou le REFUSE (par exemple un événement non affilié à la FFTri) depuis un formulaire où il indique le motif :
+ * l'auteur le reçoit par notification et par e-mail, et le lit sur sa proposition dans l'appli. Une compétition validée
+ * peut être mise EN PAUSE (toujours visible, mais plus de nouvelle réponse) puis REPRISE ; le motif d'une pause se saisit
+ * dans « Message de l'administrateur » (Modifier), AVANT de cliquer sur Mettre en pause. Voir RaceProposalModerator.
  *
  * Pas de création depuis le backend — une proposition a toujours un auteur adhérent. L'auteur et les votes ne sont pas
  * modifiables. Modifier / supprimer : entraîneurs et plus ; valider, refuser, pause, reprise : administrateurs.
  */
 class RaceProposalCrudController extends AbstractCrudController
 {
+    /** Préfixe du jeton CSRF du formulaire de refus (suivi de l'identifiant de la proposition). */
+    private const CSRF_REFUSE = 'race_refuse_';
+
     public function __construct(
         private readonly RaceProposalModerator $moderation,
         private readonly AdminUrlGenerator $adminUrlGenerator,
@@ -104,7 +111,7 @@ class RaceProposalCrudController extends AbstractCrudController
                 'class' => RaceType::class,
                 'choice_label' => fn (RaceType $t) => $t->label(),
             ])
-            ->setHelp('Triathlon : seuls les événements affiliés à la FFTri sont acceptés.')
+            ->setHelp('Triathlon : validé par un administrateur avant publication, et seuls les événements affiliés à la FFTri sont acceptés. Les autres types sont publiés directement.')
             ->onlyOnForms();
         yield TextField::new('typeLabel', 'Type')
             ->setSortable(false)
@@ -137,8 +144,9 @@ class RaceProposalCrudController extends AbstractCrudController
             ->setNumOfRows(2)
             ->hideOnIndex()
             ->setHelp(
-                'Motif d\'un refus (montré à l\'auteur) ou d\'une mise en pause (montré à tous sur la fiche de la compétition). '
-                .'À saisir et enregistrer AVANT de cliquer sur « Refuser » ou « Mettre en pause » ; effacé à la validation et à la reprise.'
+                'Motif d\'un refus (montré à l\'auteur ; il se saisit dans le formulaire du bouton « Refuser ») ou d\'une mise en pause '
+                .'(montré à tous sur la fiche de la compétition ; à saisir et enregistrer AVANT de cliquer sur « Mettre en pause »). '
+                .'Effacé à la validation et à la reprise.'
             );
         yield DateTimeField::new('createdAt', 'Proposée le')
             ->setFormat('d MMM yyyy HH:mm')
@@ -174,6 +182,7 @@ class RaceProposalCrudController extends AbstractCrudController
         return $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
             ->add(Crud::PAGE_INDEX, $validate)
+            ->add(Crud::PAGE_INDEX, $refuse)
             ->add(Crud::PAGE_INDEX, $pause)
             ->add(Crud::PAGE_INDEX, $resume)
             ->add(Crud::PAGE_DETAIL, $validate)
@@ -198,19 +207,48 @@ class RaceProposalCrudController extends AbstractCrudController
         return $this->redirectToDetail($race);
     }
 
-    /** Refuse une proposition en attente ; son auteur en est prévenu, avec le message saisi (facultatif). */
-    public function refuse(AdminContext $context): RedirectResponse
+    /**
+     * Refuse une proposition en attente. Formulaire en deux temps : la page (GET) demande le motif, l'envoi (POST, avec
+     * jeton CSRF) refuse. L'auteur est prévenu — notification et e-mail — avec ce motif, qui s'affiche aussi sur sa
+     * proposition dans l'appli.
+     */
+    public function refuse(AdminContext $context, Request $request): Response
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $race = $this->currentRace($context);
 
-        if ($this->moderation->refuse($race, $race->getModerationNote())) {
-            $this->addFlash('success', sprintf('« %s » est refusée : seul son auteur la voit, et il en est prévenu.', $race->getName()));
-        } else {
+        if (!$race->isPending()) {
             $this->addFlash('warning', 'Seule une proposition en attente de validation peut être refusée.');
+
+            return $this->redirectToDetail($race);
         }
 
-        return $this->redirectToDetail($race);
+        // Motif saisi ; à défaut, celui qu'un administrateur aurait déjà enregistré dans « Message de l'administrateur ».
+        $note = trim((string) $request->request->get('note', $race->getModerationNote() ?? ''));
+        $error = null;
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid(self::CSRF_REFUSE.$race->getId(), (string) $request->request->get('_token'))) {
+                $error = 'Le formulaire a expiré : réessayez.';
+            } elseif (mb_strlen($note) > RaceProposal::MODERATION_NOTE_MAX) {
+                $error = sprintf('Le motif est trop long (%d caractères au plus).', RaceProposal::MODERATION_NOTE_MAX);
+            } else {
+                if ($this->moderation->refuse($race, $note)) {
+                    $this->addFlash('success', sprintf('« %s » est refusée : seul son auteur la voit, et il en est prévenu avec le motif.', $race->getName()));
+                } else {
+                    $this->addFlash('warning', 'Seule une proposition en attente de validation peut être refusée.');
+                }
+
+                return $this->redirectToDetail($race);
+            }
+        }
+
+        return $this->render('admin/race_refuse.html.twig', [
+            'race' => $race,
+            'note' => $note,
+            'error' => $error,
+            'csrfId' => self::CSRF_REFUSE.$race->getId(),
+            'noteMax' => RaceProposal::MODERATION_NOTE_MAX,
+        ]);
     }
 
     /** Suspend une compétition publiée : toujours visible, mais plus de nouvelle réponse. */

@@ -23,8 +23,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * plusieurs jours, avec une ou plusieurs épreuves — (capitaine ou non), les autres indiquent leur intérêt. Seules les
  * compétitions à venir ou en cours sont listées ; l'auteur peut modifier ou supprimer sa proposition.
  *
- * Modération : une proposition est « en attente de validation » (visible de son seul auteur) tant qu'un administrateur
- * ne l'a pas validée dans le back-office ; elle peut ensuite être mise en pause (toujours visible, réponses suspendues).
+ * Modération (triathlons seulement) : une proposition de triathlon est « en attente de validation » (visible de son seul
+ * auteur) tant qu'un administrateur ne l'a pas validée dans le back-office ; elle peut ensuite être mise en pause
+ * (toujours visible, réponses suspendues). Les autres types de course sont publiés directement.
  * Voir RaceProposalStatus / RaceProposalModerator.
  */
 #[IsGranted('ROLE_USER')]
@@ -88,7 +89,8 @@ class RaceProposalController extends AbstractController
                 return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
             }
         }
-        // En attente de validation par un administrateur (publiée d'emblée si l'auteur en est un).
+        // Triathlon : en attente de validation par un administrateur. Publiée d'emblée dans les autres cas (autre type
+        // de course, ou auteur administrateur).
         $this->moderation->submit($proposal, $this->isGranted('ROLE_ADMIN'));
         $this->em->persist($proposal);
         $this->em->flush();
@@ -108,15 +110,17 @@ class RaceProposalController extends AbstractController
             return new JsonResponse(['error' => 'Corps invalide.'], Response::HTTP_BAD_REQUEST);
         }
 
+        $previousType = $proposal->getType();
         $error = $this->apply($proposal, $payload, false);
         if ($error !== null) {
             return new JsonResponse(['error' => $error], Response::HTTP_BAD_REQUEST);
         }
         $proposal->touchUpdatedAt();
-        // Proposition refusée puis corrigée par son auteur : elle repart en validation.
-        $resubmitted = $this->moderation->resubmit($proposal);
+        // Le statut peut changer : refusée puis corrigée → revalidation ; devenue un triathlon → revalidation ;
+        // en attente mais plus un triathlon → publiée (seuls les triathlons sont modérés).
+        $statusChanged = $this->moderation->reassess($proposal, $this->isGranted('ROLE_ADMIN'), $previousType);
         $this->em->flush();
-        if ($resubmitted) {
+        if ($statusChanged) {
             $this->moderation->afterSubmit($proposal);
         }
 

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { RaceProposal, RaceProposalStatus } from '@/api/types';
 import { COLORS, RADIUS, SPACING } from '@/config';
 
-/** Mention affichée dès qu'une proposition est de type triathlon (formulaire, fiche en attente). */
+/** Mention affichée dès qu'une proposition est de type triathlon (formulaire, fiche en attente) : seuls les triathlons sont modérés. */
 export const FFTRI_NOTICE = 'Uniquement les événements affiliés à la FFTri seront acceptés.';
 
 type StatusSource = Pick<RaceProposal, 'status'>;
@@ -55,10 +55,10 @@ export function RaceStatusNotice({ race }: { race: Pick<RaceProposal, 'status' |
     <View style={[styles.box, { backgroundColor: badge.bg }]} accessibilityRole="alert">
       {status === 'pending' && (
         <>
-          <Text style={[styles.title, { color: badge.fg }]}>⏳ En attente de validation</Text>
+          <Text style={[styles.title, { color: badge.fg }]}>⏳ Soumise à validation</Text>
           <Text style={[styles.text, { color: badge.fg }]}>
             Vous seul(e) voyez cette proposition pour l'instant : un administrateur la relit avant de la publier aux
-            adhérents. Vous serez prévenu(e) de sa décision.
+            adhérents. Vous serez prévenu(e) de sa décision par notification et par e-mail.
           </Text>
           {race.type === 'triathlon' && <Text style={[styles.text, styles.bold, { color: badge.fg }]}>{FFTRI_NOTICE}</Text>}
         </>
@@ -66,7 +66,7 @@ export function RaceStatusNotice({ race }: { race: Pick<RaceProposal, 'status' |
       {status === 'refused' && (
         <>
           <Text style={[styles.title, { color: badge.fg }]}>Proposition non retenue</Text>
-          {note && <Text style={[styles.text, { color: badge.fg }]}>Motif : {note}</Text>}
+          <Text style={[styles.text, { color: badge.fg }]}>{note ? 'Motif : ' + note : "Aucun motif n'a été précisé."}</Text>
           {race.type === 'triathlon' && <Text style={[styles.text, styles.bold, { color: badge.fg }]}>{FFTRI_NOTICE}</Text>}
           <Text style={[styles.text, { color: badge.fg }]}>
             Vous pouvez la modifier : elle repartira alors en validation.

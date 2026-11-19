@@ -17,9 +17,10 @@ use Symfony\Component\Validator\Constraints as Assert;
  * `captain` = l'auteur se porte capitaine : il prend contact avec
  * l'organisateur et propose une inscription groupée.
  *
- * Modération : une proposition est d'abord « en attente de validation » (visible de son seul auteur) ; un administrateur
- * la valide (publiée) ou la refuse, puis peut la mettre en pause et la reprendre — voir RaceProposalStatus et
- * App\Service\RaceProposalModerator.
+ * Modération (triathlons seulement, voir RaceType::requiresModeration) : une proposition de triathlon est d'abord « en
+ * attente de validation » (visible de son seul auteur) ; un administrateur la valide (publiée) ou la refuse en indiquant
+ * un motif que l'auteur reçoit, puis peut la mettre en pause et la reprendre — voir RaceProposalStatus et
+ * App\Service\RaceProposalModerator. Les autres types de course sont publiés dès leur proposition.
  */
 #[ORM\Entity(repositoryClass: RaceProposalRepository::class)]
 #[ORM\Table(name: 'race_proposal')]
@@ -27,6 +28,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_race_proposal_status', columns: ['status'])]
 class RaceProposal
 {
+    /** Longueur maximale du message de l'administrateur (motif d'un refus ou d'une pause). */
+    public const MODERATION_NOTE_MAX = 500;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -82,8 +86,9 @@ class RaceProposal
     private RaceType $type = RaceType::Autre;
 
     /**
-     * Statut de modération. Une nouvelle proposition est « en attente » (sauf celles d'un administrateur, publiées
-     * d'emblée). Le défaut SQL « validated » ne sert qu'à la migration : les propositions déjà en base restent publiées.
+     * Statut de modération. Une nouvelle proposition de triathlon est « en attente » (sauf celles d'un administrateur,
+     * publiées d'emblée) ; les autres types de course sont publiés d'emblée. Le défaut SQL « validated » ne sert qu'à la
+     * migration : les propositions déjà en base restent publiées.
      */
     #[ORM\Column(length: 20, enumType: RaceProposalStatus::class, options: ['default' => 'validated'])]
     private RaceProposalStatus $status = RaceProposalStatus::Pending;
