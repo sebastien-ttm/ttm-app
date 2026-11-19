@@ -18,6 +18,8 @@
         .sub { color:var(--muted); font-size:14px; }
         .summary { margin:14px 0 4px; padding:10px 14px; background:#f8fafc; border-left:4px solid var(--navy); font-size:14px; }
         .notes { margin:10px 0 0; font-size:14px; white-space:pre-line; }
+        .attendance { margin:12px 0 0; display:grid; gap:4px; font-size:14px; }
+        .attendance .k { display:inline-block; min-width:92px; margin-right:6px; font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); }
         h2 { margin:28px 0 8px; padding-bottom:4px; border-bottom:2px solid var(--navy); font-size:16px; letter-spacing:.6px; text-transform:uppercase; color:var(--navy); }
         .point { margin:0 0 16px; padding-left:12px; border-left:3px solid var(--line); break-inside:avoid; }
         .head { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
@@ -73,6 +75,27 @@
             · {{ openActions|length }} action{{ openActions|length > 1 ? 's' : '' }} en cours
         </div>
         {% if meeting.notes %}<div class="notes">{{ meeting.notes }}</div>{% endif %}
+
+        {# Présences : présents (avec leur rôle au CoDir), excusés, invités (avec leur qualité / organisme) #}
+        {% if meeting.hasAttendance %}
+            {% set present = meeting.present %}
+            {% set excused = meeting.excused %}
+            {% set guests = meeting.guests %}
+            <div class="attendance">
+                {% if present|length > 0 %}
+                    <div><span class="k">Présent{{ present|length > 1 ? 's' : '' }} ({{ present|length }})</span>
+                        {% for a in present %}{{ a.displayName }}{% if a.boardRoleLabel %} <span class="due">({{ a.boardRoleLabel }})</span>{% endif %}{{ loop.last ? '' : ', ' }}{% endfor %}</div>
+                {% endif %}
+                {% if excused|length > 0 %}
+                    <div><span class="k">Excusé{{ excused|length > 1 ? 's' : '' }} ({{ excused|length }})</span>
+                        {% for a in excused %}{{ a.displayName }}{% if a.boardRoleLabel %} <span class="due">({{ a.boardRoleLabel }})</span>{% endif %}{{ loop.last ? '' : ', ' }}{% endfor %}</div>
+                {% endif %}
+                {% if guests|length > 0 %}
+                    <div><span class="k">Invité{{ guests|length > 1 ? 's' : '' }} ({{ guests|length }})</span>
+                        {% for a in guests %}{{ a.displayName }}{% if a.note %} <span class="due">({{ a.note }})</span>{% endif %}{{ loop.last ? '' : ', ' }}{% endfor %}</div>
+                {% endif %}
+            </div>
+        {% endif %}
 
         {% if groups is empty %}
             <p class="pending">Aucun point n'a été inscrit à l'ordre du jour.</p>

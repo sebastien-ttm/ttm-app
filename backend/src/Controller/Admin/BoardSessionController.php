@@ -6,8 +6,10 @@ use App\Entity\BoardAction;
 use App\Entity\BoardAgendaItem;
 use App\Entity\BoardItemComment;
 use App\Entity\BoardMeeting;
+use App\Entity\BoardMeetingAttendee;
 use App\Entity\User;
 use App\Message\CreateBoardMeetingCalendarEventMessage;
+use App\Enum\BoardAttendance;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
 use App\Repository\BoardActionRepository;
@@ -31,8 +33,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Comité directeur — page « En séance » (membres du CoDir et administrateurs) : l'ordre du jour d'une réunion,
  * classé par pôle, avec les commentaires / réponses des membres, la saisie des colonnes Qui répond ? /
  * Réponse-Décision, les actions confiées à un ou plusieurs porteurs (membres du CoDir ou autres adhérents) avec
- * leur échéance et leur clôture, l'ajout d'un point soulevé en séance, la modification d'un point par n'importe quel
- * membre du CoDir, la clôture de la réunion, le compte rendu imprimable (avec les actions en cours) et l'export CSV.
+ * leur échéance et leur clôture (toutes les actions, y compris celles des autres réunions, se clôturent et se
+ * rouvrent d'ici), l'ajout d'un point soulevé en séance, la modification d'un point par n'importe quel membre du
+ * CoDir, les présences (présents, excusés, invités), la clôture de la réunion, le compte rendu imprimable (avec les
+ * présences et les actions en cours) et l'export CSV.
  */
 #[IsGranted(BoardSessionVoter::ATTRIBUTE)]
 class BoardSessionController extends AbstractController
@@ -64,15 +68,16 @@ class BoardSessionController extends AbstractController
 
         $groups = [];
         $otherOpenActions = [];
+        $otherClosedActions = [];
         if ($meeting !== null) {
             foreach ($meeting->getSortedItems() as $item) {
                 $groups[$item->getPole()->label()][] = $item;
             }
-            // Actions en cours décidées lors d'autres réunions : à passer en revue (et clore) en début de séance.
-            $otherOpenActions = array_values(array_filter(
-                $this->actions->findOpen(),
-                static fn (BoardAction $a) => $a->getItem()->getMeeting()->getId() !== $meeting->getId(),
-            ));
+            // Actions décidées lors d'autres réunions : en cours (à passer en revue et clore en début de séance) et déjà
+            // clôturées (à rouvrir au besoin) — toutes les actions se clôturent et se rouvrent depuis ici.
+            $notThisMeeting = static fn (BoardAction $a) => $a->getItem()->getMeeting()->getId() !== $meeting->getId();
+            $otherOpenActions = array_values(array_filter($this->actions->findOpen(), $notThisMeeting));
+            $otherClosedActions = array_values(array_filter($this->actions->findClosed(), $notThisMeeting));
         }
 
         $codir = $this->users->findCommitteeMembers();
@@ -90,6 +95,9 @@ class BoardSessionController extends AbstractController
             'meetings' => $all,
             'groups' => $groups,
             'otherOpenActions' => $otherOpenActions,
+            'otherClosedActions' => $otherClosedActions,
+            'attendanceGroups' => $meeting !== null ? $this->attendanceGroups($meeting, $codir, $coaches) : [],
+            'attendanceStatus' => $meeting !== null ? $this->attendanceStatuses($meeting) : [],
             'poles' => BoardPole::cases(),
             'types' => BoardItemType::cases(),
             'codir' => $codir,
@@ -236,6 +244,90 @@ class BoardSessionController extends AbstractController
         $this->addFlash('success', 'Point supprimé.');
 
         return $this->backTo($meeting);
+    }
+
+    /**
+     * Présences de la réunion : membres du CoDir / entraîneurs cochés « Présent » ou « Excusé » (champs `present[]` et
+     * `excused[]`, parmi les comptes affichés `listed[]`) et invités (`guests[]` = comptes — adhérents, parents,
+     * comptes externes… —, `guest_free_name[]` / `guest_free_note[]` = personnes sans compte, avec leur qualité).
+     * Le formulaire envoie tout l'état : les présences des comptes affichés et tous les invités sont remplacés ; celles
+     * des comptes qu'il n'affiche pas sont conservées. Reprises dans le compte rendu.
+     */
+    #[Route('/admin/codir/meetings/{id}/presences', name: 'admin_board_attendance_save', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function saveAttendance(int $id, Request $request): RedirectResponse
+    {
+        $this->validateCsrf($request);
+        $meeting = $this->meetings->find($id);
+        if ($meeting === null) {
+            throw $this->createNotFoundException();
+        }
+        $listed = $this->idsFromRequest($request, 'listed', 300);
+        $present = array_flip($this->idsFromRequest($request, 'present', 300));
+        $excused = array_flip($this->idsFromRequest($request, 'excused', 300));
+        $guestIds = $this->idsFromRequest($request, 'guests', 60);
+        $users = [];
+        $wanted = array_values(array_unique([...$listed, ...$guestIds]));
+        foreach ($wanted === [] ? [] : $this->users->findBy(['id' => $wanted]) as $u) {
+            $users[$u->getId()] = $u;
+        }
+
+        // 1. Retire ce que le formulaire remplace : tous les invités, et le statut des comptes affichés.
+        $listedSet = array_flip($listed);
+        foreach ($meeting->getAttendees()->toArray() as $a) {
+            $uid = $a->getUser()?->getId();
+            if ($a->getStatus() === BoardAttendance::Guest || ($uid !== null && isset($listedSet[$uid]))) {
+                $meeting->removeAttendee($a);
+                $this->em->remove($a);
+            }
+        }
+        // 2. Présents / excusés (« Présent » l'emporte si les deux sont cochés).
+        $taken = [];
+        foreach ($listed as $uid) {
+            $user = $users[$uid] ?? null;
+            if ($user === null) {
+                continue;
+            }
+            $status = isset($present[$uid]) ? BoardAttendance::Present : (isset($excused[$uid]) ? BoardAttendance::Excused : null);
+            if ($status !== null) {
+                $this->persistAttendee(new BoardMeetingAttendee($meeting, $status, $user, ''), $meeting);
+                $taken[$uid] = true;
+            }
+        }
+        // Les présences des comptes non affichés (ancien membre…) restent : un invité ne les double pas.
+        foreach ($meeting->getAttendees() as $a) {
+            if ($a->getUser() !== null && $a->getStatus() !== BoardAttendance::Guest) {
+                $taken[$a->getUser()->getId()] = true;
+            }
+        }
+        // 3. Invités ayant un compte, puis invités sans compte (nom libre + qualité facultative).
+        foreach ($guestIds as $uid) {
+            $user = $users[$uid] ?? null;
+            if ($user !== null && !isset($taken[$uid])) {
+                $this->persistAttendee(new BoardMeetingAttendee($meeting, BoardAttendance::Guest, $user, ''), $meeting);
+                $taken[$uid] = true;
+            }
+        }
+        $names = array_values($request->request->all('guest_free_name'));
+        $notes = array_values($request->request->all('guest_free_note'));
+        foreach (array_slice($names, 0, 60) as $i => $rawName) {
+            $name = is_string($rawName) ? trim($rawName) : '';
+            if ($name === '') {
+                continue;
+            }
+            $note = isset($notes[$i]) && is_string($notes[$i]) ? $notes[$i] : null;
+            $this->persistAttendee(new BoardMeetingAttendee($meeting, BoardAttendance::Guest, null, $name, $note), $meeting);
+        }
+        $this->em->flush();
+
+        $counts = [count($meeting->getPresent()), count($meeting->getExcused()), count($meeting->getGuests())];
+        $this->addFlash('success', sprintf(
+            'Présences enregistrées : %d présent%s, %d excusé%s, %d invité%s.',
+            $counts[0], $counts[0] > 1 ? 's' : '',
+            $counts[1], $counts[1] > 1 ? 's' : '',
+            $counts[2], $counts[2] > 1 ? 's' : '',
+        ));
+
+        return $this->backTo($meeting, 'presences');
     }
 
     /** Nouvelle action sur un point, confiée à un ou plusieurs porteurs (membres du CoDir ou autres adhérents). */
@@ -459,6 +551,16 @@ class BoardSessionController extends AbstractController
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, [$meeting->getLabel().($meeting->getLocation() ? ' · '.$meeting->getLocation() : '')], ';');
+            // Présences (comme dans le compte rendu) : une ligne par statut renseigné.
+            $names = static fn (array $list, bool $withNote = false): string => implode(', ', array_map(
+                static fn (BoardMeetingAttendee $a) => $a->getDisplayName().($withNote && $a->getNote() !== null ? ' ('.$a->getNote().')' : ''),
+                $list,
+            ));
+            foreach ([['Présents', $meeting->getPresent(), false], ['Excusés', $meeting->getExcused(), false], ['Invités', $meeting->getGuests(), true]] as [$title, $list, $withNote]) {
+                if ($list !== []) {
+                    fputcsv($out, [$title.' : '.$names($list, $withNote)], ';');
+                }
+            }
             fputcsv($out, ['Sujets Pôle', 'Qui s\'exprime ?', 'Type', 'Information/Sujet/Question', 'Commentaires / réponses des membres', 'Qui répond ?', 'Réponse/Décision', 'Porteur action'], ';');
             foreach ($meeting->getSortedItems() as $i) {
                 // En fil : une réponse est préfixée de « ↳ » et du nom de l'auteur du commentaire auquel elle répond.
@@ -535,6 +637,73 @@ class BoardSessionController extends AbstractController
         }
 
         return $this->users->findBy(['id' => array_slice(array_values($ids), 0, 30)]);
+    }
+
+    /** Identifiants entiers positifs, sans doublon, d'un champ tableau du formulaire (au plus `$max`). @return list<int> */
+    private function idsFromRequest(Request $request, string $field, int $max): array
+    {
+        $ids = [];
+        foreach ($request->request->all($field) as $raw) {
+            $id = is_scalar($raw) ? (int) $raw : 0;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return array_slice(array_values($ids), 0, $max);
+    }
+
+    private function persistAttendee(BoardMeetingAttendee $attendee, BoardMeeting $meeting): void
+    {
+        $meeting->addAttendee($attendee);
+        $this->em->persist($attendee);
+    }
+
+    /**
+     * Personnes proposées dans le formulaire de présences : membres du CoDir, entraîneurs invités, puis les autres
+     * comptes déjà marqués présents / excusés (ancien membre…) pour qu'on puisse encore les modifier.
+     *
+     * @param list<User> $codir
+     * @param list<User> $coaches
+     * @return list<array{label: string, users: list<User>}>
+     */
+    private function attendanceGroups(BoardMeeting $meeting, array $codir, array $coaches): array
+    {
+        $groups = [['label' => 'Comité directeur', 'users' => $codir]];
+        if ($coaches !== []) {
+            $groups[] = ['label' => 'Entraîneurs invités', 'users' => $coaches];
+        }
+        $known = [];
+        foreach ([...$codir, ...$coaches] as $u) {
+            $known[$u->getId()] = true;
+        }
+        $others = [];
+        foreach ($meeting->getAttendees() as $a) {
+            $u = $a->getUser();
+            if ($u !== null && $a->getStatus() !== BoardAttendance::Guest && !isset($known[$u->getId()])) {
+                $others[$u->getId()] = $u;
+            }
+        }
+        if ($others !== []) {
+            $others = array_values($others);
+            usort($others, static fn (User $a, User $b) => strcasecmp($a->getNom().' '.$a->getPrenom(), $b->getNom().' '.$b->getPrenom()));
+            $groups[] = ['label' => 'Autres participants', 'users' => $others];
+        }
+
+        return $groups;
+    }
+
+    /** @return array<int, string> compte => « present » | « excused » (les invités n'y figurent pas) */
+    private function attendanceStatuses(BoardMeeting $meeting): array
+    {
+        $out = [];
+        foreach ($meeting->getAttendees() as $a) {
+            if ($a->getUser() !== null && $a->getStatus() !== BoardAttendance::Guest) {
+                $out[$a->getUser()->getId()] = $a->getStatus()->value;
+            }
+        }
+
+        return $out;
     }
 
     /**

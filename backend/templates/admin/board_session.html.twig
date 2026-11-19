@@ -58,6 +58,69 @@
             </form>
         </div>
 
+        {# Présences : membres du CODIR et entraîneurs cochés présents / excusés, invités (comptes ou personnes sans compte) — repris dans le compte rendu #}
+        {% set nbPresent = meeting.present|length %}
+        {% set nbExcused = meeting.excused|length %}
+        {% set nbGuests = meeting.guests|length %}
+        <details id="presences" style="{{ card }} padding:12px 16px; margin-bottom:16px;">
+            <summary style="cursor:pointer; font-weight:700; color:#2563eb;">
+                Présences et invités
+                <span style="font-weight:400; color:#64748b; font-size:13px;">
+                    {% if meeting.hasAttendance %}· {{ nbPresent }} présent{{ nbPresent > 1 ? 's' : '' }} · {{ nbExcused }} excusé{{ nbExcused > 1 ? 's' : '' }} · {{ nbGuests }} invité{{ nbGuests > 1 ? 's' : '' }}{% else %}· pas encore renseignées{% endif %}
+                </span>
+            </summary>
+            <form method="post" action="{{ path('admin_board_attendance_save', {id: meeting.id}) }}" style="display:grid; gap:14px; margin-top:10px;">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+
+                {% for g in attendanceGroups %}
+                    <div class="att-group">
+                        <div style="{{ label }}">{{ g.label }}
+                            <a href="#" class="att-all" style="text-transform:none; letter-spacing:0; margin-left:8px; color:#2563eb;">Tous présents</a>
+                        </div>
+                        <table style="width:100%; max-width:560px; font-size:14px; border-collapse:collapse;">
+                            {% for u in g.users %}
+                                {% set st = attendanceStatus[u.id] ?? '' %}
+                                <tr style="border-top:1px solid #f1f5f9;">
+                                    <td style="padding:4px 8px 4px 0;">
+                                        {{ u.fullName }}{% if u.boardRole %} <span style="font-size:12px; color:#64748b;">· {{ u.boardRole.label }}</span>{% endif %}
+                                        <input type="hidden" name="listed[]" value="{{ u.id }}">
+                                    </td>
+                                    <td style="padding:4px 8px; white-space:nowrap;">
+                                        <label style="display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0; font-size:13px;"><input type="checkbox" class="att-box att-present" name="present[]" value="{{ u.id }}" {{ st == 'present' ? 'checked' : '' }}> Présent</label>
+                                    </td>
+                                    <td style="padding:4px 8px; white-space:nowrap;">
+                                        <label style="display:inline-flex; gap:5px; align-items:center; cursor:pointer; margin:0; font-size:13px;"><input type="checkbox" class="att-box att-excused" name="excused[]" value="{{ u.id }}" {{ st == 'excused' ? 'checked' : '' }}> Excusé</label>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                {% endfor %}
+
+                {# Invités : un compte (adhérent, parent, compte externe…) par recherche, ou une personne sans compte saisie à la main #}
+                <div class="adh-picker" data-field="guests[]">
+                    <div style="{{ label }}">Invités · toute personne (adhérent, parent, compte externe…)</div>
+                    <div class="adh-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                        {% for a in meeting.guests %}
+                            <span class="adh-chip" style="display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3; border-radius:12px; padding:2px 4px 2px 10px; font-size:13px;">{{ a.displayName }}{% if a.note %} — {{ a.note }}{% endif %}<button type="button" class="adh-remove" title="Retirer" style="border:0; background:transparent; color:#3730a3; font-size:16px; line-height:1; cursor:pointer; padding:0 4px;">×</button>
+                                {% if a.user %}<input type="hidden" name="guests[]" value="{{ a.user.id }}">{% else %}<input type="hidden" name="guest_free_name[]" value="{{ a.displayName }}"><input type="hidden" name="guest_free_note[]" value="{{ a.note }}">{% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    <input type="search" class="adh-search" placeholder="Rechercher un compte (nom ou prénom)…" autocomplete="off" style="{{ input }} max-width:360px;">
+                    <div class="adh-results" style="display:none; margin-top:4px; max-width:360px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.1);"></div>
+                    <div style="{{ label }} margin-top:12px;">Ou une personne sans compte (intervenant extérieur…)</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                        <input type="text" class="guest-free-name" placeholder="Nom et prénom" maxlength="120" style="{{ input }} max-width:240px;">
+                        <input type="text" class="guest-free-note" placeholder="Qualité / organisme (facultatif)" maxlength="120" style="{{ input }} max-width:280px;">
+                        <button type="button" class="btn btn-secondary btn-sm guest-free-add">Ajouter l'invité</button>
+                    </div>
+                </div>
+
+                <div><button type="submit" class="btn btn-primary">Enregistrer les présences</button></div>
+            </form>
+        </details>
+
         {# Ajout d'un point à l'ordre du jour — avant la séance (préparation) comme pendant. Replié sauf si l'ordre du jour est vide #}
         <details id="ajout-point" {{ groups is empty ? 'open' : '' }} style="{{ card }} padding:12px 16px; margin-bottom:16px;">
             <summary style="cursor:pointer; font-weight:700; color:#2563eb;">+ Ajouter un sujet / une question / une information</summary>
@@ -118,6 +181,42 @@
                                         <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
                                         <input type="hidden" name="back" value="{{ meeting.id }}">
                                         <button type="submit" class="btn btn-success btn-sm">Clôturer</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </details>
+        {% endif %}
+
+        {# Actions déjà clôturées lors d'autres réunions : on peut les rouvrir (celles de cette réunion se rouvrent sous leur point) #}
+        {% if otherClosedActions|length > 0 %}
+            <details id="actions-faites" style="{{ card }} padding:12px 16px; margin-bottom:16px;">
+                <summary style="cursor:pointer; font-weight:700;">Actions clôturées des autres réunions ({{ otherClosedActions|length }})</summary>
+                <table style="width:100%; margin-top:8px; font-size:14px; border-collapse:collapse;">
+                    <thead>
+                        <tr style="{{ label }} text-align:left;">
+                            <th style="padding:4px 8px;">Action</th>
+                            <th style="padding:4px 8px;">Réunion · pôle</th>
+                            <th style="padding:4px 8px;">Porteur(s)</th>
+                            <th style="padding:4px 8px;">Clôturée le</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in otherClosedActions %}
+                            <tr style="border-top:1px solid #e2e8f0; background:#f8fafc;">
+                                <td style="padding:6px 8px; white-space:pre-line; text-decoration:line-through; color:#64748b;">{{ a.text }}</td>
+                                <td style="padding:6px 8px;">{{ a.item.meeting.label }}<br><span style="font-size:12px; color:#64748b;">{{ a.item.pole.label }}</span></td>
+                                <td style="padding:6px 8px;">{{ a.assigneeNames|join(', ') ?: '—' }}</td>
+                                <td style="padding:6px 8px; white-space:nowrap;">{{ a.closedAt|date('d/m/Y') }}</td>
+                                <td style="padding:6px 8px; text-align:right;">
+                                    <form method="post" action="{{ path('admin_board_action_close', {id: a.id}) }}" style="display:inline;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(csrf) }}">
+                                        <input type="hidden" name="back" value="{{ meeting.id }}">
+                                        <input type="hidden" name="reopen" value="1">
+                                        <button type="submit" class="btn btn-link btn-sm" style="padding:0;">Rouvrir</button>
                                     </form>
                                 </td>
                             </tr>
@@ -277,30 +376,68 @@
         var chipStyle = 'display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3; border-radius:12px; padding:2px 4px 2px 10px; font-size:13px;';
         var removeStyle = 'border:0; background:transparent; color:#3730a3; font-size:16px; line-height:1; cursor:pointer; padding:0 4px;';
 
-        function addChip(picker, id, name) {
-            var form = picker.closest('form');
-            var existing = form.querySelector('input[name="assignees[]"][value="' + id + '"]');
-            if (existing) {
-                if (existing.type === 'checkbox') { existing.checked = true; }
-                return;
-            }
+        // Pastille « × » avec ses champs cachés ([nom, valeur], …) : porteur d'action (assignees[]) ou invité (guests[], guest_free_*[]).
+        function buildChip(text, fields) {
             var chip = document.createElement('span');
             chip.className = 'adh-chip';
             chip.setAttribute('style', chipStyle);
-            chip.appendChild(document.createTextNode(name));
+            chip.appendChild(document.createTextNode(text));
             var remove = document.createElement('button');
             remove.type = 'button';
             remove.className = 'adh-remove';
             remove.title = 'Retirer';
             remove.setAttribute('style', removeStyle);
             remove.textContent = '×';
-            var hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'assignees[]';
-            hidden.value = id;
             chip.appendChild(remove);
-            chip.appendChild(hidden);
-            picker.querySelector('.adh-chips').appendChild(chip);
+            fields.forEach(function (f) {
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = f[0];
+                hidden.value = f[1];
+                chip.appendChild(hidden);
+            });
+            return chip;
+        }
+
+        function addChip(picker, id, name) {
+            var field = picker.getAttribute('data-field') || 'assignees[]';
+            var form = picker.closest('form');
+            var existing = form.querySelector('input[name="' + field + '"][value="' + id + '"]');
+            if (existing) {
+                if (existing.type === 'checkbox') { existing.checked = true; }
+                return;
+            }
+            picker.querySelector('.adh-chips').appendChild(buildChip(name, [[field, id]]));
+        }
+
+        // Invité sans compte : nom (+ qualité / organisme) saisis à la main.
+        function addFreeGuest(picker) {
+            var nameInput = picker.querySelector('.guest-free-name');
+            var noteInput = picker.querySelector('.guest-free-note');
+            var name = nameInput.value.trim();
+            if (name === '') { nameInput.focus(); return; }
+            var note = noteInput.value.trim();
+            picker.querySelector('.adh-chips').appendChild(
+                buildChip(name + (note ? ' — ' + note : ''), [['guest_free_name[]', name], ['guest_free_note[]', note]])
+            );
+            nameInput.value = '';
+            noteInput.value = '';
+            nameInput.focus();
+        }
+
+        // Présents / excusés : une seule case cochée par personne.
+        root.addEventListener('change', function (e) {
+            var box = e.target;
+            if (!box.classList || !box.classList.contains('att-box') || !box.checked) { return; }
+            var other = box.classList.contains('att-present') ? '.att-excused' : '.att-present';
+            var sibling = box.closest('tr').querySelector(other);
+            if (sibling) { sibling.checked = false; }
+        });
+
+        // Depuis un lien direct vers #presences (retour après enregistrement), le bloc replié s'ouvre.
+        if (location.hash === '#presences') {
+            var presences = document.getElementById('presences');
+            if (presences) { presences.open = true; }
         }
 
         function showResults(picker, rows) {
@@ -339,10 +476,33 @@
                 e.preventDefault();
                 var first = e.target.closest('.adh-picker').querySelector('.adh-result');
                 if (first) { first.click(); }
+            } else if (e.key === 'Enter' && (e.target.classList.contains('guest-free-name') || e.target.classList.contains('guest-free-note'))) {
+                e.preventDefault();
+                addFreeGuest(e.target.closest('.adh-picker'));
             }
         });
 
         root.addEventListener('click', function (e) {
+            // « Tous présents » : coche « Présent » pour tout le groupe (ou décoche tout si déjà fait).
+            var all = e.target.closest('.att-all');
+            if (all) {
+                e.preventDefault();
+                var group = all.closest('.att-group');
+                var presents = group.querySelectorAll('.att-present');
+                var allPresent = Array.prototype.every.call(presents, function (b) { return b.checked; });
+                Array.prototype.forEach.call(presents, function (b) {
+                    b.checked = !allPresent;
+                    if (b.checked) { b.closest('tr').querySelector('.att-excused').checked = false; }
+                });
+                all.textContent = allPresent ? 'Tous présents' : 'Tout décocher';
+                return;
+            }
+            var freeAdd = e.target.closest('.guest-free-add');
+            if (freeAdd) {
+                e.preventDefault();
+                addFreeGuest(freeAdd.closest('.adh-picker'));
+                return;
+            }
             // « Tout cocher / Tout décocher » : bascule toutes les cases du groupe (membres du CODIR, entraîneurs).
             var toggle = e.target.closest('.chk-toggle');
             if (toggle) {

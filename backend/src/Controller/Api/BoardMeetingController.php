@@ -6,6 +6,7 @@ use App\Entity\BoardAction;
 use App\Entity\BoardAgendaItem;
 use App\Entity\BoardItemComment;
 use App\Entity\BoardMeeting;
+use App\Entity\BoardMeetingAttendee;
 use App\Entity\User;
 use App\Enum\BoardItemType;
 use App\Enum\BoardPole;
@@ -35,7 +36,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *    réunions porte toutes les actions en cours, celles du membre connecté étant repérées (`isMine`), et les
  *    dernières actions faites (`doneActions`) ; un porteur acquitte (ou rouvre) ses propres actions ;
  *  - la prochaine réunion est la plus proche des réunions non closes dont l'heure n'est pas passée ; les autres
- *    sont « passées » (`isPast`).
+ *    sont « passées » (`isPast`) ;
+ *  - dans le détail d'une réunion, les présences saisies au back-office (`attendance` : présents, excusés, invités).
  */
 #[IsGranted(BoardSessionVoter::AGENDA)]
 #[Route('/api/board')]
@@ -313,6 +315,13 @@ class BoardMeetingController extends AbstractController
         $next = $this->meetings->findNextUpcoming();
         return $this->summary($m, $next) + [
             'notes' => $m->getNotes(),
+            // Présences saisies dans le back-office, reprises dans le compte rendu : présents (avec leur rôle au CoDir),
+            // excusés, invités (avec leur qualité ou organisme).
+            'attendance' => [
+                'present' => array_map(static fn (BoardMeetingAttendee $a) => ['name' => $a->getDisplayName(), 'role' => $a->getBoardRoleLabel()], $m->getPresent()),
+                'excused' => array_map(static fn (BoardMeetingAttendee $a) => ['name' => $a->getDisplayName(), 'role' => $a->getBoardRoleLabel()], $m->getExcused()),
+                'guests' => array_map(static fn (BoardMeetingAttendee $a) => ['name' => $a->getDisplayName(), 'note' => $a->getNote()], $m->getGuests()),
+            ],
             'canAddItems' => !$m->isClosed(),
             'items' => array_map(fn (BoardAgendaItem $i) => [
                 'id' => $i->getId(),

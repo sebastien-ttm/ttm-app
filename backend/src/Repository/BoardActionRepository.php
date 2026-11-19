@@ -30,6 +30,21 @@ class BoardActionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Toutes les actions clôturées, toutes réunions confondues, la plus récemment clôturée d'abord : le back-office
+     * peut en rouvrir n'importe laquelle.
+     *
+     * @return list<BoardAction>
+     */
+    public function findClosed(): array
+    {
+        /** @var list<BoardAction> $actions */
+        $actions = $this->baseQuery()->andWhere('a.closedAt IS NOT NULL')->getQuery()->getResult();
+        usort($actions, static fn (BoardAction $a, BoardAction $b) => [$b->getClosedAt(), $b->getId()] <=> [$a->getClosedAt(), $a->getId()]);
+
+        return $actions;
+    }
+
+    /**
      * Les dernières actions clôturées (« faites »), la plus récemment clôturée d'abord, toutes réunions confondues.
      *
      * @return list<BoardAction>

@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\BoardAttendance;
 use App\Repository\BoardMeetingRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -50,11 +51,16 @@ class BoardMeeting
     #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $items;
 
+    /** @var Collection<int, BoardMeetingAttendee> Présents, excusés et invités (compte rendu). */
+    #[ORM\OneToMany(targetEntity: BoardMeetingAttendee::class, mappedBy: 'meeting', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $attendees;
+
     public function __construct()
     {
         $this->scheduledAt = (new \DateTimeImmutable('+7 days'))->setTime(20, 0);
         $this->createdAt = new \DateTimeImmutable();
         $this->items = new ArrayCollection();
+        $this->attendees = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -113,6 +119,47 @@ class BoardMeeting
         $this->items->removeElement($item);
         return $this;
     }
+
+    /** @return Collection<int, BoardMeetingAttendee> */
+    public function getAttendees(): Collection { return $this->attendees; }
+
+    public function addAttendee(BoardMeetingAttendee $attendee): self
+    {
+        if (!$this->attendees->contains($attendee)) {
+            $this->attendees->add($attendee);
+        }
+        return $this;
+    }
+
+    public function removeAttendee(BoardMeetingAttendee $attendee): self
+    {
+        $this->attendees->removeElement($attendee);
+        return $this;
+    }
+
+    /**
+     * Personnes de ce statut, par ordre alphabétique (compte rendu, appli).
+     *
+     * @return list<BoardMeetingAttendee>
+     */
+    public function getAttendeesWith(BoardAttendance $status): array
+    {
+        $list = array_values(array_filter($this->attendees->toArray(), static fn (BoardMeetingAttendee $a) => $a->getStatus() === $status));
+        usort($list, static fn (BoardMeetingAttendee $a, BoardMeetingAttendee $b) => strnatcasecmp($a->getDisplayName(), $b->getDisplayName()));
+        return $list;
+    }
+
+    /** @return list<BoardMeetingAttendee> */
+    public function getPresent(): array { return $this->getAttendeesWith(BoardAttendance::Present); }
+
+    /** @return list<BoardMeetingAttendee> */
+    public function getExcused(): array { return $this->getAttendeesWith(BoardAttendance::Excused); }
+
+    /** @return list<BoardMeetingAttendee> */
+    public function getGuests(): array { return $this->getAttendeesWith(BoardAttendance::Guest); }
+
+    /** Au moins une présence, une excuse ou un invité est renseigné. */
+    public function hasAttendance(): bool { return !$this->attendees->isEmpty(); }
 
     /**
      * Points triés comme dans le compte rendu : par pôle (ordre officiel) puis par ordre d'ajout.
