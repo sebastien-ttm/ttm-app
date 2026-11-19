@@ -42,6 +42,13 @@
         table { width:100%; border-collapse:collapse; margin-top:6px; font-size:14px; }
         th, td { text-align:left; vertical-align:top; padding:6px 8px; border:1px solid var(--line); }
         th { background:#f1f5f9; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+        .signoff { margin-top:36px; display:flex; justify-content:flex-end; gap:40px; flex-wrap:wrap; break-inside:avoid; }
+        .sign { min-width:240px; text-align:center; }
+        .sign .role { font-size:12px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); }
+        .sign img { display:block; max-width:260px; max-height:100px; margin:8px auto 4px; }
+        .sign .blank { height:70px; margin:8px 0 4px; border-bottom:1px solid #94a3b8; }
+        .sign .name { font-weight:700; }
+        .toolbar .warn { color:#b45309; }
         .foot { margin-top:30px; font-size:12px; color:var(--muted); }
         @media print {
             body { background:#fff; }
@@ -60,6 +67,16 @@
         <a href="{{ path('admin_board_session', {meeting: meeting.id}) }}">← Retour à la séance</a>
         <a href="{{ path('admin_board_export', {id: meeting.id}) }}">Export CSV</a>
         <span class="hint">Le compte rendu se met à jour à chaque rechargement de la page.</span>
+        {# Rappel (écran seulement, la barre n'est pas imprimée) : la signature du secrétaire se règle sur sa fiche utilisateur #}
+        {% if secretaries is empty %}
+            <span class="hint warn">Aucun compte n'a le rôle CODIR « Secrétaire » : la signature n'est pas insérée.</span>
+        {% else %}
+            {% for s in secretaries %}
+                {% if not s.hasSignature %}
+                    <span class="hint warn">Signature de {{ s.name }} non renseignée : à ajouter dans Utilisateurs › sa fiche › « Signature (compte rendu du CODIR) ».</span>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
     </div>
 
     <main class="page">
@@ -180,6 +197,22 @@
         {% else %}
             <p class="pending">Aucune action en cours.</p>
         {% endif %}
+
+        {# Signature du secrétaire : le compte qui a le rôle CODIR « Secrétaire », avec sa signature manuscrite si elle est renseignée (sinon la place de signer à la main). #}
+        <div class="signoff">
+            {% for s in secretaries %}
+                <div class="sign">
+                    <div class="role">{{ s.role }} du Comité directeur</div>
+                    {% if s.signature %}<img src="{{ s.signature }}" alt="Signature de {{ s.name }}">{% else %}<div class="blank"></div>{% endif %}
+                    <div class="name">{{ s.name }}</div>
+                </div>
+            {% else %}
+                <div class="sign">
+                    <div class="role">Secrétaire du Comité directeur</div>
+                    <div class="blank"></div>
+                </div>
+            {% endfor %}
+        </div>
 
         <div class="foot">Document généré le {{ 'now'|date('d/m/Y à H\\hi') }} depuis l'application du club.</div>
     </main>

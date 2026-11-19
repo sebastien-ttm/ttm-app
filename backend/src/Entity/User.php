@@ -198,6 +198,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\App\Enum\BoardRole $boardRole = null;
 
     /**
+     * Nom du fichier de la signature manuscrite (var/uploads/user-signatures/, privé), null = aucune. Insérée
+     * automatiquement au bas du compte rendu du CoDir quand la personne a le rôle Secrétaire (MinutesSignatureService).
+     */
+    #[ORM\Column(name: 'signature_filename', length: 255, nullable: true)]
+    private ?string $signatureFilename = null;
+
+    /**
      * Fonction libre au sein du club (ex : « Référent triathlon jeunes »,
      * « Coach natation »). Attendue non vide pour les Entraîneurs et les
      * membres du CoDir, vide pour les autres adhérents.
@@ -896,6 +903,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getAvatarFilename(): ?string { return $this->avatarFilename; }
     public function setAvatarFilename(?string $f): self { $this->avatarFilename = $f; return $this; }
     public function hasAvatar(): bool { return $this->avatarFilename !== null; }
+
+    public function getSignatureFilename(): ?string { return $this->signatureFilename; }
+    public function setSignatureFilename(?string $f): self { $this->signatureFilename = $f; return $this; }
+    /** Affichage back-office (fiche du compte) : la signature n'est jamais montrée en clair, seulement son existence. */
+    public function getSignatureStatus(): string { return $this->signatureFilename !== null ? 'Enregistrée' : 'Non renseignée'; }
 
     public function getBoardRole(): ?\App\Enum\BoardRole { return $this->boardRole; }
     public function setBoardRole(?\App\Enum\BoardRole $role): self { $this->boardRole = $role; return $this; }

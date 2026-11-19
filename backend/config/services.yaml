@@ -18,6 +18,8 @@ parameters:
     app.uploads.avatars_dir: '%kernel.project_dir%/public/uploads/avatars'
     app.uploads.pool_badges_dir: '%kernel.project_dir%/public/uploads/pool-badges'
     app.uploads.invoice_signatures_dir: '%kernel.project_dir%/var/uploads/invoice-signatures'
+    # Signature manuscrite des comptes (celle du Secrétaire, insérée dans le compte rendu du CoDir) : privé, jamais servi par une URL.
+    app.uploads.user_signatures_dir: '%kernel.project_dir%/var/uploads/user-signatures'
     app.uploads.marketplace_dir: '%kernel.project_dir%/public/uploads/marketplace'
     # Valeur de repli si MARKETPLACE_TESTER_EMAILS n'existe dans aucun .env
     # (ex : .env.local.php généré avant l'ajout de la variable) : bourse fermée.
@@ -89,6 +91,10 @@ services:
         arguments:
             $signatureDir: '%app.uploads.invoice_signatures_dir%'
             $publicDir: '%kernel.project_dir%/public'
+
+    App\Service\Board\MinutesSignatureService:
+        arguments:
+            $signatureDir: '%app.uploads.user_signatures_dir%'
 
     App\Controller\Admin\InvoiceSettingsCrudController:
         arguments:

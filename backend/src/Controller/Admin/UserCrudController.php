@@ -11,6 +11,7 @@ use App\Filter\ProfileTypeFilter;
 use App\Message\SendGestionnaireWelcomeEmailMessage;
 use App\Repository\TrainingSeasonRepository;
 use App\Repository\UserSeasonMembershipRepository;
+use App\Service\Board\MinutesSignatureService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
@@ -28,13 +29,17 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\BooleanFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -56,6 +61,7 @@ class UserCrudController extends AbstractCrudController
         private readonly RequestStack $requestStack,
         private readonly AdminUrlGenerator $adminUrlGenerator,
         private readonly MessageBusInterface $bus,
+        private readonly MinutesSignatureService $signatures,
     ) {
     }
 
@@ -183,6 +189,26 @@ class UserCrudController extends AbstractCrudController
                 BoardRole::MembreCoDir->value => 'secondary',
             ])
             ->setHelp('Renseigné uniquement pour les élus du CODIR. Les 3 rôles Président / Trésorier / Secrétaire composent le Bureau, affiché en tête de la page trombinoscope Comité.');
+
+        // Signature manuscrite : celle du Secrétaire est insérée automatiquement au bas du compte rendu des réunions du
+        // CoDir. Envoi hors formulaire mappé (comme le mot de passe) : voir handleSignature().
+        yield Field::new('signatureUpload', 'Signature (compte rendu du CODIR)')
+            ->setFormType(FileType::class)
+            ->setFormTypeOptions([
+                'required' => false,
+                'mapped' => false,
+                'attr' => ['accept' => 'image/png,image/jpeg,image/webp'],
+            ])
+            ->onlyOnForms()
+            ->setHelp('Image de la signature manuscrite (PNG, JPG ou WebP, 2 Mo au plus ; fond transparent de préférence). '
+                .'Elle est insérée automatiquement au bas du compte rendu des réunions du CODIR quand la personne a le rôle Secrétaire. '
+                .'Un nouvel envoi remplace la signature précédente.');
+        yield Field::new('removeSignature', 'Supprimer la signature enregistrée')
+            ->setFormType(CheckboxType::class)
+            ->setFormTypeOptions(['required' => false, 'mapped' => false])
+            ->onlyOnForms();
+        yield TextField::new('signatureStatus', 'Signature (compte rendu du CODIR)')
+            ->onlyOnDetail();
 
         yield TextField::new('clubFunction', 'Fonction au club')
             ->setRequired(false)
@@ -466,6 +492,7 @@ class UserCrudController extends AbstractCrudController
             }
             $this->reconcileLinkedToUser($entityInstance);
             $this->ensureParentProfileWhenChildren($entityInstance);
+            $this->handleSignature($entityInstance, $request);
         }
         parent::persistEntity($entityManager, $entityInstance);
         // Après l'enregistrement : le compte a son identifiant, et le message d'envoi le retrouve en base.
@@ -488,10 +515,35 @@ class UserCrudController extends AbstractCrudController
             $hadGestionnaire = $this->hadGestionnaireProfile($entityManager, $entityInstance);
             $this->revokeAdminOfRemovedGestionnaire($hadGestionnaire, $entityInstance);
             $becameGestionnaire = !$hadGestionnaire && $entityInstance->isGestionnaire();
+            $this->handleSignature($entityInstance, $request);
         }
         parent::updateEntity($entityManager, $entityInstance);
         if ($becameGestionnaire) {
             $this->sendGestionnaireWelcome($entityInstance);
+        }
+    }
+
+    /**
+     * Signature manuscrite du compte (insérée au compte rendu du CoDir si la personne est Secrétaire) : un fichier
+     * envoyé remplace la précédente ; la case « Supprimer » l'efface. Le formulaire s'appelle « User » (comme pour
+     * plainPassword) et ces deux champs ne sont pas liés à l'entité.
+     */
+    private function handleSignature(User $user, ?Request $request): void
+    {
+        if ($request === null) {
+            return;
+        }
+        $file = $request->files->all('User')['signatureUpload'] ?? null;
+        if ($file instanceof UploadedFile) {
+            $error = $this->signatures->store($user, $file);
+            if ($error !== null) {
+                $this->addFlash('danger', $error);
+            }
+
+            return;
+        }
+        if (!empty($request->request->all('User')['removeSignature'])) {
+            $this->signatures->delete($user);
         }
     }
 

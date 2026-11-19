@@ -18,6 +18,7 @@ use App\Repository\BoardMeetingRepository;
 use App\Repository\UserRepository;
 use App\Security\BoardSessionVoter;
 use App\Service\Board\BoardMeetingNotifier;
+use App\Service\Board\MinutesSignatureService;
 use App\Service\Google\GoogleCalendarClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -55,6 +56,7 @@ class BoardSessionController extends AbstractController
         private readonly GoogleCalendarClient $calendar,
         private readonly MessageBusInterface $bus,
         private readonly BoardMeetingNotifier $notifier,
+        private readonly MinutesSignatureService $signatures,
     ) {
     }
 
@@ -469,7 +471,8 @@ class BoardSessionController extends AbstractController
     /**
      * Compte rendu de la réunion, généré à partir de tous les points : commentaires et réponses des membres,
      * réponse / décision de la séance, actions et porteurs, puis le tableau récapitulatif des actions.
-     * Page autonome, prête à imprimer ou à enregistrer en PDF depuis le navigateur.
+     * Page autonome, prête à imprimer ou à enregistrer en PDF depuis le navigateur. Elle se termine par la signature du
+     * Secrétaire (le compte qui a ce rôle CODIR ; sa signature se paramètre sur sa fiche utilisateur).
      */
     #[Route('/admin/codir/meetings/{id}/compte-rendu', name: 'admin_board_minutes', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function minutes(int $id): Response
@@ -494,6 +497,8 @@ class BoardSessionController extends AbstractController
             'decidedCount' => $decidedCount,
             // Suivi : toutes les actions en cours à la date de la réunion (nouvelles et reportées des précédentes).
             'openActions' => $this->actions->findOpenAsOf($meeting),
+            // Signature du ou des comptes ayant le rôle Secrétaire (insérée automatiquement au bas du document).
+            'secretaries' => $this->signatures->secretaries(),
         ]);
     }
 
