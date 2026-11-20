@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client';
 import { races as racesApi } from '@/api/resources';
 import type { RaceProposal, RaceType, RaceVote } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
+import { todayIso } from '@/components/DateField';
 import { ErrorState } from '@/components/Loading';
 import { formatRaceDate, formatRaceDates, RACE_TYPES, raceTypeMeta } from '@/components/RaceForm';
 import { isRacePublished, raceStatus, RaceStatusBadge } from '@/components/RaceStatus';
@@ -15,8 +16,11 @@ import { useRefreshOnResume } from '@/lib/useRefreshOnResume';
 import { markSeen, seenMark } from '@/lib/seenListings';
 
 type Tab = 'browse' | 'mine';
-/** Ligne de la liste : une carte, ou l'intitulé d'un bloc (mes réponses / les autres compétitions). */
-type Row = { kind: 'header'; key: string; title: string } | { kind: 'race'; key: string; item: RaceProposal };
+/** Ligne de la liste : une carte, l'intitulé d'un bloc (mes réponses / les autres compétitions) ou celui d'un mois. */
+type Row =
+  | { kind: 'header'; key: string; title: string }
+  | { kind: 'month'; key: string; title: string }
+  | { kind: 'race'; key: string; item: RaceProposal };
 
 /** Une proposition reste « Nouveau » pendant une semaine après sa publication (sa validation par un administrateur). */
 const NEW_FOR_MS = 7 * 24 * 60 * 60 * 1000;
@@ -27,14 +31,31 @@ function isNewProposal(createdAt: string): boolean {
 }
 
 /**
+ * Mois (AAAA-MM) sous lequel ranger une compétition : celui de son premier jour ; une compétition déjà commencée (sur
+ * plusieurs jours) est rangée dans le mois en cours, pas dans un mois passé qui n'a plus d'intitulé à montrer.
+ */
+function monthKeyOf(race: RaceProposal, currentMonth: string): string {
+  const key = race.raceDate.slice(0, 7);
+  return key < currentMonth ? currentMonth : key;
+}
+
+/** « 2026-12 » ↦ « Décembre 2026 ». */
+function monthTitle(key: string): string {
+  const [year, month] = key.split('-').map(Number);
+  const label = new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
  * Compétitions proposées par les adhérents (onglet Social) : onglet « À venir »
- * (toutes les propositions, la plus proche d'abord, réponse directement depuis la
+ * (toutes les propositions, rangées par mois, la plus proche d'abord, réponse directement depuis la
  * carte : « Je suis inscrit(e) » — « Partant(e) » quand un capitaine organise
  * l'inscription groupée — ou « Intéressé(e) ») + « Mes propositions » (modifier /
  * supprimer), filtrables par type (Tous, Triathlon, Trail, Cross…) ; label
  * « Nouveau » pendant une semaine. Dans « À venir », les compétitions où j'ai
- * répondu forment un bloc à part, au-dessus des autres. Même organisation que la
- * bourse aux équipements.
+ * répondu forment un bloc à part, au-dessus des autres. Dans chaque liste (et chaque
+ * bloc), un intitulé « Décembre 2026 · 3 » précède les compétitions du mois.
+ * Même organisation que la bourse aux équipements.
  *
  * Modération : « À venir » ne montre que les compétitions publiées (validées) ;
  * mes propres propositions « En attente de validation » ou « Non retenue » n'apparaissent que dans « Mes propositions ».
@@ -117,21 +138,41 @@ export default function RacesScreen() {
   const data = activeFilter === 'all' ? tabItems : tabItems.filter((r) => raceTypeMeta(r.type).value === activeFilter);
 
   // « À venir » en deux blocs : celles où j'ai répondu (inscrit(e) / partant(e) ou intéressé(e)) d'abord, puis les autres.
-  // Répondre (ou retirer sa réponse) fait passer la carte d'un bloc à l'autre. Un seul bloc : pas d'intitulés.
+  // Répondre (ou retirer sa réponse) fait passer la carte d'un bloc à l'autre. Un seul bloc : pas d'intitulés de bloc.
+  // Dans chaque bloc (et dans « Mes propositions »), les compétitions sont rangées par mois, du plus proche au plus lointain.
   const rows = useMemo<Row[]>(() => {
-    const toRows = (list: RaceProposal[]): Row[] => list.map((item) => ({ kind: 'race', key: tab + '-' + item.id, item }));
-    if (tab !== 'browse') return toRows(data);
+    const currentMonth = todayIso().slice(0, 7);
+    const toRows = (list: RaceProposal[], scope: string): Row[] => {
+      const sorted = [...list].sort((a, b) => a.raceDate.localeCompare(b.raceDate));
+      const perMonth = new Map<string, number>();
+      for (const r of sorted) {
+        const key = monthKeyOf(r, currentMonth);
+        perMonth.set(key, (perMonth.get(key) ?? 0) + 1);
+      }
+      const out: Row[] = [];
+      let month = '';
+      for (const item of sorted) {
+        const key = monthKeyOf(item, currentMonth);
+        if (key !== month) {
+          month = key;
+          out.push({ kind: 'month', key: `m-${scope}-${key}`, title: `${monthTitle(key)} · ${perMonth.get(key)}` });
+        }
+        out.push({ kind: 'race', key: tab + '-' + item.id, item });
+      }
+      return out;
+    };
+    if (tab !== 'browse') return toRows(data, 'mine');
     const answered = data.filter((r) => r.myVote);
     const others = data.filter((r) => !r.myVote);
     return [
       ...(answered.length > 0 && others.length > 0
         ? [{ kind: 'header', key: 'h-answered', title: `✅ Inscrit(e) ou intéressé(e) · ${answered.length}` } as Row]
         : []),
-      ...toRows(answered),
+      ...toRows(answered, 'answered'),
       ...(answered.length > 0 && others.length > 0
         ? [{ kind: 'header', key: 'h-others', title: `🔎 À découvrir · ${others.length}` } as Row]
         : []),
-      ...toRows(others),
+      ...toRows(others, 'others'),
     ];
   }, [tab, data]);
 
@@ -183,6 +224,7 @@ export default function RacesScreen() {
           }
           renderItem={({ item: row }) => {
             if (row.kind === 'header') return <Text style={styles.blockTitle}>{row.title}</Text>;
+            if (row.kind === 'month') return <Text style={styles.monthTitle} accessibilityRole="header">{row.title}</Text>;
             const item = row.item;
             return (
               <RaceCard
@@ -387,6 +429,10 @@ const styles = StyleSheet.create({
   chipLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
   chipLabelActive: { color: '#fff' },
   blockTitle: { fontSize: 13, fontWeight: '800', color: COLORS.secondaryDark, marginTop: SPACING.xs, marginBottom: SPACING.sm },
+  monthTitle: {
+    fontSize: 12, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6,
+    marginTop: SPACING.xs, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
   newBadge: { backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   newBadgeLabel: { fontSize: 11, fontWeight: '700', color: '#166534' },
   card: {
